@@ -5,8 +5,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "gns.exe",
-      "name": "gns.exe"
+      "projectTarget": "simulator.exe (app\\simulator.exe)",
+      "name": "simulator.exe (app\\simulator.exe)"
     }
   ]
 }

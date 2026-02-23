@@ -6,8 +6,9 @@
     ]
   },
   "ExpandedNodes": [
-    ""
+    "",
+    "\\build"
   ],
-  "SelectedNode": "\\.gitignore",
+  "SelectedNode": "\\build",
   "PreviewInSolutionExplorer": false
 }
