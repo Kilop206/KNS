@@ -1,6 +1,7 @@
 # Build directories
 build/
 out/
+_deps/
 
 # Visual Studio
 .vs/
