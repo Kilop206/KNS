@@ -1,4 +1,4 @@
-# GNS — Generic Network Simulator
+# GNS — Guilhermes Network Simulator
 
 ## Overview
 
