@@ -4,11 +4,13 @@
 
 namespace core {
 
+    class SimulationEngine;
+
     class Event {
     public:
         virtual ~Event() = default;
 
-        virtual void execute() = 0;
+        virtual void execute(SimulationEngine& engine) = 0;
 
         std::uint64_t getTimestamp() const noexcept;
         std::uint64_t getId() const noexcept;
@@ -21,7 +23,4 @@ namespace core {
         std::uint64_t id_;
         static std::uint64_t nextId_;
     };
-
-
-
 }
