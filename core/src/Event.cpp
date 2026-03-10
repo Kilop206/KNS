@@ -1,8 +1,12 @@
 #include "core/Event.h"
+#include "core/SimulationEngine.h"
 
 namespace core {
 
 	std::uint64_t core::Event::nextId_ = 0;
+
+	void Event::execute(core::SimulationEngine& engine) {
+	}
 
 	Event::Event(std::uint64_t timestamp)
 		: timestamp_(timestamp)
