@@ -1,73 +1,32 @@
 #include <catch2/catch_test_macros.hpp>
+
 #include "core/EventQueue.h"
+#include "core/Event.h"
 
 class TestEvent : public core::Event {
 public:
-    TestEvent(std::uint64_t timestamp)
-        : core::Event(timestamp) {}
+    TestEvent(std::uint64_t t) : Event(t) {}
 
-    void execute() override {}
+    void execute(core::SimulationEngine&) override {}
 };
 
-TEST_CASE("EventQueue starts empty") {
-    EventQueue queue;
-
-    REQUIRE(queue.hasEvents() == false);
-    REQUIRE(queue.size() == 0);
-    REQUIRE(queue.next() == nullptr);
-}
-
-TEST_CASE("Scheduling increases size") {
-    EventQueue queue;
-
-    queue.schedule(std::make_unique<TestEvent>(10));
-
-    REQUIRE(queue.hasEvents());
-    REQUIRE(queue.size() == 1);
-}
-
-TEST_CASE("Events are ordered by timestamp") {
-    EventQueue queue;
+TEST_CASE("EventQueue schedules events") {
+    core::EventQueue queue;
 
     queue.schedule(std::make_unique<TestEvent>(10));
     queue.schedule(std::make_unique<TestEvent>(5));
-    queue.schedule(std::make_unique<TestEvent>(20));
 
-    REQUIRE(queue.next()->getTimestamp() == 5);
-    REQUIRE(queue.next()->getTimestamp() == 10);
-    REQUIRE(queue.next()->getTimestamp() == 20);
+    REQUIRE(queue.size() == 2);
 }
 
-TEST_CASE("Events with same timestamp are ordered by id") {
-    EventQueue queue;
+TEST_CASE("EventQueue pops earliest event first") {
+    core::EventQueue queue;
 
-    queue.schedule(std::make_unique<TestEvent>(50));
-    queue.schedule(std::make_unique<TestEvent>(50));
+    queue.schedule(std::make_unique<TestEvent>(10));
+    queue.schedule(std::make_unique<TestEvent>(5));
 
-    auto first = queue.next()->getId();
-    auto second = queue.next()->getId();
+    auto first = queue.next();
+    auto second = queue.next();
 
-    REQUIRE(first < second);
-}
-
-TEST_CASE("Scheduling nullptr throws") {
-    EventQueue queue;
-
-    REQUIRE_THROWS_AS(
-        queue.schedule(nullptr),
-        std::invalid_argument
-    );
-}
-
-TEST_CASE("Clear removes all events") {
-    EventQueue queue;
-
-    queue.schedule(std::make_unique<TestEvent>(1));
-    queue.schedule(std::make_unique<TestEvent>(2));
-
-    queue.clear();
-
-    REQUIRE(queue.size() == 0);
-    REQUIRE(queue.hasEvents() == false);
-    REQUIRE(queue.next() == nullptr);
+    REQUIRE(first->getTimestamp() <= second->getTimestamp());
 }

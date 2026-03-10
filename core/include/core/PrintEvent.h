@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Event.h"
+#include "core/SimulationEngine.h"
 #include <string>
 
 namespace core {
@@ -14,6 +15,6 @@ namespace core {
 
         std::uint64_t getTimestamp() const noexcept;
 
-        void execute(SimulationEngine& engine) override;
+        void execute(core::SimulationEngine& engine) override;
     };
 }

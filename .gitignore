@@ -1,10 +1,9 @@
 # Build directories
 build/
-out/
-_deps/
-
-# Visual Studio
 .vs/
+Debug/
+Release/
+x64/
 
 # CMake
 CMakeCache.txt
@@ -20,3 +19,4 @@ Makefile
 *.dll
 *.lib
 *.pdb
+*.ilk

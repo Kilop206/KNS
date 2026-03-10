@@ -1,3 +1,4 @@
+#include <iostream>
 #include "core/PrintEvent.h"
 
 namespace core {
@@ -9,7 +10,7 @@ namespace core {
 		}
 
 	void PrintEvent::execute(SimulationEngine& engine) {
-		std::cout << "Time: " << getTime() << " - " << message << std::endl;
+		std::cout << "Time: " << getTimestamp() << " - " << message << std::endl;
 	}
 	
 }

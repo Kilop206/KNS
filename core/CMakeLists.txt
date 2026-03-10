@@ -3,7 +3,7 @@ add_library(core
     src/EventQueue.cpp
     src/SimulationClock.cpp
     src/SimulationEngine.cpp
-)
+    src/PrintEvent.cpp)
 
 target_include_directories(core
     PUBLIC
