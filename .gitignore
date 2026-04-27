@@ -22,6 +22,3 @@ Makefile
 *.lib
 *.pdb
 *.ilk
-
-# Env
-.env

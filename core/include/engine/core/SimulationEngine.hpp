@@ -18,6 +18,7 @@
 #include "network/Link.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
+#include "network/tcp/TCPConnection.hpp"
 
 namespace kns {
 
@@ -66,9 +67,15 @@ namespace kns {
         double simulation_speed_multiplier_ = 1.0;
 
         std::function<void(double)> latencyObserver_;
+
+        std::unordered_map<
+            kns::TCPConnection,
+            std::pair<int, int>,
+            kns::TCPConnectionHash,
+            kns::TCPConnectionEqual
+        > tcp_connections_;
+
     public:
-
-
         double random();
 
         double get_loss_prob() const;
@@ -120,9 +127,12 @@ namespace kns {
         void setGlobalPacketSize(float value);
 
         void setLatencyObserver(std::function<void(double)> observer);
+
         void notifyLatencyDelivered(double latency);
 
         int getGlobalPacketSize() const;
+
+        void startTCPConnection(int source, int dest);
     };
 
 }

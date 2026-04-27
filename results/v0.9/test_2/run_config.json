@@ -1,0 +1,8 @@
+{
+  "project_root": "/home/guilherme/Desktop/KNS",
+  "topologies_dir": "/home/guilherme/Desktop/KNS/app/topologies",
+  "executable": "/home/guilherme/Desktop/KNS/build/app/kns_app",
+  "max_procs": 1,
+  "timeout_seconds": null,
+  "platform": "Linux-6.17.0-22-generic-x86_64-with-glibc2.39"
+}

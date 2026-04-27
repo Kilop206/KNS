@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-04-27T14:23:03.979439",
+  "run_config": {
+    "project_root": "/home/guilherme/Desktop/KNS",
+    "topologies_dir": "/home/guilherme/Desktop/KNS/app/topologies",
+    "executable": "/home/guilherme/Desktop/KNS/build/app/kns_app",
+    "max_procs": 1,
+    "timeout_seconds": null,
+    "platform": "Linux-6.17.0-22-generic-x86_64-with-glibc2.39"
+  },
+  "topology_count": 3,
+  "successful_runs": 3,
+  "failed_runs": 0,
+  "graphs": [
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/dashboard.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/drops_over_time.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/latency_distribution.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/latency_over_time.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/drop_heatmap_mesh4.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/drop_heatmap_mesh5.png",
+    "/home/guilherme/Desktop/KNS/results/v0.9/test_2/drop_heatmap_star.png"
+  ],
+  "runs": [
+    {
+      "topology": "/home/guilherme/Desktop/KNS/app/topologies/mesh4.json",
+      "log": "/home/guilherme/Desktop/KNS/results/v0.9/test_2/run_0.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 1000,
+        "packets_dropped": 126,
+        "packets_delivered": 874,
+        "drop_rate": 0.126,
+        "delivery_rate": 0.874,
+        "duration_seconds": 42.908823955000116,
+        "throughput_pps": 20.368770789816853,
+        "latency_mean_s": 0.0076211899313501155,
+        "latency_median_s": 0.00808,
+        "latency_min_s": 0.00508,
+        "latency_max_s": 0.01008,
+        "latency_p95_s": 0.01008,
+        "latency_std_s": 0.0018437280541986462
+      }
+    },
+    {
+      "topology": "/home/guilherme/Desktop/KNS/app/topologies/mesh5.json",
+      "log": "/home/guilherme/Desktop/KNS/results/v0.9/test_2/run_1.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 1000,
+        "packets_dropped": 112,
+        "packets_delivered": 888,
+        "drop_rate": 0.112,
+        "delivery_rate": 0.888,
+        "duration_seconds": 35.123179583999445,
+        "throughput_pps": 25.282449098216986,
+        "latency_mean_s": 0.01123440765765766,
+        "latency_median_s": 0.0088,
+        "latency_min_s": 0.00508,
+        "latency_max_s": 0.0216,
+        "latency_p95_s": 0.0216,
+        "latency_std_s": 0.00572312106155082
+      }
+    },
+    {
+      "topology": "/home/guilherme/Desktop/KNS/app/topologies/star.json",
+      "log": "/home/guilherme/Desktop/KNS/results/v0.9/test_2/run_2.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 1000,
+        "packets_dropped": 1000,
+        "packets_delivered": 0,
+        "drop_rate": 1.0,
+        "delivery_rate": 0.0,
+        "duration_seconds": 36.65653424999982,
+        "throughput_pps": 0.0,
+        "latency_mean_s": null,
+        "latency_median_s": null,
+        "latency_min_s": null,
+        "latency_max_s": null,
+        "latency_p95_s": null,
+        "latency_std_s": null
+      }
+    }
+  ]
+}

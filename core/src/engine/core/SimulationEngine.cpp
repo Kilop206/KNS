@@ -13,6 +13,7 @@
 #include "engine/events/Event.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "network/Packet.hpp"
+#include "enums/TCPState.hpp"
 
 namespace kns {
 
@@ -28,8 +29,7 @@ namespace kns {
 
     // Constructor that initializes the simulation engine with a given topology
     SimulationEngine::SimulationEngine(const Topology& topology)
-    : topology_(topology)
-    {
+    : topology_(topology) {
         int n = topology_.size();
 
         routing_tables_.resize(n);
@@ -216,5 +216,13 @@ namespace kns {
 
     int SimulationEngine::getGlobalPacketSize() const {
         return globalPacketSize;
+    }
+
+    void SimulationEngine::startTCPConnection(int source, int dest) {
+        TCPConnection conn(TCPState::CLOSED,
+                           0,
+                           1,
+                           source,
+                           dest);
     }
 }
