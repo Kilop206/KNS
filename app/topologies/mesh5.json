@@ -1,5 +1,5 @@
 {
-  "nodes": 6,
+  "nodes": 5,
   "links": [
     {
       "from": 0,
@@ -31,14 +31,7 @@
     },
     {
       "from": 4,
-      "to": 5,
-      "delay": 20,
-      "bandwidth": 50,
-      "loss": 0.03
-    },
-    {
-      "from": 0,
-      "to": 5,
+      "to": 0,
       "delay": 20,
       "bandwidth": 50,
       "loss": 0.03

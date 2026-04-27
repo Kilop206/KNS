@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <stdexcept>
 
 #include "network/Link.hpp"

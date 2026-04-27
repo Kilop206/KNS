@@ -1,3 +1,0 @@
-topology,duration_s,packets_total,packets_dropped,packets_delivered,drop_rate_pct,delivery_rate_pct,throughput_pps,latency_mean_s,latency_median_s,latency_min_s,latency_max_s,latency_p95_s,latency_std_s,returncode
-mesh4.json,46.7910,373,373,0,100.00,0.00,0.00,,,,,,,0
-mesh5.json,46.1786,479,479,0,100.00,0.00,0.00,,,,,,,0

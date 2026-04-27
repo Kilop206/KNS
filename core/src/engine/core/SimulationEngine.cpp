@@ -2,9 +2,12 @@
 #include <cstddef>
 #include <queue>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <utility>
+#include <sstream>
+#include <iomanip>
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/Event.hpp"
@@ -111,10 +114,12 @@ namespace kns {
         if (link.should_drop()) {
             stats_.packets_lost++;
 
-            std::cout << "[DROPPED] Packet from " << pkt.source
-                    << " to " << pkt.destination
-                    << " at time " << now
-                    << std::endl;
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(6)
+                << "[DROPPED] Packet from " << pkt.source
+                << " to " << pkt.destination
+                << " at time " << now;
+            std::cout << oss.str() << '\n';
             return;
         }
 
@@ -134,6 +139,9 @@ namespace kns {
         );
 
         packets_in_transit.push_back(PacketTravelInfo(now, arrival_time, link.from, link.to));
+
+        // Optional debug trace.
+        // std::cout << "[SENT] Packet from " << pkt.source << " to " << pkt.destination << "\n";
 
         event_queue_.schedule(std::move(event));
     }

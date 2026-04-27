@@ -1,5 +1,7 @@
 #include <cassert>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <utility>
 
 #include "engine/events/PacketReceivedEvent.hpp"
@@ -24,16 +26,31 @@ namespace kns {
             const double latency = engine.now() - packet.creation_time;
             stats.total_latency += latency;
 
-            if (latency >= 0.0) {
-                engine.notifyLatencyDelivered(latency);
-            }
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(6)
+                << "[DELIVERED] Packet from " << packet.source
+                << " to " << packet.destination
+                << " latency=" << latency;
+            std::cout << oss.str() << '\n';
+
+            std::cout << "[LATENCY] " << std::fixed << std::setprecision(6)
+                      << latency << '\n';
+
+            engine.notifyLatencyDelivered(latency);
 
             engine.removePacketInTransit(packet.departure_time, timestamp_);
             return;
         }
 
         int next = engine.getNextHop(u, dest);
-        if (next == -1) return;
+        if (next == -1) {
+            engine.getStats().packets_lost++;
+            std::cout << "[DROPPED] Packet from " << packet.source
+                      << " to " << packet.destination
+                      << " at time " << engine.now() << '\n';
+            engine.removePacketInTransit(packet.departure_time, timestamp_);
+            return;
+        }
 
         const auto& links = engine.getTopology().getLinksFromNode(u);
 
@@ -46,7 +63,14 @@ namespace kns {
             }
         }
 
-        if (!selected_link) return;
+        if (!selected_link) {
+            engine.getStats().packets_lost++;
+            std::cout << "[DROPPED] Packet from " << packet.source
+                      << " to " << packet.destination
+                      << " at time " << engine.now() << '\n';
+            engine.removePacketInTransit(packet.departure_time, timestamp_);
+            return;
+        }
 
         engine.sendPacket(packet, *selected_link, timestamp_);
         engine.removePacketInTransit(packet.departure_time, timestamp_);
