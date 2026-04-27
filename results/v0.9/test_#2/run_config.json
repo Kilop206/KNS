@@ -1,8 +1,0 @@
-{
-  "project_root": "C:\\Users\\guilh\\Downloads\\KNS_visual_packets",
-  "topologies_dir": "C:\\Users\\guilh\\Downloads\\KNS_visual_packets\\app\\topologies",
-  "executable": "C:\\Users\\guilh\\Downloads\\KNS_visual_packets\\build\\app\\Debug\\kns_app.exe",
-  "max_procs": 1,
-  "timeout_seconds": null,
-  "platform": "Windows-11-10.0.26200-SP0"
-}

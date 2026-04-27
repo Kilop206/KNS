@@ -1,6 +1,8 @@
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
 
+#include <iostream>
+
 namespace kns {
 
 PacketGenerationEvent::PacketGenerationEvent(
@@ -28,7 +30,13 @@ void PacketGenerationEvent::execute(SimulationEngine& engine) {
 
     // Get the next hop for the packet from the source to the destination. This is done by querying the routing table in the simulation engine, which provides the next node that the packet should be forwarded to in order to reach its destination. If there is no valid next hop (i.e., if getNextHop returns -1), it means that there is no route from the source to the destination, and we can simply return without scheduling any further events, as the packet cannot be forwarded.
     int next = engine.getNextHop(source_, destination_);
-    if (next == -1) return;
+    if (next == -1) {
+        engine.getStats().packets_lost++;
+        std::cout << "[DROPPED] Packet from " << pkt.source
+                  << " to " << pkt.destination
+                  << " at time " << engine.now() << '\n';
+        return;
+    }
 
     const auto& links = engine.getTopology().getLinksFromNode(source_);
 
@@ -42,7 +50,13 @@ void PacketGenerationEvent::execute(SimulationEngine& engine) {
         }
     }
 
-    if (!selected_link) return;
+    if (!selected_link) {
+        engine.getStats().packets_lost++;
+        std::cout << "[DROPPED] Packet from " << pkt.source
+                  << " to " << pkt.destination
+                  << " at time " << engine.now() << '\n';
+        return;
+    }
 
     // Schedule the packet to be sent over the selected link. This involves calculating the arrival time of the packet at the next node based on the properties of the link (such as delay and bandwidth) and then scheduling a new PacketReceivedEvent for the next node at that calculated arrival time. The sendPacket method of the simulation engine is responsible for handling the logic of sending the packet, including updating its current node and scheduling the appropriate events.
     engine.sendPacket(pkt, *selected_link, engine.now());

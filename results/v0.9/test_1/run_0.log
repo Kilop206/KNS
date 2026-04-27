@@ -1,0 +1,1551 @@
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 0.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 0.500000
+[DROPPED] Packet from 2 to 3 at time 0.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 0.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 1.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 1.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 2.000000
+[DROPPED] Packet from 1 to 2 at time 2.100000
+[DROPPED] Packet from 2 to 3 at time 2.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 2.400000
+[DROPPED] Packet from 1 to 2 at time 2.500000
+[DROPPED] Packet from 2 to 3 at time 2.600000
+[DROPPED] Packet from 3 to 0 at time 2.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 2.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 3.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 3.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 4.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 4.400000
+[DROPPED] Packet from 1 to 2 at time 4.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 4.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 5.100000
+[DROPPED] Packet from 0 to 1 at time 5.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 5.500000
+[DROPPED] Packet from 0 to 1 at time 5.600000
+[DROPPED] Packet from 1 to 2 at time 5.700000
+[DROPPED] Packet from 2 to 3 at time 5.800000
+[DROPPED] Packet from 3 to 0 at time 5.900000
+[DROPPED] Packet from 0 to 1 at time 6.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 6.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 6.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 7.100000
+[DROPPED] Packet from 0 to 1 at time 7.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 7.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 7.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 8.100000
+[DROPPED] Packet from 2 to 3 at time 8.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 8.500000
+[DROPPED] Packet from 2 to 3 at time 8.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 8.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 9.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 9.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 10.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 10.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 10.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 10.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 11.100000
+[DROPPED] Packet from 0 to 1 at time 11.200000
+[DROPPED] Packet from 1 to 2 at time 11.300000
+[DROPPED] Packet from 2 to 3 at time 11.400000
+[DROPPED] Packet from 3 to 0 at time 11.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 11.700000
+[DROPPED] Packet from 2 to 3 at time 11.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 12.000000
+[DROPPED] Packet from 1 to 2 at time 12.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 12.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 12.900000
+[DROPPED] Packet from 2 to 3 at time 13.000000
+[DROPPED] Packet from 3 to 0 at time 13.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 13.300000
+[DROPPED] Packet from 2 to 3 at time 13.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 13.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 13.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 14.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 14.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 14.400000
+[DROPPED] Packet from 1 to 2 at time 14.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 15.200000
+[DROPPED] Packet from 1 to 2 at time 15.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 15.500000
+[DROPPED] Packet from 0 to 1 at time 15.600000
+[DROPPED] Packet from 1 to 2 at time 15.700000
+[DROPPED] Packet from 2 to 3 at time 15.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 16.200000
+[DROPPED] Packet from 3 to 0 at time 16.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 16.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 16.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 16.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 17.100000
+[DROPPED] Packet from 0 to 1 at time 17.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 17.500000
+[DROPPED] Packet from 0 to 1 at time 17.600000
+[DROPPED] Packet from 1 to 2 at time 17.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 18.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 18.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 18.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 18.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 19.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 20.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 20.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 21.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 21.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 21.500000
+[DROPPED] Packet from 0 to 1 at time 21.600000
+[DROPPED] Packet from 1 to 2 at time 21.700000
+[DROPPED] Packet from 2 to 3 at time 21.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 22.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 22.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 22.700000
+[DROPPED] Packet from 0 to 1 at time 22.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 23.100000
+[DROPPED] Packet from 0 to 1 at time 23.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 23.400000
+[DROPPED] Packet from 3 to 0 at time 23.500000
+[DROPPED] Packet from 0 to 1 at time 23.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 23.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 24.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 24.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 24.700000
+[DROPPED] Packet from 0 to 1 at time 24.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 25.200000
+[DROPPED] Packet from 1 to 2 at time 25.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 25.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 25.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 26.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 26.500000
+[DROPPED] Packet from 2 to 3 at time 26.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 26.900000
+[DROPPED] Packet from 2 to 3 at time 27.000000
+[DROPPED] Packet from 3 to 0 at time 27.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 27.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 27.700000
+[DROPPED] Packet from 2 to 3 at time 27.800000
+[DROPPED] Packet from 3 to 0 at time 27.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 28.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 28.300000
+[DROPPED] Packet from 0 to 1 at time 28.400000
+[DROPPED] Packet from 1 to 2 at time 28.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 29.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 29.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 29.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 30.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 30.600000
+[DROPPED] Packet from 3 to 0 at time 30.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 31.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 31.300000
+[DROPPED] Packet from 2 to 3 at time 31.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 31.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 32.200000
+[DROPPED] Packet from 3 to 0 at time 32.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 32.500000
+[DROPPED] Packet from 2 to 3 at time 32.600000
+[DROPPED] Packet from 3 to 0 at time 32.700000
+[DROPPED] Packet from 0 to 1 at time 32.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 33.500000
+[DROPPED] Packet from 0 to 1 at time 33.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 33.900000
+[DROPPED] Packet from 0 to 1 at time 34.000000
+[DROPPED] Packet from 1 to 2 at time 34.100000
+[DROPPED] Packet from 2 to 3 at time 34.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 34.400000
+[DROPPED] Packet from 1 to 2 at time 34.500000
+[DROPPED] Packet from 2 to 3 at time 34.600000
+[DROPPED] Packet from 3 to 0 at time 34.700000
+[DROPPED] Packet from 0 to 1 at time 34.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 35.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 35.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 35.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 36.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 36.300000
+[DROPPED] Packet from 0 to 1 at time 36.400000
+[DROPPED] Packet from 1 to 2 at time 36.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 36.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 37.100000
+[DROPPED] Packet from 0 to 1 at time 37.200000
+[DROPPED] Packet from 1 to 2 at time 37.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 37.600000
+[DROPPED] Packet from 1 to 2 at time 37.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 38.000000
+[DROPPED] Packet from 1 to 2 at time 38.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 38.400000
+[DROPPED] Packet from 1 to 2 at time 38.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 38.700000
+[DROPPED] Packet from 0 to 1 at time 38.800000
+[DROPPED] Packet from 1 to 2 at time 38.900000
+[DROPPED] Packet from 2 to 3 at time 39.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 39.300000
+[DROPPED] Packet from 2 to 3 at time 39.400000
+[DROPPED] Packet from 3 to 0 at time 39.500000
+[DROPPED] Packet from 0 to 1 at time 39.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 39.900000
+[DROPPED] Packet from 0 to 1 at time 40.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 40.500000
+[DROPPED] Packet from 2 to 3 at time 40.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 40.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 41.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 41.600000
+[DROPPED] Packet from 1 to 2 at time 41.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 41.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 42.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 42.300000
+[DROPPED] Packet from 0 to 1 at time 42.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 42.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 42.900000
+[DROPPED] Packet from 2 to 3 at time 43.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 43.400000
+[DROPPED] Packet from 3 to 0 at time 43.500000
+[DROPPED] Packet from 0 to 1 at time 43.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 43.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 44.200000
+[DROPPED] Packet from 3 to 0 at time 44.300000
+[DROPPED] Packet from 0 to 1 at time 44.400000
+[DROPPED] Packet from 1 to 2 at time 44.500000
+[DROPPED] Packet from 2 to 3 at time 44.600000
+[DROPPED] Packet from 3 to 0 at time 44.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 44.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 45.100000
+[DROPPED] Packet from 0 to 1 at time 45.200000
+[DROPPED] Packet from 1 to 2 at time 45.300000
+[DROPPED] Packet from 2 to 3 at time 45.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 45.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 46.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 46.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 47.100000
+[DROPPED] Packet from 0 to 1 at time 47.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 47.600000
+[DROPPED] Packet from 1 to 2 at time 47.700000
+[DROPPED] Packet from 2 to 3 at time 47.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 48.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 48.400000
+[DROPPED] Packet from 1 to 2 at time 48.500000
+[DROPPED] Packet from 2 to 3 at time 48.600000
+[DROPPED] Packet from 3 to 0 at time 48.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 49.000000
+[DROPPED] Packet from 3 to 0 at time 49.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 49.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 49.700000
+[DROPPED] Packet from 2 to 3 at time 49.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 50.300000
+[DROPPED] Packet from 0 to 1 at time 50.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 51.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 52.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 53.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 53.200000
+[DROPPED] Packet from 1 to 2 at time 53.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 53.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 54.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 54.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 55.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 55.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 55.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 55.700000
+[DROPPED] Packet from 2 to 3 at time 55.800000
+[DROPPED] Packet from 3 to 0 at time 55.900000
+[DROPPED] Packet from 0 to 1 at time 56.000000
+[DROPPED] Packet from 1 to 2 at time 56.100000
+[DROPPED] Packet from 2 to 3 at time 56.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 56.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 57.000000
+[DROPPED] Packet from 3 to 0 at time 57.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 57.400000
+[DROPPED] Packet from 3 to 0 at time 57.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 57.900000
+[DROPPED] Packet from 0 to 1 at time 58.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 58.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 58.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 59.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 59.400000
+[DROPPED] Packet from 3 to 0 at time 59.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 59.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 60.200000
+[DROPPED] Packet from 3 to 0 at time 60.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 60.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 60.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 61.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 61.500000
+[DROPPED] Packet from 0 to 1 at time 61.600000
+[DROPPED] Packet from 1 to 2 at time 61.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 62.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 62.500000
+[DROPPED] Packet from 2 to 3 at time 62.600000
+[DROPPED] Packet from 3 to 0 at time 62.700000
+[DROPPED] Packet from 0 to 1 at time 62.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 63.400000
+[DROPPED] Packet from 3 to 0 at time 63.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 64.000000
+[DROPPED] Packet from 1 to 2 at time 64.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 64.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 64.600000
+[DROPPED] Packet from 3 to 0 at time 64.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 64.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 65.400000
+[DROPPED] Packet from 3 to 0 at time 65.500000
+[DROPPED] Packet from 0 to 1 at time 65.600000
+[DROPPED] Packet from 1 to 2 at time 65.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 65.900000
+[DROPPED] Packet from 0 to 1 at time 66.000000
+[DROPPED] Packet from 1 to 2 at time 66.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 66.300000
+[DROPPED] Packet from 0 to 1 at time 66.400000
+[DROPPED] Packet from 1 to 2 at time 66.500000
+[DROPPED] Packet from 2 to 3 at time 66.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 66.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 67.100000
+[DROPPED] Packet from 0 to 1 at time 67.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 67.400000
+[DROPPED] Packet from 3 to 0 at time 67.500000
+[DROPPED] Packet from 0 to 1 at time 67.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 67.900000
+[DROPPED] Packet from 0 to 1 at time 68.000000
+[DROPPED] Packet from 1 to 2 at time 68.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 68.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 68.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 68.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 69.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 69.400000
+[DROPPED] Packet from 3 to 0 at time 69.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 70.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 70.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 70.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 70.700000
+[DROPPED] Packet from 0 to 1 at time 70.800000
+[DROPPED] Packet from 1 to 2 at time 70.900000
+[DROPPED] Packet from 2 to 3 at time 71.000000
+[DROPPED] Packet from 3 to 0 at time 71.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 71.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 71.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 71.800000
+[DROPPED] Packet from 3 to 0 at time 71.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 72.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 72.900000
+[DROPPED] Packet from 2 to 3 at time 73.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 73.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 73.500000
+[DROPPED] Packet from 0 to 1 at time 73.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 73.800000
+[DROPPED] Packet from 3 to 0 at time 73.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 74.200000
+[DROPPED] Packet from 3 to 0 at time 74.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 74.500000
+[DROPPED] Packet from 2 to 3 at time 74.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 74.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 75.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 75.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 75.800000
+[DROPPED] Packet from 3 to 0 at time 75.900000
+[DROPPED] Packet from 0 to 1 at time 76.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 76.800000
+[DROPPED] Packet from 1 to 2 at time 76.900000
+[DROPPED] Packet from 2 to 3 at time 77.000000
+[DROPPED] Packet from 3 to 0 at time 77.100000
+[DROPPED] Packet from 0 to 1 at time 77.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 77.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 77.800000
+[DROPPED] Packet from 3 to 0 at time 77.900000
+[DROPPED] Packet from 0 to 1 at time 78.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 78.300000
+[DROPPED] Packet from 0 to 1 at time 78.400000
+[DROPPED] Packet from 1 to 2 at time 78.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 78.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 79.100000
+[DROPPED] Packet from 0 to 1 at time 79.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 79.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 80.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 80.300000
+[DROPPED] Packet from 0 to 1 at time 80.400000
+[DROPPED] Packet from 1 to 2 at time 80.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 80.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 80.900000
+[DROPPED] Packet from 2 to 3 at time 81.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 81.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 81.600000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 81.800000
+[DROPPED] Packet from 3 to 0 at time 81.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 82.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 82.300000
+[DROPPED] Packet from 0 to 1 at time 82.400000
+[DROPPED] Packet from 1 to 2 at time 82.500000
+[DROPPED] Packet from 2 to 3 at time 82.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 82.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 83.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 83.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 83.700000
+[DROPPED] Packet from 2 to 3 at time 83.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 84.000000
+[DROPPED] Packet from 1 to 2 at time 84.100000
+[DROPPED] Packet from 2 to 3 at time 84.200000
+[DROPPED] Packet from 3 to 0 at time 84.300000
+[DROPPED] Packet from 0 to 1 at time 84.400000
+[DROPPED] Packet from 1 to 2 at time 84.500000
+[DROPPED] Packet from 2 to 3 at time 84.600000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 84.800000
+[DROPPED] Packet from 1 to 2 at time 84.900000
+[DROPPED] Packet from 2 to 3 at time 85.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 85.600000
+[DROPPED] Packet from 1 to 2 at time 85.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 85.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 86.100000
+[DROPPED] Packet from 2 to 3 at time 86.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 86.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 87.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 87.300000
+[DROPPED] Packet from 2 to 3 at time 87.400000
+[DROPPED] Packet from 3 to 0 at time 87.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 87.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 88.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 89.200000
+[DROPPED] Packet from 1 to 2 at time 89.300000
+[DROPPED] Packet from 2 to 3 at time 89.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 89.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 90.000000
+[DROPPED] Packet from 1 to 2 at time 90.100000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 90.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 90.500000
+[DROPPED] Packet from 2 to 3 at time 90.600000
+[DROPPED] Packet from 3 to 0 at time 90.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 91.000000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 91.400000
+[DROPPED] Packet from 3 to 0 at time 91.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 91.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 92.500000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 93.000000
+[DROPPED] Packet from 3 to 0 at time 93.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 93.300000
+[DROPPED] Packet from 2 to 3 at time 93.400000
+[DROPPED] Packet from 3 to 0 at time 93.500000
+[DROPPED] Packet from 0 to 1 at time 93.600000
+[DROPPED] Packet from 1 to 2 at time 93.700000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 93.900000
+[DROPPED] Packet from 0 to 1 at time 94.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 94.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 94.600000
+[DROPPED] Packet from 3 to 0 at time 94.700000
+[DROPPED] Packet from 0 to 1 at time 94.800000
+[DROPPED] Packet from 1 to 2 at time 94.900000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 95.100000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 95.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 95.600000
+[DROPPED] Packet from 1 to 2 at time 95.700000
+[DROPPED] Packet from 2 to 3 at time 95.800000
+[DROPPED] Packet from 3 to 0 at time 95.900000
+[DROPPED] Packet from 0 to 1 at time 96.000000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 96.200000
+[DROPPED] Packet from 3 to 0 at time 96.300000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 96.700000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 96.900000
+[DROPPED] Packet from 2 to 3 at time 97.000000
+[DROPPED] Packet from 3 to 0 at time 97.100000
+[DROPPED] Packet from 0 to 1 at time 97.200000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 97.400000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 97.800000
+[DROPPED] Packet from 3 to 0 at time 97.900000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DROPPED] Packet from 2 to 3 at time 98.200000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 98.400000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 98.800000
+[DELIVERED] Packet from 1 to 2 latency=0.010439
+[LATENCY] 0.010439
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
+[DROPPED] Packet from 0 to 1 at time 99.200000
+[DROPPED] Packet from 1 to 2 at time 99.300000
+[DELIVERED] Packet from 2 to 3 latency=0.008439
+[LATENCY] 0.008439
+[DROPPED] Packet from 3 to 0 at time 99.500000
+[DELIVERED] Packet from 0 to 1 latency=0.005439
+[LATENCY] 0.005439
+[DROPPED] Packet from 1 to 2 at time 99.700000
+[DROPPED] Packet from 2 to 3 at time 99.800000
+[DELIVERED] Packet from 3 to 0 latency=0.006439
+[LATENCY] 0.006439
