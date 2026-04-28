@@ -1,11 +1,18 @@
 #pragma once
 
-#include "Event.hpp"
-#include "../../network/tcp/TCPConnection.hpp"
+#include "engine/events/Event.hpp"
 
 namespace kns {
-    class TCPHandshakeEvent : public Event {
-        public:
-            void execute(TCPConnection conn);
-    };
+
+class TCPHandshakeEvent : public Event {
+public:
+    TCPHandshakeEvent(double timestamp, int source, int destination);
+
+    void execute(SimulationEngine& engine) override;
+
+private:
+    int source_;
+    int destination_;
+};
+
 }

@@ -73,3 +73,9 @@ endif()
 # --------------------------------------------------
 add_subdirectory(core)
 add_subdirectory(app)
+
+
+
+target_sources(kns_core PRIVATE
+    core/src/network/utils/PacketUtils.cpp
+)

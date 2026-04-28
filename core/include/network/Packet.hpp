@@ -2,7 +2,7 @@
 
 #include "enums/PacketType.hpp"
 
-#include <cstdio>
+#include <cstddef>
 
 namespace kns {
     class Packet {
@@ -14,22 +14,22 @@ namespace kns {
         double departure_time;
         std::size_t packet_size_bytes;
         int hop_count = 0;
-        PacketType packet_type;
-        int seq_num;
-        int ack_num;
+        PacketType packet_type = PacketType::DATA;
+        int seq_num = 0;
+        int ack_num = 0;
 
         Packet(
             int source,
             int destination,
             int current_node,
             double creation_time,
-            int packet_size_bytes
+            std::size_t packet_size_bytes
         )
             : source(source),
-            destination(destination),
-            current_node(current_node),
-            creation_time(creation_time),
-            packet_size_bytes(packet_size_bytes)
-        {}
+              destination(destination),
+              current_node(current_node),
+              creation_time(creation_time),
+              departure_time(0.0),
+              packet_size_bytes(packet_size_bytes) {}
     };
 }

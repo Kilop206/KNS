@@ -75,6 +75,8 @@ namespace kns {
             kns::TCPConnectionEqual
         > tcp_connections_;
 
+        std::function<void(const Packet&, int, int, double)> packetObserver;
+
     public:
         double random();
 
@@ -133,6 +135,12 @@ namespace kns {
         int getGlobalPacketSize() const;
 
         void startTCPConnection(int source, int dest);
+
+        void setPacketObserver(
+            std::function<void(const Packet&, int from, int to, double time)> observer
+        );
+
+        void emitPacketEvent(const Packet& p, int from, int to);
     };
 
 }

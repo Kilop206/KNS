@@ -52,10 +52,3 @@ namespace kns {
         }
     };
 }
-
-/*
-Essa classe representa uma conexão entre dois nós. 
-Ela precisa de um enum TCPState com os estados: CLOSED, SYN_SENT, SYN_RECEIVED, ESTABLISHED. 
-Ela também precisa de campos para rastrear seq_num atual, ack_num esperado, e os IDs dos dois nós envolvidos (local_node e remote_node). 
-Crie métodos que representam as transições: send_syn(), receive_syn(), send_syn_ack(), receive_syn_ack(), send_ack(), receive_ack(). 
-Cada método muda o estado interno. Por que separar em classe própria: a lógica de conexão não pertence ao SimulationEngine nem ao Packet — é uma entidade independente.*/

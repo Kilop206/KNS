@@ -13,8 +13,6 @@
 #include <limits>
 #include <memory>
 #include <numbers>
-#include <random>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,32 +21,46 @@
 #include "engine/core/SimulationState.hpp"
 #include "engine/core/Stats.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
+#include "engine/events/TCPHandshakeEvent.hpp"
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/Window.hpp"
+#include "network/Packet.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
+#include "enums/PacketType.hpp"
 
 using namespace kns;
 using namespace interface;
 
-constexpr double kBasePacketsPerMinute = 62.5;
-constexpr double kBasePacketsPerSecond  = kBasePacketsPerMinute / 6.25;
+constexpr double kBasePacketsPerSecond = 5.0;
+constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
 
-constexpr int kPacketsPerRoute   = 250;
-constexpr int kMaxTotalPackets   = 1000;
-constexpr double kVisualTravelTime = 0.8;
-constexpr double kVisualSpawnGap   = 0.12;
+constexpr int    kPacketsPerRoute   = 250;
+constexpr int    kMaxTotalPackets    = 1000;
+constexpr double kVisualTravelTime   = 1.2;
+constexpr double kVisualSpawnGap     = 0.12;
 
 // ============================================================
-// HELPER FUNCTIONS
+// HELPER STRUCTS
 // ============================================================
 
 struct PacketSpec {
     int from = -1;
     int to   = -1;
 };
+
+struct VisualPacket {
+    int from = -1;
+    int to   = -1;
+    double startTime = 0.0;
+    PacketType type = PacketType::DATA;
+};
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
 static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
     std::vector<PacketSpec> plan;
@@ -79,7 +91,7 @@ static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
     return plan;
 }
 
-void generatePackets(SimulationEngine& engine, const Topology& topo) {
+static void generatePackets(SimulationEngine& engine, const Topology& topo, double startTime = 1.0) {
     if (topo.size() <= 0) {
         return;
     }
@@ -93,14 +105,23 @@ void generatePackets(SimulationEngine& engine, const Topology& topo) {
 
     for (std::size_t i = 0; i < plan.size(); ++i) {
         engine.schedule(std::make_unique<PacketGenerationEvent>(
-            static_cast<double>(i) * generationInterval,
+            startTime + static_cast<double>(i) * generationInterval,
             plan[i].from,
-            plan[i].to
+            plan[i].to,
+            PacketType::DATA
         ));
     }
 }
 
-std::vector<std::pair<float, float>> generatePositions(
+static void scheduleDemoTraffic(SimulationEngine& engine, const Topology& topo) {
+    if (topo.size() >= 2) {
+        engine.schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
+    }
+
+    generatePackets(engine, topo, 1.0);
+}
+
+static std::vector<std::pair<float, float>> generatePositions(
     const Topology& topo,
     ImVec2 canvas_origin,
     ImVec2 canvas_size
@@ -117,7 +138,7 @@ std::vector<std::pair<float, float>> generatePositions(
     const float radius  = std::max(40.0f, 0.35f * std::min(canvas_size.x, canvas_size.y));
 
     for (int i = 0; i < topo.size(); ++i) {
-        float angle = 2.0f * std::numbers::pi_v<float> * i / topo.size();
+        const float angle = 2.0f * std::numbers::pi_v<float> * i / topo.size();
         positions.push_back({
             centerX + radius * std::cos(angle),
             centerY + radius * std::sin(angle)
@@ -127,16 +148,16 @@ std::vector<std::pair<float, float>> generatePositions(
     return positions;
 }
 
-int pickNodeAtMouse(
+static int pickNodeAtMouse(
     const std::vector<std::pair<float, float>>& positions,
     float radius
 ) {
     const ImVec2 mouse_pos = ImGui::GetMousePos();
 
     for (int i = 0; i < static_cast<int>(positions.size()); ++i) {
-        float dx    = mouse_pos.x - positions[i].first;
-        float dy    = mouse_pos.y - positions[i].second;
-        float dist2 = dx * dx + dy * dy;
+        const float dx    = mouse_pos.x - positions[i].first;
+        const float dy    = mouse_pos.y - positions[i].second;
+        const float dist2 = dx * dx + dy * dy;
 
         if (dist2 <= radius * radius) {
             return i;
@@ -146,7 +167,7 @@ int pickNodeAtMouse(
     return -1;
 }
 
-void renderStatsWindow(
+static void renderStatsWindow(
     SimulationEngine& engine,
     SimulationState&  state,
     const Stats&      stats,
@@ -198,7 +219,7 @@ void renderStatsWindow(
     ImGui::End();
 }
 
-void drawLinks(
+static void drawLinks(
     ImDrawList* draw_list,
     const Topology& topo,
     const std::vector<std::pair<float, float>>& positions
@@ -213,14 +234,14 @@ void drawLinks(
             }
 
             ImVec2 p1(positions[link.from].first, positions[link.from].second);
-            ImVec2 p2(positions[link.to  ].first, positions[link.to  ].second);
+            ImVec2 p2(positions[link.to].first, positions[link.to].second);
 
             draw_list->AddLine(p1, p2, IM_COL32(255, 255, 0, 255), 2.0f);
         }
     }
 }
 
-void drawNodes(
+static void drawNodes(
     ImDrawList* draw_list,
     const Topology& topo,
     const std::vector<std::pair<float, float>>& positions,
@@ -245,122 +266,22 @@ void drawNodes(
     }
 }
 
-void drawPackets(
+static void drawPackets(
     ImDrawList* draw_list,
-    const Topology& topo,
     const std::vector<std::pair<float, float>>& positions,
-    float speedMultiplier,
-    SimulationState state,
-    bool stepRequested,
-    bool engineHasEvents
+    double visualTime,
+    std::vector<VisualPacket>& activePackets
 ) {
-    if (topo.size() < 2 || positions.size() < 2) {
-        return;
-    }
-
-    struct VisualPacket {
-        int from = -1;
-        int to   = -1;
-        double startTime = 0.0;
-    };
-
-    static std::vector<PacketSpec> packetPlan;
-    static std::vector<VisualPacket> activePackets;
-    static bool initialized = false;
-    static std::size_t cachedTopoSignature = 0;
-    static double visualTime = 0.0;
-    static double lastRealTime = 0.0;
-    static std::size_t nextPacketIndex = 0;
-    static bool drainingPackets = false;
-    static bool finished = false;
-
-    auto computeSignature = [&topo]() -> std::size_t {
-        std::size_t sig = static_cast<std::size_t>(topo.size());
-        for (int i = 0; i < topo.size(); ++i) {
-            const auto& links = topo.getLinksFromNode(i);
-            sig ^= (static_cast<std::size_t>(links.size())
-                    + 0x9e3779b97f4a7c15ULL + (sig << 6) + (sig >> 2));
-            for (const auto& link : links) {
-                sig ^= (static_cast<std::size_t>(link.from)
-                        + 0x9e3779b97f4a7c15ULL + (sig << 6) + (sig >> 2));
-                sig ^= (static_cast<std::size_t>(link.to)
-                        + 0x9e3779b97f4a7c15ULL + (sig << 6) + (sig >> 2));
-            }
-        }
-        return sig;
-    };
-
-    const std::size_t topoSignature = computeSignature();
-    const double currentRealTime = glfwGetTime();
-
-    if (!initialized || topoSignature != cachedTopoSignature) {
-        activePackets.clear();
-        packetPlan          = buildOrderedPacketPlan(topo);
-        nextPacketIndex     = 0;
-        visualTime          = 0.0;
-        lastRealTime        = currentRealTime;
-        cachedTopoSignature = topoSignature;
-        drainingPackets     = false;
-        finished            = false;
-        initialized         = true;
-    }
-
-    if (packetPlan.empty() || finished) {
-        return;
-    }
-
-    double deltaRealTime = currentRealTime - lastRealTime;
-    if (deltaRealTime < 0.0) {
-        deltaRealTime = 0.0;
-    }
-    lastRealTime = currentRealTime;
-
-    if (!engineHasEvents) {
-        drainingPackets = true;
-    }
-
-    const bool advanceVisual =
-        (state == SimulationState::Running && engineHasEvents) ||
-        (state == SimulationState::Paused && stepRequested) ||
-        drainingPackets;
-
-    if (advanceVisual) {
-        if (state == SimulationState::Paused && stepRequested && engineHasEvents) {
-            visualTime += kVisualSpawnGap;
-        } else {
-            visualTime += deltaRealTime * static_cast<double>(speedMultiplier);
-        }
-    }
-
-    while (nextPacketIndex < packetPlan.size()) {
-        const double spawnTime = static_cast<double>(nextPacketIndex) * kVisualSpawnGap;
-        if (visualTime < spawnTime) {
-            break;
-        }
-
-        const auto& spec = packetPlan[nextPacketIndex];
-        activePackets.push_back(VisualPacket{spec.from, spec.to, spawnTime});
-        ++nextPacketIndex;
-    }
-
     activePackets.erase(
         std::remove_if(
             activePackets.begin(),
             activePackets.end(),
-            [](const VisualPacket& p) {
+            [visualTime](const VisualPacket& p) {
                 return (visualTime - p.startTime) >= kVisualTravelTime;
             }
         ),
         activePackets.end()
     );
-
-    if (!engineHasEvents &&
-        nextPacketIndex >= packetPlan.size() &&
-        activePackets.empty()) {
-        finished = true;
-        drainingPackets = false;
-        return;
-    }
 
     for (const auto& p : activePackets) {
         if (p.from < 0 || p.to < 0 ||
@@ -370,9 +291,7 @@ void drawPackets(
         }
 
         const double elapsed = visualTime - p.startTime;
-        const float t = static_cast<float>(
-            std::clamp(elapsed / kVisualTravelTime, 0.0, 1.0)
-        );
+        const float t = std::clamp(static_cast<float>(elapsed / kVisualTravelTime), 0.0f, 1.0f);
 
         const ImVec2 p1(positions[p.from].first, positions[p.from].second);
         const ImVec2 p2(positions[p.to].first, positions[p.to].second);
@@ -382,12 +301,49 @@ void drawPackets(
             p1.y + (p2.y - p1.y) * t
         );
 
-        draw_list->AddCircleFilled(pos, 5.0f, IM_COL32(0, 200, 255, 255));
-        draw_list->AddCircle(pos, 7.0f, IM_COL32(255, 255, 255, 255), 18, 1.5f);
+        switch (p.type) {
+            case PacketType::SYN:
+                draw_list->AddCircleFilled(pos, 6.0f, IM_COL32(0, 150, 255, 255));
+                draw_list->AddCircle(pos, 9.0f, IM_COL32(255, 255, 255, 255), 18, 1.5f);
+                break;
+
+            case PacketType::SYN_ACK:
+                draw_list->AddCircleFilled(pos, 6.0f, IM_COL32(180, 0, 255, 255));
+                draw_list->AddCircle(pos, 9.0f, IM_COL32(255, 255, 255, 255), 18, 1.5f);
+                draw_list->AddLine(
+                    ImVec2(pos.x - 4.0f, pos.y - 4.0f),
+                    ImVec2(pos.x + 4.0f, pos.y + 4.0f),
+                    IM_COL32(255, 255, 255, 255),
+                    1.5f
+                );
+                draw_list->AddLine(
+                    ImVec2(pos.x + 4.0f, pos.y - 4.0f),
+                    ImVec2(pos.x - 4.0f, pos.y + 4.0f),
+                    IM_COL32(255, 255, 255, 255),
+                    1.5f
+                );
+                break;
+
+            case PacketType::ACK:
+                draw_list->AddCircleFilled(pos, 4.5f, IM_COL32(0, 255, 120, 255));
+                break;
+
+            case PacketType::DATA:
+                draw_list->AddRectFilled(
+                    ImVec2(pos.x - 4.0f, pos.y - 4.0f),
+                    ImVec2(pos.x + 4.0f, pos.y + 4.0f),
+                    IM_COL32(255, 255, 255, 255)
+                );
+                break;
+
+            default:
+                draw_list->AddCircleFilled(pos, 4.0f, IM_COL32(200, 200, 200, 255));
+                break;
+        }
     }
 }
 
-void renderSelectedNodePanel(
+static void renderSelectedNodePanel(
     int selected_node,
     const std::vector<Routing::RoutingEntry>& routingTable
 ) {
@@ -476,12 +432,10 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
 }
 
 static int renderNetworkPanel(
-    const Topology&   topo,
-    int               selected_node,
-    SimulationState   state,
-    float             speedMultiplier,
-    bool              stepRequested,
-    bool              engineHasEvents
+    const Topology& topo,
+    int selected_node,
+    double visualTime,
+    std::vector<VisualPacket>& activePackets
 ) {
     ImGui::Begin("Network");
 
@@ -510,11 +464,11 @@ static int renderNetworkPanel(
     if (topo.size() > 0) {
         drawLinks(draw_list, topo, positions);
         drawNodes(draw_list, topo, positions, selected_node);
-        drawPackets(draw_list, topo, positions, speedMultiplier, state, stepRequested, engineHasEvents);
+        drawPackets(draw_list, positions, visualTime, activePackets);
     }
 
     ImGui::InvisibleButton("network_canvas", canvas_sz);
-    bool hovered = ImGui::IsItemHovered();
+    const bool hovered = ImGui::IsItemHovered();
 
     int clicked_node = -1;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -540,7 +494,24 @@ static void renderConfigWindow() {
     ImGui::End();
 }
 
-void visualizeWindow(
+static void registerPacketObserver(
+    SimulationEngine& engine,
+    std::vector<VisualPacket>& activePackets,
+    double& visualTime
+) {
+    engine.setPacketObserver(
+        [&activePackets, &visualTime](const Packet& p, int from, int to, double /*time*/) {
+            activePackets.push_back(VisualPacket{
+                from,
+                to,
+                visualTime,
+                p.packet_type
+            });
+        }
+    );
+}
+
+static void visualizeWindow(
     SimulationEngine& engine,
     Topology&         topo,
     SimulationState&  state,
@@ -548,14 +519,19 @@ void visualizeWindow(
     CircularBuffer&   buffer,
     int&              packetSize
 ) {
+    static std::vector<VisualPacket> activePackets;
+    static double visualTime = 0.0;
+
+    registerPacketObserver(engine, activePackets, visualTime);
+
     int selected_node = -1;
     std::vector<Routing::RoutingEntry> routingTable;
     Routing routing;
 
-    static bool firstFrame      = true;
-    static bool dock_initialized = false;
-    static double lastRealTime  = glfwGetTime();
-    static double simBudget      = 0.0;
+    static bool firstFrame       = true;
+    static bool dock_initialized  = false;
+    static double lastRealTime    = glfwGetTime();
+    static double simBudget       = 0.0;
 
     float lossProb        = 0.0f;
     float speedMultiplier = 1.0f;
@@ -566,7 +542,8 @@ void visualizeWindow(
         lastRealTime = currentRealTime;
 
         if (state == SimulationState::Running) {
-            simBudget += deltaRealTime * speedMultiplier;
+            visualTime += deltaRealTime * speedMultiplier;
+            simBudget  += deltaRealTime * speedMultiplier;
 
             while (engine.hasEvents()) {
                 const double nextEventTime = engine.peekNextEventTime();
@@ -574,7 +551,7 @@ void visualizeWindow(
                     break;
                 }
 
-                const double before   = engine.now();
+                const double before = engine.now();
                 engine.processEvent();
                 const double advanced = engine.now() - before;
                 simBudget = std::max(0.0, simBudget - advanced);
@@ -605,13 +582,22 @@ void visualizeWindow(
         bool stepRequested = false;
         bool engineHasEventsNow = engine.hasEvents();
 
-        renderStatsWindow(engine, state, engine.getStats(), buffer,
-                        packetSize, lossProb, speedMultiplier,
-                        stepRequested, engineHasEventsNow);
+        renderStatsWindow(
+            engine,
+            state,
+            engine.getStats(),
+            buffer,
+            packetSize,
+            lossProb,
+            speedMultiplier,
+            stepRequested,
+            engineHasEventsNow
+        );
 
         if (stepRequested && state == SimulationState::Paused && engine.hasEvents()) {
             engine.processEvent();
             simBudget = 0.0;
+            visualTime += 0.05;
         }
 
         engineHasEventsNow = engine.hasEvents();
@@ -625,15 +611,13 @@ void visualizeWindow(
         int clicked_node = renderNetworkPanel(
             topo,
             selected_node,
-            state,
-            speedMultiplier,
-            stepRequested,
-            engineHasEventsNow
+            visualTime,
+            activePackets
         );
 
         if (clicked_node != -1) {
             selected_node = clicked_node;
-            routingTable  = routing.buildRoutingTable(topo, selected_node);
+            routingTable = routing.buildRoutingTable(topo, selected_node);
         }
 
         renderSelectedNodePanel(selected_node, routingTable);
@@ -649,18 +633,23 @@ void visualizeWindow(
                     topo = TopologyLoader::load_topology(completePath);
 
                     engine = SimulationEngine(topo);
+                    activePackets.clear();
+                    visualTime = 0.0;
+
+                    registerPacketObserver(engine, activePackets, visualTime);
+
                     engine.setGlobalPacketSize(packetSize);
                     engine.setGlobalLossProb(lossProb);
                     engine.setLatencyObserver([&buffer](double lat) {
                         buffer.addLatencyToBuffer(static_cast<float>(lat));
                     });
 
-                    generatePackets(engine, topo);
+                    scheduleDemoTraffic(engine, topo);
 
                     simBudget    = 0.0;
                     lastRealTime = glfwGetTime();
 
-                    state         = SimulationState::Running;
+                    state = SimulationState::Running;
                     selected_node = -1;
                     routingTable.clear();
                 } catch (const std::exception& e) {
@@ -678,7 +667,7 @@ void visualizeWindow(
     }
 }
 
-void shutdownWindow(GLFWwindow* window) {
+static void shutdownWindow(GLFWwindow* window) {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -712,7 +701,7 @@ int main(int argc, char* argv[]) {
     engine.setGlobalPacketSize(packetSize);
     engine.setGlobalLossProb(0.0f);
 
-    generatePackets(engine, topo);
+    scheduleDemoTraffic(engine, topo);
 
     Window      windowMethods;
     GLFWwindow* window = windowMethods.generate_window();
