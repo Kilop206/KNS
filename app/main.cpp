@@ -54,7 +54,8 @@ struct PacketSpec {
 struct VisualPacket {
     int from = -1;
     int to   = -1;
-    double startTime = 0.0;
+    double sim_start_time;
+    double sim_end_time;
     PacketType type = PacketType::DATA;
 };
 
@@ -277,7 +278,7 @@ static void drawPackets(
             activePackets.begin(),
             activePackets.end(),
             [visualTime](const VisualPacket& p) {
-                return (visualTime - p.startTime) >= kVisualTravelTime;
+                return (visualTime - p.sim_end_time) >= kVisualTravelTime;
             }
         ),
         activePackets.end()
@@ -290,7 +291,7 @@ static void drawPackets(
             continue;
         }
 
-        const double elapsed = visualTime - p.startTime;
+        const double elapsed = visualTime - p.sim_start_time;
         const float t = std::clamp(static_cast<float>(elapsed / kVisualTravelTime), 0.0f, 1.0f);
 
         const ImVec2 p1(positions[p.from].first, positions[p.from].second);
@@ -497,14 +498,16 @@ static void renderConfigWindow() {
 static void registerPacketObserver(
     SimulationEngine& engine,
     std::vector<VisualPacket>& activePackets,
-    double& visualTime
+    double& visualTime,
+    double& arrival
 ) {
     engine.setPacketObserver(
-        [&activePackets, &visualTime](const Packet& p, int from, int to, double /*time*/) {
+        [&activePackets, &visualTime](const Packet& p, int from, int to, double now, double arrival) {
             activePackets.push_back(VisualPacket{
                 from,
                 to,
-                visualTime,
+                now,
+                arrival,
                 p.packet_type
             });
         }
@@ -522,7 +525,7 @@ static void visualizeWindow(
     static std::vector<VisualPacket> activePackets;
     static double visualTime = 0.0;
 
-    registerPacketObserver(engine, activePackets, visualTime);
+    registerPacketObserver(engine, activePackets, visualTime, engine.compute_arrival_ti);
 
     int selected_node = -1;
     std::vector<Routing::RoutingEntry> routingTable;

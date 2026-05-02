@@ -93,7 +93,9 @@ namespace kns {
 
         const int next_node = link.getOtherNode(pkt.current_node);
 
-        emitPacketEvent(pkt, pkt.current_node, next_node);
+        double arrival_time = compute_arrival_time(pkt, link, now);
+
+        emitPacketEvent(pkt, pkt.current_node, next_node, now, arrival_time);
 
         if (link.should_drop()) {
             stats_.packets_lost++;
@@ -106,8 +108,6 @@ namespace kns {
             std::cout << oss.str() << '\n';
             return;
         }
-
-        double arrival_time = compute_arrival_time(pkt, link, now);
 
         Packet new_pkt = pkt;
         new_pkt.current_node = next_node;
@@ -198,14 +198,14 @@ namespace kns {
     }
 
     void SimulationEngine::setPacketObserver(
-        std::function<void(const Packet&, int, int, double)> observer
+        std::function<void(const Packet&, int, int, double, double)> observer
     ) {
         packetObserver = std::move(observer);
     }
 
-    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to) {
+    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time) {
         if (packetObserver) {
-            packetObserver(p, from, to, now());
+            packetObserver(p, from, to, departure_time, arrival_time);
         }
     }
 }

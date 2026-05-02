@@ -2,17 +2,23 @@
 
 #include "engine/events/Event.hpp"
 
+#include <cstdint>
+
 namespace kns {
 
-class TCPHandshakeEvent : public Event {
-public:
-    TCPHandshakeEvent(double timestamp, int source, int destination);
+    class SimulationEngine;
 
-    void execute(SimulationEngine& engine) override;
+    class TCPHandshakeEvent : public Event {
+    public:
+        TCPHandshakeEvent(double timestamp, int source, int destination);
 
-private:
-    int source_;
-    int destination_;
-};
+        void execute(SimulationEngine& engine) override;
+
+    private:
+        int source_;
+        int destination_;
+        uint32_t seq_num;
+        uint32_t ack_num;
+    };
 
 }

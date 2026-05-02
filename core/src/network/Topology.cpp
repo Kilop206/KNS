@@ -14,6 +14,12 @@ namespace kns {
 
 		// Add the link to the adjacency list of the 'from' node
 		adjacency_list[link.from].push_back(link);
+
+		Link reverse_link(link);
+		reverse_link.to = link.from;
+		reverse_link.from = link.to;
+
+		adjacency_list[link.to].push_back(reverse_link);
 	}
 
 	// Method to retrieve the list of links originating from a given node

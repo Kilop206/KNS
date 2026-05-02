@@ -2,6 +2,7 @@
 build/
 .vs/
 .vscode/
+.idea/
 Debug/
 Release/
 x64/

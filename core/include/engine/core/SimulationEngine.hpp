@@ -75,7 +75,7 @@ namespace kns {
             kns::TCPConnectionEqual
         > tcp_connections_;
 
-        std::function<void(const Packet&, int, int, double)> packetObserver;
+        std::function<void(const Packet&, int, int, double, double)> packetObserver;
 
     public:
         double random();
@@ -137,10 +137,10 @@ namespace kns {
         void startTCPConnection(int source, int dest);
 
         void setPacketObserver(
-            std::function<void(const Packet&, int from, int to, double time)> observer
+            std::function<void(const Packet&, int from, int to, double departure_time, double arrival_time)> observer
         );
 
-        void emitPacketEvent(const Packet& p, int from, int to);
+        void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
     };
 
 }
