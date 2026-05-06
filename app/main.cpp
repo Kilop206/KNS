@@ -497,6 +497,22 @@ static void renderConfigWindow() {
     ImGui::End();
 }
 
+static void registerPacketObserver(
+    SimulationEngine& engine,
+    std::vector<VisualPacket>& activePackets
+) {
+    engine.setPacketObserver(
+        [&activePackets](const Packet& p, int from, int to, double now, double arrivalTime) {
+            activePackets.push_back(VisualPacket{
+                from,
+                to,
+                now,
+                arrivalTime,
+                p.packet_type
+            });
+        }
+    );
+}
 
 static void visualizeWindow(
     SimulationEngine& engine,
