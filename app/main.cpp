@@ -279,7 +279,7 @@ static void drawPackets(
             activePackets.begin(),
             activePackets.end(),
             [simNow](const VisualPacket& p) {
-                return (simNow - p.sim_end_time) >= kVisualTravelTime;
+                return simNow >= p.sim_end_time;
             }
         ),
         activePackets.end()
@@ -499,7 +499,8 @@ static void renderConfigWindow() {
 
 static void registerPacketObserver(
     SimulationEngine& engine,
-    std::vector<VisualPacket>& activePackets
+    std::vector<VisualPacket>& activePackets,
+    double& arrivalTime
 ) {
     engine.setPacketObserver(
         [&activePackets](const Packet& p, int from, int to, double now, double arrivalTime) {
@@ -524,6 +525,7 @@ static void visualizeWindow(
 ) {
     static std::vector<VisualPacket> activePackets;
     static double visualTime = 0.0;
+    static double smoothSimNow = 0.0;
 
     registerPacketObserver(engine, activePackets, visualTime);
 
@@ -546,6 +548,10 @@ static void visualizeWindow(
 
         if (state == SimulationState::Running) {
             visualTime += deltaRealTime * speedMultiplier;
+
+            double ratio = (visualTime > 0.0) ? (engine.now() / visualTime) : 1.0;
+            smoothSimNow += deltaRealTime * ratio;
+
             simBudget  += deltaRealTime * speedMultiplier;
 
             while (engine.hasEvents()) {
