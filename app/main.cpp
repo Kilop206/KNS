@@ -271,14 +271,15 @@ static void drawPackets(
     ImDrawList* draw_list,
     const std::vector<std::pair<float, float>>& positions,
     double visualTime,
-    std::vector<VisualPacket>& activePackets
+    std::vector<VisualPacket>& activePackets,
+    double simNow
 ) {
     activePackets.erase(
         std::remove_if(
             activePackets.begin(),
             activePackets.end(),
-            [visualTime](const VisualPacket& p) {
-                return (visualTime - p.sim_end_time) >= kVisualTravelTime;
+            [simNow](const VisualPacket& p) {
+                return (simNow - p.sim_end_time) >= kVisualTravelTime;
             }
         ),
         activePackets.end()
@@ -291,8 +292,8 @@ static void drawPackets(
             continue;
         }
 
-        const double elapsed = visualTime - p.sim_start_time;
-        const float t = std::clamp(static_cast<float>(elapsed / kVisualTravelTime), 0.0f, 1.0f);
+        const double elapsed = simNow - p.sim_start_time;
+        const float t = std::clamp(static_cast<float>(elapsed / (p.sim_end_time - p.sim_start_time)), 0.0f, 1.0f);
 
         const ImVec2 p1(positions[p.from].first, positions[p.from].second);
         const ImVec2 p2(positions[p.to].first, positions[p.to].second);
@@ -436,7 +437,8 @@ static int renderNetworkPanel(
     const Topology& topo,
     int selected_node,
     double visualTime,
-    std::vector<VisualPacket>& activePackets
+    std::vector<VisualPacket>& activePackets,
+    double simNow
 ) {
     ImGui::Begin("Network");
 
@@ -465,7 +467,7 @@ static int renderNetworkPanel(
     if (topo.size() > 0) {
         drawLinks(draw_list, topo, positions);
         drawNodes(draw_list, topo, positions, selected_node);
-        drawPackets(draw_list, positions, visualTime, activePackets);
+        drawPackets(draw_list, positions, visualTime, activePackets, simNow);
     }
 
     ImGui::InvisibleButton("network_canvas", canvas_sz);
@@ -495,24 +497,6 @@ static void renderConfigWindow() {
     ImGui::End();
 }
 
-static void registerPacketObserver(
-    SimulationEngine& engine,
-    std::vector<VisualPacket>& activePackets,
-    double& visualTime,
-    double& arrival
-) {
-    engine.setPacketObserver(
-        [&activePackets, &visualTime](const Packet& p, int from, int to, double now, double arrival) {
-            activePackets.push_back(VisualPacket{
-                from,
-                to,
-                now,
-                arrival,
-                p.packet_type
-            });
-        }
-    );
-}
 
 static void visualizeWindow(
     SimulationEngine& engine,
@@ -525,7 +509,7 @@ static void visualizeWindow(
     static std::vector<VisualPacket> activePackets;
     static double visualTime = 0.0;
 
-    registerPacketObserver(engine, activePackets, visualTime, engine.compute_arrival_ti);
+    registerPacketObserver(engine, activePackets, visualTime);
 
     int selected_node = -1;
     std::vector<Routing::RoutingEntry> routingTable;
@@ -615,7 +599,8 @@ static void visualizeWindow(
             topo,
             selected_node,
             visualTime,
-            activePackets
+            activePackets,
+            engine.now()
         );
 
         if (clicked_node != -1) {
