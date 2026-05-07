@@ -499,12 +499,11 @@ static void renderConfigWindow() {
 
 static void registerPacketObserver(
     SimulationEngine& engine,
-    std::vector<VisualPacket>& activePackets,
-    double& arrivalTime
+    std::vector<VisualPacket>& pendingPackets
 ) {
     engine.setPacketObserver(
-        [&activePackets](const Packet& p, int from, int to, double now, double arrivalTime) {
-            activePackets.push_back(VisualPacket{
+        [&pendingPackets](const Packet& p, int from, int to, double now, double arrivalTime) {
+            pendingPackets.push_back(VisualPacket{
                 from,
                 to,
                 now,
@@ -524,10 +523,11 @@ static void visualizeWindow(
     int&              packetSize
 ) {
     static std::vector<VisualPacket> activePackets;
+    static std::vector<VisualPacket> pendingPackets;
     static double visualTime = 0.0;
     static double smoothSimNow = 0.0;
 
-    registerPacketObserver(engine, activePackets, visualTime);
+    registerPacketObserver(engine, pendingPackets);
 
     int selected_node = -1;
     std::vector<Routing::RoutingEntry> routingTable;
@@ -617,12 +617,22 @@ static void visualizeWindow(
 
         renderConfigWindow();
 
+        auto it = pendingPackets.begin();
+        while (it != pendingPackets.end()) {
+            if (smoothSimNow >= it->sim_start_time) {
+                activePackets.push_back(*it);
+                it = pendingPackets.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         int clicked_node = renderNetworkPanel(
             topo,
             selected_node,
             visualTime,
             activePackets,
-            engine.now()
+            smoothSimNow
         );
 
         if (clicked_node != -1) {
@@ -644,9 +654,10 @@ static void visualizeWindow(
 
                     engine = SimulationEngine(topo);
                     activePackets.clear();
+                    pendingPackets.clear();
                     visualTime = 0.0;
 
-                    registerPacketObserver(engine, activePackets, visualTime);
+                    registerPacketObserver(engine, pendingPackets);
 
                     engine.setGlobalPacketSize(packetSize);
                     engine.setGlobalLossProb(lossProb);
