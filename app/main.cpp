@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -16,6 +15,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <thread>
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -56,6 +56,7 @@ struct VisualPacket {
     int to   = -1;
     double sim_start_time;
     double sim_end_time;
+    double visual_start_time;
     PacketType type = PacketType::DATA;
 };
 
@@ -271,15 +272,14 @@ static void drawPackets(
     ImDrawList* draw_list,
     const std::vector<std::pair<float, float>>& positions,
     double visualTime,
-    std::vector<VisualPacket>& activePackets,
-    double simNow
+    std::vector<VisualPacket>& activePackets
 ) {
     activePackets.erase(
         std::remove_if(
             activePackets.begin(),
             activePackets.end(),
-            [simNow](const VisualPacket& p) {
-                return simNow >= p.sim_end_time;
+            [visualTime](const VisualPacket& p) {
+                return (visualTime - p.visual_start_time) >= kVisualTravelTime;
             }
         ),
         activePackets.end()
@@ -292,8 +292,8 @@ static void drawPackets(
             continue;
         }
 
-        const double elapsed = simNow - p.sim_start_time;
-        const float t = std::clamp(static_cast<float>(elapsed / (p.sim_end_time - p.sim_start_time)), 0.0f, 1.0f);
+        const double elapsed = visualTime - p.visual_start_time;
+        const float t = std::clamp(static_cast<float>(elapsed / kVisualTravelTime), 0.0f, 1.0f);
 
         const ImVec2 p1(positions[p.from].first, positions[p.from].second);
         const ImVec2 p2(positions[p.to].first, positions[p.to].second);
@@ -437,8 +437,7 @@ static int renderNetworkPanel(
     const Topology& topo,
     int selected_node,
     double visualTime,
-    std::vector<VisualPacket>& activePackets,
-    double simNow
+    std::vector<VisualPacket>& activePackets
 ) {
     ImGui::Begin("Network");
 
@@ -467,7 +466,7 @@ static int renderNetworkPanel(
     if (topo.size() > 0) {
         drawLinks(draw_list, topo, positions);
         drawNodes(draw_list, topo, positions, selected_node);
-        drawPackets(draw_list, positions, visualTime, activePackets, simNow);
+        drawPackets(draw_list, positions, visualTime, activePackets);
     }
 
     ImGui::InvisibleButton("network_canvas", canvas_sz);
@@ -508,7 +507,8 @@ static void registerPacketObserver(
                 to,
                 now,
                 arrivalTime,
-                p.packet_type
+                0.0,
+                p.packet_type,
             });
         }
     );
@@ -525,7 +525,6 @@ static void visualizeWindow(
     static std::vector<VisualPacket> activePackets;
     static std::vector<VisualPacket> pendingPackets;
     static double visualTime = 0.0;
-    static double smoothSimNow = 0.0;
 
     registerPacketObserver(engine, pendingPackets);
 
@@ -536,7 +535,6 @@ static void visualizeWindow(
     static bool firstFrame       = true;
     static bool dock_initialized  = false;
     static double lastRealTime    = glfwGetTime();
-    static double simBudget       = 0.0;
 
     float lossProb        = 0.0f;
     float speedMultiplier = 1.0f;
@@ -549,22 +547,7 @@ static void visualizeWindow(
         if (state == SimulationState::Running) {
             visualTime += deltaRealTime * speedMultiplier;
 
-            double ratio = (visualTime > 0.0) ? (engine.now() / visualTime) : 1.0;
-            smoothSimNow += deltaRealTime * ratio;
-
-            simBudget  += deltaRealTime * speedMultiplier;
-
-            while (engine.hasEvents()) {
-                const double nextEventTime = engine.peekNextEventTime();
-                if (nextEventTime > engine.now() + simBudget) {
-                    break;
-                }
-
-                const double before = engine.now();
-                engine.processEvent();
-                const double advanced = engine.now() - before;
-                simBudget = std::max(0.0, simBudget - advanced);
-            }
+            engine.processEvent();
         }
 
         if (!engine.hasEvents()) {
@@ -605,7 +588,6 @@ static void visualizeWindow(
 
         if (stepRequested && state == SimulationState::Paused && engine.hasEvents()) {
             engine.processEvent();
-            simBudget = 0.0;
             visualTime += 0.05;
         }
 
@@ -619,7 +601,8 @@ static void visualizeWindow(
 
         auto it = pendingPackets.begin();
         while (it != pendingPackets.end()) {
-            if (smoothSimNow >= it->sim_start_time) {
+            if (engine.now() >= it->sim_start_time) {
+                it->visual_start_time = visualTime;
                 activePackets.push_back(*it);
                 it = pendingPackets.erase(it);
             } else {
@@ -631,8 +614,7 @@ static void visualizeWindow(
             topo,
             selected_node,
             visualTime,
-            activePackets,
-            smoothSimNow
+            activePackets
         );
 
         if (clicked_node != -1) {
@@ -667,7 +649,6 @@ static void visualizeWindow(
 
                     scheduleDemoTraffic(engine, topo);
 
-                    simBudget    = 0.0;
                     lastRealTime = glfwGetTime();
 
                     state = SimulationState::Running;
@@ -684,6 +665,15 @@ static void visualizeWindow(
         ImGui::Render();
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        constexpr double kTargetFrameTime = 1.0 / 60.0;
+        double frameTime = glfwGetTime() - currentRealTime;
+        if (frameTime < kTargetFrameTime) {
+            std::this_thread::sleep_for(
+                std::chrono::duration<double>(kTargetFrameTime - frameTime)
+            );
+        }
+
         glfwSwapBuffers(window);
     }
 }

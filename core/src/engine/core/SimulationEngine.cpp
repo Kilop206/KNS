@@ -67,12 +67,14 @@ namespace kns {
         }
     }
 
-    void SimulationEngine::processEvent() {
+    bool SimulationEngine::processEvent() {
         if (event_queue_.hasEvents()) {
             auto event = event_queue_.next();
             clock_.setTime(event->getTimestamp());
             event->execute(*this);
+            return true;
         }
+        return false;
     }
 
     double SimulationEngine::peekNextEventTime() const {

@@ -92,7 +92,7 @@ namespace kns {
         void run();
 
        // Runs a single event
-        void processEvent();
+        bool processEvent();
 
         // Returns the timestamp of the next scheduled event, if any.
         double peekNextEventTime() const;
