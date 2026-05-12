@@ -483,7 +483,7 @@ static int renderNetworkPanel(
     return clicked_node;
 }
 
-static void renderConfigWindow(static bool firstFrame) {
+static void renderConfigWindow(bool firstFrame) {
     bool autoClick = false;
 
     ImGui::Begin("Settings");
