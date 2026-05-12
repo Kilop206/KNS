@@ -483,13 +483,20 @@ static int renderNetworkPanel(
     return clicked_node;
 }
 
-static void renderConfigWindow() {
+static void renderConfigWindow(static bool firstFrame) {
+    bool autoClick = false;
+
     ImGui::Begin("Settings");
+
+    if (firstFrame) {
+        autoClick = true;
+        firstFrame = false;
+    }
 
     ImGui::Text("Load a JSON Topology.");
     ImGui::Separator();
 
-    if (ImGui::Button("Load Topology")) {
+    if (ImGui::Button("Load Topology") || autoClick) {
         ImGuiFileDialog::Instance()->OpenDialog("TopologyKey", "Select File", ".json");
     }
 
@@ -597,7 +604,7 @@ static void visualizeWindow(
             state = SimulationState::Paused;
         }
 
-        renderConfigWindow();
+        renderConfigWindow(false);
 
         auto it = pendingPackets.begin();
         while (it != pendingPackets.end()) {
@@ -689,6 +696,8 @@ static void shutdownWindow(GLFWwindow* window) {
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         return -1;
+    } else {
+        renderConfigWindow(true)
     }
 
     Topology topo;
