@@ -1,0 +1,25 @@
+# Build directories
+build/
+.vs/
+.vscode/
+.idea/
+Debug/
+Release/
+x64/
+out/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.out
+*.dll
+*.lib
+*.pdb
+*.ilk
