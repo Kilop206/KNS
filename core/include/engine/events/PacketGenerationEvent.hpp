@@ -2,6 +2,7 @@
 
 #include "engine/events/Event.hpp"
 #include "enums/PacketType.hpp"
+#include "engine/core/SimulationEngine.hpp"
 
 namespace kns {
 

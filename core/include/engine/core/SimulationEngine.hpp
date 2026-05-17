@@ -20,6 +20,8 @@
 #include "network/PacketTravelInfo.hpp"
 #include "network/tcp/TCPConnection.hpp"
 
+struct PacketSpec;
+
 namespace kns {
 
     class SimulationEngine {
@@ -141,6 +143,8 @@ namespace kns {
         );
 
         void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
+
+        void generatePackets(double startTime);
     };
 
 }

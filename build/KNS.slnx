@@ -14,15 +14,15 @@
 		<BuildDependency Project="_deps/catch2-build/src/Catch2.vcxproj"/>
 		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
 	</Project>
-	<Project Path="imgui.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="a7bd7a55-6f4d-39d8-bdaf-d78f5fd38213">
-		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
-		<BuildDependency Project="_deps/glfw-build/src/glfw.vcxproj"/>
-	</Project>
-	<Project Path="app/kns_app.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="12002829-f791-3f3e-92a4-bc6e8993bf6b">
+	<Project Path="app/KNS.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="e52edf94-74ff-3c12-80cb-04686922ff3d">
 		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
 		<BuildDependency Project="_deps/glfw-build/src/glfw.vcxproj"/>
 		<BuildDependency Project="imgui.vcxproj"/>
 		<BuildDependency Project="core/kns_core.vcxproj"/>
+	</Project>
+	<Project Path="imgui.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="a7bd7a55-6f4d-39d8-bdaf-d78f5fd38213">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="_deps/glfw-build/src/glfw.vcxproj"/>
 	</Project>
 	<Project Path="core/kns_core.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="7b176fe0-cfa3-3d0d-bf56-27c954b6a615">
 		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
@@ -31,10 +31,10 @@
 		<Project Path="ALL_BUILD.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="7d0270b1-c918-3002-a7a9-fb81573b6a04" DefaultStartup="true">
 			<BuildDependency Project="_deps/catch2-build/src/Catch2.vcxproj"/>
 			<BuildDependency Project="_deps/catch2-build/src/Catch2WithMain.vcxproj"/>
+			<BuildDependency Project="app/KNS.vcxproj"/>
 			<BuildDependency Project="ZERO_CHECK.vcxproj"/>
 			<BuildDependency Project="_deps/glfw-build/src/glfw.vcxproj"/>
 			<BuildDependency Project="imgui.vcxproj"/>
-			<BuildDependency Project="app/kns_app.vcxproj"/>
 			<BuildDependency Project="core/kns_core.vcxproj"/>
 		</Project>
 		<Project Path="INSTALL.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="acfdf8c6-89a5-328d-827f-8b4d685d1ebd">

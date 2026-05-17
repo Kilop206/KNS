@@ -62,6 +62,9 @@ namespace kns {
                     packet.source,
                     seq,
                     ack));
+            } else if (packet.packet_type == PacketType::ACK)
+            {
+                engine.generatePackets(engine.now());
             }
 
             return;

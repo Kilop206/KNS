@@ -31,6 +31,11 @@
 #include "network/TopologyLoader.hpp"
 #include "enums/PacketType.hpp"
 
+namespace kns
+{
+    class SimulationEngine;
+}
+
 using namespace kns;
 using namespace interface;
 
@@ -117,11 +122,10 @@ static void generatePackets(SimulationEngine& engine, const Topology& topo, doub
 }
 
 static void scheduleDemoTraffic(SimulationEngine& engine, const Topology& topo) {
-    if (topo.size() >= 2) {
+    if (topo.size() >= 2)
+    {
         engine.schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
     }
-
-    generatePackets(engine, topo, 1.0);
 }
 
 static std::vector<std::pair<float, float>> generatePositions(

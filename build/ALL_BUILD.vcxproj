@@ -182,6 +182,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{8bd3552a-2cfb-4a59-ab15-2031b97ada1e}</Project>
       <Name>Catch2WithMain</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\guilh\Desktop\KNS\build\app\KNS.vcxproj">
+      <Project>{E52EDF94-74FF-3C12-80CB-04686922FF3D}</Project>
+      <Name>KNS</Name>
+    </ProjectReference>
     <ProjectReference Include="C:\Users\guilh\Desktop\KNS\build\_deps\glfw-build\src\glfw.vcxproj">
       <Project>{B4BB105F-BC6D-3C7B-B156-BC09963B88F5}</Project>
       <Name>glfw</Name>
@@ -189,10 +193,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference Include="C:\Users\guilh\Desktop\KNS\build\imgui.vcxproj">
       <Project>{A7BD7A55-6F4D-39D8-BDAF-D78F5FD38213}</Project>
       <Name>imgui</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\guilh\Desktop\KNS\build\app\kns_app.vcxproj">
-      <Project>{12002829-F791-3F3E-92A4-BC6E8993BF6B}</Project>
-      <Name>kns_app</Name>
     </ProjectReference>
     <ProjectReference Include="C:\Users\guilh\Desktop\KNS\build\core\kns_core.vcxproj">
       <Project>{7B176FE0-CFA3-3D0D-BF56-27C954B6A615}</Project>

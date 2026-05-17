@@ -25,6 +25,6 @@ C:/Users/guilh/Desktop/KNS/build/_deps/glfw-build/src/CMakeFiles/INSTALL.dir
 C:/Users/guilh/Desktop/KNS/build/core/CMakeFiles/kns_core.dir
 C:/Users/guilh/Desktop/KNS/build/core/CMakeFiles/RUN_TESTS.dir
 C:/Users/guilh/Desktop/KNS/build/core/CMakeFiles/INSTALL.dir
-C:/Users/guilh/Desktop/KNS/build/app/CMakeFiles/kns_app.dir
+C:/Users/guilh/Desktop/KNS/build/app/CMakeFiles/KNS.dir
 C:/Users/guilh/Desktop/KNS/build/app/CMakeFiles/RUN_TESTS.dir
 C:/Users/guilh/Desktop/KNS/build/app/CMakeFiles/INSTALL.dir
