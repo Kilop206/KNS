@@ -1,0 +1,40 @@
+{
+  "nodes": 5,
+  "links": [
+    {
+      "from": 2,
+      "to": 0,
+      "delay": 5,
+      "bandwidth": 100,
+      "loss": 0.5
+    },
+    {
+      "from": 0,
+      "to": 3,
+      "delay": 5,
+      "bandwidth": 100,
+      "loss": 0.5
+    },
+    {
+      "from": 3, 
+      "to": 1,
+      "delay": 5,
+      "bandwidth": 100,
+      "loss": 0.5
+    },
+    {
+      "from": 1,
+      "to": 4,
+      "delay": 5,
+      "bandwidth": 100,
+      "loss": 0.5
+    },
+    {   
+      "from": 4,
+      "to": 2,
+      "delay": 5,
+      "bandwidth": 100,
+      "loss": 0.5
+    }
+  ]
+}
