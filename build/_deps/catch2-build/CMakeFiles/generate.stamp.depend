@@ -1,0 +1,8 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeDependentOption.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/CMakePackageConfigHelpers.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/GNUInstallDirs.cmake
+C:/Program Files/CMake/share/cmake-4.2/Modules/WriteBasicConfigVersionFile.cmake
+C:/Users/guilh/Desktop/KNS/build/CMakeFiles/cmake.verify_globs
+C:/Users/guilh/Desktop/KNS/build/_deps/catch2-src/CMake/CatchConfigOptions.cmake
+C:/Users/guilh/Desktop/KNS/build/_deps/catch2-src/CMakeLists.txt

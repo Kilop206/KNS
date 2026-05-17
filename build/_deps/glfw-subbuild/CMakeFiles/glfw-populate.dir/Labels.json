@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/glfw-populate"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/13a82fa9d7c01d92ebee2fd97b9fab42/glfw-populate.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/e7065323bf83bac6b44ca3ea658ffb87/glfw-populate-complete.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-build.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-configure.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-download.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-install.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-patch.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-test.rule"
+		},
+		{
+			"file" : "C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"glfw-populate"
+		],
+		"name" : "glfw-populate"
+	}
+}

@@ -1,0 +1,14 @@
+# Target labels
+ glfw-populate
+# Source files and their labels
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/glfw-populate
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/13a82fa9d7c01d92ebee2fd97b9fab42/glfw-populate.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/e7065323bf83bac6b44ca3ea658ffb87/glfw-populate-complete.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-build.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-configure.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-download.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-install.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-mkdir.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-patch.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-test.rule
+C:/Users/guilh/Desktop/KNS/build/_deps/glfw-subbuild/CMakeFiles/bd8f4d9d9c7410e3f178695aca1f8cff/glfw-populate-update.rule

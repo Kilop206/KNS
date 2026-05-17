@@ -1,0 +1,13 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/guilh/Desktop/KNS/build/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/_deps/catch2-build/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/_deps/catch2-build/src/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/_deps/glfw-build/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/_deps/glfw-build/src/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/core/cmake_install.cmake",
+		"C:/Users/guilh/Desktop/KNS/build/app/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
