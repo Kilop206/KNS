@@ -644,10 +644,12 @@ static void visualizeWindow(
             )) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
                 std::string completePath = ImGuiFileDialog::Instance()->GetFilePathName();
+
                 try {
                     topo = TopologyLoader::load_topology(completePath);
 
                     engine = SimulationEngine(topo);
+
                     activePackets.clear();
                     pendingPackets.clear();
                     visualTime = 0.0;
@@ -656,6 +658,7 @@ static void visualizeWindow(
 
                     engine.setGlobalPacketSize(packetSize);
                     engine.setGlobalLossProb(lossProb);
+
                     engine.setLatencyObserver([&buffer](double lat) {
                         buffer.addLatencyToBuffer(static_cast<float>(lat));
                     });
@@ -667,6 +670,7 @@ static void visualizeWindow(
                     state = SimulationState::Running;
                     selected_node = -1;
                     routingTable.clear();
+
                 } catch (const std::exception& e) {
                     std::cerr << "Load error: " << e.what() << std::endl;
                 }
@@ -715,19 +719,18 @@ int main(int argc, char* argv[]) {
     SimulationEngine engine(topo);
     CircularBuffer   buffer;
 
-    if (topo.size() > 0) {
-        engine.setLatencyObserver([&buffer](double lat) {
-            buffer.addLatencyToBuffer(static_cast<float>(lat));
-        });
-
-        scheduleDemoTraffic(engine, topo);
-    }
+    engine.setLatencyObserver([&buffer](double lat) {
+        buffer.addLatencyToBuffer(static_cast<float>(lat));
+    });
 
     int packetSize = 1000;
+
     engine.setGlobalPacketSize(packetSize);
     engine.setGlobalLossProb(0.0f);
 
-    scheduleDemoTraffic(engine, topo);
+    if (topo.size() > 0) {
+        scheduleDemoTraffic(engine, topo);
+    }
 
     Window      windowMethods;
     GLFWwindow* window = windowMethods.generate_window();
