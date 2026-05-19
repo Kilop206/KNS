@@ -60,9 +60,9 @@ struct PacketSpec {
 struct VisualPacket {
     int from = -1;
     int to   = -1;
-    double sim_start_time;
-    double sim_end_time;
-    double visual_start_time;
+    double sim_start_time = 0.0;
+    double sim_end_time = 0.0;
+    double visual_start_time = 0.0;
     PacketType type = PacketType::DATA;
 };
 
@@ -491,7 +491,7 @@ static int renderNetworkPanel(
     return clicked_node;
 }
 
-static void renderConfigWindow(bool firstFrame) {
+static void renderConfigWindow(bool& firstFrame) {
     bool autoClick = false;
 
     ImGui::Begin("Settings");
@@ -523,14 +523,20 @@ static void registerPacketObserver(
     double& visualTime
 ) {
     engine->setPacketObserver(
-        [](const Packet& p, int from, int to, double /*now*/, double arrivalTime) {
+        [&visualTime, &pendingPackets](
+            const Packet& p,
+            int from,
+            int to,
+            double departureTime,
+            double arrivalTime
+        ) {
             pendingPackets.push_back(VisualPacket{
                 from,
                 to,
-                visualTime,
+                departureTime,
                 arrivalTime,
-                0.0,
-                p.packet_type,
+                visualTime,
+                p.packet_type
             });
         }
     );
@@ -538,15 +544,16 @@ static void registerPacketObserver(
 
 static void visualizeWindow(
     std::unique_ptr<SimulationEngine>& engine,
-    Topology&         topo,
-    SimulationState&  state,
-    GLFWwindow*       window,
-    CircularBuffer&   buffer,
-    int&              packetSize
+    Topology& topo,
+    SimulationState& state,
+    GLFWwindow* window,
+    CircularBuffer& buffer,
+    int& packetSize
 ) {
-    static std::vector<VisualPacket> activePackets;
-    static std::vector<VisualPacket> pendingPackets;
-    static double visualTime = 0.0;
+    std::vector<VisualPacket> activePackets;
+    std::vector<VisualPacket> pendingPackets;
+
+    double visualTime = 0.0;
 
     if (!engine) {
         engine = std::make_unique<SimulationEngine>(topo);
@@ -555,27 +562,41 @@ static void visualizeWindow(
     registerPacketObserver(engine, pendingPackets, visualTime);
 
     int selected_node = -1;
+
     std::vector<Routing::RoutingEntry> routingTable;
     Routing routing;
 
-    static bool firstFrame       = true;
-    static bool dock_initialized  = false;
-    static double lastRealTime    = glfwGetTime();
+    bool firstFrame = true;
+    bool dock_initialized = false;
 
-    float lossProb        = 0.0f;
+    double lastRealTime = glfwGetTime();
+
+    float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
     while (!glfwWindowShouldClose(window)) {
+
         const double currentRealTime = glfwGetTime();
-        const double deltaRealTime   = currentRealTime - lastRealTime;
+        const double deltaRealTime = currentRealTime - lastRealTime;
+
         lastRealTime = currentRealTime;
 
         if (state == SimulationState::Running) {
-            visualTime += deltaRealTime * speedMultiplier / kSimToVisualScale;
 
-            while (engine->hasEvents() &&
-                visualTime >= engine->peekNextEventTime()) {
+            visualTime +=
+                deltaRealTime *
+                speedMultiplier /
+                kSimToVisualScale;
+
+            int safetyCounter = 0;
+
+            while (
+                engine->hasEvents() &&
+                visualTime >= engine->peekNextEventTime() &&
+                safetyCounter < 1000
+            ) {
                 engine->processEvent();
+                safetyCounter++;
             }
         }
 
@@ -597,11 +618,11 @@ static void visualizeWindow(
                 "Select Initial Topology",
                 ".json"
             );
+
             firstFrame = false;
         }
 
         bool stepRequested = false;
-        bool engineHasEventsNow = engine->hasEvents();
 
         renderStatsWindow(
             engine,
@@ -612,31 +633,19 @@ static void visualizeWindow(
             lossProb,
             speedMultiplier,
             stepRequested,
-            engineHasEventsNow
+            engine->hasEvents()
         );
-
-        if (stepRequested && state == SimulationState::Paused && engine->hasEvents()) {
-            while (engine->hasEvents() &&
-                visualTime >= engine->peekNextEventTime()) {
-                engine->processEvent();
-            }
-            visualTime += 0.05;
-        }
-
-        engineHasEventsNow = engine->hasEvents();
-
-        if (!engineHasEventsNow) {
-            state = SimulationState::Paused;
-        }
 
         renderConfigWindow(firstFrame);
 
-        auto it = pendingPackets.begin();
-        while (it != pendingPackets.end()) {
-            it->visual_start_time = std::max(visualTime, it->sim_start_time);
-            activePackets.push_back(*it);
-            it = pendingPackets.erase(it);
+        for (auto& p : pendingPackets) {
+            p.visual_start_time =
+                std::max(visualTime, p.sim_start_time);
+
+            activePackets.push_back(p);
         }
+
+        pendingPackets.clear();
 
         int clicked_node = renderNetworkPanel(
             topo,
@@ -647,48 +656,85 @@ static void visualizeWindow(
 
         if (clicked_node != -1) {
             selected_node = clicked_node;
-            routingTable = routing.buildRoutingTable(topo, selected_node);
+
+            routingTable =
+                routing.buildRoutingTable(
+                    topo,
+                    selected_node
+                );
         }
 
-        renderSelectedNodePanel(selected_node, routingTable);
+        renderSelectedNodePanel(
+            selected_node,
+            routingTable
+        );
 
-        if (ImGuiFileDialog::Instance()->Display(
+        if (
+            ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
                 ImGuiWindowFlags_NoCollapse,
                 ImVec2(400, 300)
-            )) {
+            )
+        ) {
+
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                std::string completePath = ImGuiFileDialog::Instance()->GetFilePathName();
+
+                std::string completePath =
+                    ImGuiFileDialog::Instance()
+                        ->GetFilePathName();
 
                 try {
-                    topo = TopologyLoader::load_topology(completePath);
+
+                    topo =
+                        TopologyLoader::load_topology(
+                            completePath
+                        );
 
                     activePackets.clear();
                     pendingPackets.clear();
+
                     visualTime = 0.0;
 
-                    engine = std::make_unique<SimulationEngine>(topo);
+                    engine =
+                        std::make_unique<SimulationEngine>(
+                            topo
+                        );
 
-                    registerPacketObserver(engine, pendingPackets, visualTime);
+                    registerPacketObserver(
+                        engine,
+                        pendingPackets,
+                        visualTime
+                    );
 
                     engine->setGlobalPacketSize(packetSize);
                     engine->setGlobalLossProb(lossProb);
 
-                    engine->setLatencyObserver([&buffer](double lat) {
-                        buffer.addLatencyToBuffer(static_cast<float>(lat));
-                    });
+                    engine->setLatencyObserver(
+                        [&buffer](double lat) {
+                            buffer.addLatencyToBuffer(
+                                static_cast<float>(lat)
+                            );
+                        }
+                    );
 
                     scheduleDemoTraffic(engine, topo);
+
                     generatePackets(engine, topo);
 
                     lastRealTime = glfwGetTime();
 
                     state = SimulationState::Running;
+
                     selected_node = -1;
+
                     routingTable.clear();
 
                 } catch (const std::exception& e) {
-                    std::cerr << "Load error: " << e.what() << std::endl;
+
+                    std::cerr
+                        << "Load error: "
+                        << e.what()
+                        << std::endl;
                 }
             }
 
@@ -696,14 +742,24 @@ static void visualizeWindow(
         }
 
         ImGui::Render();
+
         glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        ImGui_ImplOpenGL3_RenderDrawData(
+            ImGui::GetDrawData()
+        );
 
         constexpr double kTargetFrameTime = 1.0 / 60.0;
-        double frameTime = glfwGetTime() - currentRealTime;
+
+        double frameTime =
+            glfwGetTime() - currentRealTime;
+
         if (frameTime < kTargetFrameTime) {
+
             std::this_thread::sleep_for(
-                std::chrono::duration<double>(kTargetFrameTime - frameTime)
+                std::chrono::duration<double>(
+                    kTargetFrameTime - frameTime
+                )
             );
         }
 
@@ -720,51 +776,87 @@ static void shutdownWindow(GLFWwindow* window) {
 }
 
 int main(int argc, char* argv[]) {
+
     Topology topo;
 
     if (argc >= 2) {
+
         try {
-            topo = TopologyLoader::load_topology(argv[1]);
-        } catch (const std::exception&) {
+
+            topo =
+                TopologyLoader::load_topology(
+                    argv[1]
+                );
+
+        } catch (const std::exception& e) {
+
+            std::cerr
+                << "Topology load error: "
+                << e.what()
+                << std::endl;
+
             return -1;
         }
     }
 
     SimulationState state =
         topo.size() > 0
-        ? SimulationState::Running
-        : SimulationState::Paused;
+            ? SimulationState::Running
+            : SimulationState::Paused;
 
-    std::unique_ptr<SimulationEngine> engine =
-        std::make_unique<SimulationEngine>(topo);
+    auto engine =
+        std::make_unique<SimulationEngine>(
+            topo
+        );
 
-    CircularBuffer   buffer;
+    CircularBuffer buffer;
 
-    engine->setLatencyObserver([&buffer](double lat) {
-        buffer.addLatencyToBuffer(static_cast<float>(lat));
-    });
+    engine->setLatencyObserver(
+        [&buffer](double lat) {
+
+            buffer.addLatencyToBuffer(
+                static_cast<float>(lat)
+            );
+        }
+    );
 
     int packetSize = 1000;
 
     engine->setGlobalPacketSize(packetSize);
+
     engine->setGlobalLossProb(0.0f);
 
     if (topo.size() > 0) {
+
         scheduleDemoTraffic(engine, topo);
+
+        generatePackets(engine, topo);
     }
 
-    Window      windowMethods;
-    GLFWwindow* window = windowMethods.generate_window();
+    Window windowMethods;
+
+    GLFWwindow* window =
+        windowMethods.generate_window();
 
     if (!window) {
         return -1;
     }
 
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    visualizeWindow(engine, topo, state, window, buffer, packetSize);
+    io.ConfigFlags |=
+        ImGuiConfigFlags_DockingEnable;
+
+    visualizeWindow(
+        engine,
+        topo,
+        state,
+        window,
+        buffer,
+        packetSize
+    );
 
     shutdownWindow(window);
+
     return 0;
 }
