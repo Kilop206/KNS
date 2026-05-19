@@ -99,7 +99,7 @@ static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
     return plan;
 }
 
-static void generatePackets(SimulationEngine& engine, const Topology& topo, double startTime = 1.0) {
+static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Topology& topo, double startTime = 1.0) {
     if (topo.size() <= 0) {
         return;
     }
@@ -112,7 +112,7 @@ static void generatePackets(SimulationEngine& engine, const Topology& topo, doub
     const double generationInterval = 1.0 / kBasePacketsPerSecond;
 
     for (std::size_t i = 0; i < plan.size(); ++i) {
-        engine.schedule(std::make_unique<PacketGenerationEvent>(
+        engine->schedule(std::make_unique<PacketGenerationEvent>(
             startTime + static_cast<double>(i) * generationInterval,
             plan[i].from,
             plan[i].to,
@@ -121,10 +121,10 @@ static void generatePackets(SimulationEngine& engine, const Topology& topo, doub
     }
 }
 
-static void scheduleDemoTraffic(SimulationEngine& engine, const Topology& topo) {
+static void scheduleDemoTraffic(std::unique_ptr<SimulationEngine>& engine, const Topology& topo) {
     if (topo.size() >= 2)
     {
-        engine.schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
+        engine->schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
     }
 }
 
@@ -145,7 +145,10 @@ static std::vector<std::pair<float, float>> generatePositions(
     const float radius  = std::max(40.0f, 0.35f * std::min(canvas_size.x, canvas_size.y));
 
     for (int i = 0; i < topo.size(); ++i) {
-        const float angle = 2.0f * std::numbers::pi_v<float> * i / topo.size();
+        const float angle =
+            2.0f * std::numbers::pi_v<float> *
+            static_cast<float>(i) /
+            static_cast<float>(topo.size());
         positions.push_back({
             centerX + radius * std::cos(angle),
             centerY + radius * std::sin(angle)
@@ -175,7 +178,7 @@ static int pickNodeAtMouse(
 }
 
 static void renderStatsWindow(
-    SimulationEngine& engine,
+    std::unique_ptr<SimulationEngine>& engine,
     SimulationState&  state,
     const Stats&      stats,
     CircularBuffer&   buffer,
@@ -203,11 +206,11 @@ static void renderStatsWindow(
     }
 
     if (ImGui::SliderFloat("Loss Probability", &lossProb, 0.0f, 1.0f)) {
-        engine.setGlobalLossProb(lossProb);
+        engine->setGlobalLossProb(lossProb);
     }
 
     if (ImGui::SliderInt("Packet Size (bytes)", &packetSize, 100, 10'000)) {
-        engine.setGlobalPacketSize(packetSize);
+        engine->setGlobalPacketSize(packetSize);
     }
 
     ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
@@ -502,19 +505,25 @@ static void renderConfigWindow(bool firstFrame) {
     ImGui::Separator();
 
     if (ImGui::Button("Load Topology") || autoClick) {
-        ImGuiFileDialog::Instance()->OpenDialog("TopologyKey", "Select File", ".json");
+        if (!ImGuiFileDialog::Instance()->IsOpened("TopologyKey")) {
+            ImGuiFileDialog::Instance()->OpenDialog(
+                "TopologyKey",
+                "Select File",
+                ".json"
+            );
+        }
     }
 
     ImGui::End();
 }
 
 static void registerPacketObserver(
-    SimulationEngine& engine,
+    std::unique_ptr<SimulationEngine>& engine,
     std::vector<VisualPacket>& pendingPackets,
     double& visualTime
 ) {
-    engine.setPacketObserver(
-        [&pendingPackets, &visualTime](const Packet& p, int from, int to, double now, double arrivalTime) {
+    engine->setPacketObserver(
+        [](const Packet& p, int from, int to, double /*now*/, double arrivalTime) {
             pendingPackets.push_back(VisualPacket{
                 from,
                 to,
@@ -528,7 +537,7 @@ static void registerPacketObserver(
 }
 
 static void visualizeWindow(
-    SimulationEngine& engine,
+    std::unique_ptr<SimulationEngine>& engine,
     Topology&         topo,
     SimulationState&  state,
     GLFWwindow*       window,
@@ -538,6 +547,10 @@ static void visualizeWindow(
     static std::vector<VisualPacket> activePackets;
     static std::vector<VisualPacket> pendingPackets;
     static double visualTime = 0.0;
+
+    if (!engine) {
+        engine = std::make_unique<SimulationEngine>(topo);
+    }
 
     registerPacketObserver(engine, pendingPackets, visualTime);
 
@@ -560,12 +573,13 @@ static void visualizeWindow(
         if (state == SimulationState::Running) {
             visualTime += deltaRealTime * speedMultiplier / kSimToVisualScale;
 
-            if (engine.hasEvents() && visualTime >= engine.peekNextEventTime()) {
-                engine.processEvent();
+            while (engine->hasEvents() &&
+                visualTime >= engine->peekNextEventTime()) {
+                engine->processEvent();
             }
         }
 
-        if (!engine.hasEvents()) {
+        if (!engine->hasEvents()) {
             state = SimulationState::Paused;
         }
 
@@ -587,12 +601,12 @@ static void visualizeWindow(
         }
 
         bool stepRequested = false;
-        bool engineHasEventsNow = engine.hasEvents();
+        bool engineHasEventsNow = engine->hasEvents();
 
         renderStatsWindow(
             engine,
             state,
-            engine.getStats(),
+            engine->getStats(),
             buffer,
             packetSize,
             lossProb,
@@ -601,24 +615,25 @@ static void visualizeWindow(
             engineHasEventsNow
         );
 
-        if (stepRequested && state == SimulationState::Paused && engine.hasEvents()) {
-            if (engine.hasEvents() && visualTime >= engine.peekNextEventTime()) {
-                engine.processEvent();
+        if (stepRequested && state == SimulationState::Paused && engine->hasEvents()) {
+            while (engine->hasEvents() &&
+                visualTime >= engine->peekNextEventTime()) {
+                engine->processEvent();
             }
             visualTime += 0.05;
         }
 
-        engineHasEventsNow = engine.hasEvents();
+        engineHasEventsNow = engine->hasEvents();
 
         if (!engineHasEventsNow) {
             state = SimulationState::Paused;
         }
 
-        renderConfigWindow(false);
+        renderConfigWindow(firstFrame);
 
         auto it = pendingPackets.begin();
         while (it != pendingPackets.end()) {
-            it->visual_start_time = visualTime;
+            it->visual_start_time = std::max(visualTime, it->sim_start_time);
             activePackets.push_back(*it);
             it = pendingPackets.erase(it);
         }
@@ -648,22 +663,23 @@ static void visualizeWindow(
                 try {
                     topo = TopologyLoader::load_topology(completePath);
 
-                    engine = SimulationEngine(topo);
-
                     activePackets.clear();
                     pendingPackets.clear();
                     visualTime = 0.0;
 
+                    engine = std::make_unique<SimulationEngine>(topo);
+
                     registerPacketObserver(engine, pendingPackets, visualTime);
 
-                    engine.setGlobalPacketSize(packetSize);
-                    engine.setGlobalLossProb(lossProb);
+                    engine->setGlobalPacketSize(packetSize);
+                    engine->setGlobalLossProb(lossProb);
 
-                    engine.setLatencyObserver([&buffer](double lat) {
+                    engine->setLatencyObserver([&buffer](double lat) {
                         buffer.addLatencyToBuffer(static_cast<float>(lat));
                     });
 
                     scheduleDemoTraffic(engine, topo);
+                    generatePackets(engine, topo);
 
                     lastRealTime = glfwGetTime();
 
@@ -714,19 +730,24 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    SimulationState state = SimulationState::Paused;
+    SimulationState state =
+        topo.size() > 0
+        ? SimulationState::Running
+        : SimulationState::Paused;
 
-    SimulationEngine engine(topo);
+    std::unique_ptr<SimulationEngine> engine =
+        std::make_unique<SimulationEngine>(topo);
+
     CircularBuffer   buffer;
 
-    engine.setLatencyObserver([&buffer](double lat) {
+    engine->setLatencyObserver([&buffer](double lat) {
         buffer.addLatencyToBuffer(static_cast<float>(lat));
     });
 
     int packetSize = 1000;
 
-    engine.setGlobalPacketSize(packetSize);
-    engine.setGlobalLossProb(0.0f);
+    engine->setGlobalPacketSize(packetSize);
+    engine->setGlobalLossProb(0.0f);
 
     if (topo.size() > 0) {
         scheduleDemoTraffic(engine, topo);
