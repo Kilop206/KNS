@@ -49,4 +49,8 @@ namespace kns {
             state = TCPState::ESTABLISHED;
         }
     }
+
+    TCPState TCPConnection::getTcpState() const {
+        return state;
+    }
 }

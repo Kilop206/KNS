@@ -54,14 +54,6 @@ void TCPHandshakeEvent::execute(SimulationEngine& engine) {
     }
 
     server.receive_syn(client_seq);
-
-    for (Link link : engine.getTopology().getLinksFromNode(source_)) {
-        if (link.getOtherNode(source_) == engine.getNextHop(source_, destination_)) {
-            TCPSynAckEvent syn_ack(engine.compute_arrival_time(syn, link, engine.now()), source_, destination_, syn.seq_num, syn.ack_num);
-            engine.schedule(std::make_unique<TCPSynAckEvent>(syn_ack));
-            break;
-        }
-    }
 }
 
 }

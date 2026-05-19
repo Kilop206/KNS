@@ -36,6 +36,8 @@ namespace kns {
             int getLocalNode() const;
 
             int getRemoteNode() const;
+
+            TCPState getTcpState() const;
     };
 
     struct TCPConnectionHash {

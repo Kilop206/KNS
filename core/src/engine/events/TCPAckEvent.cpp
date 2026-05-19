@@ -2,8 +2,6 @@
 #include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"
 
-#include <iostream>
-
 namespace kns {
     TCPAckEvent::TCPAckEvent(double timestamp,
             int source,
@@ -18,7 +16,7 @@ namespace kns {
 
     void TCPAckEvent::execute(SimulationEngine& engine) {
 
-        Packet pkt(destination_, source_, destination_, engine.now(), 1000);
+        Packet pkt(source_, destination_, source_, engine.now(), 1000);
 
         pkt.packet_type = PacketType::ACK;
 

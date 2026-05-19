@@ -31,6 +31,11 @@
 #include "network/TopologyLoader.hpp"
 #include "enums/PacketType.hpp"
 
+namespace kns
+{
+    class SimulationEngine;
+}
+
 using namespace kns;
 using namespace interface;
 
@@ -39,8 +44,9 @@ constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
 
 constexpr int    kPacketsPerRoute   = 250;
 constexpr int    kMaxTotalPackets    = 1000;
-constexpr double kVisualTravelTime   = 1.2;
+constexpr double kVisualTravelTime   = 0.005;
 constexpr double kVisualSpawnGap     = 0.12;
+constexpr double kSimToVisualScale = 100.0;
 
 // ============================================================
 // HELPER STRUCTS
@@ -116,11 +122,10 @@ static void generatePackets(SimulationEngine& engine, const Topology& topo, doub
 }
 
 static void scheduleDemoTraffic(SimulationEngine& engine, const Topology& topo) {
-    if (topo.size() >= 2) {
+    if (topo.size() >= 2)
+    {
         engine.schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
     }
-
-    generatePackets(engine, topo, 1.0);
 }
 
 static std::vector<std::pair<float, float>> generatePositions(
@@ -505,14 +510,15 @@ static void renderConfigWindow(bool firstFrame) {
 
 static void registerPacketObserver(
     SimulationEngine& engine,
-    std::vector<VisualPacket>& pendingPackets
+    std::vector<VisualPacket>& pendingPackets,
+    double& visualTime
 ) {
     engine.setPacketObserver(
-        [&pendingPackets](const Packet& p, int from, int to, double now, double arrivalTime) {
+        [&pendingPackets, &visualTime](const Packet& p, int from, int to, double now, double arrivalTime) {
             pendingPackets.push_back(VisualPacket{
                 from,
                 to,
-                now,
+                visualTime,
                 arrivalTime,
                 0.0,
                 p.packet_type,
@@ -533,7 +539,7 @@ static void visualizeWindow(
     static std::vector<VisualPacket> pendingPackets;
     static double visualTime = 0.0;
 
-    registerPacketObserver(engine, pendingPackets);
+    registerPacketObserver(engine, pendingPackets, visualTime);
 
     int selected_node = -1;
     std::vector<Routing::RoutingEntry> routingTable;
@@ -552,9 +558,11 @@ static void visualizeWindow(
         lastRealTime = currentRealTime;
 
         if (state == SimulationState::Running) {
-            visualTime += deltaRealTime * speedMultiplier;
+            visualTime += deltaRealTime * speedMultiplier / kSimToVisualScale;
 
-            engine.processEvent();
+            if (engine.hasEvents() && visualTime >= engine.peekNextEventTime()) {
+                engine.processEvent();
+            }
         }
 
         if (!engine.hasEvents()) {
@@ -594,7 +602,9 @@ static void visualizeWindow(
         );
 
         if (stepRequested && state == SimulationState::Paused && engine.hasEvents()) {
-            engine.processEvent();
+            if (engine.hasEvents() && visualTime >= engine.peekNextEventTime()) {
+                engine.processEvent();
+            }
             visualTime += 0.05;
         }
 
@@ -608,13 +618,9 @@ static void visualizeWindow(
 
         auto it = pendingPackets.begin();
         while (it != pendingPackets.end()) {
-            if (engine.now() >= it->sim_start_time) {
-                it->visual_start_time = visualTime;
-                activePackets.push_back(*it);
-                it = pendingPackets.erase(it);
-            } else {
-                ++it;
-            }
+            it->visual_start_time = visualTime;
+            activePackets.push_back(*it);
+            it = pendingPackets.erase(it);
         }
 
         int clicked_node = renderNetworkPanel(
@@ -646,7 +652,7 @@ static void visualizeWindow(
                     pendingPackets.clear();
                     visualTime = 0.0;
 
-                    registerPacketObserver(engine, pendingPackets);
+                    registerPacketObserver(engine, pendingPackets, visualTime);
 
                     engine.setGlobalPacketSize(packetSize);
                     engine.setGlobalLossProb(lossProb);
@@ -694,18 +700,14 @@ static void shutdownWindow(GLFWwindow* window) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        return -1;
-    } else {
-        renderConfigWindow(true)
-    }
-
     Topology topo;
 
-    try {
-        topo = TopologyLoader::load_topology(argv[1]);
-    } catch (const std::exception&) {
-        return -1;
+    if (argc >= 2) {
+        try {
+            topo = TopologyLoader::load_topology(argv[1]);
+        } catch (const std::exception&) {
+            return -1;
+        }
     }
 
     SimulationState state = SimulationState::Paused;

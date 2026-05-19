@@ -12,12 +12,13 @@
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/Event.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
+#include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "network/Packet.hpp"
 #include "enums/TCPState.hpp"
 
-namespace kns {
-
+namespace kns
+{
     double SimulationEngine::random() {
         return (double)rand() / RAND_MAX;
     }
@@ -166,7 +167,7 @@ namespace kns {
                 packets_in_transit[i].arrival_time == arrival_time) {
                 packets_in_transit.erase(packets_in_transit.begin() + i);
                 break;
-            }
+                }
         }
     }
 
@@ -205,9 +206,23 @@ namespace kns {
         packetObserver = std::move(observer);
     }
 
-    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time) {
+    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time)
+    {
         if (packetObserver) {
             packetObserver(p, from, to, departure_time, arrival_time);
+        }
+    }
+
+    void SimulationEngine::generatePackets(double startTime) {
+        int i = 0;
+        for (int node = 0; node < topology_.size(); ++node) {
+            for (const auto& link : topology_.getLinksFromNode(node)) {
+                i++;
+                schedule(std::make_unique<PacketGenerationEvent>(
+                    startTime + i * 0.02,
+                    link.from,
+                    link.to));
+            }
         }
     }
 }

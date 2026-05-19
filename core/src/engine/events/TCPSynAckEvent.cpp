@@ -3,10 +3,8 @@
 #include "network/Packet.hpp"
 #include "enums/PacketType.hpp"
 #include "network/utils/PacketUtils.hpp"
-#include "engine/events/TCPAckEvent.hpp"
 
 #include <cstdlib>
-#include <iostream>
 
 namespace kns {
     TCPSynAckEvent::TCPSynAckEvent(double timestamp,
@@ -22,7 +20,7 @@ namespace kns {
 
     void TCPSynAckEvent::execute(SimulationEngine& engine) {
 
-        Packet pkt( destination_, source_, destination_, engine.now(), 1000);
+        Packet pkt( source_, destination_, source_, engine.now(), 1000);
 
         pkt.packet_type = PacketType::SYN_ACK;
 
@@ -30,16 +28,5 @@ namespace kns {
         pkt.ack_num = seq_num + 1;
 
         sendPacketThroughTopology(engine, pkt);
-
-        double timestamp;
-
-        for (Link link : engine.getTopology().getLinksFromNode(destination_)) {
-            if (link.getOtherNode(destination_) == engine.getNextHop(destination_, source_)) {
-                timestamp = engine.compute_arrival_time(pkt, link, engine.now());
-                break;
-            }
-        }
-
-        engine.schedule(std::make_unique<TCPAckEvent>(timestamp, source_, destination_, pkt.seq_num, pkt.ack_num));
     }
 }

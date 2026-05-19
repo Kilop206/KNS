@@ -6,6 +6,9 @@
 
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
+#include "engine/events/TCPAckEvent.hpp"
+#include "engine/events/TCPSynAckEvent.hpp"
+#include "enums/PacketType.hpp"
 
 namespace kns {
 
@@ -39,6 +42,31 @@ namespace kns {
             engine.notifyLatencyDelivered(latency);
 
             engine.removePacketInTransit(packet.departure_time, timestamp_);
+
+            if (packet.packet_type == PacketType::SYN) {
+                int seq = std::rand();
+                int ack = packet.seq_num + 1;
+
+                engine.schedule(std::make_unique<TCPSynAckEvent>(engine.now(),
+                                                                packet.destination,
+                                                                packet.source,
+                                                                seq,
+                                                                ack));
+            }
+            else if (packet.packet_type == PacketType::SYN_ACK) {
+                int seq = std::rand();
+                int ack = packet.seq_num + 1;
+
+                engine.schedule(std::make_unique<TCPAckEvent>(engine.now(),
+                    packet.destination,
+                    packet.source,
+                    seq,
+                    ack));
+            } else if (packet.packet_type == PacketType::ACK)
+            {
+                engine.generatePackets(engine.now());
+            }
+
             return;
         }
 
