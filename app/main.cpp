@@ -715,9 +715,13 @@ int main(int argc, char* argv[]) {
     SimulationEngine engine(topo);
     CircularBuffer   buffer;
 
-    engine.setLatencyObserver([&buffer](double lat) {
-        buffer.addLatencyToBuffer(static_cast<float>(lat));
-    });
+    if (topo.size() > 0) {
+        engine.setLatencyObserver([&buffer](double lat) {
+            buffer.addLatencyToBuffer(static_cast<float>(lat));
+        });
+
+        scheduleDemoTraffic(engine, topo);
+    }
 
     int packetSize = 1000;
     engine.setGlobalPacketSize(packetSize);
