@@ -31,21 +31,17 @@
 #include "network/TopologyLoader.hpp"
 #include "enums/PacketType.hpp"
 
-namespace kns
-{
-    class SimulationEngine;
-}
 
 using namespace kns;
 using namespace interface;
 
 constexpr double kBasePacketsPerSecond = 5.0;
-constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
+constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 
-constexpr int    kPacketsPerRoute   = 250;
-constexpr int    kMaxTotalPackets    = 1000;
-constexpr double kVisualTravelTime   = 0.005;
-constexpr double kVisualSpawnGap     = 0.12;
+constexpr int    kPacketsPerRoute  = 250;
+constexpr int    kMaxTotalPackets  = 1000;
+constexpr double kVisualTravelTime = 0.005;
+constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
 
 // ============================================================
@@ -491,12 +487,12 @@ static int renderNetworkPanel(
     return clicked_node;
 }
 
-static void renderConfigWindow(bool& firstFrame) {
+static void renderConfigWindow(bool& firstFrame, bool topologySelected) {
     bool autoClick = false;
 
     ImGui::Begin("Settings");
 
-    if (firstFrame) {
+    if (firstFrame && !topologySelected) {
         autoClick = true;
         firstFrame = false;
     }
@@ -636,7 +632,7 @@ static void visualizeWindow(
             engine->hasEvents()
         );
 
-        renderConfigWindow(firstFrame);
+        renderConfigWindow(firstFrame, topo.size() > 0);
 
         for (auto& p : pendingPackets) {
             p.visual_start_time =

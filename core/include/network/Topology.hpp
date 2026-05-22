@@ -9,7 +9,7 @@ namespace kns {
 	private:
 
 		// Number of nodes in the topology
-		int num_nodes;
+		int num_nodes = 0;
 
 		// Adjacency list representation of the topology. Each node has a list of outgoing links.
 		std::vector<std::vector<Link>> adjacency_list;

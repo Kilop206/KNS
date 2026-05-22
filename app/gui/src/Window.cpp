@@ -4,8 +4,6 @@ namespace interface {
     GLFWwindow* Window::generate_window() {
         glfwInit();
         GLFWwindow* window = glfwCreateWindow(1280, 720, "KNS", NULL, NULL);
-        glfwMakeContextCurrent(window);
-           
         if (window == nullptr) exit(EXIT_FAILURE);
 
         glfwMakeContextCurrent(window);
