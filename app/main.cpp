@@ -71,7 +71,7 @@ static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
     plan.reserve(kMaxTotalPackets);
 
     std::vector<PacketSpec> routes;
-    for (int i = 0; i < topo.size(); ++i) {
+    for (std::size_t i = 0; i < topo.size(); ++i) {
         for (const auto& link : topo.getLinksFromNode(i)) {
             if (link.from >= 0 && link.to >= 0) {
                 routes.push_back(PacketSpec{link.from, link.to});
@@ -83,7 +83,7 @@ static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
         return plan;
     }
 
-    for (int p = 0; p < kPacketsPerRoute; ++p) {
+    for (std::size_t p = 0; p < kPacketsPerRoute; ++p) {
         for (const auto& route : routes) {
             if (static_cast<int>(plan.size()) >= kMaxTotalPackets) {
                 return plan;
@@ -140,7 +140,7 @@ static std::vector<std::pair<float, float>> generatePositions(
     const float centerY = canvas_origin.y + canvas_size.y * 0.5f;
     const float radius  = std::max(40.0f, 0.35f * std::min(canvas_size.x, canvas_size.y));
 
-    for (int i = 0; i < topo.size(); ++i) {
+    for (std::size_t i = 0; i < topo.size(); ++i) {
         const float angle =
             2.0f * std::numbers::pi_v<float> *
             static_cast<float>(i) /
@@ -160,7 +160,7 @@ static int pickNodeAtMouse(
 ) {
     const ImVec2 mouse_pos = ImGui::GetMousePos();
 
-    for (int i = 0; i < static_cast<int>(positions.size()); ++i) {
+    for (std::size_t i = 0; i < static_cast<int>(positions.size()); ++i) {
         const float dx    = mouse_pos.x - positions[i].first;
         const float dy    = mouse_pos.y - positions[i].second;
         const float dist2 = dx * dx + dy * dy;
@@ -230,7 +230,7 @@ static void drawLinks(
     const Topology& topo,
     const std::vector<std::pair<float, float>>& positions
 ) {
-    for (int i = 0; i < topo.size(); ++i) {
+    for (std::size_t i = 0; i < topo.size(); ++i) {
         const auto& links = topo.getLinksFromNode(i);
         for (const auto& link : links) {
             if (link.from < 0 || link.to < 0 ||
@@ -253,7 +253,7 @@ static void drawNodes(
     const std::vector<std::pair<float, float>>& positions,
     int selected_node
 ) {
-    for (int i = 0; i < topo.size(); ++i) {
+    for (std::size_t i = 0; i < topo.size(); ++i) {
         ImU32 color = (i == selected_node)
             ? IM_COL32(255, 255, 0, 255)
             : IM_COL32(100, 200, 100, 255);
@@ -719,7 +719,7 @@ static void visualizeWindow(
 
                     lastRealTime = glfwGetTime();
 
-                    state = SimulationState::Running;
+                    state = SimulationState::Paused;
 
                     selected_node = -1;
 
@@ -796,9 +796,7 @@ int main(int argc, char* argv[]) {
     }
 
     SimulationState state =
-        topo.size() > 0
-            ? SimulationState::Running
-            : SimulationState::Paused;
+        SimulationState::Paused;
 
     auto engine =
         std::make_unique<SimulationEngine>(
