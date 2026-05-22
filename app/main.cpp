@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 #include <thread>
+#include <pair>
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -437,12 +438,14 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
     ImGui::End();
 }
 
-static int renderNetworkPanel(
+static std::pair<int, int> renderNetworkPanel(
     const Topology& topo,
     int selected_node,
     double visualTime,
     std::vector<VisualPacket>& activePackets
 ) {
+    static int drag_source_node = -1;
+
     ImGui::Begin("Network");
 
     ImVec2 canvas_p0 = ImGui::GetCursorScreenPos();
