@@ -35,11 +35,11 @@
 using namespace kns;
 using namespace interface;
 
-constexpr double kBasePacketsPerSecond = 5.0;
+constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 
-constexpr int    kPacketsPerRoute  = 250;
-constexpr int    kMaxTotalPackets  = 1000;
+constexpr int    kPacketsPerRoute  = 100;
+constexpr int    kMaxTotalPackets  = 400;
 constexpr double kVisualTravelTime = 0.005;
 constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
@@ -60,6 +60,12 @@ struct VisualPacket {
     double sim_end_time = 0.0;
     double visual_start_time = 0.0;
     PacketType type = PacketType::DATA;
+};
+
+struct PickedNodes {
+    int origin = -1;
+    int dest = -1;
+    bool tcp = false;
 };
 
 // ============================================================
@@ -437,7 +443,7 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
     ImGui::End();
 }
 
-static std::pair<int, int> renderNetworkPanel(
+static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
     double visualTime,
@@ -480,34 +486,33 @@ static std::pair<int, int> renderNetworkPanel(
 
     int clicked_node = -1;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        clicked_node = pickNodeAtMouse(positions, 10.0f);
+         int node = pickNodeAtMouse(positions, 10.0f);
+         if (node != -1) drag_source_node = node;
+    }
 
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            int node = pickNodeAtMouse(positions, 10.0f);
-            if (node != -1) drag_source_node = node;
-        }
+    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) && drag_source_node != -1) {
+        ImVec2 src(positions[drag_source_node].first, positions[drag_source_node].second);
+        ImVec2 mouse = ImGui::GetMousePos();
+        draw_list->AddLine(src, mouse, IM_COL32(255, 255, 255, 150), 1.5f);
+    }
 
-        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left) && drag_source_node != -1) {
-            ImVec2 src(positions[drag_source_node].first, positions[drag_source_node].second);
-            ImVec2 mouse = ImGui::GetMousePos();
-            draw_list->AddLine(src, mouse, IM_COL32(255, 255, 255, 150), 1.5f);
-        }
-
-        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && drag_source_node != -1) {
-            int dest = pickNodeAtMouse(positions, 10.0f);
-            if (dest != -1 && dest != drag_source_node) {
-                int src = drag_source_node;
-                drag_source_node = -1;
-                return {-1, src * 1000 + dest}; // encode source e dest
-            }
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && drag_source_node != -1) {
+        int dest = pickNodeAtMouse(positions, 10.0f);
+        if (dest != -1 && dest != drag_source_node) {
+            int src = drag_source_node;
             drag_source_node = -1;
+
+            ImGui::End();
+
+            return PickedNodes{src, dest, true};
         }
+        drag_source_node = -1;
     }
 
     draw_list->PopClipRect();
     ImGui::End();
 
-    return {clicked_node, -1};
+    return PickedNodes {clicked_node, -1, false};
 }
 
 static void renderConfigWindow(bool& firstFrame, bool topologySelected) {
@@ -666,21 +671,20 @@ static void visualizeWindow(
 
         pendingPackets.clear();
 
-        std::pair<int, int> clicked_node = renderNetworkPanel(
+        PickedNodes clicked_node = renderNetworkPanel(
             topo,
             selected_node,
             visualTime,
             activePackets
         );
 
-        if (clicked_node != -1) {
-            selected_node = clicked_node;
-
-            routingTable =
-                routing.buildRoutingTable(
-                    topo,
-                    selected_node
-                );
+        if (clicked_node.tcp)
+        {
+            engine->startTCPConnection(clicked_node.origin, clicked_node.dest);
+        } else if (clicked_node.origin != -1)
+        {
+            selected_node = clicked_node.origin;
+            routingTable = routing.buildRoutingTable(topo, selected_node);
         }
 
         renderSelectedNodePanel(
