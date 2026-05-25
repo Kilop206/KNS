@@ -35,12 +35,12 @@
 using namespace kns;
 using namespace interface;
 
-constexpr double kBasePacketsPerSecond = 1.0;
+constexpr double kBasePacketsPerSecond = 2.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 
 constexpr int    kPacketsPerRoute  = 100;
 constexpr int    kMaxTotalPackets  = 400;
-constexpr double kVisualTravelTime = 0.005;
+constexpr double kVisualTravelTime = 0.1;
 constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
 
