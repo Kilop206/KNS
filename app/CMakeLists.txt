@@ -9,7 +9,7 @@ add_executable(KNS
 
 target_link_libraries(KNS
         PRIVATE
-        kns_core
+        kns
         imgui_lib
 )
 
