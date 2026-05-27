@@ -7,16 +7,18 @@ namespace kns {
             int source,
             int destination,
             uint32_t seq_num,
-            uint32_t ack_num) :
+            uint32_t ack_num,
+            uint64_t session_id) :
             Event(timestamp),
             source_(source),
             destination_(destination),
             seq_num(seq_num),
-            ack_num(ack_num) {}
+            ack_num(ack_num),
+            session_id(session_id) {}
 
     void TCPAckEvent::execute(SimulationEngine& engine) {
 
-        Packet pkt(source_, destination_, source_, engine.now(), 1000);
+        Packet pkt(session_id, source_, destination_, source_, engine.now(), 1000);
 
         pkt.packet_type = PacketType::ACK;
 

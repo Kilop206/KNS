@@ -201,15 +201,15 @@ namespace kns
     }
 
     void SimulationEngine::setPacketObserver(
-        std::function<void(const Packet&, int, int, double, double)> observer
+        std::function<void(const Packet&, std::uint64_t, int, int, double, double)> observer
     ) {
         packetObserver = std::move(observer);
     }
 
-    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time)
+    void SimulationEngine::emitPacketEvent(const Packet& p, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time)
     {
         if (packetObserver) {
-            packetObserver(p, from, to, departure_time, arrival_time);
+            packetObserver(p, session_id, from, to, departure_time, arrival_time);
         }
     }
 

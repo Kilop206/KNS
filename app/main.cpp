@@ -44,7 +44,7 @@ constexpr double kVisualTravelTime = 0.1;
 constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
 
-constexpr std::uint64_t kGlobalPacketId = 0;
+constexpr std::uint64_t kGlobalPacketId = 1;
 
 // ============================================================
 // HELPER STRUCTS
@@ -128,7 +128,7 @@ static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Top
 static void scheduleDemoTraffic(std::unique_ptr<SimulationEngine>& engine, const Topology& topo) {
     if (topo.size() >= 2)
     {
-        engine->schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
+        engine->schedule(std::make_unique<TCPHandshakeEvent>(kGlobalPacketId, 0.0, 0, 1));
     }
 }
 
@@ -352,6 +352,8 @@ static void drawPackets(
 
             case PacketType::FIN:
                 draw_list->AddCircleFilled(pos, 9.0f, IM_COL32(200, 180, 50, 255));
+
+                kGlobalPacketId++;
                 break;
 
             default:
@@ -562,7 +564,7 @@ static void registerPacketObserver(
             double arrivalTime
         ) {
             pendingPackets.push_back(VisualPacket{
-                ++kGlobalPacketId
+                kGlobalPacketId;
                 from,
                 to,
                 departureTime,

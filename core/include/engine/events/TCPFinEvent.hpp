@@ -14,13 +14,15 @@ namespace kns {
             uint32_t ack_num;
             int source_;
             int destination_;
+            uint64_t session_id;
 
         public:
-        TCPSinEvent(double timestamp,
+        TCPFinEvent(double timestamp,
             int source,
             int destination,
             uint32_t seq_num,
-            uint32_t ack_num);
+            uint32_t ack_num,
+            uint64_t session_id);
 
         void execute(SimulationEngine& engine) override;
     };

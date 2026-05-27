@@ -11,7 +11,8 @@ namespace kns {
             int source,
             int destination,
             uint32_t seq_num,
-            uint32_t ack_num) :
+            uint32_t ack_num,
+            uint64_t session_id) :
         Event(timestamp),
         source_(source),
         destination_(destination),
@@ -20,7 +21,7 @@ namespace kns {
 
     void TCPSynAckEvent::execute(SimulationEngine& engine) {
 
-        Packet pkt( source_, destination_, source_, engine.now(), 1000);
+        Packet pkt(source_, session_id, destination_, source_, engine.now(), 1000);
 
         pkt.packet_type = PacketType::SYN_ACK;
 
