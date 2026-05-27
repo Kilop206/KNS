@@ -13,7 +13,7 @@ namespace kns {
     TCPHandshakeEvent::TCPHandshakeEvent(double timestamp,
                                         int source,
                                         int destination,
-                                        std::uint64_t& session_id)
+                                        std::uint64_t session_id)
         : Event(timestamp),
         source_(source),
         destination_(destination),

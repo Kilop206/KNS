@@ -1,6 +1,8 @@
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "network/utils/PacketUtils.hpp"
 
+#include <cstdint>
+
 namespace kns {
 
     PacketGenerationEvent::PacketGenerationEvent(
@@ -14,8 +16,9 @@ namespace kns {
         destination_(destination),
         type_(type) {}
 
-    void PacketGenerationEvent::execute(SimulationEngine& engine) {
+    void PacketGenerationEvent::execute(SimulationEngine& engine, uint64_t session_id) {
         Packet pkt(
+            session_id,
             source_,
             destination_,
             source_,

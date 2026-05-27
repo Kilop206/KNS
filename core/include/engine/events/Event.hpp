@@ -21,6 +21,7 @@ namespace kns {
 
 		// Getter methods for the timestamp and ID of the event.
         double getTimestamp() const noexcept;
+
         std::uint64_t getId() const noexcept;
 
     protected:
