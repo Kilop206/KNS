@@ -44,6 +44,8 @@ constexpr double kVisualTravelTime = 0.1;
 constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
 
+constexpr std::uint64_t kGlobalPacketId = 0;
+
 // ============================================================
 // HELPER STRUCTS
 // ============================================================
@@ -346,6 +348,10 @@ static void drawPackets(
                     ImVec2(pos.x + 4.0f, pos.y + 4.0f),
                     IM_COL32(255, 255, 255, 255)
                 );
+                break;
+
+            case PacketType::FIN:
+                draw_list->AddCircleFilled(pos, 9.0f, IM_COL32(200, 180, 50, 255));
                 break;
 
             default:
