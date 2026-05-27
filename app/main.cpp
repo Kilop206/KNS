@@ -562,7 +562,7 @@ static void registerPacketObserver(
             double arrivalTime
         ) {
             pendingPackets.push_back(VisualPacket{
-                kGlobalPacketId
+                ++kGlobalPacketId
                 from,
                 to,
                 departureTime,

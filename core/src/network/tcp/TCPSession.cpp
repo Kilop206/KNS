@@ -2,11 +2,11 @@
 
 namespace kns
 {
-    TCPSession::TCPSession(std::uint64_t sessionId,
+    TCPSession::TCPSession(std::uint64_t session_id,
                             int source,
                             int destination,
                             TCPState state)
-                            : sessionId(sessionId),
+                            : session_id(session_id),
                             source(source),
                             destination(destination),
                             state(state) {
