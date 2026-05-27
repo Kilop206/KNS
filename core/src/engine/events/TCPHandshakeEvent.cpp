@@ -40,12 +40,12 @@ namespace kns {
         const int client_seq = client.send_syn();
 
         Packet syn(
-            session_id,
             source_,
             destination_,
             source_,
             engine.now(),
-            engine.getGlobalPacketSize()
+            engine.getGlobalPacketSize(),
+            session_id
         );
         syn.packet_type = PacketType::SYN;
         syn.seq_num = client_seq;

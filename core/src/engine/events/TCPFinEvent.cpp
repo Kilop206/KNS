@@ -1,9 +1,9 @@
-#include "engine/events/TCPAckEvent.hpp"
+#include "engine/events/TCPFinEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"
 
 namespace kns {
-    TCPAckEvent::TCPAckEvent(double timestamp,
+    TCPFinEvent::TCPFinEvent(double timestamp,
             int source,
             int destination,
             uint32_t seq_num,
@@ -16,9 +16,16 @@ namespace kns {
             ack_num(ack_num),
             session_id(session_id) {}
 
-    void TCPAckEvent::execute(SimulationEngine& engine) {
+    void TCPFinEvent::execute(SimulationEngine& engine) {
 
-        Packet pkt(session_id, source_, destination_, source_, engine.now(), 1000);
+        Packet pkt(
+            source_,
+            destination_,
+            source_,
+            engine.now(),
+            1000,
+            session_id
+        );
 
         pkt.packet_type = PacketType::FIN;
 
