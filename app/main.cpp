@@ -555,12 +555,14 @@ static void registerPacketObserver(
     engine->setPacketObserver(
         [&visualTime, &pendingPackets](
             const Packet& p,
+            std::uint64_t session_id
             int from,
             int to,
             double departureTime,
             double arrivalTime
         ) {
             pendingPackets.push_back(VisualPacket{
+                kGlobalPacketId
                 from,
                 to,
                 departureTime,
