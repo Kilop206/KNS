@@ -5,8 +5,12 @@ namespace kns
     TCPSession::TCPSession(std::uint64_t sessionId,
                             int source,
                             int destination,
-                            TCPState state
-                            ) {}
+                            TCPState state)
+                            : sessionId(sessionId),
+                            source(source),
+                            destination(destination),
+                            state(state) {
+    }
 
     std::uint64_t TCPSession::getSession_id()
     {
@@ -40,7 +44,7 @@ namespace kns
 
     bool TCPSession::isComplete()
     {
-        return packetsSent == totalPackets;
+        return packets_sent == total_packets;
     }
 
     void TCPSession::setState(TCPState state)
