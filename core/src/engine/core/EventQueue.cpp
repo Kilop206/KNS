@@ -6,8 +6,8 @@
 
 namespace kns {
     // Comparator for the priority queue to order events by timestamp and ID
-    bool EventQueue::EventComparator::operator()(const std::unique_ptr<kns::Event>& a,
-        const std::unique_ptr<kns::Event>& b) const {
+    bool EventQueue::EventComparator::operator()(const std::unique_ptr<Event>& a,
+        const std::unique_ptr<Event>& b) const {
         // Order by timestamp first (earlier events have higher priority)
         if (a->getTimestamp() != b->getTimestamp()) {
             return a->getTimestamp() > b->getTimestamp();
@@ -18,7 +18,7 @@ namespace kns {
     }
 
     // Schedule a new event in the queue
-    void EventQueue::schedule(std::unique_ptr<kns::Event> event) {
+    void EventQueue::schedule(std::unique_ptr<Event> event) {
         // Ensure the event is not null before scheduling
         if (!event) {
             throw std::invalid_argument("Cannot schedule null event");

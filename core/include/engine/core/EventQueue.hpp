@@ -41,7 +41,7 @@ namespace kns {
 		// The priority queue that holds the events, ordered by their timestamps. The event with the earliest timestamp will be at the top of the queue.
         std::priority_queue<
             std::unique_ptr<Event>,
-            std::vector<std::unique_ptr<kns::Event>>,
+            std::vector<std::unique_ptr<Event>>,
             EventComparator
         > event_list_;
     };

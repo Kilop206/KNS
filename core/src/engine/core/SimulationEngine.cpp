@@ -210,8 +210,7 @@ namespace kns
     }
 
     void SimulationEngine::setPacketObserver(
-        std::function<void(const Packet&, std::uint64_t, int, int, double, double)> observer
-    ) {
+        std::function<void(const Packet&, std::uint64_t, int, int, double, double)> observer) {
         packetObserver = std::move(observer);
     }
 

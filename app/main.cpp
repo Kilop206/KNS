@@ -120,7 +120,7 @@ static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Top
             startTime + static_cast<double>(i) * generationInterval,
             plan[i].from,
             plan[i].to,
-            PacketType::DATA
+            kGlobalPacketId
         ));
     }
 }
@@ -168,7 +168,7 @@ static int pickNodeAtMouse(
 ) {
     const ImVec2 mouse_pos = ImGui::GetMousePos();
 
-    for (std::size_t i = 0; i < static_cast<int>(positions.size()); ++i) {
+    for (std::size_t i = 0; i <static_cast<int>(positions.size()); ++i) {
         const float dx    = mouse_pos.x - positions[i].first;
         const float dy    = mouse_pos.y - positions[i].second;
         const float dist2 = dx * dx + dy * dy;
