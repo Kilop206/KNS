@@ -9,16 +9,16 @@ namespace kns {
         double timestamp,
         int source,
         int destination,
-        PacketType type
-    )
-        : Event(timestamp),
+        uint64_t session_id)
+        :
+        Event(timestamp),
         source_(source),
         destination_(destination),
-        type_(type) {}
+        session_id_(session_id) {}
 
-    void PacketGenerationEvent::execute(SimulationEngine& engine, uint64_t session_id) {
+    void PacketGenerationEvent::execute(SimulationEngine& engine) {
         Packet pkt(
-            session_id,
+            session_id_,
             source_,
             destination_,
             source_,
@@ -26,7 +26,6 @@ namespace kns {
             engine.getGlobalPacketSize()
         );
 
-        pkt.packet_type = type_;
         pkt.seq_num = 0;
         pkt.ack_num = 0;
         pkt.departure_time = engine.now();

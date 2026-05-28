@@ -50,18 +50,20 @@ namespace kns {
                 engine.schedule(std::make_unique<TCPSynAckEvent>(engine.now(),
                                                                 packet.destination,
                                                                 packet.source,
-                                                                seq,
-                                                                ack));
+                                                                packet.seq_num,
+                                                                packet.ack_num,
+                                                                packet.session_id));
             }
             else if (packet.packet_type == PacketType::SYN_ACK) {
                 int seq = std::rand();
                 int ack = packet.seq_num + 1;
 
                 engine.schedule(std::make_unique<TCPAckEvent>(engine.now(),
-                    packet.destination,
-                    packet.source,
-                    seq,
-                    ack));
+                                                                packet.destination,
+                                                                packet.source,
+                                                                packet.seq_num,
+                                                                packet.ack_num,
+                                                                packet.session_id));
             } else if (packet.packet_type == PacketType::ACK)
             {
                 engine.generatePackets(engine.now());

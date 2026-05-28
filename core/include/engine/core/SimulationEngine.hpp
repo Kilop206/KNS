@@ -115,7 +115,7 @@ namespace kns {
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 
         // Simulates sending a packet over a link, including potential packet loss and scheduling the next event for packet arrival.
-        void sendPacket(const Packet& pkt, const Link& link, double now, uint64_t session_id);
+        void sendPacket(const Packet& pkt, const Link& link, double now);
 
         // Exports the collected statistics to a CSV file for analysis.
         void exportStatsCSV(const RunConfig& runConfig);
@@ -128,7 +128,7 @@ namespace kns {
 
         void setGlobalLossProb(float value);
 
-        void setGlobalPacketSize(float value);
+        void setGlobalPacketSize(int value);
 
         void setLatencyObserver(std::function<void(double)> observer);
 

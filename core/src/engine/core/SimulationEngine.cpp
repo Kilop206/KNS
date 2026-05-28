@@ -91,14 +91,14 @@ namespace kns
         return (now + propagation + transmission);
     }
 
-    void SimulationEngine::sendPacket(const Packet& pkt, const Link& link, double now, uint64_t session_id) {
+    void SimulationEngine::sendPacket(const Packet& pkt, const Link& link, double now) {
         stats_.packets_sent++;
 
         const int next_node = link.getOtherNode(pkt.current_node);
 
         double arrival_time = compute_arrival_time(pkt, link, now);
 
-        emitPacketEvent(pkt, session_id, pkt.current_node, next_node, now, arrival_time);
+        emitPacketEvent(pkt, pkt.session_id, pkt.current_node, next_node, now, arrival_time);
 
         if (link.should_drop()) {
             stats_.packets_lost++;
@@ -178,7 +178,7 @@ namespace kns
         topology_.setGlobalLossProb(value);
     }
 
-    void SimulationEngine::setGlobalPacketSize(float value) {
+    void SimulationEngine::setGlobalPacketSize(int value) {
         globalPacketSize = value;
     }
 
@@ -196,8 +196,17 @@ namespace kns
         return globalPacketSize;
     }
 
-    void SimulationEngine::startTCPConnection(int source, int dest, uint64_t session_id) {
-        schedule(std::make_unique<TCPHandshakeEvent>(now(), source, dest, session_id));
+    void SimulationEngine::startTCPConnection(
+        int source,
+        int dest,
+        uint64_t session_id
+    ) {
+        schedule(std::make_unique<PacketGenerationEvent>(
+            now(),
+            source,
+            dest,
+            session_id
+        ));
     }
 
     void SimulationEngine::setPacketObserver(
@@ -221,7 +230,9 @@ namespace kns
                 schedule(std::make_unique<PacketGenerationEvent>(
                     startTime + i * 0.02,
                     link.from,
-                    link.to));
+                    link.to,
+                    static_cast<uint64_t>(i)
+                ));
             }
         }
     }

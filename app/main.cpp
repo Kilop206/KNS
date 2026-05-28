@@ -35,16 +35,16 @@
 using namespace kns;
 using namespace interface;
 
-constexpr double kBasePacketsPerSecond = 2.0;
+constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 
 constexpr int    kPacketsPerRoute  = 100;
 constexpr int    kMaxTotalPackets  = 400;
-constexpr double kVisualTravelTime = 0.1;
+constexpr double kVisualTravelTime = 0.005;
 constexpr double kVisualSpawnGap   = 0.12;
 constexpr double kSimToVisualScale = 100.0;
 
-constexpr std::uint64_t kGlobalPacketId = 1;
+std::uint64_t kGlobalPacketId = 1;
 
 // ============================================================
 // HELPER STRUCTS
@@ -557,14 +557,13 @@ static void registerPacketObserver(
     engine->setPacketObserver(
         [&visualTime, &pendingPackets](
             const Packet& p,
-            std::uint64_t session_id
+            std::uint64_t session_id,
             int from,
             int to,
             double departureTime,
             double arrivalTime
         ) {
             pendingPackets.push_back(VisualPacket{
-                kGlobalPacketId;
                 from,
                 to,
                 departureTime,
@@ -690,7 +689,7 @@ static void visualizeWindow(
 
         if (clicked_node.tcp)
         {
-            engine->startTCPConnection(clicked_node.origin, clicked_node.dest);
+            engine->startTCPConnection(clicked_node.origin, clicked_node.dest, kGlobalPacketId);
         } else if (clicked_node.origin != -1)
         {
             selected_node = clicked_node.origin;

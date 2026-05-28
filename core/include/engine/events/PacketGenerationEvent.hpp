@@ -7,20 +7,20 @@
 namespace kns {
 
 class PacketGenerationEvent : public Event {
-public:
-    PacketGenerationEvent(
-        double timestamp,
-        int source,
-        int destination,
-        PacketType type = PacketType::DATA
-    );
+    private:
+        int source_;
+        int destination_;
+        uint64_t session_id_;
 
-    void execute(SimulationEngine& engine, uint64_t session_id);
+    public:
+        PacketGenerationEvent(
+            double timestamp,
+            int source,
+            int destination,
+            uint64_t session_id
+        );
 
-private:
-    int source_;
-    int destination_;
-    PacketType type_;
-};
+        void execute(SimulationEngine& engine) override;
+    };
 
 }
