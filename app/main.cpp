@@ -701,14 +701,12 @@ static void visualizeWindow(
             routingTable
         );
 
-        if (
-            ImGuiFileDialog::Instance()->Display(
+        if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
                 ImGuiWindowFlags_NoCollapse,
                 ImVec2(400, 300)
             )
         ) {
-
             if (ImGuiFileDialog::Instance()->IsOk()) {
 
                 std::string completePath =
@@ -716,10 +714,8 @@ static void visualizeWindow(
                         ->GetFilePathName();
 
                 try {
-
-                    topo =
-                        TopologyLoader::load_topology(
-                            completePath
+                    topo = TopologyLoader::load_topology(
+                                completePath
                         );
 
                     activePackets.clear();

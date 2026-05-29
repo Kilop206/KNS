@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <functional>
 
+#include "network/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
 #include "engine/events/Event.hpp"
@@ -144,7 +145,9 @@ namespace kns {
 
         void emitPacketEvent(const Packet& p, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time);
 
-        void generatePackets(double startTime);
+        void generatePackets(double startTime, uint64_t session_id);
+
+        TCPSession generateTCPSession(uint64_t session_id, int src, int dest);
     };
 
 }

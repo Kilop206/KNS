@@ -15,7 +15,12 @@ namespace kns {
     PacketReceivedEvent::PacketReceivedEvent(double timestamp, Packet packet)
         : Event(timestamp), packet(std::move(packet)) {}
 
-    void PacketReceivedEvent::execute(SimulationEngine& engine) {
+    void PacketReceivedEvent::execute(SimulationEngine& engine)
+    {
+        PacketReceivedEvent::execute(engine, -1);
+    }
+
+    void PacketReceivedEvent::execute(SimulationEngine& engine, uint64_t session_id) {
         int u = packet.current_node;
         int dest = packet.destination;
 
@@ -66,7 +71,7 @@ namespace kns {
                                                                 packet.session_id));
             } else if (packet.packet_type == PacketType::ACK)
             {
-                engine.generatePackets(engine.now());
+                engine.generatePackets(engine.now(), session_id);
             }
 
             return;

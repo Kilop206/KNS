@@ -14,6 +14,8 @@ namespace kns {
         PacketReceivedEvent(double timestamp, Packet packet);
 
         void execute(SimulationEngine& engine) override;
+
+        void execute(SimulationEngine& engine, uint64_t session_id);
     };
 
 }

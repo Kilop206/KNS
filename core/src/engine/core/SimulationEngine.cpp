@@ -10,12 +10,15 @@
 #include <iomanip>
 
 #include "engine/core/SimulationEngine.hpp"
+
+#include "../../../include/network/tcp/TCPSession.hpp"
 #include "engine/events/Event.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "network/Packet.hpp"
 #include "enums/TCPState.hpp"
+#include "network/tcp/TCPSession.hpp"
 
 namespace kns
 {
@@ -201,7 +204,7 @@ namespace kns
         int dest,
         uint64_t session_id
     ) {
-        schedule(std::make_unique<PacketGenerationEvent>(
+        schedule(std::make_unique<TCPHandshakeEvent>(
             now(),
             source,
             dest,
@@ -221,7 +224,7 @@ namespace kns
         }
     }
 
-    void SimulationEngine::generatePackets(double startTime) {
+    void SimulationEngine::generatePackets(double startTime, uint64_t session_id) {
         int i = 0;
         for (int node = 0; node < topology_.size(); ++node) {
             for (const auto& link : topology_.getLinksFromNode(node)) {
@@ -230,9 +233,14 @@ namespace kns
                     startTime + i * 0.02,
                     link.from,
                     link.to,
-                    static_cast<uint64_t>(i)
+                    static_cast<uint64_t>(session_id)
                 ));
             }
         }
+    }
+
+    TCPSession SimulationEngine::generateTCPSession(uint64_t session_id, int src, int dest)
+    {
+        return TCPSession(session_id, src, dest, TCPState::CLOSED);
     }
 }
