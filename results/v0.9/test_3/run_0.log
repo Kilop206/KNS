@@ -1,0 +1,99 @@
+[DELIVERED] Packet from 1 to 3 latency=0.011160
+[LATENCY] 0.011160
+[DELIVERED] Packet from 3 to 1 latency=0.011160
+[LATENCY] 0.011160
+[DELIVERED] Packet from 1 to 1 latency=-0.966680
+[LATENCY] -0.966680
+[DELIVERED] Packet from -1 to 0 latency=0.058320
+[LATENCY] 0.058320
+[DELIVERED] Packet from 1 to 0 latency=0.005080
+[LATENCY] 0.005080
+[DELIVERED] Packet from 0 to 1 latency=0.005080
+[LATENCY] 0.005080
+[DELIVERED] Packet from 1 to 1 latency=-0.931520
+[LATENCY] -0.931520
+[DELIVERED] Packet from -1 to 0 latency=0.079320
+[LATENCY] 0.079320
+[DELIVERED] Packet from 1 to 2 latency=0.010080
+[LATENCY] 0.010080
+[DELIVERED] Packet from 2 to 1 latency=0.010080
+[LATENCY] 0.010080
+[DELIVERED] Packet from -1 to 0 latency=0.093480
+[LATENCY] 0.093480
+[DELIVERED] Packet from -1 to 1 latency=-0.901680
+[LATENCY] -0.901680
+[DELIVERED] Packet from 1 to 1 latency=-0.896520
+[LATENCY] -0.896520
+[DELIVERED] Packet from -1 to 0 latency=0.114480
+[LATENCY] 0.114480
+[DELIVERED] Packet from -1 to 1 latency=-0.876680
+[LATENCY] -0.876680
+[DELIVERED] Packet from 3 to 1 latency=0.011160
+[LATENCY] 0.011160
+[DELIVERED] Packet from -1 to 0 latency=0.128480
+[LATENCY] 0.128480
+[DELIVERED] Packet from -1 to 1 latency=-0.866520
+[LATENCY] -0.866520
+[DELIVERED] Packet from 1 to 3 latency=0.011160
+[LATENCY] 0.011160
+[DELIVERED] Packet from 3 to 0 latency=0.006080
+[LATENCY] 0.006080
+[DELIVERED] Packet from 0 to 3 latency=0.006080
+[LATENCY] 0.006080
+[DELIVERED] Packet from -1 to 2 latency=-1.856680
+[LATENCY] -1.856680
+[DELIVERED] Packet from 1 to 3 latency=-2.852200
+[LATENCY] -2.852200
+[DELIVERED] Packet from 1 to 3 latency=-2.851120
+[LATENCY] -2.851120
+[DELIVERED] Packet from -1 to 0 latency=0.149480
+[LATENCY] 0.149480
+[DELIVERED] Packet from -1 to 1 latency=-0.841520
+[LATENCY] -0.841520
+[DELIVERED] Packet from -1 to 2 latency=-1.838680
+[LATENCY] -1.838680
+[DELIVERED] Packet from -1 to 1 latency=-0.831520
+[LATENCY] -0.831520
+[DELIVERED] Packet from -1 to 0 latency=0.172800
+[LATENCY] 0.172800
+[DELIVERED] Packet from -1 to 0 latency=0.173880
+[LATENCY] 0.173880
+[DROPPED] Packet from 2 to 0 at time 0.173880
+[DELIVERED] Packet from -1 to 2 latency=-1.821520
+[LATENCY] -1.821520
+[DELIVERED] Packet from -1 to 3 latency=-2.818680
+[LATENCY] -2.818680
+[DELIVERED] Packet from -1 to 1 latency=-0.806520
+[LATENCY] -0.806520
+[DELIVERED] Packet from -1 to 0 latency=0.193800
+[LATENCY] 0.193800
+[DELIVERED] Packet from -1 to 0 latency=0.194880
+[LATENCY] 0.194880
+[DELIVERED] Packet from -1 to 2 latency=-1.803520
+[LATENCY] -1.803520
+[DELIVERED] Packet from -1 to 3 latency=-2.800680
+[LATENCY] -2.800680
+[DELIVERED] Packet from 2 to 3 latency=0.008080
+[LATENCY] 0.008080
+[DELIVERED] Packet from -1 to 1 latency=-0.787200
+[LATENCY] -0.787200
+[DELIVERED] Packet from -1 to 2 latency=-1.786520
+[LATENCY] -1.786520
+[DELIVERED] Packet from -1 to 1 latency=-0.786120
+[LATENCY] -0.786120
+[DELIVERED] Packet from 3 to 2 latency=0.008080
+[LATENCY] 0.008080
+[DELIVERED] Packet from -1 to 3 latency=-2.783520
+[LATENCY] -2.783520
+[DELIVERED] Packet from 1 to 2 latency=-1.776520
+[LATENCY] -1.776520
+[DELIVERED] Packet from -1 to 2 latency=-1.768520
+[LATENCY] -1.768520
+[DELIVERED] Packet from 2 to 1 latency=0.010080
+[LATENCY] 0.010080
+[DELIVERED] Packet from -1 to 3 latency=-2.765520
+[LATENCY] -2.765520
+[DELIVERED] Packet from -1 to 1 latency=-0.762200
+[LATENCY] -0.762200
+[DELIVERED] Packet from -1 to 1 latency=-0.761120
+[LATENCY] -0.761120

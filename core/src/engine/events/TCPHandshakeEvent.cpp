@@ -4,7 +4,9 @@
 #include "network/tcp/TCPConnection.hpp"
 #include "network/Packet.hpp"
 #include "enums/PacketType.hpp"
+#include "enums/TCPState.hpp"
 #include "network/Link.hpp"
+#include "network/tcp/TCPSession.hpp"
 
 #include <iostream>
 
@@ -20,6 +22,8 @@ namespace kns {
         session_id(session_id) {}
 
     void TCPHandshakeEvent::execute(SimulationEngine& engine) {
+
+        TCPSession tcpSession(session_id, source_, destination_, TCPState::ESTABLISHED);
 
         TCPConnection client(
             TCPState::CLOSED,

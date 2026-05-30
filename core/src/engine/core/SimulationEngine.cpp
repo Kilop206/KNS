@@ -11,7 +11,7 @@
 
 #include "engine/core/SimulationEngine.hpp"
 
-#include "../../../include/network/tcp/TCPSession.hpp"
+#include "network/tcp/TCPSession.hpp"
 #include "engine/events/Event.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
@@ -210,6 +210,11 @@ namespace kns
             dest,
             session_id
         ));
+
+        sessions.push_back(TCPSession(session_id,
+                                        source,
+                                        dest,
+                                        TCPState::CLOSED));
     }
 
     void SimulationEngine::setPacketObserver(
@@ -237,10 +242,5 @@ namespace kns
                 ));
             }
         }
-    }
-
-    TCPSession SimulationEngine::generateTCPSession(uint64_t session_id, int src, int dest)
-    {
-        return TCPSession(session_id, src, dest, TCPState::CLOSED);
     }
 }

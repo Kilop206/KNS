@@ -61,7 +61,7 @@ def xvfb_available() -> bool:
 # ==============================================================
 
 def find_executable(root: Path) -> Path | None:
-    candidates = ["kns_app.exe", "kns_app"]
+    candidates = ["KNS.exe", "KNS"]
     for name in candidates:
         for p in root.rglob(name):
             if p.is_file() and (is_windows() or os.access(p, os.X_OK)):

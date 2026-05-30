@@ -20,6 +20,7 @@
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
 #include "network/tcp/TCPConnection.hpp"
+#include "network/tcp/TCPSession.hpp"
 
 struct PacketSpec;
 
@@ -79,6 +80,8 @@ namespace kns {
         > tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
+
+        std::map<int, TCPSession> sessions;
 
     public:
         double random();
@@ -146,8 +149,6 @@ namespace kns {
         void emitPacketEvent(const Packet& p, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time);
 
         void generatePackets(double startTime, uint64_t session_id);
-
-        TCPSession generateTCPSession(uint64_t session_id, int src, int dest);
     };
 
 }

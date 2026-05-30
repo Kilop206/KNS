@@ -6,7 +6,6 @@
 
 namespace kns {
 
-    class SimulationEngine;
 
     class TCPHandshakeEvent : public Event {
     public:

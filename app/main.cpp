@@ -62,6 +62,7 @@ struct VisualPacket {
     double sim_end_time = 0.0;
     double visual_start_time = 0.0;
     PacketType type = PacketType::DATA;
+    uint64_t session_id = 0;
 };
 
 struct PickedNodes {
