@@ -83,6 +83,7 @@ namespace kns {
 
         std::map<int, TCPSession> sessions;
 
+        uint64_t next_session_id = 0;
     public:
         double random();
 
@@ -143,7 +144,7 @@ namespace kns {
         void startTCPConnection(int source, int dest, uint64_t session_id);
 
         void setPacketObserver(
-            std::function<void(const Packet&, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
+            std::function<void(const Packet&, std::uint64_t next_session_id, int from, int to, double departure_time, double arrival_time)> observer
         );
 
         void emitPacketEvent(const Packet& p, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time);
