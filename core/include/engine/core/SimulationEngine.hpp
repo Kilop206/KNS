@@ -141,13 +141,13 @@ namespace kns {
 
         int getGlobalPacketSize() const;
 
-        void startTCPConnection(int source, int dest, uint64_t session_id);
+        void startTCPConnection(int source, int dest);
 
         void setPacketObserver(
-            std::function<void(const Packet&, std::uint64_t next_session_id, int from, int to, double departure_time, double arrival_time)> observer
+            std::function<void(const Packet&, int from, int to, double departure_time, double arrival_time)> observer
         );
 
-        void emitPacketEvent(const Packet& p, std::uint64_t session_id, int from, int to, double departure_time, double arrival_time);
+        void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
 
         void generatePackets(double startTime, uint64_t session_id);
     };
