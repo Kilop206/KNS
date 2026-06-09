@@ -152,5 +152,11 @@ namespace kns {
         void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
 
         void generatePackets(double startTime);
+
+        TCPSession& createTCPSession(int source, int destination);
+
+        TCPSession& getTCPSession(std::uint64_t session_id);
+
+        bool hasTCPSession(std::uint64_t session_id) const;
     };
 }

@@ -26,7 +26,7 @@ namespace kns
                         int destination,
                         TCPState state);
 
-            std::uint64_t getSession_id();
+            std::uint64_t getSession_id() const;
 
             int getSource();
 

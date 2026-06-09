@@ -101,7 +101,7 @@ namespace kns
 
         double arrival_time = compute_arrival_time(pkt, link, now);
 
-        emitPacketEvent(pkt, pkt.session_id, pkt.current_node, next_node, now, arrival_time);
+        emitPacketEvent(pkt, pkt.session_id, pkt.current_node, next_node, arrival_time);
 
         if (link.should_drop()) {
             stats_.packets_lost++;
@@ -241,5 +241,30 @@ namespace kns
                 ));
             }
         }
+    }
+
+    TCPSession& SimulationEngine::createTCPSession(int source, int destination) {
+        ++next_session_id;
+        TCPSession session(next_session_id, source, destination, TCPState::CLOSED);
+
+        sessions.insert({next_session_id, session});
+
+        return getTCPSession(next_session_id);
+    }
+
+    TCPSession& SimulationEngine::getTCPSession(std::uint64_t session_id) {
+        auto it = sessions.find(session_id);
+        
+        if (it == sessions.end()) {
+            throw std::runtime_error("Session doesn't exist");
+        }
+
+        return it->second;
+    }
+
+    bool SimulationEngine::hasTCPSession(std::uint64_t session_id) const {
+        auto it = sessions.find(session_id);
+
+        return (it != sessions.end());
     }
 }

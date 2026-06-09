@@ -8,10 +8,12 @@ namespace kns {
                             : session_id(session_id),
                             source(source),
                             destination(destination),
-                            state(state) {
+                            state(state),
+                            client_connection(TCPState::CLOSED, 0, 0, source, destination),
+                            server_connection(TCPState::CLOSED, 0, 0, destination, source) {
     }
 
-    std::uint64_t TCPSession::getSession_id()
+    std::uint64_t TCPSession::getSession_id() const
     {
         return session_id;
     }
