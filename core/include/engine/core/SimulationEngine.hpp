@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+#include <map>
 
 #include "network/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
@@ -144,12 +145,11 @@ namespace kns {
         void startTCPConnection(int source, int dest);
 
         void setPacketObserver(
-            std::function<void(const Packet&, int from, int to, double departure_time, double arrival_time)> observer
+            std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
         );
 
         void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
 
-        void generatePackets(double startTime, uint64_t session_id);
+        void generatePackets(double startTime);
     };
-
 }

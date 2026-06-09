@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-KNS Runner v0.9
+KNS Runner v1.0
 ---------------
-- Generates results in ../results/v0.9/test_#N/
+- Generates results in ../results/v1.0/test_#N/
 - Works on Windows, Linux, and macOS (cross-platform)
 - Generates graphs and summaries about latency, time, and other system data
 """
@@ -460,7 +460,7 @@ def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
         )
         ax4.set_title("Global packet distribution")
 
-    fig.suptitle("Dashboard — KNS v0.9", fontsize=14, y=0.98)
+    fig.suptitle("Dashboard — KNS v1.0", fontsize=14, y=0.98)
 
     out = out_dir / "dashboard.png"
     fig.savefig(out, dpi=130)
@@ -613,7 +613,7 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="KNS Runner v0.9 — execute simulations and generate summaries"
+        description="KNS Runner v1.0 — execute simulations and generate summaries"
     )
     parser.add_argument(
         "topologies_dir",
@@ -654,7 +654,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    results_root = root / "results" / "v0.9"
+    results_root = root / "results" / "v1.0"
     test_dir = get_test_dir(results_root)
     print(f"[INFO] Results will be saved in: {test_dir}")
 
