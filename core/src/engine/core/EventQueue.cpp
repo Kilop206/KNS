@@ -1,5 +1,5 @@
 #include "engine/core/EventQueue.hpp"
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 
 #include <stdexcept>
 #include <limits>

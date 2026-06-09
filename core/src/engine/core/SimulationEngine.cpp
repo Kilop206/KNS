@@ -11,14 +11,14 @@
 
 #include "engine/core/SimulationEngine.hpp"
 
-#include "network/tcp/TCPSession.hpp"
-#include "engine/events/Event.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
+#include "engine/core/Event.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "network/Packet.hpp"
 #include "enums/TCPState.hpp"
-#include "network/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns
 {

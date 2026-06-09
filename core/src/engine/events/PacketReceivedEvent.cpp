@@ -6,8 +6,6 @@
 
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
-#include "engine/events/TCPAckEvent.hpp"
-#include "engine/events/TCPSynAckEvent.hpp"
 #include "enums/PacketType.hpp"
 
 namespace kns {
@@ -71,7 +69,7 @@ namespace kns {
                                                                 packet.session_id));
             } else if (packet.packet_type == PacketType::ACK)
             {
-                engine.generatePackets(engine.now(), session_id);
+                engine.generatePackets(engine.now());
             }
 
             return;

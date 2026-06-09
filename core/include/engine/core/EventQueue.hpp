@@ -4,7 +4,7 @@
 #include <queue>
 #include <vector>
 
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 
 namespace kns {
 

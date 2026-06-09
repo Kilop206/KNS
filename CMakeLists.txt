@@ -1,22 +1,24 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(KNS VERSION 0.1.0 LANGUAGES CXX)
+project(KNS VERSION 1.0.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(FetchContent)
 include(CTest)
 
 # ==================================================
-# Configurações globais
+# Global settings
 # ==================================================
+option(KNS_BUILD_TESTS "Build unit tests" ON)
+option(KNS_BUILD_APP "Build application" ON)
+option(KNS_ENABLE_WARNINGS "Enable compiler warnings" ON)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(KNS_BUILD_TESTS "Build unit tests" ON)
-option(KNS_ENABLE_WARNINGS "Enable compiler warnings" ON)
-
-# Evita mudanças inesperadas em dependências baixadas
 set(FETCHCONTENT_QUIET OFF)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
@@ -24,12 +26,11 @@ if(POLICY CMP0077)
     cmake_policy(SET CMP0077 NEW)
 endif()
 
-# OpenGL deve ser resolvido pelo CMake, não por libs hardcoded
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
 # ==================================================
-# Função auxiliar para warnings
+# Auxiliar function for warnings
 # ==================================================
 function(kns_enable_warnings target)
     if(MSVC)
@@ -40,7 +41,19 @@ function(kns_enable_warnings target)
 endfunction()
 
 # ==================================================
-# Catch2 (somente se testes estiverem habilitados)
+# nlohmann/json
+# ==================================================
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.12.0
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ==================================================
+# Catch2
 # ==================================================
 if(KNS_BUILD_TESTS)
     FetchContent_Declare(
@@ -49,11 +62,8 @@ if(KNS_BUILD_TESTS)
         GIT_TAG v3.5.2
         GIT_SHALLOW TRUE
     )
-
     FetchContent_MakeAvailable(Catch2)
-
-    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
-    include(Catch)
+    enable_testing()
 endif()
 
 # ==================================================
@@ -82,7 +92,10 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(imgui)
+FetchContent_GetProperties(imgui)
+if(NOT imgui_POPULATED)
+    FetchContent_Populate(imgui)
+endif()
 
 # ==================================================
 # ImGuiFileDialog
@@ -100,7 +113,7 @@ if(NOT imguifiledialog_POPULATED)
 endif()
 
 # ==================================================
-# Biblioteca ImGui agregada ao projeto
+#  ImGui library agregated to the project
 # ==================================================
 add_library(imgui_lib STATIC)
 add_library(KNS::imgui_lib ALIAS imgui_lib)
@@ -136,19 +149,14 @@ if(KNS_ENABLE_WARNINGS)
 endif()
 
 # ==================================================
-# Projeto principal
+# Subprojects
 # ==================================================
 add_subdirectory(core)
-add_subdirectory(app)
 
-# Se kns existir no subdiretório core, adiciona fontes extras com segurança
-if(TARGET kns)
-    target_sources(kns PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/core/src/network/utils/PacketUtils.cpp
-    )
-    target_compile_features(kns PUBLIC cxx_std_20)
+if(KNS_BUILD_APP)
+    add_subdirectory(app)
+endif()
 
-    if(KNS_ENABLE_WARNINGS)
-        kns_enable_warnings(kns)
-    endif()
+if(KNS_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+    add_subdirectory(tests)
 endif()

@@ -1,7 +1,6 @@
-#include "network/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
 
-namespace kns
-{
+namespace kns {
     TCPSession::TCPSession(std::uint64_t session_id,
                             int source,
                             int destination,

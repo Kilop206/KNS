@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "network/Packet.hpp"
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 
 namespace kns {
 

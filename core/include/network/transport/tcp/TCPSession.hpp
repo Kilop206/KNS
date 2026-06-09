@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "enums/TCPState.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
 
 namespace kns
 {
@@ -16,6 +17,8 @@ namespace kns
             TCPState state;
             int total_packets = 0;
             int packets_sent = 0;
+            TCPConnection client_connection;
+            TCPConnection server_connection;
 
         public:
             TCPSession(std::uint64_t session_id,

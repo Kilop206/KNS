@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 #include "engine/core/SimulationEngine.hpp"
 
 namespace kns {

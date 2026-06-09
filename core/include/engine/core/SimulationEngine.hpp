@@ -9,19 +9,18 @@
 #include <functional>
 #include <map>
 
-#include "network/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 #include "engine/core/Stats.hpp"
 #include "engine/core/EventQueue.hpp"
-#include "engine/time/SimulationClock.hpp"
+#include "engine/core/SimulationClock.hpp"
 #include "network/Packet.hpp"
 #include "network/Link.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
-#include "network/tcp/TCPConnection.hpp"
-#include "network/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
 
 struct PacketSpec;
 
@@ -83,6 +82,8 @@ namespace kns {
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 
         std::map<int, TCPSession> sessions;
+
+        std::map<int, TCPSession> active_tcp_sessions;
 
         uint64_t next_session_id = 0;
     public:

@@ -1,12 +1,11 @@
 #include "engine/events/TCPHandshakeEvent.hpp"
-#include "engine/events/TCPSynAckEvent.hpp"
 #include "network/utils/PacketUtils.hpp"
-#include "network/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
 #include "network/Packet.hpp"
 #include "enums/PacketType.hpp"
 #include "enums/TCPState.hpp"
 #include "network/Link.hpp"
-#include "network/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
 
 #include <iostream>
 
