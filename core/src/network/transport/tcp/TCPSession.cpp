@@ -13,6 +13,8 @@ namespace kns {
                             server_connection(TCPState::CLOSED, 0, 0, destination, source) {
     }
 
+    TCPSession::TCPSession() = default;
+
     std::uint64_t TCPSession::getSession_id() const
     {
         return session_id;
@@ -51,5 +53,13 @@ namespace kns {
     void TCPSession::setState(TCPState state)
     {
         this->state = state;
+    }
+
+    TCPConnection& TCPSession::getClientConnection() {
+        return client_connection;
+    }
+
+    TCPConnection& TCPSession::getServerConnection() {
+        return server_connection;
     }
 }

@@ -22,23 +22,10 @@ namespace kns {
 
     void TCPHandshakeEvent::execute(SimulationEngine& engine) {
 
-        TCPSession tcpSession(session_id, source_, destination_, TCPState::ESTABLISHED);
+        auto& session = engine.getTCPSession(session_id);
 
-        TCPConnection client(
-            TCPState::CLOSED,
-            0,
-            0,
-            source_,
-            destination_
-        );
-
-        TCPConnection server(
-            TCPState::CLOSED,
-            0,
-            0,
-            destination_,
-            source_
-        );
+        auto& client = session.getClientConnection();
+        auto& server = session.getServerConnection();
 
         const int client_seq = client.send_syn();
 
@@ -58,8 +45,6 @@ namespace kns {
         if (!sendPacketThroughTopology(engine, syn)) {
             return;
         }
-
-        server.receive_syn(client_seq);
     }
 
 }

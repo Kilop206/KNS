@@ -203,17 +203,14 @@ namespace kns
         int source,
         int dest
     ) {
+        auto& session = createTCPSession(source, dest);
+
         schedule(std::make_unique<TCPHandshakeEvent>(
             now(),
             source,
             dest,
-            next_session_id
+            session.getSession_id()
         ));
-
-        sessions.insert({next_session_id, TCPSession(next_session_id,
-                                        source,
-                                        dest,
-                                        TCPState::CLOSED)});
     }
 
     void SimulationEngine::setPacketObserver(
