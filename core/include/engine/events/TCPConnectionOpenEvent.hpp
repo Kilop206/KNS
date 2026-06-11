@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/SimulationEngine.hpp"
-#include "core/Event.hpp"
+#include "engine/core/SimulationEngine.hpp"
+#include "engine/core/Event.hpp"
 
 namespace kns
 {
