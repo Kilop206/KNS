@@ -53,4 +53,12 @@ namespace kns {
     TCPState TCPConnection::getTcpState() const {
         return state;
     }
+
+    int TCPConnection::getSeqNum() const {
+        return seq_num;
+    }
+
+    int TCPConnection::getExpectedAckNum() const {
+        return expected_ack_num;
+    }
 }

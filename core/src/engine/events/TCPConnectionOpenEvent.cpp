@@ -1,4 +1,4 @@
-#include "core/events/TCPConnectionOpenEvent.hpp"
+#include "engine/events/TCPConnectionOpenEvent.hpp"
 
 namespace kns {
 
@@ -15,6 +15,12 @@ namespace kns {
         SimulationEngine& engine
     )
     {
+        TCPSession session = engine.getTCPSession(session_id);
+        TCPConnection server = session.getServerConnection();
+
+        if (server.getTcpState() == TCPState::SYN_RECEIVED) {
+            server.send_syn_ack();
+        }
     }
 
 }

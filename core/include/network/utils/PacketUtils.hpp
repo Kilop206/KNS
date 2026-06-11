@@ -4,5 +4,5 @@
 #include "network/Packet.hpp"
 
 namespace kns {
-    bool sendPacketThroughTopology(SimulationEngine& engine, Packet pkt);
+    bool sendPacketThroughTopology(SimulationEngine& engine, Packet& pkt);
 }

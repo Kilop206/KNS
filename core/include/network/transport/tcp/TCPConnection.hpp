@@ -38,6 +38,10 @@ namespace kns {
             int getRemoteNode() const;
 
             TCPState getTcpState() const;
+
+            int getSeqNum() const;
+
+            int getExpectedAckNum() const;
     };
 
     struct TCPConnectionHash {

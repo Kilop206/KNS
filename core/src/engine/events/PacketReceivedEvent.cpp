@@ -4,6 +4,7 @@
 #include <sstream>
 #include <utility>
 
+#include "engine/events/TCPConnectionOpenEvent.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "enums/PacketType.hpp"
@@ -47,29 +48,17 @@ namespace kns {
             engine.removePacketInTransit(packet.departure_time, timestamp_);
 
             if (packet.packet_type == PacketType::SYN) {
-                int seq = std::rand();
-                int ack = packet.seq_num + 1;
+                auto& session = engine.getTCPSession(packet.session_id);
+                auto& server = session.getServerConnection();
 
-                engine.schedule(std::make_unique<TCPSynAckEvent>(engine.now(),
-                                                                packet.destination,
-                                                                packet.source,
-                                                                packet.seq_num,
-                                                                packet.ack_num,
-                                                                packet.session_id));
-            }
-            else if (packet.packet_type == PacketType::SYN_ACK) {
-                int seq = std::rand();
-                int ack = packet.seq_num + 1;
+                server.receive_syn(packet.seq_num);
 
-                engine.schedule(std::make_unique<TCPAckEvent>(engine.now(),
-                                                                packet.destination,
-                                                                packet.source,
-                                                                packet.seq_num,
-                                                                packet.ack_num,
-                                                                packet.session_id));
-            } else if (packet.packet_type == PacketType::ACK)
-            {
-                engine.generatePackets(engine.now());
+                engine.schedule(
+                    std::make_unique<TCPConnectionOpenEvent>(
+                        engine.now(),
+                        packet.session_id
+                    )
+                );
             }
 
             return;
