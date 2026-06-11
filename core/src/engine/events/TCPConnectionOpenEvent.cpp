@@ -20,6 +20,13 @@ namespace kns {
 
         if (server.getTcpState() == TCPState::SYN_RECEIVED) {
             server.send_syn_ack();
+
+            int local = server.getLocalNode();
+            int destination = server.getRemoteNode();
+            int current_node = server.getLocalNode();
+            PacketType packet_type = PacketType::SYN_ACK;
+            uint64_t seq_num = server.getSeqNum();
+            uint64_t ack_num = server.getExpectedAckNum();
         }
     }
 

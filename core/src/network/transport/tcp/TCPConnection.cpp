@@ -54,6 +54,14 @@ namespace kns {
         return state;
     }
 
+    int TCPConnection::getLocalNode() const {
+        return local_node;
+    }
+
+    int TCPConnection::getRemoteNode() const {
+        return local_node;
+    }
+
     int TCPConnection::getSeqNum() const {
         return seq_num;
     }
