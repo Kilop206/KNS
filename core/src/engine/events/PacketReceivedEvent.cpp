@@ -82,13 +82,22 @@ namespace kns {
 
                 if (
                     session.getClientConnection().getTcpState() == TCPState::ESTABLISHED &&
-                    session.getServerConnection().getTcpState() == TCPState::ESTABLISHED)
+                    session.getServerConnection().getTcpState() == TCPState::ESTABLISHED
+                )
                 {
-                    session.setState(TCPState::ESTABLISHED);
+                    if (session.getState() != TCPState::ESTABLISHED)
+                    {
+                        session.setState(TCPState::ESTABLISHED);
 
-                    std::cout << "[TCP][SESSION "
-                            << session.getSession_id()
-                            << "] SESSION_ESTABLISHED\n";
+                        std::cout << "[TCP][SESSION "
+                                << session.getSession_id()
+                                << "] SESSION_ESTABLISHED\n";
+
+                        engine.generatePackets(
+                            engine.now(),
+                            session
+                        );
+                    }
                 }
             }
 

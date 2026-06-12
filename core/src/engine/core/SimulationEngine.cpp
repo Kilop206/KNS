@@ -230,6 +230,11 @@ namespace kns
         TCPSession& session
     )
     {
+        std::cout
+            << "[DEBUG] generatePackets session="
+            << session.getSession_id()
+            << '\n';
+
         for (int i = 0; i < kPacketsPerRoute; ++i)
         {
             schedule(
@@ -266,5 +271,9 @@ namespace kns
         auto it = sessions.find(session_id);
 
         return (it != sessions.end());
+    }
+
+    int SimulationEngine::getPacketsPerRoute() const {
+        return kPacketsPerRoute;
     }
 }

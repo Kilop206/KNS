@@ -112,7 +112,8 @@ static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Top
         return;
     }
 
-    const auto plan = buildOrderedPacketPlan(topo, engine)5    if (plan.empty()) {
+    const auto plan = buildOrderedPacketPlan(topo, engine);
+    if (plan.empty()) {
         return;
     }
 
