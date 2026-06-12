@@ -74,6 +74,22 @@ namespace kns {
                         packet.session_id
                     )
                 );
+            } else if (packet.packet_type == PacketType::ACK) {
+                auto& session = engine.getTCPSession(packet.session_id);
+                auto& server = session.getServerConnection();
+
+                server.receive_ack(packet.ack_num);
+
+                if (
+                    session.getClientConnection().getTcpState() == TCPState::ESTABLISHED &&
+                    session.getServerConnection().getTcpState() == TCPState::ESTABLISHED)
+                {
+                    session.setState(TCPState::ESTABLISHED);
+
+                    std::cout << "[TCP][SESSION "
+                            << session.getSession_id()
+                            << "] SESSION_ESTABLISHED\n";
+                }
             }
 
             return;

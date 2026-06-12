@@ -1,6 +1,7 @@
 #include "network/transport/tcp/TCPConnection.hpp"
 
 #include <cstdlib>
+#include <iostream>
 
 namespace kns {
 
@@ -18,6 +19,9 @@ namespace kns {
     int64_t TCPConnection::send_syn() {
         seq_num = std::rand();
         state = TCPState::SYN_SENT;
+        std::cout << "[TCP][" << local_node
+            << "->" << remote_node
+            << "] SYN_SENT\n";
         return seq_num;
     }
 
@@ -25,6 +29,9 @@ namespace kns {
         expected_ack_num = remote_seq + 1;
 
         seq_num = std::rand();
+        std::cout << "[TCP][" << local_node
+            << "->" << remote_node
+            << "] SYN_RECEIVED\n";
         state = TCPState::SYN_RECEIVED;
     }
 
@@ -36,6 +43,9 @@ namespace kns {
         if (remote_ack == seq_num + 1) {
             expected_ack_num = remote_seq + 1;
             state = TCPState::ESTABLISHED;
+            std::cout << "[TCP][" << local_node
+                << "->" << remote_node
+                << "] CLIENT_ESTABLISHED\n";
         }
     }
 
@@ -47,6 +57,9 @@ namespace kns {
         if (state == TCPState::SYN_RECEIVED &&
             remote_ack == seq_num + 1) {
             state = TCPState::ESTABLISHED;
+            std::cout << "[TCP][" << local_node
+                << "->" << remote_node
+                << "] SERVER_ESTABLISHED\n";
         }
     }
 

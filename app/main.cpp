@@ -73,7 +73,7 @@ struct PickedNodes {
 // HELPER FUNCTIONS
 // ============================================================
 
-static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
+static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo, std::unique_ptr<SimulationEngine>& engine) {
     std::vector<PacketSpec> plan;
     plan.reserve(kMaxTotalPackets);
 
@@ -91,11 +91,16 @@ static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo) {
     }
 
     for (std::size_t p = 0; p < kPacketsPerRoute; ++p) {
-        for (const auto& route : routes) {
-            if (static_cast<int>(plan.size()) >= kMaxTotalPackets) {
-                return plan;
-            }
-            plan.push_back(route);
+        std::set<std::pair<int,int>> connections;
+
+        for (const auto& route : plan)
+        {
+            connections.insert({route.from, route.to});
+        }
+
+        for (const auto& [from, to] : connections)
+        {
+            engine->startTCPConnection(from, to);
         }
     }
 
@@ -107,26 +112,24 @@ static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Top
         return;
     }
 
-    const auto plan = buildOrderedPacketPlan(topo);
-    if (plan.empty()) {
+    const auto plan = buildOrderedPacketPlan(topo, engine)5    if (plan.empty()) {
         return;
     }
 
     const double generationInterval = 1.0 / kBasePacketsPerSecond;
 
     for (std::size_t i = 0; i < plan.size(); ++i) {
-        engine->schedule(std::make_unique<PacketGenerationEvent>(
-            startTime + static_cast<double>(i) * generationInterval,
+        engine->startTCPConnection(
             plan[i].from,
             plan[i].to
-        ));
+        );
     }
 }
 
 static void scheduleDemoTraffic(std::unique_ptr<SimulationEngine>& engine, const Topology& topo) {
     if (topo.size() >= 2)
     {
-        engine->schedule(std::make_unique<TCPHandshakeEvent>(0.0, 0, 1));
+        engine->startTCPConnection(0, 1);
     }
 }
 

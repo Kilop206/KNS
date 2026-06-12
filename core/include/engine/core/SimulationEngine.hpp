@@ -86,6 +86,8 @@ namespace kns {
         std::map<int, TCPSession> active_tcp_sessions;
 
         uint64_t next_session_id = 0;
+
+        int kPacketsPerRoute = 100;
     public:
         double random();
 
@@ -151,7 +153,7 @@ namespace kns {
 
         void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
 
-        void generatePackets(double startTime);
+        void generatePackets(double startTime, TCPSession& session);
 
         TCPSession& createTCPSession(int source, int destination);
 

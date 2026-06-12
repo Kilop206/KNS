@@ -2,6 +2,8 @@
 #include "enums/PacketType.hpp"
 #include "network/utils/PacketUtils.hpp"
 
+#include <iostream>
+
 namespace kns {
 
     TCPConnectionOpenEvent::TCPConnectionOpenEvent(
@@ -17,11 +19,16 @@ namespace kns {
         SimulationEngine& engine
     )
     {
+        std::cout << "[TCP][SESSION "
+            << session_id
+            << "] TCPConnectionOpenEvent\n";
+
         TCPSession& session = engine.getTCPSession(session_id);
         TCPConnection& server = session.getServerConnection();
         TCPConnection& client = session.getClientConnection();
 
-        if (server.getTcpState() == TCPState::SYN_RECEIVED) {
+        if (server.getTcpState() == TCPState::SYN_RECEIVED
+            && client.getTcpState() != TCPState::ESTABLISHED) {
             server.send_syn_ack();
 
             Packet syn_ack(

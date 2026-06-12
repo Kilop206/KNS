@@ -18,12 +18,12 @@ namespace kns {
 
     void PacketGenerationEvent::execute(SimulationEngine& engine) {
         Packet pkt(
-            session_id_,
             source_,
             destination_,
             source_,
             engine.now(),
-            engine.getGlobalPacketSize()
+            engine.getGlobalPacketSize(),
+            session_id_
         );
 
         pkt.seq_num = 0;

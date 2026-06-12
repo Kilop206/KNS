@@ -225,18 +225,21 @@ namespace kns
         }
     }
 
-    void SimulationEngine::generatePackets(double startTime) {
-        int i = 0;
-        for (int node = 0; node < topology_.size(); ++node) {
-            for (const auto& link : topology_.getLinksFromNode(node)) {
-                i++;
-                schedule(std::make_unique<PacketGenerationEvent>(
+    void SimulationEngine::generatePackets(
+        double startTime,
+        TCPSession& session
+    )
+    {
+        for (int i = 0; i < kPacketsPerRoute; ++i)
+        {
+            schedule(
+                std::make_unique<PacketGenerationEvent>(
                     startTime + i * 0.02,
-                    link.from,
-                    link.to,
-                    static_cast<uint64_t>(next_session_id)
-                ));
-            }
+                    session.getSource(),
+                    session.getDestination(),
+                    session.getSession_id()
+                )
+            );
         }
     }
 
