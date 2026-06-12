@@ -39,6 +39,8 @@ namespace kns {
 
             TCPState getTcpState() const;
 
+            void setTcpState(TCPState state);
+
             int getSeqNum() const;
 
             int getExpectedAckNum() const;

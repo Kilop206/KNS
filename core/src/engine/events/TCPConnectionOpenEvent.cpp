@@ -1,4 +1,6 @@
 #include "engine/events/TCPConnectionOpenEvent.hpp"
+#include "enums/PacketType.hpp"
+#include "network/utils/PacketUtils.hpp"
 
 namespace kns {
 
@@ -15,19 +17,47 @@ namespace kns {
         SimulationEngine& engine
     )
     {
-        TCPSession session = engine.getTCPSession(session_id);
-        TCPConnection server = session.getServerConnection();
+        TCPSession& session = engine.getTCPSession(session_id);
+        TCPConnection& server = session.getServerConnection();
+        TCPConnection& client = session.getClientConnection();
 
         if (server.getTcpState() == TCPState::SYN_RECEIVED) {
             server.send_syn_ack();
 
-            int local = server.getLocalNode();
-            int destination = server.getRemoteNode();
-            int current_node = server.getLocalNode();
-            PacketType packet_type = PacketType::SYN_ACK;
-            uint64_t seq_num = server.getSeqNum();
-            uint64_t ack_num = server.getExpectedAckNum();
+            Packet syn_ack(
+                server.getLocalNode(),
+                server.getRemoteNode(),
+                server.getLocalNode(),
+                engine.now(),
+                engine.getGlobalPacketSize(),
+                session_id
+            );
+
+            syn_ack.packet_type = PacketType::SYN_ACK;
+            syn_ack.seq_num = server.getSeqNum();
+            syn_ack.ack_num = server.getExpectedAckNum();
+            syn_ack.departure_time = engine.now();
+
+            sendPacketThroughTopology(engine, syn_ack);
+        } else if (server.getTcpState() == TCPState::SYN_RECEIVED 
+                    && client.getTcpState() == TCPState::ESTABLISHED) 
+        {
+
+            Packet ack(
+                client.getLocalNode(),
+                client.getRemoteNode(),
+                client.getLocalNode(),
+                engine.now(),
+                engine.getGlobalPacketSize(),
+                session_id
+            );
+
+            ack.packet_type = PacketType::ACK;
+            ack.seq_num = client.getSeqNum();
+            ack.ack_num = client.send_ack();
+            ack.departure_time = engine.now();
+
+            sendPacketThroughTopology(engine, ack);
         }
     }
-
 }

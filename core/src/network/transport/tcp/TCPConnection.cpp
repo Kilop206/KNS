@@ -54,12 +54,16 @@ namespace kns {
         return state;
     }
 
+    void TCPConnection::setTcpState(TCPState state) {
+        this->state = state;
+    }
+
     int TCPConnection::getLocalNode() const {
         return local_node;
     }
 
     int TCPConnection::getRemoteNode() const {
-        return local_node;
+        return remote_node;
     }
 
     int TCPConnection::getSeqNum() const {

@@ -59,6 +59,21 @@ namespace kns {
                         packet.session_id
                     )
                 );
+            } else if (packet.packet_type == PacketType::SYN_ACK) {
+                auto& session = engine.getTCPSession(packet.session_id);
+                auto& client = session.getClientConnection();
+
+                client.receive_syn_ack(
+                    packet.seq_num,
+                    packet.ack_num
+                );
+
+                engine.schedule(
+                    std::make_unique<TCPConnectionOpenEvent>(
+                        engine.now(),
+                        packet.session_id
+                    )
+                );
             }
 
             return;
