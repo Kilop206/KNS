@@ -17,49 +17,42 @@ namespace kns {
         remote_node(remote_node) {}
 
     int64_t TCPConnection::send_syn() {
-        seq_num = std::rand();
+        if (state != TCPState::SYN_SENT) {
+            seq_num = std::rand();
+        }
+
         state = TCPState::SYN_SENT;
-        std::cout << "[TCP][" << local_node
-            << "->" << remote_node
-            << "] SYN_SENT\n";
-        return seq_num;
+            return seq_num;
     }
 
-    void TCPConnection::receive_syn(uint32_t remote_seq) {
-        expected_ack_num = remote_seq + 1;
-
-        seq_num = std::rand();
-        std::cout << "[TCP][" << local_node
-            << "->" << remote_node
-            << "] SYN_RECEIVED\n";
-        state = TCPState::SYN_RECEIVED;
+    void TCPConnection::incrementSynRetries() {
+        ++syn_retries;
     }
 
-    int64_t TCPConnection::send_syn_ack() {
-        return seq_num;
+    bool TCPConnection::canRetrySyn() const {
+        return syn_retries < MAX_SYN_RETRIES;
+    }
+
+    int TCPConnection::getSynRetries() const {
+        return syn_retries;
+    }
+
+    void TCPConnection::resetSynRetries() {
+        syn_retries = 0;
     }
 
     void TCPConnection::receive_syn_ack(uint32_t remote_seq, uint32_t remote_ack) {
         if (remote_ack == seq_num + 1) {
             expected_ack_num = remote_seq + 1;
             state = TCPState::ESTABLISHED;
-            std::cout << "[TCP][" << local_node
-                << "->" << remote_node
-                << "] CLIENT_ESTABLISHED\n";
+            resetSynRetries();
         }
-    }
-
-    int64_t TCPConnection::send_ack() {
-        return expected_ack_num;
     }
 
     void TCPConnection::receive_ack(uint32_t remote_ack) {
         if (state == TCPState::SYN_RECEIVED &&
             remote_ack == seq_num + 1) {
             state = TCPState::ESTABLISHED;
-            std::cout << "[TCP][" << local_node
-                << "->" << remote_node
-                << "] SERVER_ESTABLISHED\n";
         }
     }
 
@@ -68,7 +61,7 @@ namespace kns {
     }
 
     void TCPConnection::setTcpState(TCPState state) {
-        this->state = state;
+        state = state;
     }
 
     int TCPConnection::getLocalNode() const {
