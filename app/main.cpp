@@ -73,38 +73,46 @@ struct PickedNodes {
 // HELPER FUNCTIONS
 // ============================================================
 
-static std::vector<PacketSpec> buildOrderedPacketPlan(const Topology& topo, std::unique_ptr<SimulationEngine>& engine) {
-    std::vector<PacketSpec> plan;
-    plan.reserve(kMaxTotalPackets);
+static std::vector<std::pair<int,int>>
+buildConnectionPlan(const Topology& topo)
+{
+    std::set<std::pair<int,int>> connections;
 
-    std::vector<PacketSpec> routes;
-    for (std::size_t i = 0; i < topo.size(); ++i) {
-        for (const auto& link : topo.getLinksFromNode(i)) {
-            if (link.from >= 0 && link.to >= 0) {
-                routes.push_back(PacketSpec{link.from, link.to});
+    for (std::size_t i = 0; i < topo.size(); ++i)
+    {
+        for (const auto& link : topo.getLinksFromNode(i))
+        {
+            if (link.from >= 0 && link.to >= 0)
+            {
+                connections.insert({link.from, link.to});
             }
         }
-    }
-
-    if (routes.empty()) {
-        return plan;
-    }
-
-    for (std::size_t p = 0; p < kPacketsPerRoute; ++p) {
+    }static std::vector<std::pair<int,int>>
+buildConnectionPlan(const Topology& topo)
+    {
         std::set<std::pair<int,int>> connections;
 
-        for (const auto& route : plan)
+        for (std::size_t i = 0; i < topo.size(); ++i)
         {
-            connections.insert({route.from, route.to});
+            for (const auto& link : topo.getLinksFromNode(i))
+            {
+                if (link.from >= 0 && link.to >= 0)
+                {
+                    connections.insert({link.from, link.to});
+                }
+            }
         }
 
-        for (const auto& [from, to] : connections)
-        {
-            engine->startTCPConnection(from, to);
-        }
+        return {
+            connections.begin(),
+            connections.end()
+        };
     }
 
-    return plan;
+    return {
+        connections.begin(),
+        connections.end()
+    };
 }
 
 static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Topology& topo, double startTime = 1.0) {
@@ -113,6 +121,12 @@ static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Top
     }
 
     const auto plan = buildOrderedPacketPlan(topo, engine);
+
+    std::cout
+        << "[DEBUG] plan size = "
+        << plan.size()
+        << '\n';
+
     if (plan.empty()) {
         return;
     }

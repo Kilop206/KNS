@@ -22,6 +22,11 @@ namespace kns {
 
     void TCPHandshakeEvent::execute(SimulationEngine& engine) {
 
+        std::cout
+            << "[TCP] Handshake session "
+            << session_id
+            << '\n';
+
         auto& session = engine.getTCPSession(session_id);
 
         auto& client = session.getClientConnection();

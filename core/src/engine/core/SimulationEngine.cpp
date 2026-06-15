@@ -202,15 +202,27 @@ namespace kns
     void SimulationEngine::startTCPConnection(
         int source,
         int dest
-    ) {
+    )
+    {
         auto& session = createTCPSession(source, dest);
 
-        schedule(std::make_unique<TCPHandshakeEvent>(
-            now(),
-            source,
-            dest,
-            session.getSession_id()
-        ));
+        std::cout
+            << "[TCP] Creating session "
+            << session.getSession_id()
+            << " "
+            << source
+            << " -> "
+            << dest
+            << '\n';
+
+        schedule(
+            std::make_unique<TCPHandshakeEvent>(
+                now(),
+                source,
+                dest,
+                session.getSession_id()
+            )
+        );
     }
 
     void SimulationEngine::setPacketObserver(
