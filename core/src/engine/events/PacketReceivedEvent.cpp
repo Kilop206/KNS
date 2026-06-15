@@ -99,6 +99,12 @@ namespace kns {
                         );
                     }
                 }
+            } else if (packet.packet_type == PacketType::DATA) {
+                std::cout
+                    << "[DATA] session="
+                    << packet.session_id
+                    << " delivered"
+                    << '\n';
             }
 
             return;

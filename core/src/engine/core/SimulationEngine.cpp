@@ -215,6 +215,11 @@ namespace kns
             << dest
             << '\n';
 
+        std::cout
+            << "[DEBUG] active_tcp_sessions="
+            << active_tcp_sessions.size()
+            << '\n';
+
         schedule(
             std::make_unique<TCPHandshakeEvent>(
                 now(),
@@ -243,8 +248,11 @@ namespace kns
     )
     {
         std::cout
-            << "[DEBUG] generatePackets session="
+            << "[DEBUG] session "
             << session.getSession_id()
+            << " scheduling "
+            << kPacketsPerRoute
+            << " packets"
             << '\n';
 
         for (int i = 0; i < kPacketsPerRoute; ++i)

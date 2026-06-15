@@ -87,26 +87,6 @@ buildConnectionPlan(const Topology& topo)
                 connections.insert({link.from, link.to});
             }
         }
-    }static std::vector<std::pair<int,int>>
-buildConnectionPlan(const Topology& topo)
-    {
-        std::set<std::pair<int,int>> connections;
-
-        for (std::size_t i = 0; i < topo.size(); ++i)
-        {
-            for (const auto& link : topo.getLinksFromNode(i))
-            {
-                if (link.from >= 0 && link.to >= 0)
-                {
-                    connections.insert({link.from, link.to});
-                }
-            }
-        }
-
-        return {
-            connections.begin(),
-            connections.end()
-        };
     }
 
     return {
@@ -115,37 +95,28 @@ buildConnectionPlan(const Topology& topo)
     };
 }
 
-static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Topology& topo, double startTime = 1.0) {
+static void generatePackets(
+    std::unique_ptr<SimulationEngine>& engine,
+    const Topology& topo,
+    double startTime = 1.0
+) {
     if (topo.size() <= 0) {
         return;
     }
 
-    const auto plan = buildOrderedPacketPlan(topo, engine);
+    auto plan = buildConnectionPlan(topo);
 
     std::cout
-        << "[DEBUG] plan size = "
+        << "[DEBUG] connection count = "
         << plan.size()
         << '\n';
 
-    if (plan.empty()) {
-        return;
-    }
-
-    const double generationInterval = 1.0 / kBasePacketsPerSecond;
-
-    for (std::size_t i = 0; i < plan.size(); ++i) {
-        engine->startTCPConnection(
-            plan[i].from,
-            plan[i].to
-        );
-    }
-}
-
-static void scheduleDemoTraffic(std::unique_ptr<SimulationEngine>& engine, const Topology& topo) {
-    if (topo.size() >= 2)
+    for (const auto& [from, to] : plan)
     {
-        engine->startTCPConnection(0, 1);
+        engine->startTCPConnection(from, to);
     }
+
+
 }
 
 static std::vector<std::pair<float, float>> generatePositions(
@@ -760,8 +731,6 @@ static void visualizeWindow(
                         }
                     );
 
-                    scheduleDemoTraffic(engine, topo);
-
                     generatePackets(engine, topo);
 
                     lastRealTime = glfwGetTime();
@@ -868,8 +837,6 @@ int main(int argc, char* argv[]) {
     engine->setGlobalLossProb(0.0f);
 
     if (topo.size() > 0) {
-
-        scheduleDemoTraffic(engine, topo);
 
         generatePackets(engine, topo);
     }
