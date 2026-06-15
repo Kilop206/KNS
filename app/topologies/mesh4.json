@@ -13,21 +13,21 @@
       "to": 2,
       "delay": 10,
       "bandwidth": 100,
-      "loss": 0.02
+      "loss": 0.0
     },
     {
       "from": 2,
       "to": 3,
       "delay": 8,
       "bandwidth": 100,
-      "loss": 0.015
+      "loss": 0.0
     },
     {
       "from": 3,
       "to": 0,
       "delay": 6,
       "bandwidth": 100,
-      "loss": 0.005
+      "loss": 0.0
     }
   ]
 }

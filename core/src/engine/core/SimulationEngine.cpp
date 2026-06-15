@@ -296,4 +296,62 @@ namespace kns
     int SimulationEngine::getPacketsPerRoute() const {
         return kPacketsPerRoute;
     }
+
+    void SimulationEngine::validateSimulation() const {
+        std::size_t total_sessions = sessions.size();
+        std::size_t established_sessions = 0;
+
+        for (const auto& [id, session] : sessions)
+        {
+            (void)id;
+
+            if (session.getState() == TCPState::ESTABLISHED)
+            {
+                ++established_sessions;
+            }
+        }
+
+        const std::size_t expected_data_packets =
+            established_sessions * static_cast<std::size_t>(kPacketsPerRoute);
+
+        std::cout << "\n===== VALIDATION REPORT =====\n";
+        std::cout << "Total sessions created: " << total_sessions << '\n';
+        std::cout << "Sessions established:   " << established_sessions << '\n';
+        std::cout << "Packets per session:    " << kPacketsPerRoute << '\n';
+        std::cout << "Expected DATA packets:   " << expected_data_packets << '\n';
+        std::cout << "Packets sent:            " << stats_.packets_sent << '\n';
+        std::cout << "Packets delivered:       " << stats_.packets_delivered << '\n';
+        std::cout << "Packets lost:            " << stats_.packets_lost << '\n';
+
+        const bool sessions_ok = (total_sessions > 0) && (established_sessions == total_sessions);
+        const bool traffic_ok =
+            stats_.packets_delivered >= expected_data_packets &&
+            stats_.packets_lost == 0;
+
+        if (sessions_ok && traffic_ok)
+        {
+            std::cout << "Result: VALIDATION PASSED\n";
+        }
+        else
+        {
+            std::cout << "Result: VALIDATION FAILED\n";
+
+            if (!sessions_ok)
+            {
+                std::cout << " - Not all sessions reached ESTABLISHED.\n";
+            }
+
+            if (stats_.packets_delivered < expected_data_packets)
+            {
+                std::cout << " - Delivered packets are below expected DATA packets.\n";
+            }
+
+            if (stats_.packets_lost != 0)
+            {
+                std::cout << " - There are lost packets.\n";
+            }
+        }
+
+        std::cout << "============================\n";
+    }
 }

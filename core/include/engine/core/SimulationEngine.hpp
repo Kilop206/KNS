@@ -162,5 +162,7 @@ namespace kns {
         bool hasTCPSession(std::uint64_t session_id) const;
 
         int getPacketsPerRoute() const;
+
+        void validateSimulation() const;
     };
 }

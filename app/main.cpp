@@ -866,5 +866,7 @@ int main(int argc, char* argv[]) {
 
     shutdownWindow(window);
 
+    engine->validateSimulation();
+
     return 0;
 }

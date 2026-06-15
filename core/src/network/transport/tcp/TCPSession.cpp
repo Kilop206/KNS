@@ -28,7 +28,7 @@ namespace kns {
         return destination;
     }
 
-    TCPState TCPSession::getState()
+    TCPState TCPSession::getState() const
     {
         return state;
     }

@@ -34,7 +34,7 @@ namespace kns
 
             int getDestination();
 
-            TCPState getState();
+            TCPState getState() const;
 
             TCPConnection& getClientConnection();
 
