@@ -73,10 +73,10 @@ namespace kns {
         std::function<void(double)> latencyObserver_;
 
         std::unordered_map<
-            kns::TCPConnection,
+            TCPConnection,
             std::pair<int, int>,
-            kns::TCPConnectionHash,
-            kns::TCPConnectionEqual
+            TCPConnectionHash,
+            TCPConnectionEqual
         > tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;

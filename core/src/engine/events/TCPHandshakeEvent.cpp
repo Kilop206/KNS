@@ -6,6 +6,7 @@
 #include "enums/TCPState.hpp"
 #include "network/Link.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
+#include "engine/events/TCPHandshakeTimeoutEvent.hpp"
 
 #include <iostream>
 
@@ -47,8 +48,21 @@ namespace kns {
         syn.ack_num = 0;
         syn.departure_time = engine.now();
 
-        if (!sendPacketThroughTopology(engine, syn)) {
-            return;
+        if (sendPacketThroughTopology(engine, syn))
+        {
+            engine.schedule(
+                std::make_unique<TCPHandshakeTimeoutEvent>(
+                    engine.now() + 1.0,
+                    session_id
+                )
+            );
+
+            std::cout
+                << "[TCP][SESSION "
+                << session_id
+                << "] SYN timeout scheduled at "
+                << engine.now() + 1.0
+                << '\n';
         }
     }
 

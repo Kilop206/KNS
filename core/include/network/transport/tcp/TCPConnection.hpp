@@ -45,5 +45,26 @@ namespace kns {
             bool canRetrySyn() const;
             int getSynRetries() const;
             void resetSynRetries();
+
+        struct TCPConnectionHash
+        {
+            std::size_t operator()(const TCPConnection& key) const
+                {
+                    return std::hash<int>()(key.from)
+                         ^ (std::hash<int>()(key.to) << 1);
+                }
+            };
+
+            struct TCPConnectionEqual
+            {
+                bool operator()(
+                    const TCPConnection& a,
+                    const TCPConnection& b
+                ) const
+                {
+                    return a.from == b.from
+                        && a.to == b.to;
+                }
+            };
         };
 }
