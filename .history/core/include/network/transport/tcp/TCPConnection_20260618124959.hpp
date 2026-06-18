@@ -49,7 +49,7 @@ namespace kns {
 
             struct TCPConnectionHash
             {
-                size_t operator()(const TCPConnectionKey& key) const
+                std::size_t operator()(const TCPConnectionKey& key) const
                 {
                     return std::hash<int>()(key.from)
                         ^ (std::hash<int>()(key.to) << 1);
@@ -67,5 +67,4 @@ namespace kns {
                         && a.to == b.to;
                 }
             };
-    };
 }

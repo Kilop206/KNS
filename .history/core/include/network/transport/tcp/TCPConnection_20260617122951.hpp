@@ -1,7 +1,6 @@
 #pragma once
 
 #include "enums/TCPState.hpp"
-#include "network/transport/tcp/TCPConnectionKey.hpp"
 
 #include <stdint.h>
 #include <functional>
@@ -47,25 +46,25 @@ namespace kns {
             int getSynRetries() const;
             void resetSynRetries();
 
-            struct TCPConnectionHash
-            {
-                size_t operator()(const TCPConnectionKey& key) const
+        struct TCPConnectionHash
+        {
+            std::size_t operator()(const TCPConnection& key) const
                 {
                     return std::hash<int>()(key.from)
-                        ^ (std::hash<int>()(key.to) << 1);
+                         ^ (std::hash<int>()(key.to) << 1);
                 }
             };
 
             struct TCPConnectionEqual
             {
                 bool operator()(
-                    const TCPConnectionKey& a,
-                    const TCPConnectionKey& b
+                    const TCPConnection& a,
+                    const TCPConnection& b
                 ) const
                 {
                     return a.from == b.from
                         && a.to == b.to;
                 }
             };
-    };
+        };
 }

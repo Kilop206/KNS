@@ -25,20 +25,16 @@ namespace kns {
             return seq_num;
     }
 
-    void TCPConnection::incrementSynRetries() {
-        ++syn_retries;
+    void TCPConnection::receive_syn(uint32_t remote_seq)
+    {
+        expected_ack_num = remote_seq + 1;
+        state = TCPState::SYN_RECEIVED;
     }
 
-    bool TCPConnection::canRetrySyn() const {
-        return syn_retries < MAX_SYN_RETRIES;
-    }
-
-    int TCPConnection::getSynRetries() const {
-        return syn_retries;
-    }
-
-    void TCPConnection::resetSynRetries() {
-        syn_retries = 0;
+    int64_t TCPConnection::send_syn_ack()
+    {
+        state = TCPState::SYN_RECEIVED;
+        return seq_num;
     }
 
     void TCPConnection::receive_syn_ack(uint32_t remote_seq, uint32_t remote_ack) {
@@ -47,6 +43,12 @@ namespace kns {
             state = TCPState::ESTABLISHED;
             resetSynRetries();
         }
+    }
+
+    int64_t TCPConnection::send_ack()
+    {
+        state = TCPState::ESTABLISHED;
+        return expected_ack_num;
     }
 
     void TCPConnection::receive_ack(uint32_t remote_ack) {
@@ -78,5 +80,22 @@ namespace kns {
 
     int TCPConnection::getExpectedAckNum() const {
         return expected_ack_num;
+    }
+
+    
+    void TCPConnection::incrementSynRetries() {
+        ++syn_retries;
+    }
+
+    bool TCPConnection::canRetrySyn() const {
+        return syn_retries < MAX_SYN_RETRIES;
+    }
+
+    int TCPConnection::getSynRetries() const {
+        return syn_retries;
+    }
+
+    void TCPConnection::resetSynRetries() {
+        syn_retries = 0;
     }
 }

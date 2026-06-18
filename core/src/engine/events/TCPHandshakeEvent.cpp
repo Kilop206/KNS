@@ -6,7 +6,7 @@
 #include "enums/TCPState.hpp"
 #include "network/Link.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
-#include "engine/events/TCPHandshakeTimeoutEvent.hpp"
+#include "engine/events/TCPHanshakeTimeoutEvent.hpp"
 
 #include <iostream>
 

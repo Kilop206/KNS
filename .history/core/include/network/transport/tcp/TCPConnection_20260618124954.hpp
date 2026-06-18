@@ -49,23 +49,22 @@ namespace kns {
 
             struct TCPConnectionHash
             {
-                size_t operator()(const TCPConnectionKey& key) const
-                {
-                    return std::hash<int>()(key.from)
-                        ^ (std::hash<int>()(key.to) << 1);
-                }
-            };
-
-            struct TCPConnectionEqual
+            std::size_t operator()(const TCPConnectionKey& key) const
             {
-                bool operator()(
-                    const TCPConnectionKey& a,
-                    const TCPConnectionKey& b
-                ) const
-                {
-                    return a.from == b.from
-                        && a.to == b.to;
-                }
-            };
-    };
+                return std::hash<int>()(key.from)
+                    ^ (std::hash<int>()(key.to) << 1);
+            }
+        };
+
+        struct TCPConnectionEqual
+        {
+            bool operator()(
+                const TCPConnectionKey& a,
+                const TCPConnectionKey& b
+            ) const
+            {
+                return a.from == b.from
+                    && a.to == b.to;
+            }
+        };
 }

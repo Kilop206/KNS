@@ -238,7 +238,7 @@ namespace kns
     void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time)
     {
         if (packetObserver) {
-            packetObserver(p, p.session_id, from, to, departure_time, arrival_time);
+            packetObserver(p, next_session_id, from, to, departure_time, arrival_time);
         }
     }
 

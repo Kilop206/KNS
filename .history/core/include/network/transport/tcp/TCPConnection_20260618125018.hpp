@@ -67,5 +67,5 @@ namespace kns {
                         && a.to == b.to;
                 }
             };
-    };
+        };
 }

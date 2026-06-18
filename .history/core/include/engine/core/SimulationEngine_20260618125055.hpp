@@ -75,8 +75,8 @@ namespace kns {
         std::unordered_map<
             TCPConnectionKey,
             uint64_t,
-            TCPConnection::TCPConnectionHash,
-            TCPConnection::TCPConnectionEqual
+            TCPConnectionHash,
+            TCPConnectionEqual
         > tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
@@ -159,7 +159,7 @@ namespace kns {
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 
-        const std::map<int, TCPSession>& getTCPSessions() const;
+        const std::unordered_map<int, TCPSession>& getTCPSessions() const;
 
         bool hasTCPSession(std::uint64_t session_id) const;
 

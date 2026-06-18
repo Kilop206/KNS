@@ -159,7 +159,7 @@ namespace kns {
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 
-        const std::map<int, TCPSession>& getTCPSessions() const;
+        const std::unordered_map<int, TCPSession>& getTCPSessions() const;
 
         bool hasTCPSession(std::uint64_t session_id) const;
 
