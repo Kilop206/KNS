@@ -4,7 +4,7 @@
 
 namespace kns {
 
-class Topology;
+	class Topology;
 
 	class Routing {
 		public:

@@ -435,6 +435,7 @@ static void visualizeWindow(
     }
 
     int selected_node = -1;
+
     std::vector<Routing::RoutingEntry> routingTable;
     Routing routing;
 
@@ -446,25 +447,43 @@ static void visualizeWindow(
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         const double currentRealTime = glfwGetTime();
         const double deltaRealTime = currentRealTime - lastRealTime;
+
         lastRealTime = currentRealTime;
 
-        if (state == SimulationState::Running) {
-            const double visualAdvance = deltaRealTime * speedMultiplier / kSimToVisualScale;
-            (void)visualAdvance;
+        // =====================================================
+        // SIMULATION ADVANCE
+        // =====================================================
+
+        if (state == SimulationState::Running)
+        {
+            engine->advanceTime(
+                deltaRealTime * speedMultiplier
+            );
 
             int safetyCounter = 0;
-            while (engine->hasEvents() && safetyCounter < 1000) {
+
+            while (
+                engine->hasEvents() &&
+                engine->peekNextEventTime() <= engine->now() &&
+                safetyCounter < 1000
+            ) {
                 engine->processEvent();
                 ++safetyCounter;
             }
         }
 
-        if (!engine->hasEvents()) {
+        if (!engine->hasEvents())
+        {
             state = SimulationState::Paused;
         }
+
+        // =====================================================
+        // IMGUI FRAME
+        // =====================================================
 
         glfwPollEvents();
 
@@ -474,7 +493,8 @@ static void visualizeWindow(
 
         BeginDockSpaceHost(dock_initialized);
 
-        if (firstFrame && topo.size() == 0) {
+        if (firstFrame && topo.size() == 0)
+        {
             ImGuiFileDialog::Instance()->OpenDialog(
                 "TopologyKey",
                 "Select Initial Topology",
@@ -498,70 +518,115 @@ static void visualizeWindow(
             engine->hasEvents()
         );
 
-        renderConfigWindow(firstFrame, topo.size() > 0);
-
-        PickedNodes clicked_node = renderNetworkPanel(
-            topo,
-            selected_node,
-            *engine
+        renderConfigWindow(
+            firstFrame,
+            topo.size() > 0
         );
 
-        if (clicked_node.tcp) {
-            engine->startTCPConnection(clicked_node.origin, clicked_node.dest);
-        } else if (clicked_node.origin != -1) {
+        PickedNodes clicked_node =
+            renderNetworkPanel(
+                topo,
+                selected_node,
+                *engine
+            );
+
+        if (clicked_node.tcp)
+        {
+            engine->startTCPConnection(
+                clicked_node.origin,
+                clicked_node.dest
+            );
+        }
+        else if (clicked_node.origin != -1)
+        {
             selected_node = clicked_node.origin;
-            routingTable = routing.buildRoutingTable(topo, selected_node);
+
+            routingTable =
+                routing.buildRoutingTable(
+                    topo,
+                    selected_node
+                );
         }
 
-        renderSelectedNodePanel(selected_node, routingTable);
+        renderSelectedNodePanel(
+            selected_node,
+            routingTable
+        );
+
+        // =====================================================
+        // FILE DIALOG
+        // =====================================================
 
         if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
                 ImGuiWindowFlags_NoCollapse,
-                ImVec2(400, 300)
-            )) {
-            if (ImGuiFileDialog::Instance()->IsOk()) {
-                const std::string completePath =
-                    ImGuiFileDialog::Instance()->GetFilePathName();
+                ImVec2(400, 300)))
+        {
+            if (ImGuiFileDialog::Instance()->IsOk())
+            {
+                try
+                {
+                    topo = TopologyLoader::load_topology(
+                        ImGuiFileDialog::Instance()
+                            ->GetFilePathName()
+                    );
 
-                try {
-                    topo = TopologyLoader::load_topology(completePath);
+                    engine =
+                        std::make_unique<SimulationEngine>(
+                            topo
+                        );
 
-                    :visualTimeReset
-                    engine = std::make_unique<SimulationEngine>(topo);
+                    engine->setGlobalPacketSize(
+                        packetSize
+                    );
 
-                    engine->setGlobalPacketSize(packetSize);
-                    engine->setGlobalLossProb(lossProb);
-                    engine->setLatencyObserver([&buffer](double lat) {
-                        buffer.addLatencyToBuffer(static_cast<float>(lat));
-                    });
+                    engine->setGlobalLossProb(
+                        lossProb
+                    );
 
-                    generatePackets(engine, topo);
+                    engine->setLatencyObserver(
+                        [&buffer](double lat)
+                        {
+                            buffer.addLatencyToBuffer(
+                                static_cast<float>(lat)
+                            );
+                        }
+                    );
 
-                    lastRealTime = glfwGetTime();
-                    state = SimulationState::Paused;
+                    generatePackets(
+                        engine,
+                        topo
+                    );
+
                     selected_node = -1;
                     routingTable.clear();
-                } catch (const std::exception& e) {
-                    std::cerr << "Load error: " << e.what() << std::endl;
+
+                    state =
+                        SimulationState::Paused;
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr
+                        << "Load error: "
+                        << e.what()
+                        << '\n';
                 }
             }
 
             ImGuiFileDialog::Instance()->Close();
         }
 
+        // =====================================================
+        // RENDER
+        // =====================================================
+
         ImGui::Render();
+
         glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        constexpr double kTargetFrameTime = 1.0 / 60.0;
-        const double frameTime = glfwGetTime() - currentRealTime;
-
-        if (frameTime < kTargetFrameTime) {
-            std::this_thread::sleep_for(
-                std::chrono::duration<double>(kTargetFrameTime - frameTime)
-            );
-        }
+        ImGui_ImplOpenGL3_RenderDrawData(
+            ImGui::GetDrawData()
+        );
 
         glfwSwapBuffers(window);
     }

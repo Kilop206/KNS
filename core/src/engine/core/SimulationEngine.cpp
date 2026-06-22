@@ -358,4 +358,9 @@ namespace kns
 
         std::cout << "============================\n";
     }
+
+    void SimulationEngine::advanceTime(double time)
+    {
+        clock_.setTime(time);
+    }
 }

@@ -87,7 +87,7 @@ namespace kns {
 
         uint64_t next_session_id = 0;
 
-        int kPacketsPerRoute = 100;
+        unsigned int kPacketsPerRoute = 100;
     public:
         double random();
 
@@ -166,5 +166,7 @@ namespace kns {
         int getPacketsPerRoute() const;
 
         void validateSimulation() const;
+
+        void advanceTime(double time);
     };
 }
