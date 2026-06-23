@@ -25,7 +25,10 @@
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/PacketRenderer.hpp"
+#include "gui/include/VisualPacketManager.hpp"
+#include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
+#include "network/Packet.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
@@ -34,23 +37,15 @@ using namespace kns;
 using namespace interface;
 
 constexpr double kBasePacketsPerSecond = 1.0;
-constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
-constexpr int    kPacketsPerRoute      = 100;
-constexpr double kSimToVisualScale     = 100.0;
-
-// ============================================================
-// HELPER STRUCTS
-// ============================================================
+constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
+constexpr int    kPacketsPerRoute       = 100;
+constexpr double kSimToVisualScale      = 100.0;
 
 struct PickedNodes {
     int origin = -1;
     int dest = -1;
     bool tcp = false;
 };
-
-// ============================================================
-// HELPER FUNCTIONS
-// ============================================================
 
 static std::vector<std::pair<int, int>> buildConnectionPlan(const Topology& topo)
 {
@@ -323,7 +318,7 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
 static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
-    const SimulationEngine& engine,
+    const std::vector<VisualPacket>& visualPackets,
     double visualTime
 ) {
     static int drag_source_node = -1;
@@ -357,7 +352,12 @@ static PickedNodes renderNetworkPanel(
         drawNodes(draw_list, topo, positions, selected_node);
 
         PacketRenderer packetRenderer;
-        packetRenderer.render(draw_list, topo, positions, engine, visualTime, 0.35f);
+        packetRenderer.render(
+            draw_list,
+            positions,
+            visualPackets,
+            visualTime
+        );
     }
 
     ImGui::InvisibleButton("network_canvas", canvas_sz);
@@ -435,19 +435,51 @@ static void visualizeWindow(
         engine = std::make_unique<SimulationEngine>(topo);
     }
 
+    VisualPacketManager visualManager;
+    visualManager.clear();
+
+    float lossProb = 0.0f;
+    float speedMultiplier = 1.0f;
+
+    auto configureEngine = [&](std::unique_ptr<SimulationEngine>& eng) {
+        eng->setGlobalPacketSize(packetSize);
+        eng->setGlobalLossProb(lossProb);
+        eng->setLatencyObserver([&buffer](double lat) {
+            buffer.addLatencyToBuffer(static_cast<float>(lat));
+        });
+        eng->setPacketObserver(
+            [&visualManager](
+                const Packet& p,
+                std::uint64_t session_id,
+                int from,
+                int to,
+                double departureTime,
+                double arrivalTime
+            ) {
+                visualManager.observePacket(
+                    p,
+                    session_id,
+                    from,
+                    to,
+                    departureTime,
+                    arrivalTime
+                );
+            }
+        );
+    };
+
+    configureEngine(engine);
+    generatePackets(engine, topo);
+
     double visualTime = 0.0;
     double lastRealTime = glfwGetTime();
 
     int selected_node = -1;
-
     std::vector<Routing::RoutingEntry> routingTable;
     Routing routing;
 
     bool firstFrame = true;
     bool dock_initialized = false;
-
-    float lossProb = 0.0f;
-    float speedMultiplier = 1.0f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -472,14 +504,11 @@ static void visualizeWindow(
             }
         }
 
-        if (!engine->hasEvents())
-        {
+        if (engine->hasEvents() == false) {
             state = SimulationState::Paused;
         }
 
-        // =====================================================
-        // IMGUI FRAME
-        // =====================================================
+        visualManager.update(visualTime);
 
         glfwPollEvents();
 
@@ -516,6 +545,7 @@ static void visualizeWindow(
 
         if (stepRequested && engine->hasEvents()) {
             engine->processEvent();
+            visualManager.update(visualTime);
         }
 
         renderConfigWindow(
@@ -524,11 +554,11 @@ static void visualizeWindow(
         );
 
         PickedNodes clicked_node = renderNetworkPanel(
-                                                topo,
-                                                selected_node,
-                                                *engine,
-                                                visualTime
-                                            );
+            topo,
+            selected_node,
+            visualManager.getActivePackets(),
+            visualTime
+        );
 
         if (clicked_node.tcp)
         {
@@ -553,10 +583,6 @@ static void visualizeWindow(
             routingTable
         );
 
-        // =====================================================
-        // FILE DIALOG
-        // =====================================================
-
         if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
                 ImGuiWindowFlags_NoCollapse,
@@ -573,33 +599,15 @@ static void visualizeWindow(
 
                     visualTime = 0.0;
                     lastRealTime = glfwGetTime();
+                    visualManager.clear();
 
                     engine =
                         std::make_unique<SimulationEngine>(
                             topo
                         );
 
-                    engine->setGlobalPacketSize(
-                        packetSize
-                    );
-
-                    engine->setGlobalLossProb(
-                        lossProb
-                    );
-
-                    engine->setLatencyObserver(
-                        [&buffer](double lat)
-                        {
-                            buffer.addLatencyToBuffer(
-                                static_cast<float>(lat)
-                            );
-                        }
-                    );
-
-                    generatePackets(
-                        engine,
-                        topo
-                    );
+                    configureEngine(engine);
+                    generatePackets(engine, topo);
 
                     selected_node = -1;
                     routingTable.clear();
@@ -618,10 +626,6 @@ static void visualizeWindow(
 
             ImGuiFileDialog::Instance()->Close();
         }
-
-        // =====================================================
-        // RENDER
-        // =====================================================
 
         ImGui::Render();
 
@@ -660,17 +664,7 @@ int main(int argc, char* argv[]) {
     auto engine = std::make_unique<SimulationEngine>(topo);
     CircularBuffer buffer;
 
-    engine->setLatencyObserver([&buffer](double lat) {
-        buffer.addLatencyToBuffer(static_cast<float>(lat));
-    });
-
     int packetSize = 1000;
-    engine->setGlobalPacketSize(packetSize);
-    engine->setGlobalLossProb(0.0f);
-
-    if (topo.size() > 0) {
-        generatePackets(engine, topo);
-    }
 
     Window windowMethods;
     GLFWwindow* window = windowMethods.generate_window();

@@ -4,9 +4,6 @@
 #include <cmath>
 #include <cstdint>
 
-#include "engine/core/SimulationEngine.hpp"
-#include "network/Topology.hpp"
-
 namespace interface {
 
     namespace {
@@ -25,50 +22,47 @@ namespace interface {
 
     void PacketRenderer::render(
         ImDrawList* draw_list,
-        const kns::Topology& topo,
         const std::vector<std::pair<float, float>>& positions,
-        const kns::SimulationEngine& engine,
-        double visual_time,
-        double minimum_visible_duration_seconds
+        const std::vector<VisualPacket>& packets,
+        double visual_time
     ) const {
-        (void)topo;
-
-        const auto& packets = engine.getPacketsInTransit();
 
         for (const auto& packet : packets) {
-            if (packet.from_node < 0 || packet.to_node < 0 ||
-                packet.from_node >= static_cast<int>(positions.size()) ||
-                packet.to_node >= static_cast<int>(positions.size())) {
+            if (packet.from < 0 || packet.to < 0 ||
+                packet.from >= static_cast<int>(positions.size()) ||
+                packet.to >= static_cast<int>(positions.size())) {
                 continue;
             }
 
-            const double actual_duration = packet.arrival_time - packet.departure_time;
+            const double actual_duration = packet.sim_arrival_time - packet.sim_departure_time;
             if (actual_duration <= 0.0) {
                 continue;
             }
 
-            const double visual_duration =
-                std::max(actual_duration, minimum_visible_duration_seconds);
+            const double visual_duration = packet.visual_duration;
 
-            double t = (visual_time - packet.departure_time) / visual_duration;
+            double t =
+                (visual_time - packet.visual_start_time) /
+                packet.visual_duration;
+
             t = std::clamp(t, 0.0, 1.0);
 
             const float x = static_cast<float>(
-                positions[packet.from_node].first +
-                (positions[packet.to_node].first - positions[packet.from_node].first) * t
+                positions[packet.from].first +
+                (positions[packet.to].first - positions[packet.from].first) * t
             );
 
             const float y = static_cast<float>(
-                positions[packet.from_node].second +
-                (positions[packet.to_node].second - positions[packet.from_node].second) * t
+                positions[packet.from].second +
+                (positions[packet.to].second - positions[packet.from].second) * t
             );
 
-            const float px = positions[packet.from_node].first;
-            const float py = positions[packet.from_node].second;
-            const float qx = positions[packet.to_node].first;
-            const float qy = positions[packet.to_node].second;
+            const float px = positions[packet.from].first;
+            const float py = positions[packet.from].second;
+            const float qx = positions[packet.to].first;
+            const float qy = positions[packet.to].second;
 
-            const double pulse = 0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.departure_time * 7.0);
+            const double pulse = 0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0);
             const ImU32 line_color = IM_COL32(180, 120, 220, 90);
             const ImU32 packet_color = makePacketColor(t, pulse);
 

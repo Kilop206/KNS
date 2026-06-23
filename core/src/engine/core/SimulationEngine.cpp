@@ -125,7 +125,12 @@ namespace kns
             new_pkt
         );
 
-        packets_in_transit.push_back(PacketTravelInfo{now, arrival_time, pkt.current_node, next_node});
+        packets_in_transit.push_back(PacketTravelInfo{now,
+                                                        arrival_time,
+                                                        pkt.current_node,
+                                                        next_node,
+                                                        pkt.packet_type
+                                                    });
 
         event_queue_.schedule(std::move(event));
     }

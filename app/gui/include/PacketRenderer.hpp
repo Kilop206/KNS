@@ -4,6 +4,8 @@
 #include <vector>
 #include "imgui.h"
 
+#include "../include/VisualPacket.hpp"
+
 namespace kns {
     class SimulationEngine;
     class Topology;
@@ -15,11 +17,9 @@ namespace interface {
         public:
             void render(
                 ImDrawList* draw_list,
-                const kns::Topology& topo,
                 const std::vector<std::pair<float, float>>& positions,
-                const kns::SimulationEngine& engine,
-                double visual_time,
-                double minimum_visible_duration_seconds = 0.35
+                const std::vector<VisualPacket>& packets,
+                double visual_time
             ) const;
     };
 }

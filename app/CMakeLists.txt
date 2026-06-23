@@ -5,6 +5,7 @@ target_sources(KNS PRIVATE
     gui/src/Window.cpp
     gui/src/MetricsPannel.cpp
     gui/src/LatencyChart.cpp
+    gui/src/VisualPacketManager.cpp
     gui/src/PacketRenderer.cpp
 )
 

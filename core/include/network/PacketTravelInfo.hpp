@@ -4,5 +4,6 @@ namespace kns {
         double arrival_time;
         int from_node;
         int to_node;
+        PacketType packet_type;
     };
 }
