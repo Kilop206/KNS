@@ -42,8 +42,8 @@ namespace interface {
             const double visual_duration = packet.visual_duration;
 
             double t =
-                (visual_time - packet.visual_start_time) /
-                packet.visual_duration;
+                (visual_time - packet.visual_start_time)
+                / packet.visual_duration;
 
             t = std::clamp(t, 0.0, 1.0);
 
@@ -65,8 +65,7 @@ namespace interface {
             const double pulse = 0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0);
             const ImU32 line_color = IM_COL32(180, 120, 220, 90);
             const ImU32 packet_color = makePacketColor(t, pulse);
-
-            draw_list->AddLine(ImVec2(px, py), ImVec2(qx, qy), line_color, 1.5f);
+            
             draw_list->AddCircleFilled(
                 ImVec2(x, y),
                 6.0f + static_cast<float>(pulse * 2.0),
