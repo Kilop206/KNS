@@ -10,9 +10,9 @@ namespace interface {
             std::vector<VisualPacket> active_;
 
             double next_spawn_time_ = 0.0;
-            double spawn_gap_ = 0.02;
-            double minimum_duration_ = 0.35;
-            
+            double spawn_gap_ = 0.15;
+            double minimum_duration_ = 0.15;
+
         public:
             void observePacket(
                 const kns::Packet& packet,

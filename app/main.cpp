@@ -437,7 +437,6 @@ static void visualizeWindow(
 
     VisualPacketManager visualManager;
     visualManager.clear();
-
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
@@ -510,6 +509,11 @@ static void visualizeWindow(
 
         visualManager.update(visualTime);
 
+        std::cout
+            << "visualTime="
+            << visualTime
+            << '\n';
+
         glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -546,12 +550,24 @@ static void visualizeWindow(
         if (stepRequested && engine->hasEvents()) {
             engine->processEvent();
             visualManager.update(visualTime);
+
+            std::cout
+                << "visualTime="
+                << visualTime
+                << '\n';
         }
 
         renderConfigWindow(
             firstFrame,
             topo.size() > 0
         );
+
+        visualManager.update(visualTime);
+
+        std::cout
+            << "visualTime="
+            << visualTime
+            << '\n';
 
         PickedNodes clicked_node = renderNetworkPanel(
             topo,

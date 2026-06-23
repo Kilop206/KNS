@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iostream>
 
 namespace interface {
 
@@ -27,6 +28,24 @@ namespace interface {
         double visual_time
     ) const {
 
+        if (!packets.empty())
+        {
+            const auto& p = packets.front();
+
+            std::cout
+                << "Packet "
+                << p.from
+                << " -> "
+                << p.to
+                << " start="
+                << p.visual_start_time
+                << " duration="
+                << p.visual_duration
+                << " current="
+                << visual_time
+                << '\n';
+        }
+
         for (const auto& packet : packets) {
             if (packet.from < 0 || packet.to < 0 ||
                 packet.from >= static_cast<int>(positions.size()) ||
@@ -41,6 +60,12 @@ namespace interface {
 
             const double visual_duration = packet.visual_duration;
 
+            if (visual_time < packet.visual_start_time) {
+                continue;
+            } else {
+                break;
+            }
+            
             double t =
                 (visual_time - packet.visual_start_time)
                 / packet.visual_duration;
@@ -74,5 +99,4 @@ namespace interface {
             draw_list->AddCircle(ImVec2(x, y), 8.5f, IM_COL32(255, 255, 255, 160), 0, 1.2f);
         }
     }
-
 }
