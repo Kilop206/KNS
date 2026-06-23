@@ -323,7 +323,8 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
 static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
-    SimulationEngine& engine
+    const SimulationEngine& engine,
+    double visualTime
 ) {
     static int drag_source_node = -1;
 
@@ -356,7 +357,7 @@ static PickedNodes renderNetworkPanel(
         drawNodes(draw_list, topo, positions, selected_node);
 
         PacketRenderer packetRenderer;
-        packetRenderer.render(draw_list, topo, positions, engine, 0.35f);
+        packetRenderer.render(draw_list, topo, positions, engine, visualTime, 0.35f);
     }
 
     ImGui::InvisibleButton("network_canvas", canvas_sz);
@@ -434,6 +435,9 @@ static void visualizeWindow(
         engine = std::make_unique<SimulationEngine>(topo);
     }
 
+    double visualTime = 0.0;
+    double lastRealTime = glfwGetTime();
+
     int selected_node = -1;
 
     std::vector<Routing::RoutingEntry> routingTable;
@@ -442,8 +446,6 @@ static void visualizeWindow(
     bool firstFrame = true;
     bool dock_initialized = false;
 
-    double lastRealTime = glfwGetTime();
-
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
@@ -451,24 +453,18 @@ static void visualizeWindow(
     {
         const double currentRealTime = glfwGetTime();
         const double deltaRealTime = currentRealTime - lastRealTime;
-
         lastRealTime = currentRealTime;
 
-        // =====================================================
-        // SIMULATION ADVANCE
-        // =====================================================
-
-        if (state == SimulationState::Running)
-        {
-            engine->advanceTime(
-                deltaRealTime * speedMultiplier
-            );
+        if (state == SimulationState::Running) {
+            visualTime +=
+                deltaRealTime *
+                speedMultiplier /
+                kSimToVisualScale;
 
             int safetyCounter = 0;
-
             while (
                 engine->hasEvents() &&
-                engine->peekNextEventTime() <= engine->now() &&
+                visualTime >= engine->peekNextEventTime() &&
                 safetyCounter < 1000
             ) {
                 engine->processEvent();
@@ -518,17 +514,21 @@ static void visualizeWindow(
             engine->hasEvents()
         );
 
+        if (stepRequested && engine->hasEvents()) {
+            engine->processEvent();
+        }
+
         renderConfigWindow(
             firstFrame,
             topo.size() > 0
         );
 
-        PickedNodes clicked_node =
-            renderNetworkPanel(
-                topo,
-                selected_node,
-                *engine
-            );
+        PickedNodes clicked_node = renderNetworkPanel(
+                                                topo,
+                                                selected_node,
+                                                *engine,
+                                                visualTime
+                                            );
 
         if (clicked_node.tcp)
         {
@@ -570,6 +570,9 @@ static void visualizeWindow(
                         ImGuiFileDialog::Instance()
                             ->GetFilePathName()
                     );
+
+                    visualTime = 0.0;
+                    lastRealTime = glfwGetTime();
 
                     engine =
                         std::make_unique<SimulationEngine>(

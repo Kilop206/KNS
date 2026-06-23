@@ -160,7 +160,7 @@ namespace kns
         return event_queue_.hasEvents();
     }
 
-    std::vector<PacketTravelInfo>& SimulationEngine::getPacketsInTransit() {
+    const std::vector<PacketTravelInfo>& SimulationEngine::getPacketsInTransit() const {
         return packets_in_transit;
     }
 

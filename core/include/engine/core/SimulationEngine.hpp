@@ -131,7 +131,7 @@ namespace kns {
 
         bool hasEvents() const;
 
-        std::vector<PacketTravelInfo>& getPacketsInTransit();
+        const std::vector<PacketTravelInfo>& getPacketsInTransit() const;
 
         void removePacketInTransit(double departure_time, double arrival_time);
 
