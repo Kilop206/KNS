@@ -436,6 +436,12 @@ static void visualizeWindow(
     }
 
     VisualPacketManager visualManager;
+
+    std::cout
+        << "visualManager address = "
+        << &visualManager
+        << '\n';
+
     visualManager.clear();
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;

@@ -4,16 +4,11 @@
 
 namespace kns {
 
-	// Forward declaration of the SimulationEngine class. This allows the Event class to reference the SimulationEngine class without needing to include its full definition, 
-    // which can help reduce compilation dependencies and improve build times.
     class SimulationEngine;
 
     class Event {
     public:
 
-		// Virtual destructor for the Event class. 
-        // This allows for proper cleanup of derived event classes when they are deleted through a pointer to the base Event class, 
-        // ensuring that any resources allocated by the derived classes are released correctly.
         virtual ~Event() = default;
 
 		// Pure virtual function that must be implemented by derived event classes.

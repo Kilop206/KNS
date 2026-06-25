@@ -50,6 +50,11 @@ namespace kns {
                     && client.getTcpState() == TCPState::ESTABLISHED) 
         {
 
+            std::cout
+                << "[TCP][SESSION "
+                << session_id
+                << "] SENDING_FINAL_ACK\n";
+
             Packet ack(
                 client.getLocalNode(),
                 client.getRemoteNode(),
