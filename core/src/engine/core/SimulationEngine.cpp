@@ -71,13 +71,24 @@ namespace kns
         }
     }
 
-    bool SimulationEngine::processEvent() {
-        if (event_queue_.hasEvents()) {
+    bool SimulationEngine::processEvent()
+    {
+        if (event_queue_.hasEvents())
+        {
             auto event = event_queue_.next();
+
+            std::cout
+                << "[PROCESS EVENT] t="
+                << event->getTimestamp()
+                << '\n';
+
             clock_.setTime(event->getTimestamp());
+
             event->execute(*this);
+
             return true;
         }
+
         return false;
     }
 
@@ -132,7 +143,23 @@ namespace kns
                                                         pkt.packet_type
                                                     });
 
+        std::cout
+            << "[SEND] type="
+                << static_cast<int>(pkt.packet_type)
+                << " "
+                << pkt.current_node
+                << " -> "
+                << next_node
+                << " arrival="
+                << arrival_time
+                << '\n';
+
         event_queue_.schedule(std::move(event));
+
+        std::cout
+            << "[SCHEDULED] type="
+            << static_cast<int>(pkt.packet_type)
+            << '\n';
     }
 
     void SimulationEngine::exportStatsCSV(const RunConfig& runConfig) {
@@ -220,11 +247,6 @@ namespace kns
             << dest
             << '\n';
 
-        std::cout
-            << "[DEBUG] active_tcp_sessions="
-            << active_tcp_sessions.size()
-            << '\n';
-
         schedule(
             std::make_unique<TCPHandshakeEvent>(
                 now(),
@@ -252,15 +274,8 @@ namespace kns
         TCPSession& session
     )
     {
-        std::cout
-            << "[DEBUG] session "
-            << session.getSession_id()
-            << " scheduling "
-            << kPacketsPerRoute
-            << " packets"
-            << '\n';
 
-        for (int i = 0; i < kPacketsPerRoute; ++i)
+        for (unsigned int i = 0; i < kPacketsPerRoute; ++i)
         {
             schedule(
                 std::make_unique<PacketGenerationEvent>(
@@ -320,7 +335,7 @@ namespace kns
             }
         }
 
-        const std::size_t expected_data_packets =
+        const int expected_data_packets =
             established_sessions * static_cast<std::size_t>(kPacketsPerRoute);
 
         std::cout << "\n===== VALIDATION REPORT =====\n";

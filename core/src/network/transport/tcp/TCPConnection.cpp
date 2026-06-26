@@ -22,7 +22,7 @@ namespace kns {
         }
 
         state = TCPState::SYN_SENT;
-            return seq_num;
+        return seq_num;
     }
 
     void TCPConnection::receive_syn(uint32_t remote_seq)
@@ -53,23 +53,11 @@ namespace kns {
 
     void TCPConnection::receive_ack(uint32_t remote_ack)
     {
-        std::cout
-            << "[DEBUG ACK] state="
-            << static_cast<int>(state)
-            << " remote_ack="
-            << remote_ack
-            << " expected="
-            << (seq_num + 1)
-            << '\n';
 
         if (
             state == TCPState::SYN_RECEIVED &&
             remote_ack == seq_num + 1
         ) {
-            std::cout
-                << "[DEBUG ACK] SERVER ESTABLISHED"
-                << '\n';
-
             state = TCPState::ESTABLISHED;
         }
     }

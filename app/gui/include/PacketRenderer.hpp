@@ -5,6 +5,7 @@
 #include "imgui.h"
 
 #include "../include/VisualPacket.hpp"
+#include "enums/PacketType.hpp"
 
 namespace kns {
     class SimulationEngine;
@@ -21,5 +22,9 @@ namespace interface {
                 const std::vector<VisualPacket>& packets,
                 double visual_time
             ) const;
-    };
+
+        private:
+            static ImU32 packetColorByType(kns::PacketType type);
+            static ImU32 packetBorderColor(kns::PacketType type);
+        };
 }

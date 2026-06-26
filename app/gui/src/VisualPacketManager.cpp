@@ -43,11 +43,6 @@ namespace interface {
             ),
             active_.end()
         );
-
-        std::cout
-            << "pending=" << pending_.size()
-            << " active=" << active_.size()
-            << '\n';
     }
 
     const std::vector<VisualPacket>& VisualPacketManager::getActivePackets() const {

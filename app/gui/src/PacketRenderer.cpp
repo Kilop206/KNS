@@ -2,22 +2,34 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <iostream>
+#include <cstdint>
 
 namespace interface {
+    ImU32 PacketRenderer::packetColorByType(kns::PacketType type) {
+        switch (type) {
+            case kns::PacketType::SYN:     return IM_COL32(0, 150, 255, 255);
+            case kns::PacketType::SYN_ACK: return IM_COL32(180, 0, 255, 255);
+            case kns::PacketType::ACK:     return IM_COL32(0, 255, 120, 255);
+            case kns::PacketType::DATA:    return IM_COL32(100, 190, 255, 255);
+            case kns::PacketType::FIN:     return IM_COL32(200, 180, 50, 255);
+            default:                       return IM_COL32(200, 200, 200, 255);
+        }
+    }
 
-    namespace {
-        ImU32 makePacketColor(double progress, double pulse) {
-            const int r = static_cast<int>(150.0 + 80.0 * pulse);
-            const int g = static_cast<int>(80.0 + 60.0 * (1.0 - progress));
-            const int b = static_cast<int>(200.0 + 40.0 * progress);
-            return IM_COL32(
-                std::clamp(r, 0, 255),
-                std::clamp(g, 0, 255),
-                std::clamp(b, 0, 255),
-                255
-            );
+    ImU32 PacketRenderer::packetBorderColor(kns::PacketType type) {
+        switch (type) {
+            case kns::PacketType::SYN:
+            case kns::PacketType::SYN_ACK:
+                return IM_COL32(255, 255, 255, 200);
+            case kns::PacketType::ACK:
+                return IM_COL32(255, 255, 255, 170);
+            case kns::PacketType::DATA:
+                return IM_COL32(255, 255, 255, 160);
+            case kns::PacketType::FIN:
+                return IM_COL32(255, 255, 255, 180);
+            default:
+                return IM_COL32(255, 255, 255, 150);
         }
     }
 
@@ -26,30 +38,28 @@ namespace interface {
         const std::vector<std::pair<float, float>>& positions,
         const std::vector<VisualPacket>& packets,
         double visual_time
-    ) const {
-
-        if (!packets.empty())
-        {
-            const auto& p = packets.front();
-
-            std::cout
-                << "Packet "
-                << p.from
-                << " -> "
-                << p.to
-                << " start="
-                << p.visual_start_time
-                << " duration="
-                << p.visual_duration
-                << " current="
-                << visual_time
-                << '\n';
-        }
+    ) const
+    {
 
         for (const auto& packet : packets) {
+            std::cout
+                << "FROM "
+                << packet.from
+                << " TO "
+                << packet.to
+                << "  x="
+                << positions[packet.from].first
+                << " y="
+                << positions[packet.from].second
+                << " -> "
+                << positions[packet.to].first
+                << ","
+                << positions[packet.to].second
+                << '\n';
+
             if (packet.from < 0 || packet.to < 0 ||
                 packet.from >= static_cast<int>(positions.size()) ||
-                packet.to >= static_cast<int>(positions.size())) {
+                packet.to   >= static_cast<int>(positions.size())) {
                 continue;
             }
 
@@ -58,18 +68,14 @@ namespace interface {
                 continue;
             }
 
-            const double visual_duration = packet.visual_duration;
+            const double visual_duration = std::max(packet.visual_duration, 0.001);
+            const double elapsed = visual_time - packet.visual_start_time;
 
-            if (visual_time < packet.visual_start_time) {
+            if (elapsed < 0.0) {
                 continue;
-            } else {
-                break;
             }
-            
-            double t =
-                (visual_time - packet.visual_start_time)
-                / packet.visual_duration;
 
+            double t = elapsed / visual_duration;
             t = std::clamp(t, 0.0, 1.0);
 
             const float x = static_cast<float>(
@@ -82,21 +88,28 @@ namespace interface {
                 (positions[packet.to].second - positions[packet.from].second) * t
             );
 
-            const float px = positions[packet.from].first;
-            const float py = positions[packet.from].second;
-            const float qx = positions[packet.to].first;
-            const float qy = positions[packet.to].second;
+            const float pulse = static_cast<float>(0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0));
 
-            const double pulse = 0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0);
-            const ImU32 line_color = IM_COL32(180, 120, 220, 90);
-            const ImU32 packet_color = makePacketColor(t, pulse);
-            
-            draw_list->AddCircleFilled(
-                ImVec2(x, y),
-                6.0f + static_cast<float>(pulse * 2.0),
-                packet_color
-            );
-            draw_list->AddCircle(ImVec2(x, y), 8.5f, IM_COL32(255, 255, 255, 160), 0, 1.2f);
+            const ImU32 fill_color = packetColorByType(packet.type);
+            const ImU32 border_color = packetBorderColor(packet.type);
+
+            const float base_radius = 5.5f;
+            const float radius = base_radius + pulse * 1.5f;
+
+            std::cout
+                << "t=" << t
+                << " x=" << x
+                << " y=" << y
+                << '\n';
+
+                draw_list->AddCircleFilled(
+                    ImVec2(100,100),
+                    20,
+                    IM_COL32(255,0,0,255)
+                );
+
+            draw_list->AddCircleFilled(ImVec2(x, y), radius, fill_color);
+            draw_list->AddCircle(ImVec2(x, y), radius + 2.5f, border_color, 0, 1.2f);
         }
     }
 }

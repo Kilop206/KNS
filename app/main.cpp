@@ -72,8 +72,6 @@ static void generatePackets(
 
     const auto plan = buildConnectionPlan(topo);
 
-    std::cout << "[DEBUG] connection count = " << plan.size() << '\n';
-
     for (const auto& [from, to] : plan) {
         engine->startTCPConnection(from, to);
     }
@@ -436,22 +434,17 @@ static void visualizeWindow(
     }
 
     VisualPacketManager visualManager;
-
-    std::cout
-        << "visualManager address = "
-        << &visualManager
-        << '\n';
-
-    visualManager.clear();
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
     auto configureEngine = [&](std::unique_ptr<SimulationEngine>& eng) {
         eng->setGlobalPacketSize(packetSize);
         eng->setGlobalLossProb(lossProb);
+
         eng->setLatencyObserver([&buffer](double lat) {
             buffer.addLatencyToBuffer(static_cast<float>(lat));
         });
+
         eng->setPacketObserver(
             [&visualManager](
                 const Packet& p,
@@ -509,16 +502,11 @@ static void visualizeWindow(
             }
         }
 
-        if (engine->hasEvents() == false) {
+        if (!engine->hasEvents()) {
             state = SimulationState::Paused;
         }
 
         visualManager.update(visualTime);
-
-        std::cout
-            << "visualTime="
-            << visualTime
-            << '\n';
 
         glfwPollEvents();
 
@@ -555,12 +543,6 @@ static void visualizeWindow(
 
         if (stepRequested && engine->hasEvents()) {
             engine->processEvent();
-            visualManager.update(visualTime);
-
-            std::cout
-                << "visualTime="
-                << visualTime
-                << '\n';
         }
 
         renderConfigWindow(
@@ -568,11 +550,9 @@ static void visualizeWindow(
             topo.size() > 0
         );
 
-        visualManager.update(visualTime);
-
         std::cout
-            << "visualTime="
-            << visualTime
+            << "Active packets = "
+            << visualManager.getActivePackets().size()
             << '\n';
 
         PickedNodes clicked_node = renderNetworkPanel(

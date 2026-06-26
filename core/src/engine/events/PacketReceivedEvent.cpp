@@ -23,9 +23,26 @@ namespace kns {
         int u = packet.current_node;
         int dest = packet.destination;
 
+        std::cout
+            << "[RECEIVED] type="
+            << static_cast<int>(packet.packet_type)
+            << " session="
+            << packet.session_id
+            << " node="
+            << u
+            << '\n';
         assert(u >= 0);
 
         if (u == dest) {
+            std::cout
+                << "[RECEIVED] type="
+                << static_cast<int>(packet.packet_type)
+                << " session="
+                << packet.session_id
+                << " node="
+                << u
+                << '\n';
+
             auto& stats = engine.getStats();
 
             stats.packets_delivered++;
@@ -41,13 +58,19 @@ namespace kns {
             std::cout << oss.str() << '\n';
 
             std::cout << "[LATENCY] " << std::fixed << std::setprecision(6)
-                      << latency << '\n';
+                    << latency << '\n';
 
             engine.notifyLatencyDelivered(latency);
 
             engine.removePacketInTransit(packet.departure_time, timestamp_);
 
             if (packet.packet_type == PacketType::SYN) {
+
+                std::cout
+                    << "[RECEIVED_SYN] session="
+                    << packet.session_id
+                    << '\n';
+
                 auto& session = engine.getTCPSession(packet.session_id);
                 auto& server = session.getServerConnection();
 
@@ -59,7 +82,14 @@ namespace kns {
                         packet.session_id
                     )
                 );
+
             } else if (packet.packet_type == PacketType::SYN_ACK) {
+
+                std::cout
+                    << "[RECEIVED_SYN_ACK] session="
+                    << packet.session_id
+                    << '\n';
+
                 auto& session = engine.getTCPSession(packet.session_id);
                 auto& client = session.getClientConnection();
 
@@ -74,7 +104,14 @@ namespace kns {
                         packet.session_id
                     )
                 );
+
             } else if (packet.packet_type == PacketType::ACK) {
+
+                std::cout
+                    << "[RECEIVED_ACK] session="
+                    << packet.session_id
+                    << '\n';
+
                 auto& session = engine.getTCPSession(packet.session_id);
                 auto& server = session.getServerConnection();
 
@@ -89,9 +126,10 @@ namespace kns {
                     {
                         session.setState(TCPState::ESTABLISHED);
 
-                        std::cout << "[TCP][SESSION "
-                                << session.getSession_id()
-                                << "] SESSION_ESTABLISHED\n";
+                        std::cout
+                            << "[TCP][SESSION "
+                            << session.getSession_id()
+                            << "] SESSION_ESTABLISHED\n";
 
                         engine.generatePackets(
                             engine.now(),
@@ -99,7 +137,9 @@ namespace kns {
                         );
                     }
                 }
+
             } else if (packet.packet_type == PacketType::DATA) {
+
                 std::cout
                     << "[DATA] session="
                     << packet.session_id

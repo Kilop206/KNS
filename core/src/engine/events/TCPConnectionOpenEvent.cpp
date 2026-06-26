@@ -27,8 +27,18 @@ namespace kns {
         TCPConnection& server = session.getServerConnection();
         TCPConnection& client = session.getClientConnection();
 
+        std::cout
+            << "[OPEN] server="
+            << static_cast<int>(server.getTcpState())
+            << " client="
+            << static_cast<int>(client.getTcpState())
+            << '\n';
+
         if (server.getTcpState() == TCPState::SYN_RECEIVED
-            && client.getTcpState() != TCPState::ESTABLISHED) {
+            && client.getTcpState() != TCPState::ESTABLISHED)
+        {
+            std::cout << "[OPEN] Sending SYN_ACK\n";
+
             server.send_syn_ack();
 
             Packet syn_ack(
@@ -43,9 +53,10 @@ namespace kns {
             syn_ack.packet_type = PacketType::SYN_ACK;
             syn_ack.seq_num = server.getSeqNum();
             syn_ack.ack_num = server.getExpectedAckNum();
-            syn_ack.departure_time = engine.now();
 
-            sendPacketThroughTopology(engine, syn_ack);
+            bool ok = sendPacketThroughTopology(engine, syn_ack);
+
+            std::cout << "[OPEN] sendPacketThroughTopology=" << ok << '\n';
         } else if (server.getTcpState() == TCPState::SYN_RECEIVED 
                     && client.getTcpState() == TCPState::ESTABLISHED) 
         {

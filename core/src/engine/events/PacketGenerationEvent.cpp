@@ -16,21 +16,9 @@ namespace kns {
         source_(source),
         destination_(destination),
         session_id_(session_id) {    
-            std::cout
-                << "[DEBUG] PacketGenerationEvent session="
-                << session_id_
-                << '\n';
         }
 
     void PacketGenerationEvent::execute(SimulationEngine& engine) {
-        std::cout
-            << "[DEBUG] PacketGenerationEvent execute session="
-            << session_id_
-            << " source="
-            << source_
-            << " dest="
-            << destination_
-            << '\n';
 
         Packet pkt(
             source_,
@@ -46,12 +34,7 @@ namespace kns {
         pkt.ack_num = 0;
         pkt.departure_time = engine.now();
 
-        bool result = sendPacketThroughTopology(engine, pkt);
-
-        std::cout
-            << "[DEBUG] sendPacketThroughTopology="
-            << result
-            << '\n';
+        bool result = sendPacketThroughTopology(engine, pkt);;
     }
 
 }
