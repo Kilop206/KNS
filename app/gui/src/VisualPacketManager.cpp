@@ -13,6 +13,7 @@ namespace interface {
         double departure_time,
         double arrival_time
     ) {
+        double visual_duration = std::max(0.03, (arrival_time - departure_time) * 2.0);
         pending_.push_back(VisualPacket{
             from,
             to,
@@ -21,7 +22,7 @@ namespace interface {
             departure_time,
             arrival_time,
             0.0,
-            minimum_duration_
+            visual_duration
         });
     }
 

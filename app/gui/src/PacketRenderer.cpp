@@ -69,6 +69,8 @@ namespace interface {
                 continue;
             }
 
+
+            
             const double visual_duration = std::max(packet.visual_duration, 0.001);
             const double elapsed = visual_time - packet.visual_start_time;
 

@@ -39,7 +39,7 @@ using namespace interface;
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
 constexpr int    kPacketsPerRoute       = 100;
-constexpr double kSimToVisualScale      = 100.0;
+constexpr double kSimToVisualScale      = 20.0;
 
 struct PickedNodes {
     int origin = -1;

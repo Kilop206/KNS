@@ -48,7 +48,7 @@ namespace kns {
         syn.ack_num = 0;
         syn.departure_time = engine.now();
 
-        if (sendPacketThroughTopology(engine, syn))
+        if (PacketUtils::sendPacketThroughTopology(engine, syn))
         {
             engine.schedule(
                 std::make_unique<TCPHandshakeTimeoutEvent>(

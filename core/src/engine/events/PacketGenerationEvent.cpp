@@ -34,7 +34,7 @@ namespace kns {
         pkt.ack_num = 0;
         pkt.departure_time = engine.now();
 
-        bool result = sendPacketThroughTopology(engine, pkt);;
+        bool result = PacketUtils::sendPacketThroughTopology(engine, pkt);;
     }
 
 }
