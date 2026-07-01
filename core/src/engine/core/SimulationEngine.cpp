@@ -58,6 +58,10 @@ namespace kns {
         return clock_.now();
     }
 
+    Topology& SimulationEngine::getTopology() {
+        return topology_;
+    }
+
     const Topology& SimulationEngine::getTopology() const {
         return topology_;
     }
@@ -113,22 +117,76 @@ namespace kns {
     ) {
         const double transmission =
             (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
-            (link.bandwidth_mbps * 1e6);
+            (link.getBandwidthMbps() * 1e6);
 
-        const double propagation = link.delay_ms / 1000.0;
+        const double propagation = link.getDelayMs() / 1000.0;
 
         return now + propagation + transmission;
     }
 
-    void SimulationEngine::sendPacket(
-        const Packet& pkt,
-        const Link& link,
-        double now
-    ) {
-        stats_.packets_sent++;
-
+    void SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now) {
         const int next_node = link.getOtherNode(pkt.current_node);
-        const double arrival_time = compute_arrival_time(pkt, link, now);
+        if (next_node == -1) {
+            return;
+        }
+
+        const double transmission_time =
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
+            (link.getBandwidthMbps() * 1e6);
+
+        const double propagation_time = link.getDelayMs() / 1000.0;
+
+        const double actual_departure_time =
+            link.getNextAvailableTime(
+                pkt.current_node,
+                next_node,
+                now
+            );
+
+        const double arrival_time =
+            actual_departure_time
+            + transmission_time
+            + propagation_time;
+
+        link.reserveTransmission(
+            pkt.current_node,
+            next_node,
+            arrival_time
+        );
+
+        Packet new_pkt = pkt;
+        new_pkt.current_node = next_node;
+        new_pkt.hop_count++;
+        new_pkt.departure_time = actual_departure_time;
+
+        packets_in_transit.push_back(PacketTravelInfo{
+            actual_departure_time,
+            arrival_time,
+            pkt.current_node,
+            next_node,
+            pkt.packet_type
+        });
+
+        std::cout
+            << "[SEND] type="
+            << static_cast<int>(pkt.packet_type)
+            << " "
+            << pkt.current_node
+            << " -> "
+            << next_node
+            << " departure="
+            << actual_departure_time
+            << " arrival="
+            << arrival_time
+            << '\n';
+
+        emitPacketEvent(
+            pkt,
+            pkt.current_node,
+            next_node,
+            actual_departure_time,
+            arrival_time
+        );
 
         if (link.should_drop()) {
             stats_.packets_lost++;
@@ -144,32 +202,6 @@ namespace kns {
             std::cout << oss.str() << '\n';
             return;
         }
-
-        Packet new_pkt = pkt;
-        new_pkt.current_node = next_node;
-        new_pkt.hop_count++;
-        new_pkt.departure_time = now;
-
-        packets_in_transit.push_back(PacketTravelInfo{
-            now,
-            arrival_time,
-            pkt.current_node,
-            next_node,
-            pkt.packet_type
-        });
-
-        std::cout
-            << "[SEND] type="
-            << static_cast<int>(pkt.packet_type)
-            << " "
-            << pkt.current_node
-            << " -> "
-            << next_node
-            << " arrival="
-            << arrival_time
-            << '\n';
-
-        emitPacketEvent(pkt, pkt.current_node, next_node, now, arrival_time);
 
         auto event = std::make_unique<PacketReceivedEvent>(
             arrival_time,
@@ -258,23 +290,18 @@ namespace kns {
     void SimulationEngine::startTCPConnection(int source, int dest) {
         auto& session = createTCPSession(source, dest);
 
-        std::cout
-            << "[TCP] Creating session "
-            << session.getSession_id()
-            << " "
-            << source
-            << " -> "
-            << dest
-            << '\n';
+        static double handshakeOffset = 0.0;
+        constexpr double kHandshakeSpacing = 0.03;
 
-        schedule(
-            std::make_unique<TCPHandshakeEvent>(
-                now(),
-                source,
-                dest,
-                session.getSession_id()
-            )
-        );
+        const double startTime = now() + handshakeOffset;
+        handshakeOffset += kHandshakeSpacing;
+
+        schedule(std::make_unique<TCPHandshakeEvent>(
+            startTime,
+            source,
+            dest,
+            session.getSession_id()
+        ));
     }
 
     void SimulationEngine::setPacketObserver(
@@ -407,5 +434,4 @@ namespace kns {
     void SimulationEngine::advanceTime(double time) {
         clock_.setTime(time);
     }
-
 }

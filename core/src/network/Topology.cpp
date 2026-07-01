@@ -1,49 +1,61 @@
 #include "network/Topology.hpp"
 
+#include <algorithm>
+#include <stdexcept>
+
 namespace kns {
-	
-	// Constructor to initialize the topology with a given number of nodes
-	Topology::Topology(int nodes) : num_nodes(nodes) {
 
-		// Initialize the adjacency list with empty vectors for each node
-		adjacency_list.resize(num_nodes);
-	}
+    Topology::Topology(int nodes) {
+        if (nodes > 0) {
+            adjacency_list_.resize(static_cast<std::size_t>(nodes));
+        }
+    }
 
-	// Method to add a link to the topology
-	void Topology::addLink(const Link& link) {
+    void Topology::addLink(const Link& link) {
+        auto ptr = std::make_shared<Link>(link);
 
-		// Add the link to the adjacency list of the 'from' node
-		adjacency_list[link.from].push_back(link);
+        const int a = ptr->getA();
+        const int b = ptr->getB();
+        const int max_node = std::max(a, b);
 
-		Link reverse_link(link);
-		reverse_link.to = link.from;
-		reverse_link.from = link.to;
+        if (max_node >= static_cast<int>(adjacency_list_.size())) {
+            adjacency_list_.resize(static_cast<std::size_t>(max_node + 1));
+        }
 
-		adjacency_list[link.to].push_back(reverse_link);
-	}
+        links_.push_back(ptr);
+        adjacency_list_[static_cast<std::size_t>(a)].push_back(ptr);
+        adjacency_list_[static_cast<std::size_t>(b)].push_back(ptr);
+    }
 
-	// Method to retrieve the list of links originating from a given node
-	const std::vector<Link>& kns::Topology::getLinksFromNode(int node_id) const {
+    void Topology::addLink(
+        int a,
+        int b,
+        double bandwidth_mbps,
+        double delay_ms,
+        double loss_prob,
+        LinkMode mode
+    ) {
+        addLink(Link(a, b, bandwidth_mbps, delay_ms, loss_prob, mode));
+    }
 
-		// Return the adjacency list for the specified node ID
-		return adjacency_list[node_id];
-	}
+    std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node)
+    {
+        return adjacency_list_[node];
+    }
 
-	// Method to get the total number of nodes in the topology
-	int Topology::size() const {
-		return num_nodes;
+    const std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) const
+    {
+        return adjacency_list_[node];
+    }
 
-	}
+    int Topology::size() const noexcept {
+        return static_cast<int>(adjacency_list_.size());
+    }
 
-	void Topology::setGlobalLossProb(float value) {
-		for (auto& row : adjacency_list) {
-			for (auto& link : row) {
-				link.loss_prob = value;
-			}
-		}
-	}
+    void Topology::setGlobalLossProb(double value) {
+        for (auto& link : links_) {
+            link->setLossProb(value);
+        }
+    }
 
-	std::vector<std::vector<Link>>& Topology::getLinks() {
-		return adjacency_list;
-	}
 }

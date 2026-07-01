@@ -1,37 +1,39 @@
 #pragma once
 
-#include "network/Link.hpp"
-
+#include <memory>
 #include <vector>
 
+#include "network/Link.hpp"
+
 namespace kns {
+
 	class Topology {
-	private:
+		public:
+			using LinkPtr = std::shared_ptr<Link>;
 
-		// Number of nodes in the topology
-		int num_nodes = 0;
+			explicit Topology(int nodes = 0);
 
-		// Adjacency list representation of the topology. Each node has a list of outgoing links.
-		std::vector<std::vector<Link>> adjacency_list;
+			void addLink(const Link& link);
+			void addLink(
+				int a,
+				int b,
+				double bandwidth_mbps,
+				double delay_ms,
+				double loss_prob = 0.0,
+				LinkMode mode = LinkMode::FULL_DUPLEX
+			);
 
-	public:
+			std::vector<LinkPtr>& getLinksFromNode(int);
 
-		Topology() = default;
+			const std::vector<LinkPtr>& getLinksFromNode(int) const;
 
-		// Constructor to initialize the topology with a given number of nodes
-		Topology(int num_nodes);
+			int size() const noexcept;
 
-		// Method to add a link to the topology
-		void addLink(const Link& link);
+			void setGlobalLossProb(double value);
 
-		// Method to retrieve the list of links originating from a given node
-		const std::vector<Link>& getLinksFromNode(int node_id) const;
-
-		// Method to get the total number of nodes in the topology
-		int size() const;
-
-		std::vector<std::vector<Link>>& getLinks();
-
-		void setGlobalLossProb(float value);
+		private:
+			std::vector<LinkPtr> links_;
+			std::vector<std::vector<LinkPtr>> adjacency_list_;
 	};
+
 }

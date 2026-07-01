@@ -39,9 +39,11 @@ namespace kns {
 
 			const auto& adjacency = topology.getLinksFromNode(u);
 
-			for (const Link& link : adjacency) {
-				int v = link.getOtherNode(u);
-				double newDist = dist[u] + link.delay_ms;
+			for (const auto& link : adjacency) {
+
+				int v = link->getOtherNode(u);
+
+				double newDist = dist[u] + link->getDelayMs();
 
 				if (newDist < dist[v]) {
 					dist[v] = newDist;

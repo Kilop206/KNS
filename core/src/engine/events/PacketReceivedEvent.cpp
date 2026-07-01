@@ -34,42 +34,23 @@ namespace kns {
 
             if (next == -1) {
                 engine.getStats().packets_lost++;
-
-                std::cout
-                    << "[DROPPED] Packet from "
-                    << packet.source
-                    << " to "
-                    << packet.destination
-                    << " at time "
-                    << engine.now()
-                    << '\n';
-
                 engine.removePacketInTransit(packet.departure_time, timestamp_);
                 return;
             }
 
             const auto& links = engine.getTopology().getLinksFromNode(packet.current_node);
 
-            const Link* selected_link = nullptr;
-            for (const Link& link : links) {
-                if (link.getOtherNode(packet.current_node) == next) {
-                    selected_link = &link;
+            Link* selected_link = nullptr;
+
+            for (const auto& link_ptr : links) {
+                if (link_ptr && link_ptr->getOtherNode(packet.current_node) == next) {
+                    selected_link = link_ptr.get();
                     break;
                 }
             }
 
             if (!selected_link) {
                 engine.getStats().packets_lost++;
-
-                std::cout
-                    << "[DROPPED] Packet from "
-                    << packet.source
-                    << " to "
-                    << packet.destination
-                    << " at time "
-                    << engine.now()
-                    << '\n';
-
                 engine.removePacketInTransit(packet.departure_time, timestamp_);
                 return;
             }
@@ -107,11 +88,6 @@ namespace kns {
 
         switch (packet.packet_type) {
             case PacketType::SYN: {
-                std::cout
-                    << "[RECEIVED_SYN] session="
-                    << packet.session_id
-                    << '\n';
-
                 server.receive_syn(packet.seq_num);
 
                 Packet synAck(
@@ -132,11 +108,6 @@ namespace kns {
             }
 
             case PacketType::SYN_ACK: {
-                std::cout
-                    << "[RECEIVED_SYN_ACK] session="
-                    << packet.session_id
-                    << '\n';
-
                 client.receive_syn_ack(packet.seq_num, packet.ack_num);
 
                 Packet ack(
@@ -157,11 +128,6 @@ namespace kns {
             }
 
             case PacketType::ACK: {
-                std::cout
-                    << "[RECEIVED_ACK] session="
-                    << packet.session_id
-                    << '\n';
-
                 server.receive_ack(packet.ack_num);
 
                 if (
@@ -170,12 +136,6 @@ namespace kns {
                     session.getState() != TCPState::ESTABLISHED
                 ) {
                     session.setState(TCPState::ESTABLISHED);
-
-                    std::cout
-                        << "[TCP][SESSION "
-                        << session.getSession_id()
-                        << "] SESSION_ESTABLISHED\n";
-
                     engine.generatePackets(engine.now(), session);
                 }
                 break;
@@ -194,4 +154,5 @@ namespace kns {
                 break;
         }
     }
-}
+
+} 

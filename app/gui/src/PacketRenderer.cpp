@@ -40,12 +40,9 @@ namespace interface {
         double visual_time
     ) const
     {
-
         for (const auto& packet : packets) {
 
-            if (packet.from < 0 || packet.to < 0 ||
-                packet.from >= static_cast<int>(positions.size()) ||
-                packet.to   >= static_cast<int>(positions.size())) {
+            if (visual_time < packet.visual_start_time) {
                 continue;
             }
             
@@ -68,8 +65,6 @@ namespace interface {
             if (actual_duration <= 0.0) {
                 continue;
             }
-
-
             
             const double visual_duration = std::max(packet.visual_duration, 0.001);
             const double elapsed = visual_time - packet.visual_start_time;
@@ -79,7 +74,7 @@ namespace interface {
             }
 
             double t = elapsed / visual_duration;
-            t = std::clamp(t, 0.0, 1.0);
+            t = (visual_time - packet.visual_start_time) / actual_duration;
 
             const float x = static_cast<float>(
                 positions[packet.from].first +

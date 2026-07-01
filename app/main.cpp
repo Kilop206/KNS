@@ -39,7 +39,7 @@ using namespace interface;
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
 constexpr int    kPacketsPerRoute       = 100;
-constexpr double kSimToVisualScale      = 20.0;
+constexpr double kSimToVisualScale      = 10.0;
 
 struct PickedNodes {
     int origin = -1;
@@ -53,8 +53,8 @@ static std::vector<std::pair<int, int>> buildConnectionPlan(const Topology& topo
 
     for (std::size_t i = 0; i < static_cast<std::size_t>(topo.size()); ++i) {
         for (const auto& link : topo.getLinksFromNode(static_cast<int>(i))) {
-            if (link.from >= 0 && link.to >= 0) {
-                connections.insert({link.from, link.to});
+            if (link->getA() >= 0 && link->getB() >= 0) {
+                connections.insert({link->getA(), link->getB()});
             }
         }
     }
@@ -186,14 +186,14 @@ static void drawLinks(
     for (std::size_t i = 0; i < static_cast<std::size_t>(topo.size()); ++i) {
         const auto& links = topo.getLinksFromNode(static_cast<int>(i));
         for (const auto& link : links) {
-            if (link.from < 0 || link.to < 0 ||
-                link.from >= static_cast<int>(positions.size()) ||
-                link.to   >= static_cast<int>(positions.size())) {
+            if (link->getA() < 0 || link->getB() < 0 ||
+                link->getA() >= static_cast<int>(positions.size()) ||
+                link->getB()   >= static_cast<int>(positions.size())) {
                 continue;
             }
 
-            ImVec2 p1(positions[link.from].first, positions[link.from].second);
-            ImVec2 p2(positions[link.to].first, positions[link.to].second);
+            ImVec2 p1(positions[link->getA()].first, positions[link->getA()].second);
+            ImVec2 p2(positions[link->getB()].first, positions[link->getB()].second);
 
             draw_list->AddLine(p1, p2, IM_COL32(255, 255, 0, 255), 2.0f);
         }
@@ -486,10 +486,7 @@ static void visualizeWindow(
         lastRealTime = currentRealTime;
 
         if (state == SimulationState::Running) {
-            visualTime +=
-                deltaRealTime *
-                speedMultiplier /
-                kSimToVisualScale;
+            visualTime += (deltaRealTime * speedMultiplier) / kSimToVisualScale;
 
             int safetyCounter = 0;
             while (
@@ -549,11 +546,6 @@ static void visualizeWindow(
             firstFrame,
             topo.size() > 0
         );
-
-        std::cout
-            << "Active packets = "
-            << visualManager.getActivePackets().size()
-            << '\n';
 
         PickedNodes clicked_node = renderNetworkPanel(
             topo,

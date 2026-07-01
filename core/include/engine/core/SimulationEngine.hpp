@@ -93,40 +93,30 @@ namespace kns {
 
         double get_loss_prob() const;
 
-        // Constructor that initializes the simulation engine with a given topology.
         explicit SimulationEngine(const Topology& topology);
 
-        // Schedules a new event to be processed by the simulation engine.
         void schedule(std::unique_ptr<Event> event);
 
-        // Runs the simulation by processing events from the event queue.
         void run();
 
-       // Runs a single event
         bool processEvent();
 
-        // Returns the timestamp of the next scheduled event, if any.
         double peekNextEventTime() const;
 
-        // Returns the current simulation time.
         double now() const;
 
-        // Returns the next hop for a packet based on the routing table.
         int getNextHop(int current, int destination) const;
 
-        // Returns a const reference to the topology.
+        Topology& getTopology();
+
         const Topology& getTopology() const;
 
-        // Returns the collected statistics of the simulation.
         Stats& getStats();
 
-        // Computes the arrival time of a packet at the next node based on the link characteristics.
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 
-        // Simulates sending a packet over a link, including potential packet loss and scheduling the next event for packet arrival.
-        void sendPacket(const Packet& pkt, const Link& link, double now);
+        void sendPacket(const Packet& pkt, Link& link, double now);
 
-        // Exports the collected statistics to a CSV file for analysis.
         void exportStatsCSV(const RunConfig& runConfig);
 
         bool hasEvents() const;

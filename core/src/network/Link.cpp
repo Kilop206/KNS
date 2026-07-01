@@ -1,20 +1,137 @@
-#include <cstdlib>
-#include <stdexcept>
-
 #include "network/Link.hpp"
 
+#include <algorithm>
+#include <cstdlib>
+#include <limits>
+
 namespace kns {
-    int Link::getOtherNode(int node) const {
-        if (node == to) {
-            return from;
-        } else if (node == from) {
-            return to;
-        } else {
-            throw std::runtime_error("Invalid node");
+
+    Link::Link(
+        int a,
+        int b,
+        double bandwidth_mbps,
+        double delay_ms,
+        double loss_prob,
+        LinkMode mode
+    )
+        : a_(a),
+        b_(b),
+        bandwidth_mbps_(bandwidth_mbps),
+        delay_ms_(delay_ms),
+        loss_prob_(loss_prob),
+        mode_(mode)
+    {
+    }
+
+    int Link::getA() const noexcept {
+        return a_;
+    }
+
+    int Link::getB() const noexcept {
+        return b_;
+    }
+
+    int Link::getOtherNode(int node) const noexcept {
+        if (node == a_) return b_;
+        if (node == b_) return a_;
+        return -1;
+    }
+
+    double Link::getBandwidthMbps() const noexcept {
+        return bandwidth_mbps_;
+    }
+
+    void Link::setBandwidthMbps(double value) noexcept {
+        bandwidth_mbps_ = value;
+    }
+
+    double Link::getDelayMs() const noexcept {
+        return delay_ms_;
+    }
+
+    void Link::setDelayMs(double value) noexcept {
+        delay_ms_ = value;
+    }
+
+    double Link::getLossProb() const noexcept {
+        return loss_prob_;
+    }
+
+    void Link::setLossProb(double value) noexcept {
+        loss_prob_ = value;
+    }
+
+    LinkMode Link::getMode() const noexcept {
+        return mode_;
+    }
+
+    void Link::setMode(LinkMode mode) noexcept {
+        mode_ = mode;
+    }
+
+    Link::DirectionSlot Link::getDirectionSlot(int from, int to) const noexcept {
+        if (from == a_ && to == b_) return DirectionSlot::AB;
+        if (from == b_ && to == a_) return DirectionSlot::BA;
+        return DirectionSlot::Invalid;
+    }
+
+    double Link::getNextAvailableTime(int from, int to, double now) const noexcept {
+        const DirectionSlot slot = getDirectionSlot(from, to);
+
+        switch (mode_) {
+            case LinkMode::FULL_DUPLEX:
+                if (slot == DirectionSlot::AB) return std::max(now, busy_until_ab_);
+                if (slot == DirectionSlot::BA) return std::max(now, busy_until_ba_);
+                return std::numeric_limits<double>::infinity();
+
+            case LinkMode::HALF_DUPLEX:
+                if (slot == DirectionSlot::Invalid) return std::numeric_limits<double>::infinity();
+                return std::max(now, busy_until_shared_);
+
+            case LinkMode::SIMPLEX:
+                if (slot != DirectionSlot::AB) return std::numeric_limits<double>::infinity();
+                return std::max(now, busy_until_ab_);
+
+            default:
+                return std::numeric_limits<double>::infinity();
         }
     }
 
-    bool Link::should_drop() const {
-        return ((double) rand() / RAND_MAX) <= loss_prob;
+    void Link::reserveTransmission(int from, int to, double busy_until) const noexcept {
+        const DirectionSlot slot = getDirectionSlot(from, to);
+
+        switch (mode_) {
+            case LinkMode::FULL_DUPLEX:
+                if (slot == DirectionSlot::AB) {
+                    busy_until_ab_ = std::max(busy_until_ab_, busy_until);
+                } else if (slot == DirectionSlot::BA) {
+                    busy_until_ba_ = std::max(busy_until_ba_, busy_until);
+                }
+                break;
+
+            case LinkMode::HALF_DUPLEX:
+                busy_until_shared_ = std::max(busy_until_shared_, busy_until);
+                break;
+
+            case LinkMode::SIMPLEX:
+                if (slot == DirectionSlot::AB) {
+                    busy_until_ab_ = std::max(busy_until_ab_, busy_until);
+                }
+                break;
+        }
     }
+
+    bool Link::isBusy(int from, int to, double now) const noexcept {
+        return now < getNextAvailableTime(from, to, now);
+    }
+
+    bool Link::should_drop() const {
+        if (loss_prob_ <= 0.0) {
+            return false;
+        }
+
+        const double r = static_cast<double>(std::rand()) / RAND_MAX;
+        return r < loss_prob_;
+    }
+
 }

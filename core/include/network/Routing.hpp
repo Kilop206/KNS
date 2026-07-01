@@ -23,4 +23,4 @@ namespace kns {
 			std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src);
 	};
 
-} // namespace kns
+}

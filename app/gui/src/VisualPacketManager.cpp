@@ -14,16 +14,18 @@ namespace interface {
         double arrival_time
     ) {
         double visual_duration = std::max(0.03, (arrival_time - departure_time) * 2.0);
-        pending_.push_back(VisualPacket{
+        VisualPacket p{
             from,
             to,
             packet.packet_type,
             session_id,
             departure_time,
             arrival_time,
-            0.0,
-            visual_duration
-        });
+            departure_time,
+            std::max(0.001, arrival_time - departure_time)
+        };
+
+        pending_.push_back(p);
     }
 
     void VisualPacketManager::update(double visual_time) {
