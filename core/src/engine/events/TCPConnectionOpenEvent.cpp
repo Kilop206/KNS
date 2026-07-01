@@ -1,47 +1,77 @@
 #include "engine/events/TCPConnectionOpenEvent.hpp"
-#include "enums/PacketType.hpp"
-#include "network/utils/PacketUtils.hpp"
 
 #include <iostream>
 
-namespace kns {
+#include "engine/core/SimulationEngine.hpp"
+
+namespace kns
+{
 
     TCPConnectionOpenEvent::TCPConnectionOpenEvent(
-        double timestamp,
-        std::uint64_t session_id
+            double timestamp,
+            uint64_t session_id
+        ) : Event(timestamp),
+            session_id(session_id) {}
+
+    bool sendPacketThroughTopology(
+        SimulationEngine& engine,
+        Packet& pkt
     )
-    : Event(timestamp),
-      session_id(session_id)
     {
+        int next =
+            engine.getNextHop(
+                pkt.current_node,
+                pkt.destination
+            );
+
+        if (next == -1)
+            return false;
+
+        const auto& links =
+            engine.getTopology().getLinksFromNode(
+                pkt.current_node
+            );
+
+        for (const Link& link : links)
+        {
+            if (link.getOtherNode(pkt.current_node) == next)
+            {
+                engine.sendPacket(
+                    pkt,
+                    link,
+                    engine.now()
+                );
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void TCPConnectionOpenEvent::execute(
         SimulationEngine& engine
     )
     {
-        std::cout << "[TCP][SESSION "
-            << session_id
-            << "] TCPConnectionOpenEvent\n";
+        auto& session =
+            engine.getTCPSession(
+                session_id
+            );
 
-        TCPSession& session = engine.getTCPSession(session_id);
-        TCPConnection& server = session.getServerConnection();
-        TCPConnection& client = session.getClientConnection();
+        auto& client =
+            session.getClientConnection();
 
-        std::cout
-            << "[OPEN] server="
-            << static_cast<int>(server.getTcpState())
-            << " client="
-            << static_cast<int>(client.getTcpState())
-            << '\n';
+        auto& server =
+            session.getServerConnection();
 
-        if (server.getTcpState() == TCPState::SYN_RECEIVED
-            && client.getTcpState() != TCPState::ESTABLISHED)
+        if (
+            server.getTcpState() == TCPState::SYN_RECEIVED &&
+            client.getTcpState() != TCPState::ESTABLISHED
+        )
         {
-            std::cout << "[OPEN] Sending SYN_ACK\n";
-
             server.send_syn_ack();
 
-            Packet syn_ack(
+            Packet synAck(
                 server.getLocalNode(),
                 server.getRemoteNode(),
                 server.getLocalNode(),
@@ -50,22 +80,23 @@ namespace kns {
                 session_id
             );
 
-            syn_ack.packet_type = PacketType::SYN_ACK;
-            syn_ack.seq_num = server.getSeqNum();
-            syn_ack.ack_num = server.getExpectedAckNum();
+            synAck.packet_type = PacketType::SYN_ACK;
+            synAck.seq_num = server.getSeqNum();
+            synAck.ack_num = server.getExpectedAckNum();
 
-            bool ok = sendPacketThroughTopology(engine, syn_ack);
+            sendPacketThroughTopology(
+                engine,
+                synAck
+            );
 
-            std::cout << "[OPEN] sendPacketThroughTopology=" << ok << '\n';
-        } else if (server.getTcpState() == TCPState::SYN_RECEIVED 
-                    && client.getTcpState() == TCPState::ESTABLISHED) 
+            return;
+        }
+
+        if (
+            client.getTcpState() == TCPState::ESTABLISHED &&
+            server.getTcpState() == TCPState::SYN_RECEIVED
+        )
         {
-
-            std::cout
-                << "[TCP][SESSION "
-                << session_id
-                << "] SENDING_FINAL_ACK\n";
-
             Packet ack(
                 client.getLocalNode(),
                 client.getRemoteNode(),
@@ -78,9 +109,13 @@ namespace kns {
             ack.packet_type = PacketType::ACK;
             ack.seq_num = client.getSeqNum();
             ack.ack_num = client.send_ack();
-            ack.departure_time = engine.now();
 
-            sendPacketThroughTopology(engine, ack);
+            sendPacketThroughTopology(
+                engine,
+                ack
+            );
+
+            return;
         }
     }
 }

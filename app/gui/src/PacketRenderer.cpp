@@ -42,6 +42,13 @@ namespace interface {
     {
 
         for (const auto& packet : packets) {
+
+            if (packet.from < 0 || packet.to < 0 ||
+                packet.from >= static_cast<int>(positions.size()) ||
+                packet.to   >= static_cast<int>(positions.size())) {
+                continue;
+            }
+            
             std::cout
                 << "FROM "
                 << packet.from
@@ -56,12 +63,6 @@ namespace interface {
                 << ","
                 << positions[packet.to].second
                 << '\n';
-
-            if (packet.from < 0 || packet.to < 0 ||
-                packet.from >= static_cast<int>(positions.size()) ||
-                packet.to   >= static_cast<int>(positions.size())) {
-                continue;
-            }
 
             const double actual_duration = packet.sim_arrival_time - packet.sim_departure_time;
             if (actual_duration <= 0.0) {

@@ -12,7 +12,7 @@ namespace kns
     public:
         TCPConnectionOpenEvent(
             double timestamp,
-            std::uint64_t session_id
+            uint64_t session_id
         );
 
         void execute(SimulationEngine& engine) override;

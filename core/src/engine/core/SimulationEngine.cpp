@@ -1,29 +1,26 @@
-#include <memory>
-#include <cstddef>
-#include <queue>
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <utility>
-#include <sstream>
-#include <iomanip>
-
 #include "engine/core/SimulationEngine.hpp"
 
-#include "network/transport/tcp/TCPSession.hpp"
-#include "engine/core/Event.hpp"
-#include "engine/events/PacketReceivedEvent.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+
 #include "engine/events/PacketGenerationEvent.hpp"
+#include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
-#include "network/Packet.hpp"
-#include "enums/TCPState.hpp"
+#include "network/Routing.hpp"
+#include "network/Topology.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 
-namespace kns
-{
+namespace kns {
+
     double SimulationEngine::random() {
-        return (double)rand() / RAND_MAX;
+        return static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
     }
 
     double SimulationEngine::get_loss_prob() const {
@@ -31,19 +28,29 @@ namespace kns
     }
 
     SimulationEngine::SimulationEngine(const Topology& topology)
-    : topology_(topology) {
-        int n = topology_.size();
-
+        : topology_(topology)
+    {
+        const int n = topology_.size();
         routing_tables_.resize(n);
 
         Routing routing;
-
         for (int u = 0; u < n; ++u) {
             routing_tables_[u] = routing.buildRoutingTable(topology_, u);
         }
     }
 
     void SimulationEngine::schedule(std::unique_ptr<Event> event) {
+        if (!event) {
+            throw std::invalid_argument("Cannot schedule null event");
+        }
+
+        std::cout
+            << "[QUEUE PUSH] "
+            << typeid(*event).name()
+            << " t="
+            << event->getTimestamp()
+            << '\n';
+
         event_queue_.schedule(std::move(event));
     }
 
@@ -66,62 +73,74 @@ namespace kns
     void SimulationEngine::run() {
         while (event_queue_.hasEvents()) {
             auto event = event_queue_.next();
+            if (!event) {
+                break;
+            }
+
             clock_.setTime(event->getTimestamp());
             event->execute(*this);
         }
     }
 
-    bool SimulationEngine::processEvent()
-    {
-        if (event_queue_.hasEvents())
-        {
-            auto event = event_queue_.next();
-
-            std::cout
-                << "[PROCESS EVENT] t="
-                << event->getTimestamp()
-                << '\n';
-
-            clock_.setTime(event->getTimestamp());
-
-            event->execute(*this);
-
-            return true;
+    bool SimulationEngine::processEvent() {
+        if (!event_queue_.hasEvents()) {
+            return false;
         }
 
-        return false;
+        auto event = event_queue_.next();
+        if (!event) {
+            return false;
+        }
+
+        std::cout
+            << "[PROCESS EVENT] t="
+            << event->getTimestamp()
+            << '\n';
+
+        clock_.setTime(event->getTimestamp());
+        event->execute(*this);
+        return true;
     }
 
     double SimulationEngine::peekNextEventTime() const {
         return event_queue_.peekTimestamp();
     }
 
-    double SimulationEngine::compute_arrival_time(const Packet& pkt, const Link& link, double now) {
-        double transmission =
-            (pkt.packet_size_bytes * 8.0) / (link.bandwidth_mbps * 1e6);
+    double SimulationEngine::compute_arrival_time(
+        const Packet& pkt,
+        const Link& link,
+        double now
+    ) {
+        const double transmission =
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
+            (link.bandwidth_mbps * 1e6);
 
-        double propagation = link.delay_ms / 1000.0;
+        const double propagation = link.delay_ms / 1000.0;
 
-        return (now + propagation + transmission);
+        return now + propagation + transmission;
     }
 
-    void SimulationEngine::sendPacket(const Packet& pkt, const Link& link, double now) {
+    void SimulationEngine::sendPacket(
+        const Packet& pkt,
+        const Link& link,
+        double now
+    ) {
         stats_.packets_sent++;
 
         const int next_node = link.getOtherNode(pkt.current_node);
-
-        double arrival_time = compute_arrival_time(pkt, link, now);
-
-        emitPacketEvent(pkt, pkt.session_id, pkt.current_node, next_node, arrival_time);
+        const double arrival_time = compute_arrival_time(pkt, link, now);
 
         if (link.should_drop()) {
             stats_.packets_lost++;
 
             std::ostringstream oss;
             oss << std::fixed << std::setprecision(6)
-                << "[DROPPED] Packet from " << pkt.source
-                << " to " << pkt.destination
-                << " at time " << now;
+                << "[DROPPED] Packet from "
+                << pkt.source
+                << " to "
+                << pkt.destination
+                << " at time "
+                << now;
             std::cout << oss.str() << '\n';
             return;
         }
@@ -131,28 +150,31 @@ namespace kns
         new_pkt.hop_count++;
         new_pkt.departure_time = now;
 
+        packets_in_transit.push_back(PacketTravelInfo{
+            now,
+            arrival_time,
+            pkt.current_node,
+            next_node,
+            pkt.packet_type
+        });
+
+        std::cout
+            << "[SEND] type="
+            << static_cast<int>(pkt.packet_type)
+            << " "
+            << pkt.current_node
+            << " -> "
+            << next_node
+            << " arrival="
+            << arrival_time
+            << '\n';
+
+        emitPacketEvent(pkt, pkt.current_node, next_node, now, arrival_time);
+
         auto event = std::make_unique<PacketReceivedEvent>(
             arrival_time,
             new_pkt
         );
-
-        packets_in_transit.push_back(PacketTravelInfo{now,
-                                                        arrival_time,
-                                                        pkt.current_node,
-                                                        next_node,
-                                                        pkt.packet_type
-                                                    });
-
-        std::cout
-            << "[SEND] type="
-                << static_cast<int>(pkt.packet_type)
-                << " "
-                << pkt.current_node
-                << " -> "
-                << next_node
-                << " arrival="
-                << arrival_time
-                << '\n';
 
         event_queue_.schedule(std::move(event));
 
@@ -167,15 +189,15 @@ namespace kns
 
         file << "Packets Sent,Packets Delivered,Packets Lost,Delivery Rate,Loss Rate,Average Latency,Seed\n";
 
-        double delivery_rate = stats_.packets_sent > 0
-            ? (double)stats_.packets_delivered / stats_.packets_sent
+        const double delivery_rate = stats_.packets_sent > 0
+            ? static_cast<double>(stats_.packets_delivered) / stats_.packets_sent
             : 0.0;
 
-        double loss_rate = stats_.packets_sent > 0
-            ? (double)stats_.packets_lost / stats_.packets_sent
+        const double loss_rate = stats_.packets_sent > 0
+            ? static_cast<double>(stats_.packets_lost) / stats_.packets_sent
             : 0.0;
 
-        double avg_latency = stats_.packets_delivered > 0
+        const double avg_latency = stats_.packets_delivered > 0
             ? stats_.total_latency / stats_.packets_delivered
             : 0.0;
 
@@ -185,7 +207,7 @@ namespace kns
             << delivery_rate << ","
             << loss_rate << ","
             << avg_latency << ","
-            << runConfig.seed  << "\n";
+            << runConfig.seed << "\n";
     }
 
     bool SimulationEngine::hasEvents() const {
@@ -200,14 +222,16 @@ namespace kns
         for (std::size_t i = 0; i < packets_in_transit.size(); ++i) {
             if (packets_in_transit[i].departure_time == departure_time &&
                 packets_in_transit[i].arrival_time == arrival_time) {
-                packets_in_transit.erase(packets_in_transit.begin() + i);
+                packets_in_transit.erase(packets_in_transit.begin() + static_cast<std::ptrdiff_t>(i));
                 break;
-                }
+            }
         }
     }
 
     void SimulationEngine::setGlobalLossProb(float value) {
-        if (globalLossProb == value) return;
+        if (globalLossProb == value) {
+            return;
+        }
 
         globalLossProb = value;
         topology_.setGlobalLossProb(value);
@@ -231,11 +255,7 @@ namespace kns
         return globalPacketSize;
     }
 
-    void SimulationEngine::startTCPConnection(
-        int source,
-        int dest
-    )
-    {
+    void SimulationEngine::startTCPConnection(int source, int dest) {
         auto& session = createTCPSession(source, dest);
 
         std::cout
@@ -258,28 +278,36 @@ namespace kns
     }
 
     void SimulationEngine::setPacketObserver(
-        std::function<void(const Packet&, uint64_t, int, int, double, double)> observer) {
-        packetObserver = observer;
+        std::function<void(const Packet&, uint64_t, int, int, double, double)> observer
+    ) {
+        packetObserver = std::move(observer);
     }
 
-    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time)
-    {
+    void SimulationEngine::emitPacketEvent(
+        const Packet& p,
+        int from,
+        int to,
+        double departure_time,
+        double arrival_time
+    ) {
         if (packetObserver) {
             packetObserver(p, p.session_id, from, to, departure_time, arrival_time);
         }
     }
 
-    void SimulationEngine::generatePackets(
-        double startTime,
-        TCPSession& session
-    )
-    {
+    void SimulationEngine::generatePackets(double startTime, TCPSession& session) {
+        std::cout
+            << "[DEBUG] session "
+            << session.getSession_id()
+            << " scheduling "
+            << kPacketsPerRoute
+            << " packets"
+            << '\n';
 
-        for (unsigned int i = 0; i < kPacketsPerRoute; ++i)
-        {
+        for (unsigned int i = 0; i < kPacketsPerRoute; ++i) {
             schedule(
                 std::make_unique<PacketGenerationEvent>(
-                    startTime + i * 0.02,
+                    startTime + static_cast<double>(i) * 0.02,
                     session.getSource(),
                     session.getDestination(),
                     session.getSession_id()
@@ -290,16 +318,21 @@ namespace kns
 
     TCPSession& SimulationEngine::createTCPSession(int source, int destination) {
         ++next_session_id;
-        TCPSession session(next_session_id, source, destination, TCPState::CLOSED);
+
+        TCPSession session(
+            next_session_id,
+            source,
+            destination,
+            TCPState::CLOSED
+        );
 
         sessions.insert({next_session_id, session});
-
         return getTCPSession(next_session_id);
     }
 
     TCPSession& SimulationEngine::getTCPSession(std::uint64_t session_id) {
         auto it = sessions.find(session_id);
-        
+
         if (it == sessions.end()) {
             throw std::runtime_error("Session doesn't exist");
         }
@@ -312,9 +345,7 @@ namespace kns
     }
 
     bool SimulationEngine::hasTCPSession(std::uint64_t session_id) const {
-        auto it = sessions.find(session_id);
-
-        return (it != sessions.end());
+        return sessions.find(session_id) != sessions.end();
     }
 
     int SimulationEngine::getPacketsPerRoute() const {
@@ -325,18 +356,15 @@ namespace kns
         std::size_t total_sessions = sessions.size();
         std::size_t established_sessions = 0;
 
-        for (const auto& [id, session] : sessions)
-        {
+        for (const auto& [id, session] : sessions) {
             (void)id;
-
-            if (session.getState() == TCPState::ESTABLISHED)
-            {
+            if (session.getState() == TCPState::ESTABLISHED) {
                 ++established_sessions;
             }
         }
 
         const int expected_data_packets =
-            established_sessions * static_cast<std::size_t>(kPacketsPerRoute);
+            static_cast<int>(established_sessions) * kPacketsPerRoute;
 
         std::cout << "\n===== VALIDATION REPORT =====\n";
         std::cout << "Total sessions created: " << total_sessions << '\n';
@@ -347,31 +375,28 @@ namespace kns
         std::cout << "Packets delivered:       " << stats_.packets_delivered << '\n';
         std::cout << "Packets lost:            " << stats_.packets_lost << '\n';
 
-        const bool sessions_ok = (total_sessions > 0) && (established_sessions == total_sessions);
+        const bool sessions_ok =
+            (total_sessions > 0) &&
+            (established_sessions == total_sessions);
+
         const bool traffic_ok =
             stats_.packets_delivered >= expected_data_packets &&
             stats_.packets_lost == 0;
 
-        if (sessions_ok && traffic_ok)
-        {
+        if (sessions_ok && traffic_ok) {
             std::cout << "Result: VALIDATION PASSED\n";
-        }
-        else
-        {
+        } else {
             std::cout << "Result: VALIDATION FAILED\n";
 
-            if (!sessions_ok)
-            {
+            if (!sessions_ok) {
                 std::cout << " - Not all sessions reached ESTABLISHED.\n";
             }
 
-            if (stats_.packets_delivered < expected_data_packets)
-            {
+            if (stats_.packets_delivered < expected_data_packets) {
                 std::cout << " - Delivered packets are below expected DATA packets.\n";
             }
 
-            if (stats_.packets_lost != 0)
-            {
+            if (stats_.packets_lost != 0) {
                 std::cout << " - There are lost packets.\n";
             }
         }
@@ -379,8 +404,8 @@ namespace kns
         std::cout << "============================\n";
     }
 
-    void SimulationEngine::advanceTime(double time)
-    {
+    void SimulationEngine::advanceTime(double time) {
         clock_.setTime(time);
     }
+
 }
