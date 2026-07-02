@@ -7,15 +7,14 @@
 
 namespace kns {
 
-    class SimulationEngine;
-
     class PacketReceivedEvent : public Event {
-    public:
-        Packet packet;
+        public:
+            explicit PacketReceivedEvent(double timestamp, Packet packet);
 
-        PacketReceivedEvent(double timestamp, Packet packet);
+            void execute(SimulationEngine& engine) override;
 
-        void execute(SimulationEngine& engine) override;
+        private:
+            Packet packet;
     };
 
 }

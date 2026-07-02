@@ -1,26 +1,26 @@
 #pragma once
 
+#include <cstdint>
+
 #include "engine/core/Event.hpp"
-#include "enums/PacketType.hpp"
-#include "engine/core/SimulationEngine.hpp"
 
 namespace kns {
 
-class PacketGenerationEvent : public Event {
-    private:
-        int source_;
-        int destination_;
-        uint64_t session_id_;
+    class PacketGenerationEvent : public Event {
+        public:
+            PacketGenerationEvent(
+                double timestamp,
+                int source,
+                int destination,
+                std::uint64_t session_id
+            );
 
-    public:
-        PacketGenerationEvent(
-            double timestamp,
-            int source,
-            int destination,
-            uint64_t session_id
-        );
+            void execute(SimulationEngine& engine) override;
 
-        void execute(SimulationEngine& engine) override;
+        private:
+            int source_;
+            int destination_;
+            std::uint64_t session_id_;
     };
 
 }

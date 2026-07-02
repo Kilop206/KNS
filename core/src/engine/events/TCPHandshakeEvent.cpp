@@ -1,39 +1,39 @@
 #include "engine/events/TCPHandshakeEvent.hpp"
-#include "network/utils/PacketUtils.hpp"
-#include "network/transport/tcp/TCPConnection.hpp"
-#include "network/Packet.hpp"
-#include "enums/PacketType.hpp"
-#include "enums/TCPState.hpp"
-#include "network/Link.hpp"
-#include "network/transport/tcp/TCPSession.hpp"
+
 #include "engine/events/TCPHanshakeTimeoutEvent.hpp"
+#include "network/Packet.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
+#include "network/utils/PacketUtils.hpp"
 
 #include <iostream>
 
 namespace kns {
 
-    TCPHandshakeEvent::TCPHandshakeEvent(double timestamp,
-                                        int source,
-                                        int destination,
-                                        std::uint64_t session_id)
+    TCPHandshakeEvent::TCPHandshakeEvent(
+        double timestamp,
+        int source,
+        int destination,
+        std::uint64_t session_id
+    )
         : Event(timestamp),
-        source_(source),
-        destination_(destination),
-        session_id(session_id) {}
+          source_(source),
+          destination_(destination),
+          session_id_(session_id)
+    {
+    }
 
-    void TCPHandshakeEvent::execute(SimulationEngine& engine) {
-
+    void TCPHandshakeEvent::execute(SimulationEngine& engine)
+    {
         std::cout
             << "[TCP] Handshake session "
-            << session_id
+            << session_id_
             << '\n';
 
-        auto& session = engine.getTCPSession(session_id);
-
+        auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
-        auto& server = session.getServerConnection();
 
-        const int client_seq = client.send_syn();
+        client.send_syn();
 
         Packet syn(
             source_,
@@ -41,11 +41,11 @@ namespace kns {
             source_,
             engine.now(),
             engine.getGlobalPacketSize(),
-            session_id
+            session_id_
         );
-        syn.packet_type = PacketType::SYN;
-        syn.seq_num = client_seq;
-        syn.ack_num = 0;
+
+        syn.tcp = client.buildSyn();
+        syn.packet_type = inferPacketType(syn.tcp);
         syn.departure_time = engine.now();
 
         if (PacketUtils::sendPacketThroughTopology(engine, syn))
@@ -53,17 +53,16 @@ namespace kns {
             engine.schedule(
                 std::make_unique<TCPHandshakeTimeoutEvent>(
                     engine.now() + 1.0,
-                    session_id
+                    session_id_
                 )
             );
 
             std::cout
                 << "[TCP][SESSION "
-                << session_id
+                << session_id_
                 << "] SYN timeout scheduled at "
                 << engine.now() + 1.0
                 << '\n';
         }
     }
-
 }

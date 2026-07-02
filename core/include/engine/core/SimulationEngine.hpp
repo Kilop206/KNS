@@ -21,6 +21,7 @@
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
 #include "network/transport/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/TCPConnectionKey.hpp"
 
 struct PacketSpec;
 
@@ -72,12 +73,7 @@ namespace kns {
 
         std::function<void(double)> latencyObserver_;
 
-        std::unordered_map<
-            TCPConnectionKey,
-            uint64_t,
-            TCPConnection::TCPConnectionHash,
-            TCPConnection::TCPConnectionEqual
-        > tcp_connections_;
+        std::unordered_map<TCPConnectionKey, std::uint64_t> tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 

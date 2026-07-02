@@ -1,4 +1,6 @@
 #include "engine/events/PacketGenerationEvent.hpp"
+
+#include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"
 
 #include <cstdint>
@@ -10,16 +12,17 @@ namespace kns {
         double timestamp,
         int source,
         int destination,
-        uint64_t session_id)
-        :
-        Event(timestamp),
-        source_(source),
-        destination_(destination),
-        session_id_(session_id) {    
-        }
+        std::uint64_t session_id
+    )
+        : Event(timestamp),
+          source_(source),
+          destination_(destination),
+          session_id_(session_id)
+    {
+    }
 
-    void PacketGenerationEvent::execute(SimulationEngine& engine) {
-
+    void PacketGenerationEvent::execute(SimulationEngine& engine)
+    {
         Packet pkt(
             source_,
             destination_,
@@ -30,11 +33,14 @@ namespace kns {
         );
 
         pkt.packet_type = PacketType::DATA;
-        pkt.seq_num = 0;
-        pkt.ack_num = 0;
+        pkt.tcp.seq = 0;
+        pkt.tcp.ack = 0;
+        pkt.tcp.window = 0;
+        pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
+        pkt.tcp.payload.assign(1, 0x41);
         pkt.departure_time = engine.now();
 
-        bool result = PacketUtils::sendPacketThroughTopology(engine, pkt);;
+        PacketUtils::sendPacketThroughTopology(engine, pkt);
     }
 
 }

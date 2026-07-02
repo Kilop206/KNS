@@ -7,17 +7,22 @@
 #include <utility>
 
 #include "engine/core/SimulationEngine.hpp"
-#include "network/Topology.hpp"
-#include "network/Link.hpp"
+#include "network/Packet.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
 
 namespace kns {
 
     PacketReceivedEvent::PacketReceivedEvent(double timestamp, Packet packet)
-        : Event(timestamp), packet(std::move(packet)) {}
+        : Event(timestamp),
+          packet(std::move(packet))
+    {
+    }
 
-    void PacketReceivedEvent::execute(SimulationEngine& engine) {
+    void PacketReceivedEvent::execute(SimulationEngine& engine)
+    {
+        packet.packet_type = inferPacketType(packet.tcp);
+
         std::cout
             << "[RECEIVED] type="
             << static_cast<int>(packet.packet_type)
@@ -30,33 +35,21 @@ namespace kns {
         assert(packet.current_node >= 0);
 
         if (packet.current_node != packet.destination) {
-            const int next = engine.getNextHop(packet.current_node, packet.destination);
+            auto& stats = engine.getStats();
 
-            if (next == -1) {
-                engine.getStats().packets_lost++;
-                engine.removePacketInTransit(packet.departure_time, timestamp_);
-                return;
-            }
-
-            const auto& links = engine.getTopology().getLinksFromNode(packet.current_node);
-
-            Link* selected_link = nullptr;
-
-            for (const auto& link_ptr : links) {
-                if (link_ptr && link_ptr->getOtherNode(packet.current_node) == next) {
-                    selected_link = link_ptr.get();
-                    break;
-                }
-            }
-
-            if (!selected_link) {
-                engine.getStats().packets_lost++;
-                engine.removePacketInTransit(packet.departure_time, timestamp_);
-                return;
+            if (!PacketUtils::sendPacketThroughTopology(engine, packet)) {
+                stats.packets_lost++;
+                std::cout
+                    << "[DROPPED] Packet from "
+                    << packet.source
+                    << " to "
+                    << packet.destination
+                    << " at time "
+                    << engine.now()
+                    << '\n';
             }
 
             engine.removePacketInTransit(packet.departure_time, timestamp_);
-            engine.sendPacket(packet, *selected_link, timestamp_);
             return;
         }
 
@@ -77,7 +70,7 @@ namespace kns {
         std::cout << oss.str() << '\n';
 
         std::cout << "[LATENCY] " << std::fixed << std::setprecision(6)
-                << latency << '\n';
+                  << latency << '\n';
 
         engine.notifyLatencyDelivered(latency);
         engine.removePacketInTransit(packet.departure_time, timestamp_);
@@ -88,7 +81,12 @@ namespace kns {
 
         switch (packet.packet_type) {
             case PacketType::SYN: {
-                server.receive_syn(packet.seq_num);
+                std::cout
+                    << "[RECEIVED_SYN] session="
+                    << packet.session_id
+                    << '\n';
+
+                server.receive_syn(packet.tcp.seq);
 
                 Packet synAck(
                     server.getLocalNode(),
@@ -99,16 +97,20 @@ namespace kns {
                     packet.session_id
                 );
 
-                synAck.packet_type = PacketType::SYN_ACK;
-                synAck.seq_num = server.getSeqNum();
-                synAck.ack_num = server.getExpectedAckNum();
+                synAck.tcp = server.buildSynAck();
+                synAck.packet_type = inferPacketType(synAck.tcp);
 
                 PacketUtils::sendPacketThroughTopology(engine, synAck);
                 break;
             }
 
             case PacketType::SYN_ACK: {
-                client.receive_syn_ack(packet.seq_num, packet.ack_num);
+                std::cout
+                    << "[RECEIVED_SYN_ACK] session="
+                    << packet.session_id
+                    << '\n';
+
+                client.receive_syn_ack(packet.tcp.seq, packet.tcp.ack);
 
                 Packet ack(
                     client.getLocalNode(),
@@ -119,16 +121,20 @@ namespace kns {
                     packet.session_id
                 );
 
-                ack.packet_type = PacketType::ACK;
-                ack.seq_num = client.getSeqNum();
-                ack.ack_num = client.send_ack();
+                ack.tcp = client.buildAck();
+                ack.packet_type = inferPacketType(ack.tcp);
 
                 PacketUtils::sendPacketThroughTopology(engine, ack);
                 break;
             }
 
             case PacketType::ACK: {
-                server.receive_ack(packet.ack_num);
+                std::cout
+                    << "[RECEIVED_ACK] session="
+                    << packet.session_id
+                    << '\n';
+
+                server.receive_ack(packet.tcp.ack);
 
                 if (
                     client.getTcpState() == TCPState::ESTABLISHED &&
@@ -136,8 +142,38 @@ namespace kns {
                     session.getState() != TCPState::ESTABLISHED
                 ) {
                     session.setState(TCPState::ESTABLISHED);
+
+                    std::cout
+                        << "[TCP][SESSION "
+                        << session.getSession_id()
+                        << "] SESSION_ESTABLISHED\n";
+
                     engine.generatePackets(engine.now(), session);
                 }
+                break;
+            }
+
+            case PacketType::FIN: {
+                std::cout
+                    << "[RECEIVED_FIN] session="
+                    << packet.session_id
+                    << '\n';
+
+                server.receive_fin(packet.tcp.seq);
+
+                Packet finAck(
+                    server.getLocalNode(),
+                    server.getRemoteNode(),
+                    server.getLocalNode(),
+                    engine.now(),
+                    engine.getGlobalPacketSize(),
+                    packet.session_id
+                );
+
+                finAck.tcp = server.buildAck();
+                finAck.packet_type = inferPacketType(finAck.tcp);
+
+                PacketUtils::sendPacketThroughTopology(engine, finAck);
                 break;
             }
 
@@ -155,4 +191,4 @@ namespace kns {
         }
     }
 
-} 
+}

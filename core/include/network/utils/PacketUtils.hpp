@@ -4,8 +4,13 @@
 #include "network/Packet.hpp"
 
 namespace kns {
+
     class PacketUtils {
-        public:
-            bool static sendPacketThroughTopology(SimulationEngine& engine, Packet& pkt);
+    public:
+        static bool sendPacketThroughTopology(
+            SimulationEngine& engine,
+            const Packet& pkt
+        );
     };
+
 }

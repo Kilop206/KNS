@@ -1,7 +1,11 @@
 #include "network/utils/PacketUtils.hpp"
 
 namespace kns {
-    bool PacketUtils::sendPacketThroughTopology(SimulationEngine& engine, Packet& pkt) {
+
+    bool PacketUtils::sendPacketThroughTopology(
+        SimulationEngine& engine,
+        const Packet& pkt
+    ) {
         const int next = engine.getNextHop(pkt.current_node, pkt.destination);
 
         if (next == -1) {
@@ -26,4 +30,5 @@ namespace kns {
         engine.sendPacket(pkt, *selected_link, engine.now());
         return true;
     }
+
 }

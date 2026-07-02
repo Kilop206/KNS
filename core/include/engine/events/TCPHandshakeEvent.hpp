@@ -6,19 +6,21 @@
 
 namespace kns {
 
-
     class TCPHandshakeEvent : public Event {
-    public:
-        TCPHandshakeEvent(double timestamp, int source, int destination, uint64_t session_id);
+        public:
+            TCPHandshakeEvent(
+                double timestamp,
+                int source,
+                int destination,
+                std::uint64_t session_id
+            );
 
-        void execute(SimulationEngine& engine) override;
+            void execute(SimulationEngine& engine) override;
 
-    private:
-        int source_;
-        int destination_;
-        uint32_t seq_num;
-        uint32_t ack_num;
-        uint64_t session_id;
+        private:
+            int source_;
+            int destination_;
+            std::uint64_t session_id_;
     };
 
 }
