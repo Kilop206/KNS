@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-07-03T08:14:24.603273",
+  "run_config": {
+    "project_root": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS",
+    "topologies_dir": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\app\\topologies",
+    "executable": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\build\\app\\KNS.exe",
+    "max_procs": 1,
+    "timeout_seconds": null,
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "topology_count": 3,
+  "successful_runs": 3,
+  "failed_runs": 0,
+  "graphs": [
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\dashboard.png",
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\drops_over_time.png",
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\latency_distribution.png",
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\latency_over_time.png",
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\drop_heatmap_mesh5.png",
+    "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\drop_heatmap_star.png"
+  ],
+  "runs": [
+    {
+      "topology": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\app\\topologies\\mesh4.json",
+      "log": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\run_0.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 399,
+        "packets_dropped": 0,
+        "packets_delivered": 399,
+        "drop_rate": 0.0,
+        "delivery_rate": 1.0,
+        "duration_seconds": 29.58407540002372,
+        "throughput_pps": 13.486985636863272,
+        "latency_mean_s": 3.8709834561403507,
+        "latency_median_s": 3.8552,
+        "latency_min_s": 0.1008,
+        "latency_max_s": 7.9352,
+        "latency_p95_s": 7.506346949999999,
+        "latency_std_s": 2.3296343598981233
+      }
+    },
+    {
+      "topology": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\app\\topologies\\mesh5.json",
+      "log": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\run_1.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 156,
+        "packets_dropped": 8,
+        "packets_delivered": 148,
+        "drop_rate": 0.05128205128205128,
+        "delivery_rate": 0.9487179487179487,
+        "duration_seconds": 10.60542259993963,
+        "throughput_pps": 13.955125182926938,
+        "latency_mean_s": 0.9763635067567568,
+        "latency_median_s": 0.9472,
+        "latency_min_s": 0.0504,
+        "latency_max_s": 2.216,
+        "latency_p95_s": 2.045,
+        "latency_std_s": 0.6296746361370966
+      }
+    },
+    {
+      "topology": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\app\\topologies\\star.json",
+      "log": "C:\\Users\\guilherme_doge1\\Desktop\\projetos\\KNS\\results\\v1.0\\test_1\\run_2.log",
+      "csv": null,
+      "returncode": 0,
+      "stats": {
+        "packets_total": 107,
+        "packets_dropped": 82,
+        "packets_delivered": 25,
+        "drop_rate": 0.7663551401869159,
+        "delivery_rate": 0.2336448598130841,
+        "duration_seconds": 8.340248599997722,
+        "throughput_pps": 2.9975125681513655,
+        "latency_mean_s": 0.503072,
+        "latency_median_s": 0.1832,
+        "latency_min_s": 0.1016,
+        "latency_max_s": 1.7336,
+        "latency_p95_s": 1.652,
+        "latency_std_s": 0.5237270827597137
+      }
+    }
+  ]
+}
