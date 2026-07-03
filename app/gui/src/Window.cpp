@@ -1,8 +1,11 @@
 #include "../include/Window.hpp"
 
 namespace interface {
+
     GLFWwindow* Window::generate_window() {
         glfwInit();
+        
+        glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
         GLFWwindow* window = glfwCreateWindow(1280, 720, "KNS", NULL, NULL);
         if (window == nullptr) exit(EXIT_FAILURE);
 
