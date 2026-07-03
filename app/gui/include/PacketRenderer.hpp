@@ -12,7 +12,7 @@ namespace kns {
     class Topology;
 }
 
-namespace interface {
+namespace gui {
 
     class PacketRenderer {
         public:

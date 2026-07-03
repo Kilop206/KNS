@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <numeric>
 
-namespace interface {
+namespace gui {
     CircularBuffer::CircularBuffer(std::size_t capacity)
         : capacity_(capacity == 0 ? 1 : capacity),
           buffer_(capacity_ > 0 ? capacity_ : 1, 0.0f) {}

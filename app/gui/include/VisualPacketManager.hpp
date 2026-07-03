@@ -3,7 +3,7 @@
 #include "../../../core/include/network/Packet.hpp"
 #include "VisualPacket.hpp"
 
-namespace interface {
+namespace gui {
     class VisualPacketManager {
         private:
             std::vector<VisualPacket> pending_;

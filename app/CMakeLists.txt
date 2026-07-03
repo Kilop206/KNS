@@ -7,6 +7,7 @@ target_sources(KNS PRIVATE
     gui/src/LatencyChart.cpp
     gui/src/VisualPacketManager.cpp
     gui/src/PacketRenderer.cpp
+    gui/src/GUIFormat.cpp
 )
 
 target_include_directories(KNS PRIVATE

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace interface {
+namespace gui {
     struct CircularBuffer {
     public:
         explicit CircularBuffer(std::size_t capacity = 100);

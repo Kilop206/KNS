@@ -1,3 +1,5 @@
+#pragma once
+
 #include <fstream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>

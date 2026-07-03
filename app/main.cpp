@@ -28,18 +28,19 @@
 #include "gui/include/VisualPacketManager.hpp"
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
+#include "gui/include/GUIFormat.hpp"
 #include "network/Packet.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
 
 using namespace kns;
-using namespace interface;
+using namespace gui;
 
 constexpr double kBasePacketsPerSecond = 1.0;
-constexpr double kBasePacketsPerMinute  = kBasePacketsPerSecond * 60.0;
-constexpr int    kPacketsPerRoute       = 100;
-constexpr double kSimToVisualScale      = 10.0;
+constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
+constexpr int    kPacketsPerRoute      = 100;
+constexpr double kSimToVisualScale     = 10.0;
 
 struct PickedNodes {
     int origin = -1;
@@ -155,13 +156,29 @@ static void renderStatsWindow(
             : SimulationState::Paused;
     }
 
-    if (ImGui::SliderFloat("Loss Probability", &lossProb, 0.0f, 1.0f)) {
+    float lossPercent = lossProb * 100.0f;
+
+    if (ImGui::SliderFloat(
+            "Loss probability",
+            &lossPercent,
+            0.0f,
+            100.0f,
+            "%.0f %%")) {
+        lossProb = lossPercent / 100.0f;
         engine->setGlobalLossProb(lossProb);
     }
 
-    if (ImGui::SliderInt("Packet Size (bytes)", &packetSize, 100, 10'000)) {
+    if (ImGui::SliderInt(
+        "Packet size (bytes)",
+        &packetSize,
+        64,
+        65535,
+        "%d B")) {
+        
         engine->setGlobalPacketSize(packetSize);
     }
+    
+    ImGui::Text("Current size: %s", formatBytes(packetSize).c_str());
 
     ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
 

@@ -4,7 +4,7 @@
 
 #include "../../../core/include/enums/PacketType.hpp"
 
-namespace interface {
+namespace gui {
     struct VisualPacket {
         int from = -1;
         int to = -1;

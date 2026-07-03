@@ -2,7 +2,7 @@
 
 #include <cfloat>
 
-namespace interface {
+namespace gui {
     void MetricsPannel::render(const kns::Stats& stats, const CircularBuffer& buffer) {
         const float min_latency = buffer.getMinimumLatency();
         const float avg_latency = buffer.getAverageLatency();

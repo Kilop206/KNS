@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cstdint>
 
-namespace interface {
+namespace gui {
     ImU32 PacketRenderer::packetColorByType(kns::PacketType type) {
         switch (type) {
             case kns::PacketType::SYN:     return IM_COL32(0, 150, 255, 255);

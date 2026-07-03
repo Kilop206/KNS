@@ -1,6 +1,6 @@
 #include "../include/Window.hpp"
 
-namespace interface {
+namespace gui {
 
     GLFWwindow* Window::generate_window() {
         glfwInit();

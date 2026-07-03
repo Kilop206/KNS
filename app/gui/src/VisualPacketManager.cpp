@@ -4,7 +4,7 @@
 #include "../include/VisualPacketManager.hpp"
 #include "../../../core/include/network/Packet.hpp"
 
-namespace interface {
+namespace gui {
 
     void VisualPacketManager::observePacket(
         const kns::Packet& packet,
