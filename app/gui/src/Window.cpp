@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include "../include/Window.hpp"
 
 namespace gui {
@@ -14,6 +16,29 @@ namespace gui {
           
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+
+        ImFontConfig config;
+        config.SizePixels = 16.0f;
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        const auto font =
+            std::filesystem::path(KNS_ASSET_DIR)
+            / "fonts"
+            / "Orbit"
+            / "Orbit-Regular.ttf";
+
+        if (!std::filesystem::exists(font))
+        {
+            throw std::runtime_error(
+                "Font not found: " + font.string()
+            );
+        }
+
+        io.Fonts->AddFontFromFileTTF(
+            font.string().c_str(),
+            18.0f
+        );
 
         ImGui::StyleColorsLight();
 

@@ -32,3 +32,25 @@ add_custom_command(TARGET KNS POST_BUILD
             ${CMAKE_CURRENT_SOURCE_DIR}/topologies
             $<TARGET_FILE_DIR:KNS>/topologies
 )
+
+# ============================================
+# Assets
+# ============================================
+
+target_compile_definitions(KNS PRIVATE
+    KNS_ASSET_DIR="$<TARGET_FILE_DIR:KNS>/assets"
+)
+
+add_custom_command(TARGET KNS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/assets
+            $<TARGET_FILE_DIR:KNS>/assets
+    COMMENT "Copying assets..."
+)
+
+add_custom_command(TARGET KNS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/app/topologies
+            $<TARGET_FILE_DIR:KNS>/topologies
+    COMMENT "Copying topologies..."
+)
