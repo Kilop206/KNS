@@ -39,8 +39,8 @@ using namespace gui;
 
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
-constexpr int    kPacketsPerRoute      = 100;
-constexpr double kSimToVisualScale     = 10.0;
+constexpr int    kPacketsPerRoute      = 20;
+constexpr double kSimToVisualScale     = 20.0;
 
 struct PickedNodes {
     int origin = -1;
@@ -177,8 +177,6 @@ static void renderStatsWindow(
         
         engine->setGlobalPacketSize(packetSize);
     }
-    
-    ImGui::Text("Current size: %s", formatBytes(packetSize).c_str());
 
     ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
 
@@ -212,7 +210,7 @@ static void drawLinks(
             ImVec2 p1(positions[link->getA()].first, positions[link->getA()].second);
             ImVec2 p2(positions[link->getB()].first, positions[link->getB()].second);
 
-            draw_list->AddLine(p1, p2, IM_COL32(255, 255, 0, 255), 2.0f);
+            draw_list->AddLine(p1, p2, IM_COL32(0, 0, 0, 255), 2.0f);
         }
     }
 }
@@ -225,17 +223,17 @@ static void drawNodes(
 ) {
     for (std::size_t i = 0; i < static_cast<std::size_t>(topo.size()); ++i) {
         const ImU32 color = (static_cast<int>(i) == selected_node)
-            ? IM_COL32(255, 255, 0, 255)
-            : IM_COL32(100, 200, 100, 255);
+            ? IM_COL32(128, 128, 128, 255)
+            : IM_COL32(169, 169, 169, 255);
 
         draw_list->AddCircleFilled(
             ImVec2(positions[i].first, positions[i].second),
-            10.0f,
+            20.0f,
             color
         );
 
         draw_list->AddText(
-            ImVec2(positions[i].first + 12.0f, positions[i].second - 6.0f),
+            ImVec2(positions[i].first -3.0f, positions[i].second -6.0f),
             IM_COL32(255, 255, 255, 255),
             std::to_string(i).c_str()
         );
@@ -330,6 +328,7 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
     ImGui::End();
 }
 
+
 static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
@@ -356,7 +355,7 @@ static PickedNodes renderNetworkPanel(
     draw_list->AddRectFilled(
         canvas_p0,
         ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y),
-        IM_COL32(20, 20, 20, 255)
+        IM_COL32(245, 245, 245, 255)
     );
 
     const std::vector<std::pair<float, float>> positions =
@@ -405,6 +404,41 @@ static PickedNodes renderNetworkPanel(
         }
         drag_source_node = -1;
     }
+
+    PacketRenderer legendRenderer;
+    const float legend_width = 180.0f;
+    const float legend_line_h = 18.0f;
+    const float legend_padding = 10.0f;
+    const float legend_height = 20.0f + (5.0f * legend_line_h) + (2.0f * legend_padding);
+
+    ImVec2 legend_p0(
+        canvas_p0.x + canvas_sz.x - legend_width - 10.0f,
+        canvas_p0.y + 10.0f
+    );
+    ImVec2 legend_p1(
+        legend_p0.x + legend_width,
+        legend_p0.y + legend_height
+    );
+
+    draw_list->AddRectFilled(legend_p0, legend_p1, IM_COL32(32, 32, 32, 220), 8.0f);
+    draw_list->AddRect(legend_p0, legend_p1, IM_COL32(255, 255, 255, 70), 8.0f, 0, 1.0f);
+    draw_list->AddText(ImVec2(legend_p0.x + 12.0f, legend_p0.y + 10.0f), IM_COL32(255, 255, 255, 255), "Packet Subtitle");
+
+    const float rows_y = legend_p0.y + 34.0f;
+    const float row_gap = legend_line_h;
+    const float box_size = 12.0f;
+
+    auto addLegendRow = [&](float y, const char* label, ImU32 color) {
+        const ImVec2 box_p(legend_p0.x + 12.0f, y);
+        draw_list->AddRectFilled(box_p, ImVec2(box_p.x + box_size, box_p.y + box_size), color, 2.0f);
+        draw_list->AddText(ImVec2(box_p.x + 20.0f, box_p.y - 1.0f), IM_COL32(255, 255, 255, 235), label);
+    };
+
+    addLegendRow(rows_y + row_gap * 0.0f, "SYN",     legendRenderer.packetColorByType(PacketType::SYN));
+    addLegendRow(rows_y + row_gap * 1.0f, "SYN-ACK", legendRenderer.packetColorByType(PacketType::SYN_ACK));
+    addLegendRow(rows_y + row_gap * 2.0f, "ACK",     legendRenderer.packetColorByType(PacketType::ACK));
+    addLegendRow(rows_y + row_gap * 3.0f, "DATA",    legendRenderer.packetColorByType(PacketType::DATA));
+    addLegendRow(rows_y + row_gap * 4.0f, "FIN",     legendRenderer.packetColorByType(PacketType::FIN));
 
     draw_list->PopClipRect();
     ImGui::End();
@@ -640,6 +674,7 @@ static void visualizeWindow(
 
         ImGui::Render();
 
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_RenderDrawData(

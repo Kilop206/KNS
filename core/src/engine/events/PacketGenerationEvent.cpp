@@ -41,6 +41,8 @@ namespace kns {
         pkt.departure_time = engine.now();
 
         PacketUtils::sendPacketThroughTopology(engine, pkt);
+        
+        engine.getStats().packets_sent++;
     }
 
 }

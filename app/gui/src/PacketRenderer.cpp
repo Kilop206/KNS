@@ -8,12 +8,12 @@
 namespace gui {
     ImU32 PacketRenderer::packetColorByType(kns::PacketType type) {
         switch (type) {
-            case kns::PacketType::SYN:     return IM_COL32(0, 150, 255, 255);
-            case kns::PacketType::SYN_ACK: return IM_COL32(180, 0, 255, 255);
-            case kns::PacketType::ACK:     return IM_COL32(0, 255, 120, 255);
-            case kns::PacketType::DATA:    return IM_COL32(100, 190, 255, 255);
-            case kns::PacketType::FIN:     return IM_COL32(200, 180, 50, 255);
-            default:                       return IM_COL32(200, 200, 200, 255);
+            case kns::PacketType::SYN:     return IM_COL32(255, 200,  40, 255); // yellow
+            case kns::PacketType::SYN_ACK: return IM_COL32(180, 120, 255, 255); // purple
+            case kns::PacketType::ACK:     return IM_COL32( 60, 190, 255, 255); // blue
+            case kns::PacketType::DATA:    return IM_COL32( 80, 220, 120, 255); // green
+            case kns::PacketType::FIN:     return IM_COL32(255, 120,  60, 255); // orange
+            default:                       return IM_COL32(200, 200, 200, 255); // gray
         }
     }
 
@@ -91,8 +91,8 @@ namespace gui {
             const ImU32 fill_color = packetColorByType(packet.type);
             const ImU32 border_color = packetBorderColor(packet.type);
 
-            const float base_radius = 5.5f;
-            const float radius = base_radius + pulse * 1.5f;
+            const float base_radius = 10.0f;
+            const float radius = base_radius + pulse * 3.0f;
 
             std::cout
                 << "t=" << t
