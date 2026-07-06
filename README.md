@@ -164,7 +164,7 @@ If you contribute, please keep the codebase consistent with the current event-dr
 
 ## License
 
-Add your license here.
+[MIT](https://github.com/Kilop206/KNS/blob/tcp/LICENSE)
 
 ## Author
 
