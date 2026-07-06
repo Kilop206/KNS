@@ -8,6 +8,7 @@ target_sources(KNS PRIVATE
     gui/src/VisualPacketManager.cpp
     gui/src/PacketRenderer.cpp
     gui/src/GUIFormat.cpp
+    gui/src/ThemeManager.cpp
 )
 
 target_include_directories(KNS PRIVATE

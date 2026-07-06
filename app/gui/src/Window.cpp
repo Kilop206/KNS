@@ -1,6 +1,7 @@
 #include <filesystem>
 
 #include "../include/Window.hpp"
+#include "../include/ThemeManager.hpp"
 
 namespace gui {
 
@@ -21,38 +22,18 @@ namespace gui {
         config.SizePixels = 16.0f;
 
         ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-        const auto font =
-            std::filesystem::path(KNS_ASSET_DIR)
-            / "fonts"
-            / "Orbit"
-            / "Orbit-Regular.ttf";
+        const std::filesystem::path assetDir = KNS_ASSET_DIR;
+        const std::string regularFont = (assetDir / "fonts" / "Orbit" / "Orbit-Regular.ttf").string();
+        const std::string boldFont    = (assetDir / "fonts" / "Orbit Bold" / "Orbit Bold.ttf").string();
+        const std::string monoFont    = (assetDir / "fonts" / "JetBrains Mono" / "JetBrainsMono-Regular.ttf").string();
 
-        if (!std::filesystem::exists(font))
-        {
-            throw std::runtime_error(
-                "Font not found: " + font.string()
-            );
-        }
-
-        io.Fonts->AddFontFromFileTTF(
-            font.string().c_str(),
-            18.0f
+        gui::ThemeManager::apply(
+            regularFont.c_str(),
+            boldFont.c_str(),
+            monoFont.c_str()
         );
-
-        ImGui::StyleColorsLight();
-
-        ImGuiStyle& style = ImGui::GetStyle();
-        style.Colors[ImGuiCol_WindowBg]      = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_ChildBg]       = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_PopupBg]       = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_DockingEmptyBg]= ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_Text]          = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
-
-        style.Colors[ImGuiCol_FrameBg]     = ImVec4(0.92f, 0.92f, 0.92f, 1.0f);
-        style.Colors[ImGuiCol_TitleBg]     = ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
-        style.Colors[ImGuiCol_MenuBarBg]   = ImVec4(0.95f, 0.95f, 0.95f, 1.0f);
-        style.Colors[ImGuiCol_Border]      = ImVec4(0.75f, 0.75f, 0.75f, 1.0f);
 
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 130");
