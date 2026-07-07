@@ -161,7 +161,7 @@ namespace kns {
 
                 server.receive_fin(packet.tcp.seq);
 
-                Packet finAck(
+                Packet fin(
                     server.getLocalNode(),
                     server.getRemoteNode(),
                     server.getLocalNode(),
@@ -170,10 +170,10 @@ namespace kns {
                     packet.session_id
                 );
 
-                finAck.tcp = server.buildAck();
-                finAck.packet_type = inferPacketType(finAck.tcp);
+                fin.tcp = server.buildFin();
+                fin.packet_type = inferPacketType(fin.tcp);
 
-                PacketUtils::sendPacketThroughTopology(engine, finAck);
+                PacketUtils::sendPacketThroughTopology(engine, fin);
                 break;
             }
 
@@ -190,5 +190,4 @@ namespace kns {
                 break;
         }
     }
-
 }
