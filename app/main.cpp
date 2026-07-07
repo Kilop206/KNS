@@ -94,24 +94,6 @@ struct VisualLinkUsage {
     double until = 0.0;
 };
 
-static ImVec4 packetTextColor(kns::PacketType type)
-{
-    switch (type) {
-        case kns::PacketType::SYN:
-            return ImVec4(1.00f, 0.78f, 0.10f, 1.0f);
-        case kns::PacketType::SYN_ACK:
-            return ImVec4(0.62f, 0.24f, 0.78f, 1.0f);
-        case kns::PacketType::ACK:
-            return ImVec4(0.15f, 0.55f, 0.95f, 1.0f);
-        case kns::PacketType::DATA:
-            return ImVec4(0.20f, 0.70f, 0.35f, 1.0f);
-        case kns::PacketType::FIN:
-            return ImVec4(0.90f, 0.30f, 0.20f, 1.0f);
-        default:
-            return ImVec4(0.20f, 0.20f, 0.20f, 1.0f);
-    }
-}
-
 static void renderEventLogWindow(const EventLog& log)
 {
     ImGui::Begin("Event Log");
@@ -135,6 +117,39 @@ static void renderEventLogWindow(const EventLog& log)
 
         for (const auto& entry : log.lines) {
             ImGui::TableNextRow();
+
+            ImU32 rowColor = IM_COL32(255,255,255,255);
+
+            switch (entry.type)
+            {
+                case kns::PacketType::SYN:
+                    rowColor = IM_COL32(255, 240, 170, 255);
+                    break;
+
+                case kns::PacketType::SYN_ACK:
+                    rowColor = IM_COL32(225, 205, 255, 255);
+                    break;
+
+                case kns::PacketType::ACK:
+                    rowColor = IM_COL32(190, 225, 255, 255);
+                    break;
+
+                case kns::PacketType::DATA:
+                    rowColor = IM_COL32(190, 245, 200, 255);
+                    break;
+
+                case kns::PacketType::FIN:
+                    rowColor = IM_COL32(255, 205, 190, 255);
+                    break;
+
+                default:
+                    break;
+            }
+
+            ImGui::TableSetBgColor(
+                ImGuiTableBgTarget_RowBg0,
+                rowColor
+            );
 
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%.3f", entry.time);
