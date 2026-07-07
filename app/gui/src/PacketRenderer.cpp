@@ -33,15 +33,15 @@ namespace gui {
         }
     }
 
-    static const char* packetTypeToString(kns::PacketType type)
+    const char* PacketRenderer::packetTypeToString(kns::PacketType type)
     {
         switch (type) {
-            case kns::PacketType::SYN: return "SYN";
+            case kns::PacketType::SYN:     return "SYN";
             case kns::PacketType::SYN_ACK: return "SYN-ACK";
-            case kns::PacketType::ACK: return "ACK";
-            case kns::PacketType::DATA: return "DATA";
-            case kns::PacketType::FIN: return "FIN";
-            default: return "UNKNOWN";
+            case kns::PacketType::ACK:     return "ACK";
+            case kns::PacketType::DATA:    return "DATA";
+            case kns::PacketType::FIN:     return "FIN";
+            default:                       return "UNKNOWN";
         }
     }
 
@@ -71,7 +71,6 @@ namespace gui {
             }
 
             double t = elapsed / visual_duration;
-            t = (visual_time - packet.visual_start_time) / actual_duration;
 
             const float x = static_cast<float>(
                 positions[packet.from].first +

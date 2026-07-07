@@ -22,6 +22,8 @@ namespace gui {
                 const std::vector<VisualPacket>& packets,
                 double visual_time
             ) const;
+
+            static const char* packetTypeToString(kns::PacketType type);
             
             static ImU32 packetColorByType(kns::PacketType type);
 

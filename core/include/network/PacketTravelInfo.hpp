@@ -5,5 +5,8 @@ namespace kns {
         int from_node;
         int to_node;
         PacketType packet_type;
+
+        int link_from = -1;
+        int link_to = -1;
     };
 }

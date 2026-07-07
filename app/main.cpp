@@ -18,6 +18,9 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <deque>
+#include <sstream>
+#include <iomanip>
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -48,6 +51,116 @@ struct PickedNodes {
     int dest = -1;
     bool tcp = false;
 };
+
+struct LogEntry {
+    double time = 0.0;
+    kns::PacketType type = kns::PacketType::DATA;
+    int from = -1;
+    int to = -1;
+    std::uint64_t session_id = 0;
+    std::string text;
+};
+
+struct EventLog {
+    std::deque<LogEntry> lines;
+    std::size_t max_lines = 300;
+
+    void add(
+        double time,
+        kns::PacketType type,
+        int from,
+        int to,
+        std::uint64_t session_id,
+        std::string line
+    ) {
+        lines.push_back(LogEntry{
+            time,
+            type,
+            from,
+            to,
+            session_id,
+            std::move(line)
+        });
+
+        if (lines.size() > max_lines) {
+            lines.pop_front();
+        }
+    }
+};
+
+struct VisualLinkUsage {
+    int from = -1;
+    int to = -1;
+    double until = 0.0;
+};
+
+static ImVec4 packetTextColor(kns::PacketType type)
+{
+    switch (type) {
+        case kns::PacketType::SYN:
+            return ImVec4(1.00f, 0.78f, 0.10f, 1.0f);
+        case kns::PacketType::SYN_ACK:
+            return ImVec4(0.62f, 0.24f, 0.78f, 1.0f);
+        case kns::PacketType::ACK:
+            return ImVec4(0.15f, 0.55f, 0.95f, 1.0f);
+        case kns::PacketType::DATA:
+            return ImVec4(0.20f, 0.70f, 0.35f, 1.0f);
+        case kns::PacketType::FIN:
+            return ImVec4(0.90f, 0.30f, 0.20f, 1.0f);
+        default:
+            return ImVec4(0.20f, 0.20f, 0.20f, 1.0f);
+    }
+}
+
+static void renderEventLogWindow(const EventLog& log)
+{
+    ImGui::Begin("Event Log");
+
+    if (ImGui::BeginTable(
+            "EventLogTable",
+            6,
+            ImGuiTableFlags_RowBg |
+            ImGuiTableFlags_Borders |
+            ImGuiTableFlags_Resizable |
+            ImGuiTableFlags_ScrollY,
+            ImVec2(0.0f, 0.0f)))
+    {
+        ImGui::TableSetupColumn("Time");
+        ImGui::TableSetupColumn("Type");
+        ImGui::TableSetupColumn("From");
+        ImGui::TableSetupColumn("To");
+        ImGui::TableSetupColumn("Session");
+        ImGui::TableSetupColumn("Details");
+        ImGui::TableHeadersRow();
+
+        for (const auto& entry : log.lines) {
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%.3f", entry.time);
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(PacketRenderer::packetTypeToString(entry.type));
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%d", entry.from);
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%d", entry.to);
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%llu",
+                static_cast<unsigned long long>(entry.session_id));
+
+            ImGui::TableSetColumnIndex(5);
+            ImGui::TextUnformatted(entry.text.c_str());
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
 
 static std::vector<std::pair<int, int>> buildConnectionPlan(const Topology& topo)
 {
@@ -200,21 +313,43 @@ static void renderStatsWindow(
 static void drawLinks(
     ImDrawList* draw_list,
     const Topology& topo,
-    const std::vector<std::pair<float, float>>& positions
+    const std::vector<std::pair<float, float>>& positions,
+    const std::vector<VisualLinkUsage>& activeLinks
 ) {
     for (std::size_t i = 0; i < static_cast<std::size_t>(topo.size()); ++i) {
         const auto& links = topo.getLinksFromNode(static_cast<int>(i));
+
         for (const auto& link : links) {
-            if (link->getA() < 0 || link->getB() < 0 ||
-                link->getA() >= static_cast<int>(positions.size()) ||
-                link->getB()   >= static_cast<int>(positions.size())) {
+            const int a = link->getA();
+            const int b = link->getB();
+
+            if (a < 0 || b < 0 ||
+                a >= static_cast<int>(positions.size()) ||
+                b >= static_cast<int>(positions.size())) {
                 continue;
             }
 
-            ImVec2 p1(positions[link->getA()].first, positions[link->getA()].second);
-            ImVec2 p2(positions[link->getB()].first, positions[link->getB()].second);
+            bool occupied = false;
+            for (const auto& usage : activeLinks) {
+                if ((usage.from == a && usage.to == b) ||
+                    (usage.from == b && usage.to == a)) {
+                    occupied = true;
+                    break;
+                }
+            }
 
-            draw_list->AddLine(p1, p2, IM_COL32(0, 0, 0, 255), 2.0f);
+            const ImU32 color = occupied
+                ? IM_COL32(255, 80, 0, 255)
+                : IM_COL32(0, 0, 0, 255);
+
+            const float thickness = occupied
+                ? 8.0f
+                : 2.0f;
+
+            ImVec2 p1(positions[a].first, positions[a].second);
+            ImVec2 p2(positions[b].first, positions[b].second);
+
+            draw_list->AddLine(p1, p2, color, thickness);
         }
     }
 }
@@ -428,7 +563,20 @@ static PickedNodes renderNetworkPanel(
     }
 
     if (topo.size() > 0) {
-        drawLinks(draw_list, topo, positions);
+        std::vector<VisualLinkUsage> activeLinks;
+
+        for (const auto& packet : visualPackets)
+        {
+            VisualLinkUsage usage;
+
+            usage.from = packet.from;
+            usage.to = packet.to;
+            usage.until = packet.sim_arrival_time;
+
+            activeLinks.push_back(usage);
+        }
+
+        drawLinks(draw_list, topo, positions, activeLinks);
         drawNodes(draw_list, topo, positions, selected_node);
 
         PacketRenderer packetRenderer;
@@ -580,23 +728,29 @@ static void visualizeWindow(
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
 
+    EventLog eventLog;
+
     auto configureEngine = [&](std::unique_ptr<SimulationEngine>& eng) {
+
         eng->setGlobalPacketSize(packetSize);
         eng->setGlobalLossProb(lossProb);
 
         eng->setLatencyObserver([&buffer](double lat) {
-            buffer.addLatencyToBuffer(static_cast<float>(lat));
+            buffer.addLatencyToBuffer(
+                static_cast<float>(lat)
+            );
         });
 
         eng->setPacketObserver(
-            [&visualManager](
+            [&visualManager, &eventLog](
                 const Packet& p,
                 std::uint64_t session_id,
                 int from,
                 int to,
                 double departureTime,
                 double arrivalTime
-            ) {
+            )
+            {
                 visualManager.observePacket(
                     p,
                     session_id,
@@ -604,6 +758,21 @@ static void visualizeWindow(
                     to,
                     departureTime,
                     arrivalTime
+                );
+
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(3)
+                    << departureTime << "  "
+                    << from << " -> " << to
+                    << "  session=" << session_id;
+
+                eventLog.add(
+                    departureTime,
+                    p.packet_type,
+                    from,
+                    to,
+                    session_id,
+                    oss.str()
                 );
             }
         );
@@ -720,6 +889,8 @@ static void visualizeWindow(
             selected_node,
             routingTable
         );
+
+        renderEventLogWindow(eventLog);
 
         if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
