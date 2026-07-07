@@ -18,12 +18,12 @@ namespace kns {
         return session_id;
     }
 
-    int TCPSession::getSource()
+    int TCPSession::getSource() const
     {
         return source;
     }
 
-    int TCPSession::getDestination()
+    int TCPSession::getDestination() const
     {
         return destination;
     }

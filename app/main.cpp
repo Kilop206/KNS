@@ -94,6 +94,108 @@ struct VisualLinkUsage {
     double until = 0.0;
 };
 
+
+
+static const char* tcpStateToString(kns::TCPState state)
+{
+    switch (state)
+    {
+        case kns::TCPState::CLOSED:       return "CLOSED";
+        case kns::TCPState::SYN_SENT:     return "SYN_SENT";
+        case kns::TCPState::SYN_RECEIVED: return "SYN_RECEIVED";
+        case kns::TCPState::ESTABLISHED:  return "ESTABLISHED";
+        case kns::TCPState::FIN_WAIT_1:   return "FIN_WAIT_1";
+        case kns::TCPState::FIN_WAIT_2:   return "FIN_WAIT_2";
+        case kns::TCPState::CLOSE_WAIT:   return "CLOSE_WAIT";
+        case kns::TCPState::LAST_ACK:     return "LAST_ACK";
+        case kns::TCPState::TIME_WAIT:    return "TIME_WAIT";
+        case kns::TCPState::CLOSING:      return "CLOSING";
+        default:                          return "UNKNOWN";
+    }
+}
+
+static ImU32 tcpStateColor(kns::TCPState state)
+{
+    switch (state)
+    {
+        case kns::TCPState::ESTABLISHED:
+            return IM_COL32(200, 255, 200, 255);
+
+        case kns::TCPState::SYN_SENT:
+            return IM_COL32(255, 240, 180, 255);
+
+        case kns::TCPState::SYN_RECEIVED:
+            return IM_COL32(255, 220, 180, 255);
+
+        case kns::TCPState::FIN_WAIT_1:
+        case kns::TCPState::FIN_WAIT_2:
+            return IM_COL32(180, 220, 255, 255);
+
+        case kns::TCPState::TIME_WAIT:
+            return IM_COL32(210, 210, 255, 255);
+
+        case kns::TCPState::CLOSED:
+            return IM_COL32(220, 220, 220, 255);
+
+        default:
+            return IM_COL32(255, 255, 255, 255);
+    }
+}
+
+static void renderTCPSessionsWindow(
+    const kns::SimulationEngine& engine
+)
+{
+    ImGui::Begin("TCP Sessions");
+
+    const auto& sessions = engine.getTCPSessions();
+
+    if (ImGui::BeginTable(
+        "TCPSessionsTable",
+        4,
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable))
+    {
+        ImGui::TableSetupColumn("Session");
+        ImGui::TableSetupColumn("Source");
+        ImGui::TableSetupColumn("Destination");
+        ImGui::TableSetupColumn("State");
+        ImGui::TableHeadersRow();
+
+        for (const auto& [id, session] : sessions)
+        {
+            ImGui::TableNextRow();
+
+            ImGui::TableSetBgColor(
+                ImGuiTableBgTarget_RowBg0,
+                tcpStateColor(session.getState())
+            );
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%llu",
+                static_cast<unsigned long long>(
+                    session.getSession_id()
+                ));
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%i", session.getSource());
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%i", session.getDestination());
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::TextUnformatted(
+                tcpStateToString(session.getState())
+            );
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
 static void renderEventLogWindow(const EventLog& log)
 {
     ImGui::Begin("Event Log");
@@ -169,6 +271,10 @@ static void renderEventLogWindow(const EventLog& log)
 
             ImGui::TableSetColumnIndex(5);
             ImGui::TextUnformatted(entry.text.c_str());
+        }
+
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f);
         }
 
         ImGui::EndTable();
@@ -766,6 +872,7 @@ static void visualizeWindow(
                 double arrivalTime
             )
             {
+
                 visualManager.observePacket(
                     p,
                     session_id,
@@ -789,6 +896,16 @@ static void visualizeWindow(
                     session_id,
                     oss.str()
                 );
+
+                std::cout
+                    << "Observer type = "
+                    << static_cast<int>(p.packet_type)
+                    << '\n';
+
+                std::cout
+                    << "FIN enum = "
+                    << static_cast<int>(kns::PacketType::FIN)
+                    << '\n';
             }
         );
     };
@@ -950,6 +1067,9 @@ static void visualizeWindow(
 
             ImGuiFileDialog::Instance()->Close();
         }
+
+        renderEventLogWindow(eventLog);
+        renderTCPSessionsWindow(*engine);
 
         ImGui::Render();
 

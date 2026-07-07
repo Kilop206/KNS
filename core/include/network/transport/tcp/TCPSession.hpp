@@ -30,9 +30,9 @@ namespace kns
 
             std::uint64_t getSession_id() const;
 
-            int getSource();
+            int getSource() const;
 
-            int getDestination();
+            int getDestination() const;
 
             TCPState getState() const;
 
