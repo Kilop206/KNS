@@ -36,12 +36,6 @@ namespace kns {
         // Get the event with the earliest timestamp (and lowest ID if timestamps are equal)
         auto ptr = std::move(const_cast<std::unique_ptr<Event>&>(event_list_.top()));
 
-        std::cout
-            << "[QUEUE POP] "
-            << typeid(*ptr).name()
-            << " t=" << ptr->getTimestamp()
-            << '\n';
-
         event_list_.pop();
         return ptr;
     }

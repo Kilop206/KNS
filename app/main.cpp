@@ -29,6 +29,7 @@
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
 #include "gui/include/GUIFormat.hpp"
+#include "gui/include/ThemeManager.hpp"
 #include "network/Packet.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
@@ -141,53 +142,56 @@ static void renderStatsWindow(
 ) {
     ImGui::Begin("Stats");
 
-    if (state == SimulationState::Paused && engineHasEvents) {
-        if (ImGui::Button("Step")) {
-            stepRequested = true;
+    if (ImGui::CollapsingHeader("Simulation", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button(state == SimulationState::Paused ? "Resume" : "Pause")) {
+            state = (state == SimulationState::Paused)
+                ? SimulationState::Running
+                : SimulationState::Paused;
+        }
+
+        if (state == SimulationState::Paused && engineHasEvents) {
+            ImGui::SameLine();
+            if (ImGui::Button("Step")) {
+                stepRequested = true;
+            }
+        }
+
+        ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
+
+        if (!engineHasEvents) {
+            ImGui::TextDisabled("Simulation finished.");
         }
     }
 
-    MetricsPannel panel;
-    panel.render(stats, buffer);
+    if (ImGui::CollapsingHeader("Traffic", ImGuiTreeNodeFlags_DefaultOpen)) {
+        float lossPercent = lossProb * 100.0f;
 
-    if (ImGui::Button(state == SimulationState::Paused ? "Resume" : "Pause")) {
-        state = (state == SimulationState::Paused)
-            ? SimulationState::Running
-            : SimulationState::Paused;
+        if (ImGui::SliderFloat("Loss probability", &lossPercent, 0.0f, 100.0f, "%.0f %%")) {
+            lossProb = lossPercent / 100.0f;
+            engine->setGlobalLossProb(lossProb);
+        }
+
+        if (ImGui::SliderInt("Packet size (bytes)", &packetSize, 64, 65535, "%d B")) {
+            engine->setGlobalPacketSize(packetSize);
+        }
+
+        ImGui::Text("Current size: %s", formatBytes(packetSize).c_str());
     }
 
-    float lossPercent = lossProb * 100.0f;
-
-    if (ImGui::SliderFloat(
-            "Loss probability",
-            &lossPercent,
-            0.0f,
-            100.0f,
-            "%.0f %%")) {
-        lossProb = lossPercent / 100.0f;
-        engine->setGlobalLossProb(lossProb);
+    if (ImGui::CollapsingHeader("Statistics", ImGuiTreeNodeFlags_DefaultOpen)) {
+        MetricsPannel panel;
+        panel.render(stats, buffer);
     }
 
-    if (ImGui::SliderInt(
-        "Packet size (bytes)",
-        &packetSize,
-        64,
-        65535,
-        "%d B")) {
-        
-        engine->setGlobalPacketSize(packetSize);
+    if (ImGui::CollapsingHeader("Network Configuration")) {
+        ImGui::Text("Base rate: %.0f packets/min at 1.0x", kBasePacketsPerMinute);
+        ImGui::Text("Packets per route: %d", kPacketsPerRoute);
     }
 
-    ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
-
-    ImGui::Separator();
-    ImGui::Text("Network configuration:");
-    ImGui::Text("Base rate: %.0f packets/min at 1.0x", kBasePacketsPerMinute);
-    ImGui::Text("Packets per route: %d", kPacketsPerRoute);
-
-    if (!engineHasEvents) {
-        ImGui::Separator();
-        ImGui::TextDisabled("Simulation finished.");
+    if (ImGui::CollapsingHeader("Validation")) {
+        ImGui::Text("Packets sent: %d", stats.packets_sent);
+        ImGui::Text("Packets delivered: %d", stats.packets_delivered);
+        ImGui::Text("Packets lost: %d", stats.packets_lost);
     }
 
     ImGui::End();
@@ -226,21 +230,32 @@ static void drawNodes(
             ? IM_COL32(128, 128, 128, 255)
             : IM_COL32(169, 169, 169, 255);
 
+        const float radius = 20.0f;
+        const std::string label = std::to_string(i);
+        const ImVec2 text_size = ImGui::CalcTextSize(label.c_str());
+
+        const float x = positions[i].first;
+        const float y = positions[i].second;
+
         draw_list->AddCircleFilled(
-            ImVec2(positions[i].first, positions[i].second),
-            20.0f,
+            ImVec2(x, y),
+            radius,
             color
         );
 
         draw_list->AddText(
-            ImVec2(positions[i].first -3.0f, positions[i].second -6.0f),
+            ImVec2(
+                x - text_size.x * 0.5f,
+                y - text_size.y * 0.55f
+            ),
             IM_COL32(255, 255, 255, 255),
-            std::to_string(i).c_str()
+            label.c_str()
         );
     }
 }
 
 static void renderSelectedNodePanel(
+    const Topology& topo,
     int selected_node,
     const std::vector<Routing::RoutingEntry>& routingTable
 ) {
@@ -255,8 +270,33 @@ static void renderSelectedNodePanel(
     ImGui::Text("Selected node: %d", selected_node);
     ImGui::Separator();
 
+    if (selected_node >= topo.size()) {
+        ImGui::Text("Invalid node.");
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Neighbors:");
+    const auto& links = topo.getLinksFromNode(selected_node);
+
+    bool hasNeighbors = false;
+    for (const auto& link : links) {
+        const int other = link->getOtherNode(selected_node);
+        if (other != -1) {
+            hasNeighbors = true;
+            ImGui::BulletText("%d", other);
+        }
+    }
+
+    if (!hasNeighbors) {
+        ImGui::TextDisabled("No neighbors.");
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Routing table:");
+
     if (routingTable.empty()) {
-        ImGui::Text("Routing table is empty.");
+        ImGui::TextDisabled("Routing table is empty.");
     } else {
         for (const auto& entry : routingTable) {
             if (entry.distance == std::numeric_limits<double>::infinity()) {
@@ -361,6 +401,32 @@ static PickedNodes renderNetworkPanel(
     const std::vector<std::pair<float, float>> positions =
         generatePositions(topo, canvas_p0, canvas_sz);
 
+    int hovered_node = -1;
+    if (ImGui::IsWindowHovered()) {
+        hovered_node = pickNodeAtMouse(positions, 20.0f);
+    }
+
+    if (hovered_node != -1) {
+        ImGui::BeginTooltip();
+        ImGui::Text("Node %d", hovered_node);
+
+        if (hovered_node < topo.size()) {
+            const auto& links = topo.getLinksFromNode(hovered_node);
+
+            int neighbors = 0;
+            for (const auto& link : links) {
+                if (link->getOtherNode(hovered_node) != -1) {
+                    ++neighbors;
+                }
+            }
+
+            ImGui::Text("Neighbors: %d", neighbors);
+            ImGui::Text("Click to inspect");
+        }
+
+        ImGui::EndTooltip();
+    }
+
     if (topo.size() > 0) {
         drawLinks(draw_list, topo, positions);
         drawNodes(draw_list, topo, positions, selected_node);
@@ -422,16 +488,42 @@ static PickedNodes renderNetworkPanel(
 
     draw_list->AddRectFilled(legend_p0, legend_p1, IM_COL32(32, 32, 32, 220), 8.0f);
     draw_list->AddRect(legend_p0, legend_p1, IM_COL32(255, 255, 255, 70), 8.0f, 0, 1.0f);
-    draw_list->AddText(ImVec2(legend_p0.x + 12.0f, legend_p0.y + 10.0f), IM_COL32(255, 255, 255, 255), "Packet Subtitle");
+
+    const char* title = "Packet Subtitle";
+    const ImVec2 title_sz = ImGui::CalcTextSize(title);
+    const float title_y = legend_p0.y + 10.0f + (16.0f - title_sz.y) * 0.5f;
+
+    draw_list->AddText(
+        ImVec2(legend_p0.x + 12.0f, title_y),
+        IM_COL32(255, 255, 255, 255),
+        title
+    );
 
     const float rows_y = legend_p0.y + 34.0f;
     const float row_gap = legend_line_h;
     const float box_size = 12.0f;
 
-    auto addLegendRow = [&](float y, const char* label, ImU32 color) {
+    auto addLegendRow = [&](float y, const char* label, ImU32 color)
+    {
         const ImVec2 box_p(legend_p0.x + 12.0f, y);
-        draw_list->AddRectFilled(box_p, ImVec2(box_p.x + box_size, box_p.y + box_size), color, 2.0f);
-        draw_list->AddText(ImVec2(box_p.x + 20.0f, box_p.y - 1.0f), IM_COL32(255, 255, 255, 235), label);
+
+        const ImVec2 text_size = ImGui::CalcTextSize(label);
+
+        const float text_x = box_p.x + box_size + 8.0f;
+        const float text_y = box_p.y + (box_size - text_size.y) * 0.5f;
+
+        draw_list->AddRectFilled(
+            box_p,
+            ImVec2(box_p.x + box_size, box_p.y + box_size),
+            color,
+            2.0f
+        );
+
+        draw_list->AddText(
+            ImVec2(text_x, text_y),
+            IM_COL32(255,255,255,235),
+            label
+        );
     };
 
     addLegendRow(rows_y + row_gap * 0.0f, "SYN",     legendRenderer.packetColorByType(PacketType::SYN));
@@ -624,6 +716,7 @@ static void visualizeWindow(
         }
 
         renderSelectedNodePanel(
+            topo,
             selected_node,
             routingTable
         );

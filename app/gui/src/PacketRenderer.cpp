@@ -33,6 +33,18 @@ namespace gui {
         }
     }
 
+    static const char* packetTypeToString(kns::PacketType type)
+    {
+        switch (type) {
+            case kns::PacketType::SYN: return "SYN";
+            case kns::PacketType::SYN_ACK: return "SYN-ACK";
+            case kns::PacketType::ACK: return "ACK";
+            case kns::PacketType::DATA: return "DATA";
+            case kns::PacketType::FIN: return "FIN";
+            default: return "UNKNOWN";
+        }
+    }
+
     void PacketRenderer::render(
         ImDrawList* draw_list,
         const std::vector<std::pair<float, float>>& positions,
@@ -45,21 +57,6 @@ namespace gui {
             if (visual_time < packet.visual_start_time) {
                 continue;
             }
-            
-            std::cout
-                << "FROM "
-                << packet.from
-                << " TO "
-                << packet.to
-                << "  x="
-                << positions[packet.from].first
-                << " y="
-                << positions[packet.from].second
-                << " -> "
-                << positions[packet.to].first
-                << ","
-                << positions[packet.to].second
-                << '\n';
 
             const double actual_duration = packet.sim_arrival_time - packet.sim_departure_time;
             if (actual_duration <= 0.0) {
@@ -94,12 +91,6 @@ namespace gui {
             const float base_radius = 10.0f;
             const float radius = base_radius + pulse * 3.0f;
 
-            std::cout
-                << "t=" << t
-                << " x=" << x
-                << " y=" << y
-                << '\n';
-
                 draw_list->AddCircleFilled(
                     ImVec2(100,100),
                     20,
@@ -108,6 +99,43 @@ namespace gui {
 
             draw_list->AddCircleFilled(ImVec2(x, y), radius, fill_color);
             draw_list->AddCircle(ImVec2(x, y), radius + 2.5f, border_color, 0, 1.2f);
+
+            const ImVec2 mouse = ImGui::GetMousePos();
+
+            const float dx = mouse.x - x;
+            const float dy = mouse.y - y;
+            const float dist2 = dx * dx + dy * dy;
+
+            if (dist2 <= radius * radius) {
+
+                const float progress =
+                    static_cast<float>(
+                        ((visual_time - packet.visual_start_time) /
+                        packet.visual_duration) * 100.0
+                    );
+
+                ImGui::BeginTooltip();
+
+                ImGui::Text("Type: %s",
+                    packetTypeToString(packet.type));
+
+                ImGui::Text("Session: %llu",
+                    static_cast<unsigned long long>(packet.session_id));
+
+                ImGui::Text("From: %d", packet.from);
+                ImGui::Text("To: %d", packet.to);
+
+                ImGui::Text("Progress: %.0f%%",
+                    std::clamp(progress, 0.0f, 100.0f));
+
+                ImGui::Text("Departure: %.3f",
+                    packet.sim_departure_time);
+
+                ImGui::Text("Arrival: %.3f",
+                    packet.sim_arrival_time);
+
+                ImGui::EndTooltip();
+            }
         }
     }
 }
