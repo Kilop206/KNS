@@ -19,6 +19,8 @@ namespace kns
             int packets_sent = 0;
             TCPConnection client_connection;
             TCPConnection server_connection;
+            bool close_requested = false;
+            bool traffic_generated_ = false;
 
         public:
             TCPSession(std::uint64_t session_id,
@@ -45,6 +47,14 @@ namespace kns
             void setTotalPackets(int total);
 
             bool isComplete();
+
+            bool isCloseRequest();
+
+            void setCloseRequest(bool closeRequest);
+
+            bool hasGeneratedTraffic() const noexcept;
+            
+            void markTrafficGenerated() noexcept;
 
             void setState(TCPState state);
     };

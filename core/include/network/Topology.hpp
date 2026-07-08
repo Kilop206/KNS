@@ -31,9 +31,14 @@ namespace kns {
 
 			void setGlobalLossProb(double value);
 
+			const char* getName() const noexcept;
+
+			void setName(const char* name) noexcept;
+
 		private:
 			std::vector<LinkPtr> links_;
 			std::vector<std::vector<LinkPtr>> adjacency_list_;
+			const char* name;
 	};
 
 }

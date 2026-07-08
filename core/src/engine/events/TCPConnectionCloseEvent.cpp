@@ -22,6 +22,11 @@ namespace kns {
         auto& session =
             engine.getTCPSession(session_id_);
 
+        if (session.isCloseRequest()) {
+            return;
+        }
+        session.setCloseRequest(true);
+
         auto& client =
             session.getClientConnection();
 
@@ -31,21 +36,12 @@ namespace kns {
             client.getLocalNode(),
             engine.now(),
             engine.getGlobalPacketSize(),
-            session_id_
+            session.getSession_id()
         );
 
         fin.tcp = client.buildFin();
         fin.packet_type = inferPacketType(fin.tcp);
 
-        std::cout
-            << "[TCP][SESSION "
-            << session_id_
-            << "] SENDING_FIN\n";
-
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            fin
-        );
+        PacketUtils::sendPacketThroughTopology(engine, fin);
     }
-
 }

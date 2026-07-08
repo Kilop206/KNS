@@ -1,5 +1,6 @@
 {
   "nodes": 5,
+  "name": "star",
   "links": [
     {
       "from": 2,

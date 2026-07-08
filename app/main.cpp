@@ -43,7 +43,6 @@ using namespace gui;
 
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
-constexpr int    kPacketsPerRoute      = 20;
 constexpr double kSimToVisualScale     = 20.0;
 
 struct PickedNodes {
@@ -94,8 +93,6 @@ struct VisualLinkUsage {
     double until = 0.0;
 };
 
-
-
 static const char* tcpStateToString(kns::TCPState state)
 {
     switch (state)
@@ -118,27 +115,14 @@ static ImU32 tcpStateColor(kns::TCPState state)
 {
     switch (state)
     {
-        case kns::TCPState::ESTABLISHED:
-            return IM_COL32(200, 255, 200, 255);
-
-        case kns::TCPState::SYN_SENT:
-            return IM_COL32(255, 240, 180, 255);
-
-        case kns::TCPState::SYN_RECEIVED:
-            return IM_COL32(255, 220, 180, 255);
-
-        case kns::TCPState::FIN_WAIT_1:
-        case kns::TCPState::FIN_WAIT_2:
-            return IM_COL32(180, 220, 255, 255);
-
-        case kns::TCPState::TIME_WAIT:
-            return IM_COL32(210, 210, 255, 255);
-
-        case kns::TCPState::CLOSED:
-            return IM_COL32(220, 220, 220, 255);
-
-        default:
-            return IM_COL32(255, 255, 255, 255);
+        case kns::TCPState::ESTABLISHED:  return IM_COL32(200, 255, 200, 255);
+        case kns::TCPState::SYN_SENT:     return IM_COL32(255, 240, 180, 255);
+        case kns::TCPState::SYN_RECEIVED: return IM_COL32(255, 225, 190, 255);
+        case kns::TCPState::CLOSE_WAIT:   return IM_COL32(255, 230, 180, 255);
+        case kns::TCPState::LAST_ACK:     return IM_COL32(225, 205, 255, 255);
+        case kns::TCPState::TIME_WAIT:    return IM_COL32(190, 225, 255, 255);
+        case kns::TCPState::CLOSED:       return IM_COL32(220, 220, 220, 255);
+        default:                          return IM_COL32(255, 255, 255, 255);
     }
 }
 
@@ -166,7 +150,7 @@ static void renderTCPSessionsWindow(
         for (const auto& [id, session] : sessions)
         {
             ImGui::TableNextRow();
-
+            
             ImGui::TableSetBgColor(
                 ImGuiTableBgTarget_RowBg0,
                 tcpStateColor(session.getState())
@@ -419,7 +403,7 @@ static void renderStatsWindow(
 
     if (ImGui::CollapsingHeader("Network Configuration")) {
         ImGui::Text("Base rate: %.0f packets/min at 1.0x", kBasePacketsPerMinute);
-        ImGui::Text("Packets per route: %d", kPacketsPerRoute);
+        ImGui::Text("Packets per route: %d", engine->getPacketsPerRoute());
     }
 
     if (ImGui::CollapsingHeader("Validation")) {
@@ -488,7 +472,7 @@ static void drawNodes(
 
         const float radius = 20.0f;
         const std::string label = std::to_string(i);
-        const ImVec2 text_size = ImGui::CalcTextSize(label.c_str());
+        const ImVec2 label_size = ImGui::CalcTextSize(label.c_str());
 
         const float x = positions[i].first;
         const float y = positions[i].second;
@@ -497,15 +481,6 @@ static void drawNodes(
             ImVec2(x, y),
             radius,
             color
-        );
-
-        draw_list->AddText(
-            ImVec2(
-                x - text_size.x * 0.5f,
-                y - text_size.y * 0.55f
-            ),
-            IM_COL32(255, 255, 255, 255),
-            label.c_str()
         );
     }
 }
@@ -629,7 +604,8 @@ static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
     const std::vector<VisualPacket>& visualPackets,
-    double visualTime
+    double visualTime,
+    const SimulationEngine* engine
 ) {
     static int drag_source_node = -1;
 
@@ -995,7 +971,8 @@ static void visualizeWindow(
             topo,
             selected_node,
             visualManager.getActivePackets(),
-            visualTime
+            visualTime,
+            engine.get()
         );
 
         if (clicked_node.tcp)

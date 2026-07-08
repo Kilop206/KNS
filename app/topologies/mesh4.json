@@ -1,5 +1,6 @@
 {
   "nodes": 4,
+  "name": "mesh4",
   "links": [
     {
       "from": 0,

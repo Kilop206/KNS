@@ -48,6 +48,26 @@ namespace kns {
         return packets_sent == total_packets;
     }
 
+    bool TCPSession::isCloseRequest()
+    {
+        return close_requested;
+    }
+
+    void TCPSession::setCloseRequest(bool closeRequest)
+    {
+        this->close_requested = closeRequest;
+    }
+
+    bool TCPSession::hasGeneratedTraffic() const noexcept
+    {
+        return traffic_generated_;
+    }
+
+    void TCPSession::markTrafficGenerated() noexcept
+    {
+        traffic_generated_ = true;
+    }
+
     void TCPSession::setState(TCPState state)
     {
         this->state = state;

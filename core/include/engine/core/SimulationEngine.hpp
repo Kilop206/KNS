@@ -83,7 +83,7 @@ namespace kns {
 
         uint64_t next_session_id = 0;
 
-        unsigned int kPacketsPerRoute = 100;
+        unsigned int kPacketsPerRoute = 20;
     public:
         double random();
 
