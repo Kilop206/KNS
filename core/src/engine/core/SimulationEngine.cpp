@@ -125,7 +125,11 @@ namespace kns {
         return now + propagation + transmission;
     }
 
-    void SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now) {
+    void SimulationEngine::sendPacket(
+        const Packet& pkt,
+        Link& link,
+        double now
+    ) {
         const int next_node = link.getOtherNode(pkt.current_node);
         if (next_node == -1) {
             return;
@@ -145,9 +149,26 @@ namespace kns {
             );
 
         const double arrival_time =
-            actual_departure_time
-            + transmission_time
-            + propagation_time;
+            actual_departure_time +
+            transmission_time +
+            propagation_time;
+
+        if (!link.canQueue()) {
+            stats_.packets_lost++;
+
+            std::cout
+                << "[DROPPED] Link queue full for packet from "
+                << pkt.source
+                << " to "
+                << pkt.destination
+                << " at time "
+                << now
+                << '\n';
+
+            return;
+        }
+
+        link.enqueuePacket();
 
         link.reserveTransmission(
             pkt.current_node,
@@ -156,6 +177,7 @@ namespace kns {
         );
 
         Packet new_pkt = pkt;
+        new_pkt.previous_node = pkt.current_node;
         new_pkt.current_node = next_node;
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
@@ -191,16 +213,14 @@ namespace kns {
 
         if (link.should_drop()) {
             stats_.packets_lost++;
-
-            std::ostringstream oss;
-            oss << std::fixed << std::setprecision(6)
+            std::cout
                 << "[DROPPED] Packet from "
                 << pkt.source
                 << " to "
                 << pkt.destination
                 << " at time "
-                << now;
-            std::cout << oss.str() << '\n';
+                << now
+                << '\n';
             return;
         }
 

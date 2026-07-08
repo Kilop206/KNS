@@ -31,4 +31,24 @@ namespace kns {
         return true;
     }
 
+    bool PacketUtils::releasePacketThroughTopology(
+        SimulationEngine& engine,
+        const Packet& pkt
+    ) {
+        if (pkt.previous_node < 0) {
+            return false;
+        }
+
+        const auto& links =
+            engine.getTopology().getLinksFromNode(pkt.previous_node);
+
+        for (const auto& link_ptr : links) {
+            if (link_ptr && link_ptr->getOtherNode(pkt.previous_node) == pkt.current_node) {
+                link_ptr->dequeuePacket();
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -134,4 +134,30 @@ namespace kns {
         return r < loss_prob_;
     }
 
+    bool Link::canQueue() const noexcept
+    {
+        return queued_packets_ < queue_capacity_;
+    }
+
+    void Link::enqueuePacket() noexcept
+    {
+        ++queued_packets_;
+    }
+
+    void Link::dequeuePacket() noexcept
+    {
+        if (queued_packets_ > 0) {
+            --queued_packets_;
+        }
+    }
+
+    std::size_t Link::getQueueSize() const noexcept
+    {
+        return queued_packets_;
+    }
+
+    std::size_t Link::getQueueCapacity() const noexcept
+    {
+        return queue_capacity_;
+    }
 }

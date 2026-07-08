@@ -11,6 +11,10 @@ namespace kns {
             SimulationEngine& engine,
             const Packet& pkt
         );
-    };
 
+        static bool releasePacketThroughTopology(
+            SimulationEngine& engine,
+            const Packet& pkt
+        );
+    };
 }

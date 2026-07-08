@@ -75,6 +75,7 @@ namespace kns {
             }
 
             engine.removePacketInTransit(packet.departure_time, timestamp_);
+            PacketUtils::releasePacketThroughTopology(engine, packet);
             return;
         }
 
@@ -86,6 +87,8 @@ namespace kns {
 
         engine.notifyLatencyDelivered(latency);
         engine.removePacketInTransit(packet.departure_time, timestamp_);
+
+        PacketUtils::releasePacketThroughTopology(engine, packet);
 
         auto& session = engine.getTCPSession(packet.session_id);
         auto& client = session.getClientConnection();

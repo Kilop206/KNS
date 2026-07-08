@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <deque>
 
 #include "enums/LinkMode.hpp"
 
@@ -41,13 +42,33 @@ class Link {
 
         bool should_drop() const;
 
+        std::size_t Link::estimatedQueueSize(double now, int from, int to) const;
+
+        bool canQueue() const noexcept;
+        void enqueuePacket() noexcept;
+        void dequeuePacket() noexcept;
+
+        std::size_t getQueueSize() const noexcept;
+        std::size_t getQueueCapacity() const noexcept;
+
     private:
+        
         enum class DirectionSlot {
             AB,
             BA,
             Shared,
             Invalid
         };
+
+        struct LinkTransmission {
+            int from = -1;
+            int to = -1;
+            double departure_time = 0.0;
+            double arrival_time = 0.0;
+        };
+
+        double busy_until_ = 0.0;
+        std::deque<LinkTransmission> queue_;
 
         DirectionSlot getDirectionSlot(int from, int to) const noexcept;
 
@@ -62,6 +83,10 @@ class Link {
         mutable double busy_until_ab_ = 0.0;
         mutable double busy_until_ba_ = 0.0;
         mutable double busy_until_shared_ = 0.0;
-    };
 
+        std::size_t queue_capacity_ = 32;
+        std::size_t queue_size_ = 0;
+
+        int previous_node = -1;
+    };
 }
