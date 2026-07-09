@@ -8,28 +8,17 @@
 
 namespace kns {
 
-    inline PacketType inferPacketType(const TCPSegment& tcp)
+    inline PacketType inferPacketType(const TCPSegment& seg)
     {
-        if (tcp.syn() && tcp.ackFlag()) {
-            return PacketType::SYN_ACK;
-        }
+        const bool syn = (seg.flags & TCPFlag::SYN) == TCPFlag::SYN;
+        const bool ack = (seg.flags & TCPFlag::ACK) == TCPFlag::ACK;
+        const bool fin = (seg.flags & TCPFlag::FIN) == TCPFlag::FIN;
 
-        if (tcp.syn()) {
-            return PacketType::SYN;
-        }
-
-        if (tcp.fin()) {
-            return PacketType::FIN;
-        }
-
-        if (tcp.psh()) {
-            return PacketType::DATA;
-        }
-
-        if (tcp.ackFlag() && tcp.payload.empty()) {
-            return PacketType::ACK;
-        }
-
+        if (syn && ack) return PacketType::SYN_ACK;
+        if (fin && ack) return PacketType::FIN;
+        if (syn) return PacketType::SYN;
+        if (fin) return PacketType::FIN;
+        if (ack) return PacketType::ACK;
         return PacketType::DATA;
     }
 
@@ -37,6 +26,8 @@ namespace kns {
         int source = 0;
         int destination = 0;
         int current_node = 0;
+
+        int previous_node = -1;
 
         double creation_time = 0.0;
         double departure_time = 0.0;

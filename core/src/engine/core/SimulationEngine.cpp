@@ -125,11 +125,8 @@ namespace kns {
         return now + propagation + transmission;
     }
 
-    void SimulationEngine::sendPacket(
-        const Packet& pkt,
-        Link& link,
-        double now
-    ) {
+    void SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now)
+    {
         const int next_node = link.getOtherNode(pkt.current_node);
         if (next_node == -1) {
             return;
@@ -142,33 +139,10 @@ namespace kns {
         const double propagation_time = link.getDelayMs() / 1000.0;
 
         const double actual_departure_time =
-            link.getNextAvailableTime(
-                pkt.current_node,
-                next_node,
-                now
-            );
+            link.getNextAvailableTime(pkt.current_node, next_node, now);
 
         const double arrival_time =
-            actual_departure_time +
-            transmission_time +
-            propagation_time;
-
-        if (!link.canQueue()) {
-            stats_.packets_lost++;
-
-            std::cout
-                << "[DROPPED] Link queue full for packet from "
-                << pkt.source
-                << " to "
-                << pkt.destination
-                << " at time "
-                << now
-                << '\n';
-
-            return;
-        }
-
-        link.enqueuePacket();
+            actual_departure_time + transmission_time + propagation_time;
 
         link.reserveTransmission(
             pkt.current_node,
@@ -177,7 +151,6 @@ namespace kns {
         );
 
         Packet new_pkt = pkt;
-        new_pkt.previous_node = pkt.current_node;
         new_pkt.current_node = next_node;
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
@@ -190,19 +163,6 @@ namespace kns {
             pkt.packet_type
         });
 
-        std::cout
-            << "[SEND] type="
-            << static_cast<int>(pkt.packet_type)
-            << " "
-            << pkt.current_node
-            << " -> "
-            << next_node
-            << " departure="
-            << actual_departure_time
-            << " arrival="
-            << arrival_time
-            << '\n';
-
         emitPacketEvent(
             pkt,
             pkt.current_node,
@@ -213,28 +173,12 @@ namespace kns {
 
         if (link.should_drop()) {
             stats_.packets_lost++;
-            std::cout
-                << "[DROPPED] Packet from "
-                << pkt.source
-                << " to "
-                << pkt.destination
-                << " at time "
-                << now
-                << '\n';
             return;
         }
 
-        auto event = std::make_unique<PacketReceivedEvent>(
-            arrival_time,
-            new_pkt
+        event_queue_.schedule(
+            std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
         );
-
-        event_queue_.schedule(std::move(event));
-
-        std::cout
-            << "[SCHEDULED] type="
-            << static_cast<int>(pkt.packet_type)
-            << '\n';
     }
 
     void SimulationEngine::exportStatsCSV(const RunConfig& runConfig) {
@@ -271,14 +215,26 @@ namespace kns {
         return packets_in_transit;
     }
 
-    void SimulationEngine::removePacketInTransit(double departure_time, double arrival_time) {
+    bool SimulationEngine::removePacketInTransit(
+        double departure_time,
+        double arrival_time,
+        int& from,
+        int& to
+    ) {
         for (std::size_t i = 0; i < packets_in_transit.size(); ++i) {
             if (packets_in_transit[i].departure_time == departure_time &&
                 packets_in_transit[i].arrival_time == arrival_time) {
-                packets_in_transit.erase(packets_in_transit.begin() + static_cast<std::ptrdiff_t>(i));
-                break;
+                from = packets_in_transit[i].link_from;
+                to   = packets_in_transit[i].link_to;
+
+                packets_in_transit.erase(
+                    packets_in_transit.begin() + static_cast<std::ptrdiff_t>(i)
+                );
+                return true;
             }
         }
+
+        return false;
     }
 
     void SimulationEngine::setGlobalLossProb(float value) {

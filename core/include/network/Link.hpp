@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <limits>
 #include <deque>
+#include <cstddef>
 
 #include "enums/LinkMode.hpp"
 
@@ -42,7 +43,7 @@ class Link {
 
         bool should_drop() const;
 
-        std::size_t Link::estimatedQueueSize(double now, int from, int to) const;
+        std::size_t estimatedQueueSize(double now, int from, int to) const;
 
         bool canQueue() const noexcept;
         void enqueuePacket() noexcept;
@@ -85,8 +86,6 @@ class Link {
         mutable double busy_until_shared_ = 0.0;
 
         std::size_t queue_capacity_ = 32;
-        std::size_t queue_size_ = 0;
-
-        int previous_node = -1;
+        std::size_t queued_packets_ = 0;
     };
 }

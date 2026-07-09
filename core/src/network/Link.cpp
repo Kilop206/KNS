@@ -133,6 +133,10 @@ namespace kns {
         const double r = static_cast<double>(std::rand()) / RAND_MAX;
         return r < loss_prob_;
     }
+    
+    std::size_t Link::estimatedQueueSize(double now, int from, int to) const {
+        return getQueueSize();
+    }
 
     bool Link::canQueue() const noexcept
     {

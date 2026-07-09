@@ -74,7 +74,29 @@ namespace kns {
                     << '\n';
             }
 
-            engine.removePacketInTransit(packet.departure_time, timestamp_);
+            int from = -1;
+            int to = -1;
+
+            if (engine.removePacketInTransit(packet.departure_time, timestamp_, from, to)) {
+                if (from < 0 || to < 0) {
+                    std::cout
+                        << "[QUEUE] invalid link release "
+                        << from
+                        << " -> "
+                        << to
+                        << '\n';
+
+                    return;
+                }
+                const auto& links = engine.getTopology().getLinksFromNode(from);
+
+                for (const auto& link_ptr : links) {
+                    if (link_ptr && link_ptr->getOtherNode(from) == to) {
+                        link_ptr->dequeuePacket();
+                        break;
+                    }
+                }
+            }
             PacketUtils::releasePacketThroughTopology(engine, packet);
             return;
         }
@@ -86,7 +108,30 @@ namespace kns {
         stats.total_latency += latency;
 
         engine.notifyLatencyDelivered(latency);
-        engine.removePacketInTransit(packet.departure_time, timestamp_);
+
+        int from = -1;
+        int to = -1;
+
+        if (engine.removePacketInTransit(packet.departure_time, timestamp_, from, to)) {
+            if (from < 0 || to < 0) {
+                std::cout
+                    << "[QUEUE] invalid link release "
+                    << from
+                    << " -> "
+                    << to
+                    << '\n';
+
+                return;
+            }
+            const auto& links = engine.getTopology().getLinksFromNode(from);
+
+            for (const auto& link_ptr : links) {
+                if (link_ptr && link_ptr->getOtherNode(from) == to) {
+                    link_ptr->dequeuePacket();
+                    break;
+                }
+            }
+        }
 
         PacketUtils::releasePacketThroughTopology(engine, packet);
 

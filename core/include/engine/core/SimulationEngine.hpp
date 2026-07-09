@@ -119,7 +119,10 @@ namespace kns {
 
         const std::vector<PacketTravelInfo>& getPacketsInTransit() const;
 
-        void removePacketInTransit(double departure_time, double arrival_time);
+        bool removePacketInTransit(double departure_time,
+                                    double arrival_time,
+                                    int& from,
+                                    int& to);
 
         void setGlobalLossProb(float value);
 
