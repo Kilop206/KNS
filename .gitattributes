@@ -1,0 +1,74 @@
+# =========================
+# KNS - Git Attributes
+# =========================
+
+* text=auto
+
+# -------------------------
+*.c     text eol=lf
+*.cc    text eol=lf
+*.cpp   text eol=lf
+*.cxx   text eol=lf
+*.h     text eol=lf
+*.hh    text eol=lf
+*.hpp   text eol=lf
+*.hxx   text eol=lf
+*.inl   text eol=lf
+*.ipp   text eol=lf
+
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.sh    text eol=lf
+
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# -------------------------
+*.sln   text eol=crlf
+*.vcxproj text eol=crlf
+*.filters text eol=crlf
+*.props text eol=crlf
+*.targets text eol=crlf
+*.editorconfig text eol=lf
+
+# -------------------------
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.bmp   binary
+*.ico   binary
+*.webp  binary
+
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+*.zip   binary
+*.7z    binary
+*.rar   binary
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.dylib binary
+
+*.obj   binary
+*.o     binary
+*.a     binary
+*.lib   binary
+
+# -------------------------
+build/              linguist-generated
+cmake-build*/       linguist-generated
+out/                linguist-generated
+bin/                linguist-generated
+dist/               linguist-generated
+*.log               linguist-generated
+*.out               linguist-generated
