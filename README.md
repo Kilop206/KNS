@@ -168,4 +168,4 @@ If you contribute, please keep the codebase consistent with the current event-dr
 
 ## Author
 
-Kilop
+Kilop / Guilherme Döge
