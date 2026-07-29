@@ -1,6 +1,6 @@
 # KNS — Kinetic Network Simulator
 
-KNS (Kinetic Network Simulator) is an event-driven network simulator with a graphical interface. It models packet transmission, routing, TCP sessions, and link-level behavior in a way that is easy to inspect visually and extend over time.
+KNS (Kinetic Network Simulator) is an event-driven deterministic network simulator with a graphical interface. It models packet transmission, routing, TCP sessions, and link-level behavior in a way that is easy to inspect visually and extend over time.
 
 The project is designed for experimentation, learning, and future research in networking topics such as retransmissions, sliding windows, congestion control, and custom link behaviors.
 
