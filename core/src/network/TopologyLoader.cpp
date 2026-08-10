@@ -25,11 +25,13 @@ namespace kns {
         Topology topology;
 
         for (auto& l : j["links"]) {
-            Link link(l["from"],
-                        l["to"],
-                        l["delay"],
-                        l["bandwidth"],
-                        l["loss"]);
+            Link link(
+                l["from"],
+                l["to"],
+                l["bandwidth"],
+                l["delay"],
+                l["loss"]
+            );
             
             topology.addLink(link);
         }
