@@ -1,0 +1,36 @@
+name: KNS CI
+
+on:
+  push:
+    branches:
+      - tcp
+
+  pull_request:
+    branches:
+      - tcp
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Run tests
+        working-directory: build
+        run: ctest --build-config Release --output-on-failure
