@@ -138,11 +138,35 @@ namespace kns {
     void TCPConnection::receive_syn(std::uint32_t remote_seq)
     {
         expected_ack_num_ = remote_seq + 1;
+
+        std::cout
+            << "[TCP SYN] "
+            << "local=" << local_node_
+            << " remote=" << remote_node_
+            << " local_seq=" << seq_num_
+            << " remote_seq=" << remote_seq
+            << " expected_ack=" << expected_ack_num_
+            << '\n';
+
         state_machine_.setState(TCPState::SYN_RECEIVED);
     }
 
-    bool TCPConnection::receive_syn_ack(std::uint32_t remote_seq, std::uint32_t remote_ack)
+    bool TCPConnection::receive_syn_ack(
+        std::uint32_t remote_seq,
+        std::uint32_t remote_ack
+    )
     {
+        std::cout
+            << "[TCP SYN_ACK] "
+            << "local=" << local_node_
+            << " remote=" << remote_node_
+            << " local_seq=" << seq_num_
+            << " remote_seq=" << remote_seq
+            << " remote_ack=" << remote_ack
+            << " expected_ack=" << (seq_num_ + 1)
+            << " state=" << static_cast<int>(getTcpState())
+            << '\n';
+
         if (getTcpState() != TCPState::SYN_SENT) {
             return false;
         }
@@ -154,36 +178,46 @@ namespace kns {
         expected_ack_num_ = remote_seq + 1;
         state_machine_.setState(TCPState::ESTABLISHED);
         resetSynRetries();
+
         return true;
     }
 
     bool TCPConnection::receive_ack(std::uint32_t remote_ack)
     {
         std::cout
-            << "[DEBUG ACK] state="
-            << static_cast<int>(getTcpState())
-            << " remote_ack="
-            << remote_ack
-            << " expected="
-            << (seq_num_ + 1)
+            << "[TCP ACK] "
+            << "local=" << local_node_
+            << " remote=" << remote_node_
+            << " state=" << static_cast<int>(getTcpState())
+            << " local_seq=" << seq_num_
+            << " remote_ack=" << remote_ack
+            << " expected=" << (seq_num_ + 1)
             << '\n';
 
-        if (getTcpState() == TCPState::SYN_RECEIVED &&
-            remote_ack == seq_num_ + 1) {
-            std::cout << "[DEBUG ACK] SERVER ESTABLISHED\n";
+        if (
+            getTcpState() == TCPState::SYN_RECEIVED &&
+            remote_ack == seq_num_ + 1
+        ) {
+            std::cout << "[TCP ACK] SERVER -> ESTABLISHED\n";
+
             state_machine_.setState(TCPState::ESTABLISHED);
             resetSynRetries();
+
             return true;
         }
 
-        if (getTcpState() == TCPState::FIN_WAIT_1 &&
-            remote_ack == seq_num_ + 1) {
+        if (
+            getTcpState() == TCPState::FIN_WAIT_1 &&
+            remote_ack == seq_num_ + 1
+        ) {
             state_machine_.setState(TCPState::FIN_WAIT_2);
             return true;
         }
 
-        if (getTcpState() == TCPState::LAST_ACK &&
-            remote_ack == seq_num_ + 1) {
+        if (
+            getTcpState() == TCPState::LAST_ACK &&
+            remote_ack == seq_num_ + 1
+        ) {
             state_machine_.setState(TCPState::CLOSED);
             return true;
         }

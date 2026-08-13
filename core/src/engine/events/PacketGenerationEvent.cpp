@@ -37,12 +37,12 @@ namespace kns {
         pkt.tcp.ack = 0;
         pkt.tcp.window = 0;
         pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
-        pkt.tcp.payload.assign(1, 0x41);
+        pkt.tcp.payload.assign(1, 0x41); // 'A'
         pkt.departure_time = engine.now();
 
-        PacketUtils::sendPacketThroughTopology(engine, pkt);
-        
         engine.getStats().packets_sent++;
+
+        PacketUtils::sendPacketThroughTopology(engine, pkt);
     }
 
 }

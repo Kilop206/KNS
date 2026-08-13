@@ -299,7 +299,10 @@ namespace kns {
         }
     }
 
-    void SimulationEngine::generatePackets(double startTime, TCPSession& session) {
+    void SimulationEngine::generatePackets(
+        double startTime,
+        TCPSession& session
+    ) {
         if (session.hasGeneratedTraffic()) {
             return;
         }
@@ -324,13 +327,6 @@ namespace kns {
                 )
             );
         }
-
-        schedule(
-            std::make_unique<TCPConnectionCloseEvent>(
-                startTime + static_cast<double>(kPacketsPerRoute) * 0.02 + 0.05,
-                session.getSession_id()
-            )
-        );
     }
 
     TCPSession& SimulationEngine::createTCPSession(int source, int destination) {

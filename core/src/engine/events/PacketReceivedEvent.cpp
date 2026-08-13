@@ -13,7 +13,8 @@
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
 
-namespace kns {
+namespace kns
+{
 
     PacketReceivedEvent::PacketReceivedEvent(double timestamp, Packet packet)
         : Event(timestamp),
@@ -21,7 +22,7 @@ namespace kns {
     {
     }
 
-    void PacketReceivedEvent::refreshSessionState(kns::TCPSession& session)
+    void PacketReceivedEvent::refreshSessionState(kns::TCPSession &session)
     {
         const auto clientState = session.getClientConnection().getTcpState();
         const auto serverState = session.getServerConnection().getTcpState();
@@ -32,22 +33,22 @@ namespace kns {
             session.setState(kns::TCPState::ESTABLISHED);
         }
         else if (clientState == kns::TCPState::CLOSE_WAIT ||
-                serverState == kns::TCPState::CLOSE_WAIT)
+                 serverState == kns::TCPState::CLOSE_WAIT)
         {
             session.setState(kns::TCPState::CLOSE_WAIT);
         }
         else if (clientState == kns::TCPState::LAST_ACK ||
-                serverState == kns::TCPState::LAST_ACK)
+                 serverState == kns::TCPState::LAST_ACK)
         {
             session.setState(kns::TCPState::LAST_ACK);
         }
         else if (clientState == kns::TCPState::TIME_WAIT ||
-                serverState == kns::TCPState::TIME_WAIT)
+                 serverState == kns::TCPState::TIME_WAIT)
         {
             session.setState(kns::TCPState::TIME_WAIT);
         }
         else if (clientState == kns::TCPState::CLOSED &&
-                serverState == kns::TCPState::CLOSED)
+                 serverState == kns::TCPState::CLOSED)
         {
             session.setState(kns::TCPState::CLOSED);
         }
@@ -64,40 +65,8 @@ namespace kns {
 
             if (!PacketUtils::sendPacketThroughTopology(engine, packet)) {
                 stats.packets_lost++;
-                std::cout
-                    << "[DROPPED] Packet from "
-                    << packet.source
-                    << " to "
-                    << packet.destination
-                    << " at time "
-                    << engine.now()
-                    << '\n';
             }
 
-            int from = -1;
-            int to = -1;
-
-            if (engine.removePacketInTransit(packet.departure_time, timestamp_, from, to)) {
-                if (from < 0 || to < 0) {
-                    std::cout
-                        << "[QUEUE] invalid link release "
-                        << from
-                        << " -> "
-                        << to
-                        << '\n';
-
-                    return;
-                }
-                const auto& links = engine.getTopology().getLinksFromNode(from);
-
-                for (const auto& link_ptr : links) {
-                    if (link_ptr && link_ptr->getOtherNode(from) == to) {
-                        link_ptr->dequeuePacket();
-                        break;
-                    }
-                }
-            }
-            PacketUtils::releasePacketThroughTopology(engine, packet);
             return;
         }
 
@@ -106,34 +75,7 @@ namespace kns {
 
         const double latency = engine.now() - packet.creation_time;
         stats.total_latency += latency;
-
         engine.notifyLatencyDelivered(latency);
-
-        int from = -1;
-        int to = -1;
-
-        if (engine.removePacketInTransit(packet.departure_time, timestamp_, from, to)) {
-            if (from < 0 || to < 0) {
-                std::cout
-                    << "[QUEUE] invalid link release "
-                    << from
-                    << " -> "
-                    << to
-                    << '\n';
-
-                return;
-            }
-            const auto& links = engine.getTopology().getLinksFromNode(from);
-
-            for (const auto& link_ptr : links) {
-                if (link_ptr && link_ptr->getOtherNode(from) == to) {
-                    link_ptr->dequeuePacket();
-                    break;
-                }
-            }
-        }
-
-        PacketUtils::releasePacketThroughTopology(engine, packet);
 
         auto& session = engine.getTCPSession(packet.session_id);
         auto& client = session.getClientConnection();
@@ -141,10 +83,6 @@ namespace kns {
 
         switch (packet.packet_type) {
             case PacketType::SYN: {
-                std::cout
-                    << "[RECEIVED_SYN] session="
-                    << packet.session_id
-                    << '\n';
 
                 server.receive_syn(packet.tcp.seq);
 
@@ -165,14 +103,8 @@ namespace kns {
             }
 
             case PacketType::SYN_ACK: {
-                std::cout
-                    << "[RECEIVED_SYN_ACK] session="
-                    << packet.session_id
-                    << '\n';
 
                 client.receive_syn_ack(packet.tcp.seq, packet.tcp.ack);
-
-                refreshSessionState(session);
 
                 Packet ack(
                     client.getLocalNode(),
@@ -190,10 +122,12 @@ namespace kns {
                 break;
             }
 
-            case PacketType::ACK: {
-                std::cout << "[RECEIVED_ACK] session=" << packet.session_id << '\n';
+            case PacketType::ACK:
+            {
+                const bool server_ok =
+                    server.receive_ack(packet.tcp.ack);
 
-                server.receive_ack(packet.tcp.ack);
+                refreshSessionState(session);
 
                 if (
                     client.getTcpState() == TCPState::ESTABLISHED &&
@@ -201,36 +135,18 @@ namespace kns {
                     !session.hasGeneratedTraffic()
                 ) {
                     session.setState(TCPState::ESTABLISHED);
+
                     engine.generatePackets(engine.now(), session);
                 }
 
-                refreshSessionState(session);
-                break;
-            }
-
-            case PacketType::FIN: {
-                std::cout << "[RECEIVED_FIN] session=" << packet.session_id << '\n';
-
-                server.receive_fin(packet.tcp.seq);
-                session.setState(TCPState::CLOSE_WAIT);
-
-                Packet ack(
-                    server.getLocalNode(),
-                    server.getRemoteNode(),
-                    server.getLocalNode(),
-                    engine.now(),
-                    engine.getGlobalPacketSize(),
-                    packet.session_id
-                );
-
-                ack.tcp = server.buildAck();
-                ack.packet_type = inferPacketType(ack.tcp);
-
-                PacketUtils::sendPacketThroughTopology(engine, ack);
                 break;
             }
 
             case PacketType::DATA: {
+                break;
+            }
+
+            case PacketType::FIN: {
                 break;
             }
 

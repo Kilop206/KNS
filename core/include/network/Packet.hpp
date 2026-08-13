@@ -13,12 +13,20 @@ namespace kns {
         const bool syn = (seg.flags & TCPFlag::SYN) == TCPFlag::SYN;
         const bool ack = (seg.flags & TCPFlag::ACK) == TCPFlag::ACK;
         const bool fin = (seg.flags & TCPFlag::FIN) == TCPFlag::FIN;
+        const bool psh = (seg.flags & TCPFlag::PSH) == TCPFlag::PSH;
 
         if (syn && ack) return PacketType::SYN_ACK;
+
         if (fin && ack) return PacketType::FIN;
+
         if (syn) return PacketType::SYN;
+
         if (fin) return PacketType::FIN;
+
+        if (psh) return PacketType::DATA;
+
         if (ack) return PacketType::ACK;
+
         return PacketType::DATA;
     }
 
