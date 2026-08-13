@@ -15,20 +15,22 @@ namespace kns {
     {
     }
 
-    void TCPConnectionCloseEvent::execute(
-        SimulationEngine& engine
-    )
+    void TCPConnectionCloseEvent::execute(SimulationEngine& engine)
     {
-        auto& session =
-            engine.getTCPSession(session_id_);
+        auto& session = engine.getTCPSession(session_id_);
 
-        if (session.isCloseRequest()) {
+        auto& client = session.getClientConnection();
+
+        if (client.getTcpState() != TCPState::ESTABLISHED) {
             return;
         }
-        session.setCloseRequest(true);
 
-        auto& client =
-            session.getClientConnection();
+        std::cout
+            << "[TCP] Closing session "
+            << session_id_
+            << '\n';
+
+        client.send_fin();
 
         Packet fin(
             client.getLocalNode(),
@@ -36,12 +38,18 @@ namespace kns {
             client.getLocalNode(),
             engine.now(),
             engine.getGlobalPacketSize(),
-            session.getSession_id()
+            session_id_
         );
 
         fin.tcp = client.buildFin();
         fin.packet_type = inferPacketType(fin.tcp);
+        fin.departure_time = engine.now();
 
-        PacketUtils::sendPacketThroughTopology(engine, fin);
+        if (PacketUtils::sendPacketThroughTopology(engine, fin)) {
+            std::cout
+                << "[TCP] FIN sent for session "
+                << session_id_
+                << '\n';
+        }
     }
 }

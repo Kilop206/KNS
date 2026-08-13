@@ -302,20 +302,13 @@ namespace kns {
     void SimulationEngine::generatePackets(
         double startTime,
         TCPSession& session
-    ) {
+    )
+    {
         if (session.hasGeneratedTraffic()) {
             return;
         }
 
         session.markTrafficGenerated();
-
-        std::cout
-            << "[DEBUG] session "
-            << session.getSession_id()
-            << " scheduling "
-            << kPacketsPerRoute
-            << " packets"
-            << '\n';
 
         for (unsigned int i = 0; i < kPacketsPerRoute; ++i) {
             schedule(
@@ -327,6 +320,18 @@ namespace kns {
                 )
             );
         }
+
+        const double close_time =
+            startTime +
+            static_cast<double>(kPacketsPerRoute) * 0.02 +
+            0.05;
+
+        schedule(
+            std::make_unique<TCPConnectionCloseEvent>(
+                close_time,
+                session.getSession_id()
+            )
+        );
     }
 
     TCPSession& SimulationEngine::createTCPSession(int source, int destination) {
