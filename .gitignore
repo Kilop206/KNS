@@ -23,3 +23,6 @@ Makefile
 *.lib
 *.pdb
 *.ilk
+
+# Test directories
+results/

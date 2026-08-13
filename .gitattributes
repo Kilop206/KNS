@@ -1,0 +1,124 @@
+# ============================================================
+# KNS - Git attributes
+# ============================================================
+
+# ------------------------------------------------------------
+# Text files - normalize line endings
+# ------------------------------------------------------------
+
+* text=auto
+
+# C / C++
+*.c        text eol=lf
+*.cc       text eol=lf
+*.cpp      text eol=lf
+*.cxx      text eol=lf
+
+*.h        text eol=lf
+*.hh       text eol=lf
+*.hpp      text eol=lf
+*.hxx      text eol=lf
+
+*.inl      text eol=lf
+*.ipp      text eol=lf
+
+# ------------------------------------------------------------
+# CMake
+# ------------------------------------------------------------
+
+CMakeLists.txt text eol=lf
+*.cmake       text eol=lf
+*.cmake.in    text eol=lf
+
+# ------------------------------------------------------------
+# Configuration / documentation
+# ------------------------------------------------------------
+
+*.json       text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.toml       text eol=lf
+*.ini        text eol=lf
+*.cfg        text eol=lf
+*.conf       text eol=lf
+
+*.md         text eol=lf
+*.txt        text eol=lf
+*.xml        text eol=lf
+*.csv        text eol=lf
+
+.editorconfig text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+
+# ------------------------------------------------------------
+# Shell scripts
+# ------------------------------------------------------------
+
+*.sh text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ------------------------------------------------------------
+# Visual Studio
+# ------------------------------------------------------------
+
+*.sln       text eol=crlf
+*.vcxproj   text eol=lf
+*.vcxproj.filters text eol=lf
+*.props     text eol=lf
+*.targets   text eol=lf
+
+# ------------------------------------------------------------
+# Binary files
+# ------------------------------------------------------------
+
+*.exe binary
+*.dll binary
+*.so  binary
+*.dylib binary
+
+*.a   binary
+*.lib binary
+
+*.o   binary
+*.obj binary
+
+*.pdb binary
+*.dSYM binary
+
+*.zip  binary
+*.7z   binary
+*.tar  binary
+*.gz   binary
+*.rar  binary
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.bmp  binary
+*.ico  binary
+*.webp binary
+
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+
+# ------------------------------------------------------------
+# Generated / build files
+# ------------------------------------------------------------
+
+build/       linguist-generated
+build*/      linguist-generated
+cmake-build*/ linguist-generated
+out/         linguist-generated
+bin/         linguist-generated
+dist/        linguist-generated
+
+*.log linguist-generated
+*.out linguist-generated
