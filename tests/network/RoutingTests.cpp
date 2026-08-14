@@ -1,0 +1,68 @@
+#include <catch2/catch_test_macros.hpp>
+#include "network/Topology.hpp"
+#include "network/Routing.hpp"
+#include <limits>
+
+using kns::Topology;
+using kns::Routing;
+using kns::LinkMode;
+
+TEST_CASE("Routing calculates shortest paths correctly in a chain topology", "[network][routing]")
+{
+    // Node chain: 0 <-> 1 <-> 2
+    Topology topo(3);
+    topo.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(1, 2, 10.0, 20.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    Routing routing;
+    auto table = routing.buildRoutingTable(topo, 0);
+
+    REQUIRE(table.size() == 3);
+
+    // Source node (0 -> 0)
+    REQUIRE(table[0].destination == 0);
+    REQUIRE(table[0].next_hop == -1);
+    REQUIRE(table[0].distance == 0.0);
+
+    // Adjacent node (0 -> 1)
+    REQUIRE(table[1].destination == 1);
+    REQUIRE(table[1].next_hop == 1);
+    REQUIRE(table[1].distance == 10.0);
+
+    // Multi-hop node (0 -> 2)
+    REQUIRE(table[2].destination == 2);
+    REQUIRE(table[2].next_hop == 1); // should route via node 1
+    REQUIRE(table[2].distance == 30.0);
+}
+
+TEST_CASE("Routing chooses faster indirect path over slower direct path", "[network][routing]")
+{
+    // Triangle: 0, 1, 2
+    // Path 0-2: 20ms delay (direct)
+    // Path 0-1-2: 5ms + 5ms = 10ms delay (indirect)
+    Topology topo(3);
+    topo.addLink(0, 2, 10.0, 20.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    Routing routing;
+    auto table = routing.buildRoutingTable(topo, 0);
+
+    REQUIRE(table[2].destination == 2);
+    REQUIRE(table[2].next_hop == 1); // should route via 1, not 2 directly
+    REQUIRE(table[2].distance == 10.0);
+}
+
+TEST_CASE("Routing handles unreachable nodes correctly", "[network][routing]")
+{
+    // 0 <-> 1  and an isolated node 2
+    Topology topo(3);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    Routing routing;
+    auto table = routing.buildRoutingTable(topo, 0);
+
+    REQUIRE(table[2].destination == 2);
+    REQUIRE(table[2].next_hop == -1);
+    REQUIRE(table[2].distance == std::numeric_limits<double>::infinity());
+}
