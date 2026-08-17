@@ -362,7 +362,7 @@ namespace kns {
         return it->second;
     }
 
-    const std::map<int, TCPSession>& SimulationEngine::getTCPSessions() const {
+    const std::map<std::uint64_t, TCPSession>& SimulationEngine::getTCPSessions() const {
         return sessions;
     }
 

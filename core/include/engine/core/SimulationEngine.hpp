@@ -77,9 +77,9 @@ namespace kns {
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 
-        std::map<int, TCPSession> sessions;
+        std::map<std::uint64_t, TCPSession> sessions;
 
-        std::map<int, TCPSession> active_tcp_sessions;
+        std::map<std::uint64_t, TCPSession> active_tcp_sessions;
 
         uint64_t next_session_id = 0;
 
@@ -150,7 +150,7 @@ namespace kns {
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 
-        const std::map<int, TCPSession>& getTCPSessions() const;
+        const std::map<std::uint64_t, TCPSession>& getTCPSessions() const;
 
         bool hasTCPSession(std::uint64_t session_id) const;
 
