@@ -13,6 +13,10 @@ namespace kns {
                             server_connection(TCPState::CLOSED, 0, 0, destination, source) {
     }
 
+    TCPSession::TCPSession()
+        : TCPSession(0, 0, 0, TCPState::CLOSED) {
+    }
+
     std::uint64_t TCPSession::getSession_id() const
     {
         return session_id;
