@@ -1,13 +1,14 @@
 #include "network/transport/tcp/TCPConnection.hpp"
 
-#include <cstdlib>
 #include <iostream>
+
+#include "engine/core/Random.hpp"
 
 namespace kns {
 
     std::uint32_t TCPConnection::generateInitialSeq()
     {
-        return static_cast<std::uint32_t>(std::rand());
+        return Random::nextUint32();
     }
 
     TCPConnection::TCPConnection(

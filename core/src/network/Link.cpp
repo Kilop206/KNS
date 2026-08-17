@@ -1,8 +1,9 @@
 #include "network/Link.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <limits>
+
+#include "engine/core/Random.hpp"
 
 namespace kns {
 
@@ -130,7 +131,7 @@ namespace kns {
             return false;
         }
 
-        const double r = static_cast<double>(std::rand()) / RAND_MAX;
+        const double r = Random::uniform01();
         return r < loss_prob_;
     }
     

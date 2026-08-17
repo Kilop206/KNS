@@ -14,6 +14,7 @@
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/core/Random.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
@@ -21,7 +22,7 @@
 namespace kns {
 
     double SimulationEngine::random() {
-        return static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
+        return Random::uniform01();
     }
 
     double SimulationEngine::get_loss_prob() const {
