@@ -36,7 +36,7 @@ namespace kns {
             topology.addLink(link);
         }
 
-        topology.setName(j["name"].get<std::string>().c_str());
+        topology.setName(j["name"].get<std::string>());
 
         return topology;
     }

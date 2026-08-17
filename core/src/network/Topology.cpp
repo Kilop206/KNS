@@ -58,11 +58,11 @@ namespace kns {
         }
     }
 
-    const char* Topology::getName() const noexcept {
-        return name;
+    const std::string& Topology::getName() const noexcept {
+        return name_;
     }
 
-	void Topology::setName(const char* name) noexcept {
-        this->name = name;
+	void Topology::setName(std::string name) {
+        name_ = std::move(name);
     }
 }

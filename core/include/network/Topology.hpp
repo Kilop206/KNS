@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "network/Link.hpp"
@@ -31,14 +32,14 @@ namespace kns {
 
 			void setGlobalLossProb(double value);
 
-			const char* getName() const noexcept;
+			const std::string& getName() const noexcept;
 
-			void setName(const char* name) noexcept;
+			void setName(std::string name);
 
 		private:
 			std::vector<LinkPtr> links_;
 			std::vector<std::vector<LinkPtr>> adjacency_list_;
-			const char* name;
+			std::string name_;
 	};
 
 }
