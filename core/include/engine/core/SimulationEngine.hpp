@@ -32,10 +32,6 @@ namespace kns {
 
         double loss_prob = 0.01;
 
-        std::unordered_map<int, std::queue<Packet>> buffers;
-
-        size_t max_queue_size = 50;
-
         // Current simulation time.
         SimulationClock clock_;
 
@@ -44,17 +40,6 @@ namespace kns {
 
         // Routing tables for each node.
         std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
-
-        // Event comparison functor for priority queue.
-        struct EventCompare {
-            bool operator()(const std::unique_ptr<Event>& a,
-                            const std::unique_ptr<Event>& b) const {
-                if (a->getTimestamp() == b->getTimestamp()) {
-                    return a->getId() > b->getId();
-                }
-                return a->getTimestamp() > b->getTimestamp();
-            }
-        };
 
         // Statistics for the simulation
         Stats stats_;
@@ -69,17 +54,11 @@ namespace kns {
 
         int globalPacketSize = 0;
 
-        double simulation_speed_multiplier_ = 1.0;
-
         std::function<void(double)> latencyObserver_;
-
-        std::unordered_map<TCPConnectionKey, std::uint64_t> tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 
         std::map<std::uint64_t, TCPSession> sessions;
-
-        std::map<std::uint64_t, TCPSession> active_tcp_sessions;
 
         uint64_t next_session_id = 0;
 
