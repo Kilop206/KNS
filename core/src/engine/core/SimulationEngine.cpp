@@ -156,6 +156,11 @@ namespace kns {
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
 
+        if (link.should_drop()) {
+            stats_.packets_lost++;
+            return;
+        }
+
         packets_in_transit.push_back(PacketTravelInfo{
             actual_departure_time,
             arrival_time,
@@ -171,11 +176,6 @@ namespace kns {
             actual_departure_time,
             arrival_time
         );
-
-        if (link.should_drop()) {
-            stats_.packets_lost++;
-            return;
-        }
 
         event_queue_.schedule(
             std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
