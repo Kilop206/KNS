@@ -156,6 +156,10 @@ namespace kns {
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
 
+        if (pkt.hop_count == 0) {
+            stats_.packets_sent++;
+        }
+
         if (link.should_drop()) {
             stats_.packets_lost++;
             return;

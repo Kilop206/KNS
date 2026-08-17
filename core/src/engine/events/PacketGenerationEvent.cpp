@@ -40,8 +40,6 @@ namespace kns {
         pkt.tcp.payload.assign(1, 0x41); // 'A'
         pkt.departure_time = engine.now();
 
-        engine.getStats().packets_sent++;
-
         PacketUtils::sendPacketThroughTopology(engine, pkt);
     }
 
