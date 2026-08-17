@@ -268,11 +268,10 @@ namespace kns {
     void SimulationEngine::startTCPConnection(int source, int dest) {
         auto& session = createTCPSession(source, dest);
 
-        static double handshakeOffset = 0.0;
         constexpr double kHandshakeSpacing = 0.03;
 
-        const double startTime = now() + handshakeOffset;
-        handshakeOffset += kHandshakeSpacing;
+        const double startTime = now() + handshake_offset_;
+        handshake_offset_ += kHandshakeSpacing;
 
         schedule(std::make_unique<TCPHandshakeEvent>(
             startTime,
