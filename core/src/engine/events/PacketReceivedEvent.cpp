@@ -73,13 +73,18 @@ namespace kns
         auto& stats = engine.getStats();
         stats.packets_delivered++;
 
-        const double latency = engine.now() - packet.creation_time;
-        stats.total_latency += latency;
-        engine.notifyLatencyDelivered(latency);
+        if (packet.packet_type == PacketType::DATA) {
+            const double latency = engine.now() - packet.creation_time;
+            stats.total_latency += latency;
+            engine.notifyLatencyDelivered(latency);
+        }
 
         auto& session = engine.getTCPSession(packet.session_id);
         auto& client = session.getClientConnection();
         auto& server = session.getServerConnection();
+
+        auto& receiver =
+            packet.destination == session.getSource() ? client : server;
 
         switch (packet.packet_type) {
             case PacketType::SYN: {
@@ -124,8 +129,7 @@ namespace kns
 
             case PacketType::ACK:
             {
-                const bool server_ok =
-                    server.receive_ack(packet.tcp.ack);
+                receiver.receive_ack(packet.tcp.ack);
 
                 refreshSessionState(session);
 
@@ -143,10 +147,63 @@ namespace kns
             }
 
             case PacketType::DATA: {
+                receiver.setExpectedAckNum(
+                    packet.tcp.seq +
+                    static_cast<std::uint32_t>(packet.tcp.payload.size())
+                );
+
+                Packet ack(
+                    receiver.getLocalNode(),
+                    receiver.getRemoteNode(),
+                    receiver.getLocalNode(),
+                    engine.now(),
+                    engine.getGlobalPacketSize(),
+                    packet.session_id
+                );
+
+                ack.tcp = receiver.buildAck();
+                ack.packet_type = inferPacketType(ack.tcp);
+
+                PacketUtils::sendPacketThroughTopology(engine, ack);
                 break;
             }
 
             case PacketType::FIN: {
+                receiver.receive_fin(packet.tcp.seq);
+
+                Packet ack(
+                    receiver.getLocalNode(),
+                    receiver.getRemoteNode(),
+                    receiver.getLocalNode(),
+                    engine.now(),
+                    engine.getGlobalPacketSize(),
+                    packet.session_id
+                );
+
+                ack.tcp = receiver.buildAck();
+                ack.packet_type = inferPacketType(ack.tcp);
+
+                PacketUtils::sendPacketThroughTopology(engine, ack);
+
+                if (receiver.getTcpState() == TCPState::CLOSE_WAIT) {
+                    receiver.send_fin();
+
+                    Packet fin(
+                        receiver.getLocalNode(),
+                        receiver.getRemoteNode(),
+                        receiver.getLocalNode(),
+                        engine.now(),
+                        engine.getGlobalPacketSize(),
+                        packet.session_id
+                    );
+
+                    fin.tcp = receiver.buildFin();
+                    fin.packet_type = inferPacketType(fin.tcp);
+
+                    PacketUtils::sendPacketThroughTopology(engine, fin);
+                }
+
+                refreshSessionState(session);
                 break;
             }
 
