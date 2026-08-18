@@ -135,7 +135,7 @@ namespace kns {
         return r < loss_prob_;
     }
     
-    std::size_t Link::estimatedQueueSize(double now, int from, int to) const {
+    std::size_t Link::estimatedQueueSize(double /*now*/, int /*from*/, int /*to*/) const {
         return getQueueSize();
     }
 

@@ -472,7 +472,6 @@ static void drawNodes(
 
         const float radius = 20.0f;
         const std::string label = std::to_string(i);
-        const ImVec2 label_size = ImGui::CalcTextSize(label.c_str());
 
         const float x = positions[i].first;
         const float y = positions[i].second;
@@ -605,7 +604,7 @@ static PickedNodes renderNetworkPanel(
     int selected_node,
     const std::vector<VisualPacket>& visualPackets,
     double visualTime,
-    const SimulationEngine* engine
+    const SimulationEngine* /*engine*/
 ) {
     static int drag_source_node = -1;
 

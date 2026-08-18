@@ -7,7 +7,7 @@ namespace kns {
 	std::uint64_t Event::nextId_ = 0;
 
 	// Default implementation of the execute method for the Event class.
-	void Event::execute(SimulationEngine& engine) {
+	void Event::execute(SimulationEngine& /*engine*/) {
 	}
 
 	// Constructor for the Event class that initializes the timestamp and assigns a unique ID to each event.
