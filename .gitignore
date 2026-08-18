@@ -26,3 +26,5 @@ Makefile
 
 # Test directories
 results/
+# ImGui runtime layout
+imgui.ini
