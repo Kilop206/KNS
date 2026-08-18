@@ -70,7 +70,14 @@ namespace gui {
                 continue;
             }
 
-            double t = elapsed / visual_duration;
+            const std::size_t node_count = positions.size();
+            if (packet.from < 0 || packet.to < 0 ||
+                static_cast<std::size_t>(packet.from) >= node_count ||
+                static_cast<std::size_t>(packet.to) >= node_count) {
+                continue;
+            }
+
+            const double t = std::clamp(elapsed / visual_duration, 0.0, 1.0);
 
             const float x = static_cast<float>(
                 positions[packet.from].first +
