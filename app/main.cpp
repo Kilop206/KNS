@@ -689,7 +689,7 @@ static PickedNodes renderNetworkPanel(
 
     int clicked_node = -1;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        const int node = pickNodeAtMouse(positions, 10.0f);
+        const int node = pickNodeAtMouse(positions, 20.0f);
         if (node != -1) {
             clicked_node = node;
             drag_source_node = node;
@@ -703,7 +703,7 @@ static PickedNodes renderNetworkPanel(
     }
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && drag_source_node != -1) {
-        const int dest = pickNodeAtMouse(positions, 10.0f);
+        const int dest = pickNodeAtMouse(positions, 20.0f);
         if (dest != -1 && dest != drag_source_node) {
             const int src = drag_source_node;
             drag_source_node = -1;
