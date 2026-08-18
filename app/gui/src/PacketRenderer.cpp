@@ -90,12 +90,6 @@ namespace gui {
             const float base_radius = 10.0f;
             const float radius = base_radius + pulse * 3.0f;
 
-                draw_list->AddCircleFilled(
-                    ImVec2(100,100),
-                    20,
-                    IM_COL32(255,0,0,255)
-                );
-
             draw_list->AddCircleFilled(ImVec2(x, y), radius, fill_color);
             draw_list->AddCircle(ImVec2(x, y), radius + 2.5f, border_color, 0, 1.2f);
 
