@@ -88,8 +88,8 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG docking
-    GIT_SHALLOW TRUE
+    # Pinned commit from the docking branch.
+    GIT_TAG 83f668625ad45364de71d385aeb6a5dd04bee02e
 )
 
 FetchContent_GetProperties(imgui)
@@ -103,8 +103,8 @@ endif()
 FetchContent_Declare(
     imguifiledialog
     GIT_REPOSITORY https://github.com/aiekick/ImGuiFileDialog.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
+    # Pinned commit from the master branch.
+    GIT_TAG d0e97b2adc3d3452d72c750c7305dc0291acd052
 )
 
 FetchContent_GetProperties(imguifiledialog)
