@@ -998,8 +998,6 @@ static void visualizeWindow(
             routingTable
         );
 
-        renderEventLogWindow(eventLog);
-
         if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",
                 ImGuiWindowFlags_NoCollapse,
