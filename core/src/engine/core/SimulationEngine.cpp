@@ -14,6 +14,7 @@
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/core/Log.hpp"
 #include "engine/core/Random.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
@@ -46,12 +47,12 @@ namespace kns {
             throw std::invalid_argument("Cannot schedule null event");
         }
 
-        std::cout
-            << "[QUEUE PUSH] "
+        KNS_DEBUG_LOG(
+            "[QUEUE PUSH] "
             << typeid(*event).name()
             << " t="
             << event->getTimestamp()
-            << '\n';
+            << '\n');
 
         event_queue_.schedule(std::move(event));
     }
@@ -98,10 +99,10 @@ namespace kns {
             return false;
         }
 
-        std::cout
-            << "[PROCESS EVENT] t="
+        KNS_DEBUG_LOG(
+            "[PROCESS EVENT] t="
             << event->getTimestamp()
-            << '\n';
+            << '\n');
 
         clock_.setTime(event->getTimestamp());
         event->execute(*this);

@@ -1,7 +1,6 @@
 #include "network/transport/tcp/TCPConnection.hpp"
 
-#include <iostream>
-
+#include "engine/core/Log.hpp"
 #include "engine/core/Random.hpp"
 
 namespace kns {
@@ -140,14 +139,14 @@ namespace kns {
     {
         expected_ack_num_ = remote_seq + 1;
 
-        std::cout
-            << "[TCP SYN] "
+        KNS_DEBUG_LOG(
+            "[TCP SYN] "
             << "local=" << local_node_
             << " remote=" << remote_node_
             << " local_seq=" << seq_num_
             << " remote_seq=" << remote_seq
             << " expected_ack=" << expected_ack_num_
-            << '\n';
+            << '\n');
 
         state_machine_.setState(TCPState::SYN_RECEIVED);
     }
@@ -157,8 +156,8 @@ namespace kns {
         std::uint32_t remote_ack
     )
     {
-        std::cout
-            << "[TCP SYN_ACK] "
+        KNS_DEBUG_LOG(
+            "[TCP SYN_ACK] "
             << "local=" << local_node_
             << " remote=" << remote_node_
             << " local_seq=" << seq_num_
@@ -166,7 +165,7 @@ namespace kns {
             << " remote_ack=" << remote_ack
             << " expected_ack=" << (seq_num_ + 1)
             << " state=" << static_cast<int>(getTcpState())
-            << '\n';
+            << '\n');
 
         if (getTcpState() != TCPState::SYN_SENT) {
             return false;
@@ -185,21 +184,21 @@ namespace kns {
 
     bool TCPConnection::receive_ack(std::uint32_t remote_ack)
     {
-        std::cout
-            << "[TCP ACK] "
+        KNS_DEBUG_LOG(
+            "[TCP ACK] "
             << "local=" << local_node_
             << " remote=" << remote_node_
             << " state=" << static_cast<int>(getTcpState())
             << " local_seq=" << seq_num_
             << " remote_ack=" << remote_ack
             << " expected=" << (seq_num_ + 1)
-            << '\n';
+            << '\n');
 
         if (
             getTcpState() == TCPState::SYN_RECEIVED &&
             remote_ack == seq_num_ + 1
         ) {
-            std::cout << "[TCP ACK] SERVER -> ESTABLISHED\n";
+            KNS_DEBUG_LOG("[TCP ACK] SERVER -> ESTABLISHED\n");
 
             state_machine_.setState(TCPState::ESTABLISHED);
             resetSynRetries();
