@@ -28,12 +28,6 @@ if(KNS_ENABLE_WARNINGS)
     kns_enable_warnings(KNS)
 endif()
 
-add_custom_command(TARGET KNS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/topologies
-            $<TARGET_FILE_DIR:KNS>/topologies
-)
-
 # ============================================
 # Assets
 # ============================================
