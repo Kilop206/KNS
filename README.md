@@ -78,12 +78,26 @@ cmake --build build
 
 ## Build Requirements
 
-- C++20
-- CMake
-- A compatible compiler toolchain
-- GLFW
-- ImGui
-- nlohmann/json
+- C++20 compiler toolchain (GCC, Clang or MSVC)
+- CMake 3.20+
+- OpenGL development files
+
+GLFW, ImGui, ImGuiFileDialog, nlohmann/json and Catch2 are downloaded
+automatically by CMake via `FetchContent` — no manual install needed.
+
+On Debian/Ubuntu, GLFW additionally needs the X11/Wayland development
+packages:
+
+```bash
+sudo apt-get install -y \
+    build-essential cmake \
+    libgl1-mesa-dev \
+    xorg-dev \
+    libwayland-dev \
+    wayland-protocols \
+    libxkbcommon-dev \
+    extra-cmake-modules
+```
 
 ## Building
 
