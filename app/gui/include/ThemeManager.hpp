@@ -15,6 +15,8 @@ namespace gui {
             static ImFont* mono();
 
         private:
+            static ImFont* loadFont(ImGuiIO& io, const char* path, float size);
+
             static ImFont* regular_;
             static ImFont* bold_;
             static ImFont* mono_;

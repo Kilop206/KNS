@@ -5,7 +5,7 @@
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
 
-#include <iostream>
+#include "engine/core/Log.hpp"
 
 namespace kns {
 
@@ -30,21 +30,21 @@ namespace kns {
         }
 
         if (!client.canRetrySyn()) {
-            std::cout
-                << "[TCP][SESSION "
+            KNS_DEBUG_LOG(
+                "[TCP][SESSION "
                 << session_id_
-                << "] SYN_RETRIES_EXHAUSTED\n";
+                << "] SYN_RETRIES_EXHAUSTED\n");
             return;
         }
 
         client.incrementSynRetries();
 
-        std::cout
-            << "[TCP][SESSION "
+        KNS_DEBUG_LOG(
+            "[TCP][SESSION "
             << session_id_
             << "] SYN_TIMEOUT retry="
             << client.getSynRetries()
-            << '\n';
+            << '\n');
 
         Packet syn(
             client.getLocalNode(),

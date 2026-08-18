@@ -6,7 +6,7 @@
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
 
-#include <iostream>
+#include "engine/core/Log.hpp"
 
 namespace kns {
 
@@ -25,10 +25,10 @@ namespace kns {
 
     void TCPHandshakeEvent::execute(SimulationEngine& engine)
     {
-        std::cout
-            << "[TCP] Handshake session "
+        KNS_DEBUG_LOG(
+            "[TCP] Handshake session "
             << session_id_
-            << '\n';
+            << '\n');
 
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
@@ -57,12 +57,12 @@ namespace kns {
                 )
             );
 
-            std::cout
-                << "[TCP][SESSION "
+            KNS_DEBUG_LOG(
+                "[TCP][SESSION "
                 << session_id_
                 << "] SYN timeout scheduled at "
                 << engine.now() + 1.0
-                << '\n';
+                << '\n');
         }
     }
 }

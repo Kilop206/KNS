@@ -472,7 +472,6 @@ static void drawNodes(
 
         const float radius = 20.0f;
         const std::string label = std::to_string(i);
-        const ImVec2 label_size = ImGui::CalcTextSize(label.c_str());
 
         const float x = positions[i].first;
         const float y = positions[i].second;
@@ -481,6 +480,13 @@ static void drawNodes(
             ImVec2(x, y),
             radius,
             color
+        );
+
+        const ImVec2 label_size = ImGui::CalcTextSize(label.c_str());
+        draw_list->AddText(
+            ImVec2(x - label_size.x * 0.5f, y - label_size.y * 0.5f),
+            IM_COL32(0, 0, 0, 255),
+            label.c_str()
         );
     }
 }
@@ -605,7 +611,7 @@ static PickedNodes renderNetworkPanel(
     int selected_node,
     const std::vector<VisualPacket>& visualPackets,
     double visualTime,
-    const SimulationEngine* engine
+    const SimulationEngine* /*engine*/
 ) {
     static int drag_source_node = -1;
 
@@ -690,7 +696,7 @@ static PickedNodes renderNetworkPanel(
 
     int clicked_node = -1;
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        const int node = pickNodeAtMouse(positions, 10.0f);
+        const int node = pickNodeAtMouse(positions, 20.0f);
         if (node != -1) {
             clicked_node = node;
             drag_source_node = node;
@@ -704,7 +710,7 @@ static PickedNodes renderNetworkPanel(
     }
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && drag_source_node != -1) {
-        const int dest = pickNodeAtMouse(positions, 10.0f);
+        const int dest = pickNodeAtMouse(positions, 20.0f);
         if (dest != -1 && dest != drag_source_node) {
             const int src = drag_source_node;
             drag_source_node = -1;
@@ -998,8 +1004,6 @@ static void visualizeWindow(
             selected_node,
             routingTable
         );
-
-        renderEventLogWindow(eventLog);
 
         if (ImGuiFileDialog::Instance()->Display(
                 "TopologyKey",

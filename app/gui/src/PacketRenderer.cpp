@@ -52,6 +52,10 @@ namespace gui {
         double visual_time
     ) const
     {
+        const VisualPacket* hovered_packet = nullptr;
+        float hovered_dist2 = 0.0f;
+        double hovered_t = 0.0;
+
         for (const auto& packet : packets) {
 
             if (visual_time < packet.visual_start_time) {
@@ -70,7 +74,14 @@ namespace gui {
                 continue;
             }
 
-            double t = elapsed / visual_duration;
+            const std::size_t node_count = positions.size();
+            if (packet.from < 0 || packet.to < 0 ||
+                static_cast<std::size_t>(packet.from) >= node_count ||
+                static_cast<std::size_t>(packet.to) >= node_count) {
+                continue;
+            }
+
+            const double t = std::clamp(elapsed / visual_duration, 0.0, 1.0);
 
             const float x = static_cast<float>(
                 positions[packet.from].first +
@@ -90,12 +101,6 @@ namespace gui {
             const float base_radius = 10.0f;
             const float radius = base_radius + pulse * 3.0f;
 
-                draw_list->AddCircleFilled(
-                    ImVec2(100,100),
-                    20,
-                    IM_COL32(255,0,0,255)
-                );
-
             draw_list->AddCircleFilled(ImVec2(x, y), radius, fill_color);
             draw_list->AddCircle(ImVec2(x, y), radius + 2.5f, border_color, 0, 1.2f);
 
@@ -105,36 +110,37 @@ namespace gui {
             const float dy = mouse.y - y;
             const float dist2 = dx * dx + dy * dy;
 
-            if (dist2 <= radius * radius) {
-
-                const float progress =
-                    static_cast<float>(
-                        ((visual_time - packet.visual_start_time) /
-                        packet.visual_duration) * 100.0
-                    );
-
-                ImGui::BeginTooltip();
-
-                ImGui::Text("Type: %s",
-                    packetTypeToString(packet.type));
-
-                ImGui::Text("Session: %llu",
-                    static_cast<unsigned long long>(packet.session_id));
-
-                ImGui::Text("From: %d", packet.from);
-                ImGui::Text("To: %d", packet.to);
-
-                ImGui::Text("Progress: %.0f%%",
-                    std::clamp(progress, 0.0f, 100.0f));
-
-                ImGui::Text("Departure: %.3f",
-                    packet.sim_departure_time);
-
-                ImGui::Text("Arrival: %.3f",
-                    packet.sim_arrival_time);
-
-                ImGui::EndTooltip();
+            if (dist2 <= radius * radius &&
+                (hovered_packet == nullptr || dist2 < hovered_dist2)) {
+                hovered_packet = &packet;
+                hovered_dist2 = dist2;
+                hovered_t = t;
             }
+        }
+
+        if (hovered_packet != nullptr) {
+            const float progress = static_cast<float>(hovered_t * 100.0);
+
+            ImGui::BeginTooltip();
+
+            ImGui::Text("Type: %s",
+                packetTypeToString(hovered_packet->type));
+
+            ImGui::Text("Session: %llu",
+                static_cast<unsigned long long>(hovered_packet->session_id));
+
+            ImGui::Text("From: %d", hovered_packet->from);
+            ImGui::Text("To: %d", hovered_packet->to);
+
+            ImGui::Text("Progress: %.0f%%", progress);
+
+            ImGui::Text("Departure: %.3f",
+                hovered_packet->sim_departure_time);
+
+            ImGui::Text("Arrival: %.3f",
+                hovered_packet->sim_arrival_time);
+
+            ImGui::EndTooltip();
         }
     }
 }

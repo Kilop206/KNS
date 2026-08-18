@@ -49,5 +49,6 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
     REQUIRE(stats.packets_lost == 0);
 
     // The validation function can be run to check the simulation sanity
-    engine.validateSimulation();
+    const auto report = engine.validateSimulation();
+    REQUIRE(report.passed());
 }

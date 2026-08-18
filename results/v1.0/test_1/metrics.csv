@@ -1,4 +1,0 @@
-topology,duration_s,packets_total,packets_dropped,packets_delivered,drop_rate_pct,delivery_rate_pct,throughput_pps,latency_mean_s,latency_median_s,latency_min_s,latency_max_s,latency_p95_s,latency_std_s,returncode
-mesh4.json,29.5841,399,0,399,0.00,100.00,13.49,3.8709834561403507,3.8552,0.1008,7.9352,7.506346949999999,2.3296343598981233,0
-mesh5.json,10.6054,156,8,148,5.13,94.87,13.96,0.9763635067567568,0.9472,0.0504,2.216,2.045,0.6296746361370966,0
-star.json,8.3402,107,82,25,76.64,23.36,3.00,0.503072,0.1832,0.1016,1.7336,1.652,0.5237270827597137,0

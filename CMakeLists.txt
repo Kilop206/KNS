@@ -88,14 +88,11 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG docking
-    GIT_SHALLOW TRUE
+    # Pinned commit from the docking branch.
+    GIT_TAG 83f668625ad45364de71d385aeb6a5dd04bee02e
 )
 
-FetchContent_GetProperties(imgui)
-if(NOT imgui_POPULATED)
-    FetchContent_Populate(imgui)
-endif()
+FetchContent_MakeAvailable(imgui)
 
 # ==================================================
 # ImGuiFileDialog
@@ -103,14 +100,14 @@ endif()
 FetchContent_Declare(
     imguifiledialog
     GIT_REPOSITORY https://github.com/aiekick/ImGuiFileDialog.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
+    # Pinned commit from the master branch.
+    GIT_TAG d0e97b2adc3d3452d72c750c7305dc0291acd052
+    # The sources are compiled into imgui_lib below, so skip the
+    # upstream CMakeLists.txt by pointing at a directory without one.
+    SOURCE_SUBDIR non_cmake
 )
 
-FetchContent_GetProperties(imguifiledialog)
-if(NOT imguifiledialog_POPULATED)
-    FetchContent_Populate(imguifiledialog)
-endif()
+FetchContent_MakeAvailable(imguifiledialog)
 
 # ==================================================
 #  ImGui library agregated to the project

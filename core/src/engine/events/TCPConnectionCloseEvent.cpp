@@ -1,5 +1,4 @@
-#include <iostream>
-
+#include "engine/core/Log.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "network/utils/PacketUtils.hpp"
@@ -25,10 +24,10 @@ namespace kns {
             return;
         }
 
-        std::cout
-            << "[TCP] Closing session "
+        KNS_DEBUG_LOG(
+            "[TCP] Closing session "
             << session_id_
-            << '\n';
+            << '\n');
 
         client.send_fin();
 
@@ -46,10 +45,10 @@ namespace kns {
         fin.departure_time = engine.now();
 
         if (PacketUtils::sendPacketThroughTopology(engine, fin)) {
-            std::cout
-                << "[TCP] FIN sent for session "
+            KNS_DEBUG_LOG(
+                "[TCP] FIN sent for session "
                 << session_id_
-                << '\n';
+                << '\n');
         }
     }
 }

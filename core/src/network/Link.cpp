@@ -1,8 +1,9 @@
 #include "network/Link.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <limits>
+
+#include "engine/core/Random.hpp"
 
 namespace kns {
 
@@ -130,11 +131,11 @@ namespace kns {
             return false;
         }
 
-        const double r = static_cast<double>(std::rand()) / RAND_MAX;
+        const double r = Random::uniform01();
         return r < loss_prob_;
     }
     
-    std::size_t Link::estimatedQueueSize(double now, int from, int to) const {
+    std::size_t Link::estimatedQueueSize(double /*now*/, int /*from*/, int /*to*/) const {
         return getQueueSize();
     }
 

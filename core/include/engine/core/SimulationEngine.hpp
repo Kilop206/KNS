@@ -27,14 +27,25 @@ struct PacketSpec;
 
 namespace kns {
 
+    struct ValidationReport {
+        std::size_t total_sessions = 0;
+        std::size_t completed_sessions = 0;
+        int expected_data_packets = 0;
+        int packets_sent = 0;
+        int packets_delivered = 0;
+        int packets_lost = 0;
+        bool sessions_ok = false;
+        bool traffic_ok = false;
+
+        bool passed() const noexcept {
+            return sessions_ok && traffic_ok;
+        }
+    };
+
     class SimulationEngine {
     private:
 
         double loss_prob = 0.01;
-
-        std::unordered_map<int, std::queue<Packet>> buffers;
-
-        size_t max_queue_size = 50;
 
         // Current simulation time.
         SimulationClock clock_;
@@ -44,17 +55,6 @@ namespace kns {
 
         // Routing tables for each node.
         std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
-
-        // Event comparison functor for priority queue.
-        struct EventCompare {
-            bool operator()(const std::unique_ptr<Event>& a,
-                            const std::unique_ptr<Event>& b) const {
-                if (a->getTimestamp() == b->getTimestamp()) {
-                    return a->getId() > b->getId();
-                }
-                return a->getTimestamp() > b->getTimestamp();
-            }
-        };
 
         // Statistics for the simulation
         Stats stats_;
@@ -69,19 +69,15 @@ namespace kns {
 
         int globalPacketSize = 0;
 
-        double simulation_speed_multiplier_ = 1.0;
-
         std::function<void(double)> latencyObserver_;
-
-        std::unordered_map<TCPConnectionKey, std::uint64_t> tcp_connections_;
 
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 
-        std::map<int, TCPSession> sessions;
-
-        std::map<int, TCPSession> active_tcp_sessions;
+        std::map<std::uint64_t, TCPSession> sessions;
 
         uint64_t next_session_id = 0;
+
+        double handshake_offset_ = 0.0;
 
         unsigned int kPacketsPerRoute = 20;
     public:
@@ -148,13 +144,13 @@ namespace kns {
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 
-        const std::map<int, TCPSession>& getTCPSessions() const;
+        const std::map<std::uint64_t, TCPSession>& getTCPSessions() const;
 
         bool hasTCPSession(std::uint64_t session_id) const;
 
         int getPacketsPerRoute() const;
 
-        void validateSimulation() const;
+        ValidationReport validateSimulation() const;
 
         void advanceTime(double time);
     };
