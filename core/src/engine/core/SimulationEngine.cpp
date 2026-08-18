@@ -374,56 +374,63 @@ namespace kns {
         return kPacketsPerRoute;
     }
 
-    void SimulationEngine::validateSimulation() const {
-        std::size_t total_sessions = sessions.size();
-        std::size_t established_sessions = 0;
+    ValidationReport SimulationEngine::validateSimulation() const {
+        ValidationReport report;
+        report.total_sessions = sessions.size();
 
         for (const auto& [id, session] : sessions) {
             (void)id;
-            if (session.getState() == TCPState::ESTABLISHED) {
-                ++established_sessions;
+            if (session.hasGeneratedTraffic()) {
+                ++report.completed_sessions;
             }
         }
 
-        const int expected_data_packets =
-            static_cast<int>(established_sessions) * kPacketsPerRoute;
+        report.expected_data_packets =
+            static_cast<int>(report.completed_sessions) *
+            static_cast<int>(kPacketsPerRoute);
+
+        report.packets_sent = stats_.packets_sent;
+        report.packets_delivered = stats_.packets_delivered;
+        report.packets_lost = stats_.packets_lost;
+
+        report.sessions_ok =
+            (report.total_sessions > 0) &&
+            (report.completed_sessions == report.total_sessions);
+
+        report.traffic_ok =
+            report.packets_delivered >= report.expected_data_packets &&
+            report.packets_lost == 0;
 
         std::cout << "\n===== VALIDATION REPORT =====\n";
-        std::cout << "Total sessions created: " << total_sessions << '\n';
-        std::cout << "Sessions established:   " << established_sessions << '\n';
+        std::cout << "Total sessions created: " << report.total_sessions << '\n';
+        std::cout << "Sessions with traffic:  " << report.completed_sessions << '\n';
         std::cout << "Packets per session:    " << kPacketsPerRoute << '\n';
-        std::cout << "Expected DATA packets:   " << expected_data_packets << '\n';
-        std::cout << "Packets sent:            " << stats_.packets_sent << '\n';
-        std::cout << "Packets delivered:       " << stats_.packets_delivered << '\n';
-        std::cout << "Packets lost:            " << stats_.packets_lost << '\n';
+        std::cout << "Expected DATA packets:   " << report.expected_data_packets << '\n';
+        std::cout << "Packets sent:            " << report.packets_sent << '\n';
+        std::cout << "Packets delivered:       " << report.packets_delivered << '\n';
+        std::cout << "Packets lost:            " << report.packets_lost << '\n';
 
-        const bool sessions_ok =
-            (total_sessions > 0) &&
-            (established_sessions == total_sessions);
-
-        const bool traffic_ok =
-            stats_.packets_delivered >= expected_data_packets &&
-            stats_.packets_lost == 0;
-
-        if (sessions_ok && traffic_ok) {
+        if (report.passed()) {
             std::cout << "Result: VALIDATION PASSED\n";
         } else {
             std::cout << "Result: VALIDATION FAILED\n";
 
-            if (!sessions_ok) {
-                std::cout << " - Not all sessions reached ESTABLISHED.\n";
+            if (!report.sessions_ok) {
+                std::cout << " - Not all sessions generated traffic.\n";
             }
 
-            if (stats_.packets_delivered < expected_data_packets) {
+            if (report.packets_delivered < report.expected_data_packets) {
                 std::cout << " - Delivered packets are below expected DATA packets.\n";
             }
 
-            if (stats_.packets_lost != 0) {
+            if (report.packets_lost != 0) {
                 std::cout << " - There are lost packets.\n";
             }
         }
 
         std::cout << "============================\n";
+
+        return report;
     }
 
     void SimulationEngine::advanceTime(double time) {

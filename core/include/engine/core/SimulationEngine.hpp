@@ -27,6 +27,21 @@ struct PacketSpec;
 
 namespace kns {
 
+    struct ValidationReport {
+        std::size_t total_sessions = 0;
+        std::size_t completed_sessions = 0;
+        int expected_data_packets = 0;
+        int packets_sent = 0;
+        int packets_delivered = 0;
+        int packets_lost = 0;
+        bool sessions_ok = false;
+        bool traffic_ok = false;
+
+        bool passed() const noexcept {
+            return sessions_ok && traffic_ok;
+        }
+    };
+
     class SimulationEngine {
     private:
 
@@ -135,7 +150,7 @@ namespace kns {
 
         int getPacketsPerRoute() const;
 
-        void validateSimulation() const;
+        ValidationReport validateSimulation() const;
 
         void advanceTime(double time);
     };
