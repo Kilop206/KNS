@@ -481,6 +481,13 @@ static void drawNodes(
             radius,
             color
         );
+
+        const ImVec2 label_size = ImGui::CalcTextSize(label.c_str());
+        draw_list->AddText(
+            ImVec2(x - label_size.x * 0.5f, y - label_size.y * 0.5f),
+            IM_COL32(0, 0, 0, 255),
+            label.c_str()
+        );
     }
 }
 
