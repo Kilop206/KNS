@@ -23,6 +23,8 @@ namespace kns
             bool traffic_generated_ = false;
 
         public:
+            TCPSession();
+
             TCPSession(std::uint64_t session_id,
                         int source,
                         int destination,
