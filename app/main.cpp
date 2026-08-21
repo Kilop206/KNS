@@ -1079,50 +1079,53 @@ static void shutdownWindow(GLFWwindow* window) {
 
 int main(int argc, char* argv[]) {
     int topologyPathIndex = -1;
+    int outputPathIndex = -1;
     Topology topo;
-
+ 
     for (int i = 0; i < argc; i++) {
         std::string_view arg = argv[i];
         if (arg == "--topology") {
             topologyPathIndex = i + 1;
-            break;
+        }
+        if (arg == "--output") {
+            outputPathIndex = i + 1;
         }
     }
-
+ 
     for (int i = 0; i < argc; ++i) {
         std::string_view arg = argv[i];
         if (arg == "--headless") {
-
-            if (topologyPathIndex < 0 || topologyPathIndex >= argc) { std::cerr << "usage: KNS --topology <file> [--headless]\n"; return 1; }
-            
+            if (topologyPathIndex < 0 || topologyPathIndex >= argc) {
+                std::cerr << "usage: KNS --headless --topology <file> --output <csv>\n";
+                return 1;
+            }
+ 
             try {
                 topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
-            } catch(const std::exception& e) {
+            } catch (const std::exception& e) {
                 std::cerr << "Topology load error: " << e.what() << std::endl;
                 return 1;
             }
-
+ 
             auto engine = std::make_unique<SimulationEngine>(topo);
-
+ 
             generatePackets(engine, topo);
-
+ 
             while (engine->hasEvents()) engine->processEvent();
-
+ 
             RunConfig runConfig;
-
-            auto now = std::chrono::zoned_time{std::chrono::current_zone(), std::chrono::system_clock::now()};
-
-            runConfig.filename = std::format("results/results_{:%Y-%m-%d_%H-%M-%S}.csv", now);
+            runConfig.filename = (outputPathIndex > 0 && outputPathIndex < argc)
+                                     ? argv[outputPathIndex]
+                                     : "results/results.csv";
             runConfig.seed = 0;
-
-            fs::path resultsDirectory = "results";
-
-            fs::create_directories(resultsDirectory);
-
+ 
+            if (auto dir = fs::path(runConfig.filename).parent_path(); !dir.empty()) {
+                fs::create_directories(dir);
+            }
+ 
             engine->exportStatsCSV(runConfig);
-
+ 
             ValidationReport report = engine->validateSimulation();
-            
             return report.passed() ? 0 : 1;
         }
     }
