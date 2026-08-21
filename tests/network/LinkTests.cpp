@@ -1,10 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include "network/Link.hpp"
+#include "network/Topology.hpp"
 #include "enums/LinkMode.hpp"
 #include <limits>
 
 using kns::Link;
 using kns::LinkMode;
+using kns::Topology;
 
 TEST_CASE("Link construction and basic attributes", "[network][link]")
 {
@@ -113,4 +115,14 @@ TEST_CASE("Link drop behavior based on probability", "[network][link]")
 
     Link link_total_loss(1, 2, 10.0, 5.0, 1.0, LinkMode::FULL_DUPLEX);
     REQUIRE(link_total_loss.should_drop());
+}
+
+TEST_CASE("Topology getLinksFromNode bounds safety", "[network][topology]")
+{
+    Topology topo(2);
+    const auto& const_topo = topo;
+    REQUIRE(const_topo.getLinksFromNode(-1).empty());
+    REQUIRE(const_topo.getLinksFromNode(99).empty());
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(-1), std::out_of_range);
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(99), std::out_of_range);
 }

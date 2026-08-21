@@ -40,11 +40,19 @@ namespace kns {
 
     std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node)
     {
+        if (node < 0 || static_cast<size_t>(node) >= adjacency_list_.size()) {
+            throw std::out_of_range("Node index out of bounds");
+        }
         return adjacency_list_[node];
     }
 
     const std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) const
     {
+        if (node < 0 || static_cast<size_t>(node) >= adjacency_list_.size()) {
+            static const std::vector<LinkPtr> empty;
+
+            return empty;
+        }
         return adjacency_list_[node];
     }
 
