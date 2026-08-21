@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -22,16 +23,17 @@
 #include <sstream>
 #include <iomanip>
 
+#include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
 #include "engine/core/Stats.hpp"
+#include "gui/include/GUIFormat.hpp"
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/PacketRenderer.hpp"
 #include "gui/include/VisualPacketManager.hpp"
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
-#include "gui/include/GUIFormat.hpp"
 #include "gui/include/ThemeManager.hpp"
 #include "network/Packet.hpp"
 #include "network/Routing.hpp"
@@ -40,6 +42,8 @@
 
 using namespace kns;
 using namespace gui;
+
+namespace fs = std::filesystem;
 
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
@@ -1074,11 +1078,58 @@ static void shutdownWindow(GLFWwindow* window) {
 }
 
 int main(int argc, char* argv[]) {
+    int topologyPathIndex = -1;
     Topology topo;
+
+    for (int i = 0; i < argc; i++) {
+        std::string_view arg = argv[i];
+        if (arg == "--topology") {
+            topologyPathIndex = i + 1;
+            break;
+        }
+    }
+
+    for (int i = 0; i < argc; ++i) {
+        std::string_view arg = argv[i];
+        if (arg == "--headless") {
+
+            if (topologyPathIndex < 0 || topologyPathIndex >= argc) { std::cerr << "usage: KNS --topology <file> [--headless]\n"; return 1; }
+            
+            try {
+                topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
+            } catch(const std::exception& e) {
+                std::cerr << "Topology load error: " << e.what() << std::endl;
+                return 1;
+            }
+
+            auto engine = std::make_unique<SimulationEngine>(topo);
+
+            generatePackets(engine, topo);
+
+            while (engine->hasEvents()) engine->processEvent();
+
+            RunConfig runConfig;
+
+            auto now = std::chrono::zoned_time{std::chrono::current_zone(), std::chrono::system_clock::now()};
+
+            runConfig.filename = std::format("results/results_{:%Y-%m-%d_%H-%M-%S}.csv", now);
+            runConfig.seed = 0;
+
+            fs::path resultsDirectory = "results";
+
+            fs::create_directories(resultsDirectory);
+
+            engine->exportStatsCSV(runConfig);
+
+            ValidationReport report = engine->validateSimulation();
+            
+            return report.passed() ? 0 : 1;
+        }
+    }
 
     if (argc >= 2) {
         try {
-            topo = TopologyLoader::load_topology(argv[1]);
+            topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
         } catch (const std::exception& e) {
             std::cerr << "Topology load error: " << e.what() << std::endl;
             return -1;
