@@ -9,6 +9,7 @@
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/events/TCPTimeWaitTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
@@ -170,6 +171,10 @@ namespace kns
 
             case PacketType::FIN: {
                 receiver.receive_fin(packet.tcp.seq);
+
+                if (client.getTcpState() == TCPState::TIME_WAIT) {
+                    engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(engine.now() + 0.1, session.getSession_id()));
+                }
 
                 Packet ack(
                     receiver.getLocalNode(),
