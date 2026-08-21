@@ -24,6 +24,8 @@ namespace kns {
 				LinkMode mode = LinkMode::FULL_DUPLEX
 			);
 
+			std::vector<Link>& getLinks();
+
 			std::vector<LinkPtr>& getLinksFromNode(int);
 
 			const std::vector<LinkPtr>& getLinksFromNode(int) const;

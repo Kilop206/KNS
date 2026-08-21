@@ -38,6 +38,15 @@ namespace kns {
         addLink(Link(a, b, bandwidth_mbps, delay_ms, loss_prob, mode));
     }
 
+    std::vector<Link>& Topology::getLinks() {
+        std::vector<Link> links;
+        for (std::shared_ptr<Link> link : links_) {
+            links.push_back(*link);
+        }
+
+        return links;
+    }
+
     std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node)
     {
         if (node < 0 || static_cast<size_t>(node) >= adjacency_list_.size()) {
