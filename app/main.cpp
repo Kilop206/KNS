@@ -1077,83 +1077,182 @@ static void shutdownWindow(GLFWwindow* window) {
     glfwTerminate();
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
+    bool headless = false;
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
+
     Topology topo;
- 
-    for (int i = 0; i < argc; i++) {
-        std::string_view arg = argv[i];
-        if (arg == "--topology") {
-            topologyPathIndex = i + 1;
-        }
-        if (arg == "--output") {
-            outputPathIndex = i + 1;
-        }
-    }
- 
-    for (int i = 0; i < argc; ++i) {
-        std::string_view arg = argv[i];
+
+    // --------------------------------------------------
+    // Parse command-line arguments
+    // --------------------------------------------------
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string_view arg = argv[i];
+
         if (arg == "--headless") {
-            if (topologyPathIndex < 0 || topologyPathIndex >= argc) {
-                std::cerr << "usage: KNS --headless --topology <file> --output <csv>\n";
-                return 1;
-            }
- 
-            try {
-                topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
-            } catch (const std::exception& e) {
-                std::cerr << "Topology load error: " << e.what() << std::endl;
-                return 1;
-            }
- 
-            auto engine = std::make_unique<SimulationEngine>(topo);
- 
-            generatePackets(engine, topo);
- 
-            while (engine->hasEvents()) engine->processEvent();
- 
-            RunConfig runConfig;
-            runConfig.filename = (outputPathIndex > 0 && outputPathIndex < argc)
-                                     ? argv[outputPathIndex]
-                                     : "results/results.csv";
-            runConfig.seed = 0;
- 
-            if (auto dir = fs::path(runConfig.filename).parent_path(); !dir.empty()) {
-                fs::create_directories(dir);
-            }
- 
-            engine->exportStatsCSV(runConfig);
- 
-            ValidationReport report = engine->validateSimulation();
-            return report.passed() ? 0 : 1;
+            headless = true;
+            continue;
         }
+
+        if (arg == "--topology") {
+            if (i + 1 >= argc) {
+                std::cerr
+                    << "Missing value for --topology\n"
+                    << "Usage: KNS [topology.json]\n"
+                    << "       KNS --headless --topology <file> [--output <csv>]\n";
+
+                return 1;
+            }
+
+            topologyPathIndex = ++i;
+            continue;
+        }
+
+        if (arg == "--output") {
+            if (i + 1 >= argc) {
+                std::cerr
+                    << "Missing value for --output\n"
+                    << "Usage: KNS --headless --topology <file> [--output <csv>]\n";
+
+                return 1;
+            }
+
+            outputPathIndex = ++i;
+            continue;
+        }
+
+        // GUI mode accepts a topology as a positional argument:
+        //
+        // KNS.exe app/topologies/mesh4.json
+        //
+        // argv[0] is the executable itself, so parsing starts at 1.
+        if (!arg.starts_with("--") && topologyPathIndex == -1) {
+            topologyPathIndex = i;
+            continue;
+        }
+
+        std::cerr
+            << "Unknown argument: "
+            << arg
+            << '\n';
+
+        return 1;
     }
 
-    if (argc >= 2) {
+    // --------------------------------------------------
+    // Headless mode
+    // --------------------------------------------------
+
+    if (headless) {
+        if (topologyPathIndex < 0 ||
+            topologyPathIndex >= argc)
+        {
+            std::cerr
+                << "Usage: KNS --headless "
+                << "--topology <file> "
+                << "[--output <csv>]\n";
+
+            return 1;
+        }
+
         try {
-            topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
-        } catch (const std::exception& e) {
-            std::cerr << "Topology load error: " << e.what() << std::endl;
-            return -1;
+            topo = TopologyLoader::load_topology(
+                argv[topologyPathIndex]
+            );
+        }
+        catch (const std::exception& e) {
+            std::cerr
+                << "Topology load error: "
+                << e.what()
+                << '\n';
+
+            return 1;
+        }
+
+        auto engine = std::make_unique<SimulationEngine>(topo);
+
+        generatePackets(engine, topo);
+
+        while (engine->hasEvents()) {
+            engine->processEvent();
+        }
+
+        RunConfig runConfig;
+
+        if (outputPathIndex >= 0 &&
+            outputPathIndex < argc)
+        {
+            runConfig.filename = argv[outputPathIndex];
+        }
+        else {
+            runConfig.filename = "results/results.csv";
+        }
+
+        runConfig.seed = 0;
+
+        if (auto dir = fs::path(runConfig.filename).parent_path();
+            !dir.empty())
+        {
+            fs::create_directories(dir);
+        }
+
+        engine->exportStatsCSV(runConfig);
+
+        const ValidationReport report =
+            engine->validateSimulation();
+
+        return report.passed() ? 0 : 1;
+    }
+
+    // --------------------------------------------------
+    // GUI mode
+    // --------------------------------------------------
+
+    if (topologyPathIndex >= 0 &&
+        topologyPathIndex < argc)
+    {
+        try {
+            topo = TopologyLoader::load_topology(
+                argv[topologyPathIndex]
+            );
+        }
+        catch (const std::exception& e) {
+            std::cerr
+                << "Topology load error: "
+                << e.what()
+                << '\n';
+
+            return 1;
         }
     }
 
-    SimulationState state = SimulationState::Paused;
+    SimulationState state =
+        SimulationState::Paused;
 
-    auto engine = std::make_unique<SimulationEngine>(topo);
+    auto engine =
+        std::make_unique<SimulationEngine>(topo);
+
     CircularBuffer buffer;
 
     int packetSize = 1000;
 
     Window windowMethods;
-    GLFWwindow* window = windowMethods.generate_window();
+
+    GLFWwindow* window =
+        windowMethods.generate_window();
+
     if (!window) {
-        return -1;
+        return 1;
     }
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ImGuiIO& io =
+        ImGui::GetIO();
+
+    io.ConfigFlags |=
+        ImGuiConfigFlags_DockingEnable;
 
     visualizeWindow(
         engine,
@@ -1165,6 +1264,8 @@ int main(int argc, char* argv[]) {
     );
 
     shutdownWindow(window);
+
     engine->validateSimulation();
+
     return 0;
 }
