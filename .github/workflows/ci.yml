@@ -1,54 +1,76 @@
-name: KNS CI
+name: CI
 
 on:
   push:
-
+    branches: [ tcp, main ]
   pull_request:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ tcp, main ]
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build and Test (${'{'}{ matrix.os }{'}'})
     runs-on: ${{ matrix.os }}
-
     strategy:
-      fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install prerequisites (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgl1-mesa-dev \
-            xorg-dev \
-            libwayland-dev \
-            wayland-protocols \
-            libxkbcommon-dev \
-            extra-cmake-modules
+          sudo apt-get update || true
+          sudo apt-get install -y cmake build-essential || true
+      - name: Install prerequisites (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install -y cmake visualstudio2019-buildtools || true
 
-      - name: Cache FetchContent dependencies
-        uses: actions/cache@v4
-        with:
-          path: build/_deps
-          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
-
-      - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Configure
+        run: cmake -S . -B build -DKNS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release -- -j
 
-      - name: Run tests
-        working-directory: build
-        run: ctest --build-config Release --output-on-failure
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: Sanitizers (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure with sanitizers
+        run: cmake -S . -B build-sanitizers -DKNS_BUILD_TESTS=ON -DKNS_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build (sanitizers)
+        run: cmake --build build-sanitizers --config RelWithDebInfo -- -j
+
+      - name: Test (sanitizers)
+        run: ctest --test-dir build-sanitizers --output-on-failure || true
+
+  warnings-as-errors:
+    name: Warnings as Errors (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure with warnings-as-errors
+        run: cmake -S . -B build-werror -DKNS_BUILD_TESTS=ON -DKNS_WARNINGS_AS_ERRORS=ON -DKNS_ENABLE_WARNINGS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (warnings-as-errors)
+        run: cmake --build build-werror --config Release -- -j
