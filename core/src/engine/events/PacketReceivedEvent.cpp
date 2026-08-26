@@ -57,6 +57,9 @@ namespace kns
 
     void PacketReceivedEvent::execute(SimulationEngine& engine)
     {
+        // Release the slot in the previous link (if any) as the packet has left the link
+        PacketUtils::releasePacketThroughTopology(engine, packet);
+
         packet.packet_type = inferPacketType(packet.tcp);
 
         assert(packet.current_node >= 0);
@@ -216,4 +219,5 @@ namespace kns
                 break;
         }
     }
+
 }
