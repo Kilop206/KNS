@@ -9,6 +9,12 @@ target_sources(KNS PRIVATE
     gui/src/PacketRenderer.cpp
     gui/src/GUIFormat.cpp
     gui/src/ThemeManager.cpp
+
+    # Painéis adicionais que não estavam sendo compilados antes (fix issue #29)
+    gui/src/TcpCongestionPanel.cpp
+    gui/src/TcpConnectionPanel.cpp
+    gui/src/TcpTimelinePanel.cpp
+    gui/src/TopologyPannel.cpp
 )
 
 target_include_directories(KNS PRIVATE
