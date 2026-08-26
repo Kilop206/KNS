@@ -13,6 +13,7 @@ namespace kns {
             );
 
             void execute(SimulationEngine& engine) override;
+            const char* getName() const noexcept override { return "TCPConnectionCloseEvent"; }
 
         private:
             std::uint64_t session_id_;

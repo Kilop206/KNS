@@ -49,7 +49,7 @@ namespace kns {
 
         KNS_DEBUG_LOG(
             "[QUEUE PUSH] "
-            << typeid(*event).name()
+            << event->getName()
             << " t="
             << event->getTimestamp()
             << '\n');
@@ -437,4 +437,3 @@ namespace kns {
     void SimulationEngine::advanceTime(double time) {
         clock_.setTime(time);
     }
-}
