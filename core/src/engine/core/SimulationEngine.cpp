@@ -49,7 +49,7 @@ namespace kns {
 
         KNS_DEBUG_LOG(
             "[QUEUE PUSH] "
-            << event->getName()
+            << typeid(*event).name()
             << " t="
             << event->getTimestamp()
             << '\n');
@@ -140,12 +140,28 @@ namespace kns {
 
         const double propagation_time = link.getDelayMs() / 1000.0;
 
-        const double actual_departure_time =
-            link.getNextAvailableTime(pkt.current_node, next_node, now);
+        double actual_departure_time = 0.0;
 
-        const double arrival_time =
-            actual_departure_time + transmission_time + propagation_time;
+        // If the link is busy, consider queueing the packet
+        if (link.isBusy(pkt.current_node, next_node, now)) {
+            if (!link.canQueue()) {
+                // No capacity -> drop packet
+                stats_.packets_lost++;
+                return;
+            } else {
+                const std::size_t qsize = link.estimatedQueueSize(now, pkt.current_node, next_node);
+                const double base = link.getNextAvailableTime(pkt.current_node, next_node, now);
+                actual_departure_time = std::max(now, base) + static_cast<double>(qsize) * transmission_time;
+                // Reserve a slot in the queue
+                link.enqueuePacket();
+            }
+        } else {
+            actual_departure_time = link.getNextAvailableTime(pkt.current_node, next_node, now);
+        }
 
+        const double arrival_time = actual_departure_time + transmission_time + propagation_time;
+
+        // Reserve the transmission window on the link
         link.reserveTransmission(
             pkt.current_node,
             next_node,
@@ -156,13 +172,19 @@ namespace kns {
         new_pkt.current_node = next_node;
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
+        new_pkt.previous_node = pkt.current_node; // mark origin for queue release
 
         if (pkt.hop_count == 0) {
             stats_.packets_sent++;
         }
 
+        // If the link randomly drops the packet, account and release queue slot if we enqueued
         if (link.should_drop()) {
             stats_.packets_lost++;
+            // If we enqueued above, dequeue to avoid leaking queue slots
+            if (link.getQueueSize() > 0) {
+                link.dequeuePacket();
+            }
             return;
         }
 
@@ -437,4 +459,4 @@ namespace kns {
     void SimulationEngine::advanceTime(double time) {
         clock_.setTime(time);
     }
-} // namespace kns
+}
