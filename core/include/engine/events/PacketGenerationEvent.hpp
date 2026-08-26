@@ -16,6 +16,7 @@ namespace kns {
             );
 
             void execute(SimulationEngine& engine) override;
+            const char* getName() const noexcept override { return "PacketGenerationEvent"; }
 
         private:
             int source_;

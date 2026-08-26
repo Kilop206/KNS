@@ -16,6 +16,7 @@ namespace kns {
             );
 
             void execute(SimulationEngine& engine) override;
+            const char* getName() const noexcept override { return "TCPHandshakeEvent"; }
 
         private:
             int source_;
