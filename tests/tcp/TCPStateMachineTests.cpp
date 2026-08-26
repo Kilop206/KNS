@@ -16,6 +16,14 @@ TEST_CASE("TCPStateMachine opens an active connection", "[tcp][state-machine]")
     REQUIRE(machine.state() == TCPState::ESTABLISHED);
 }
 
+TEST_CASE("TCPStateMachine accepts KNS simplified passive open", "[tcp][state-machine]")
+{
+    TCPStateMachine machine;
+
+    REQUIRE(machine.onSynReceived());
+    REQUIRE(machine.state() == TCPState::SYN_RECEIVED);
+}
+
 TEST_CASE("TCPStateMachine rejects invalid active open transition", "[tcp][state-machine]")
 {
     TCPStateMachine machine(TCPState::ESTABLISHED);

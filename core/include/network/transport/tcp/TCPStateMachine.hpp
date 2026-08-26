@@ -13,10 +13,6 @@ namespace kns {
                 return state_;
             }
 
-            void setState(TCPState newState) noexcept {
-                state_ = newState;
-            }
-
             bool onSynSent() noexcept {
                 if (state_ == TCPState::CLOSED || state_ == TCPState::LISTEN) {
                     state_ = TCPState::SYN_SENT;
@@ -26,7 +22,9 @@ namespace kns {
             }
 
             bool onSynReceived() noexcept {
-                if (state_ == TCPState::LISTEN || state_ == TCPState::SYN_SENT) {
+                if (state_ == TCPState::CLOSED ||
+                    state_ == TCPState::LISTEN ||
+                    state_ == TCPState::SYN_SENT) {
                     state_ = TCPState::SYN_RECEIVED;
                     return true;
                 }

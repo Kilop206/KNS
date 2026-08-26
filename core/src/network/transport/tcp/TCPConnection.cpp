@@ -30,11 +30,6 @@ namespace kns {
         return state_machine_.state();
     }
 
-    void TCPConnection::setTcpState(TCPState state) noexcept
-    {
-        state_machine_.setState(state);
-    }
-
     int TCPConnection::getLocalNode() const noexcept
     {
         return local_node_;
@@ -135,8 +130,12 @@ namespace kns {
         return seg;
     }
 
-    void TCPConnection::receive_syn(std::uint32_t remote_seq)
+    bool TCPConnection::receive_syn(std::uint32_t remote_seq)
     {
+        if (!state_machine_.onSynReceived()) {
+            return false;
+        }
+
         expected_ack_num_ = remote_seq + 1;
 
         KNS_DEBUG_LOG(
@@ -148,7 +147,7 @@ namespace kns {
             << " expected_ack=" << expected_ack_num_
             << '\n');
 
-        state_machine_.setState(TCPState::SYN_RECEIVED);
+        return true;
     }
 
     bool TCPConnection::receive_syn_ack(
@@ -175,8 +174,11 @@ namespace kns {
             return false;
         }
 
+        if (!state_machine_.onEstablished()) {
+            return false;
+        }
+
         expected_ack_num_ = remote_seq + 1;
-        state_machine_.setState(TCPState::ESTABLISHED);
         resetSynRetries();
 
         return true;
@@ -200,7 +202,10 @@ namespace kns {
         ) {
             KNS_DEBUG_LOG("[TCP ACK] SERVER -> ESTABLISHED\n");
 
-            state_machine_.setState(TCPState::ESTABLISHED);
+            if (!state_machine_.onEstablished()) {
+                return false;
+            }
+
             resetSynRetries();
 
             return true;
@@ -210,65 +215,64 @@ namespace kns {
             getTcpState() == TCPState::FIN_WAIT_1 &&
             remote_ack == seq_num_ + 1
         ) {
-            state_machine_.setState(TCPState::FIN_WAIT_2);
-            return true;
+            return state_machine_.onFinAcked();
         }
 
         if (
             getTcpState() == TCPState::LAST_ACK &&
             remote_ack == seq_num_ + 1
         ) {
-            state_machine_.setState(TCPState::CLOSED);
-            return true;
+            return state_machine_.onFinAcked();
         }
 
         return false;
     }
 
-    void TCPConnection::receive_fin(std::uint32_t remote_seq)
+    bool TCPConnection::receive_fin(std::uint32_t remote_seq)
     {
-        expected_ack_num_ = remote_seq + 1;
-
-        if (getTcpState() == TCPState::ESTABLISHED) {
-            state_machine_.setState(TCPState::CLOSE_WAIT);
-        } else if (getTcpState() == TCPState::FIN_WAIT_1) {
-            state_machine_.setState(TCPState::CLOSING);
-        } else if (getTcpState() == TCPState::FIN_WAIT_2) {
-            state_machine_.setState(TCPState::TIME_WAIT);
+        if (!state_machine_.onPeerFin()) {
+            return false;
         }
+
+        expected_ack_num_ = remote_seq + 1;
+        return true;
     }
 
     std::uint32_t TCPConnection::send_syn()
     {
         if (getTcpState() != TCPState::SYN_SENT) {
+            if (!state_machine_.onSynSent()) {
+                return seq_num_;
+            }
+
             seq_num_ = generateInitialSeq();
         }
 
-        state_machine_.setState(TCPState::SYN_SENT);
         return seq_num_;
     }
 
     std::uint32_t TCPConnection::send_syn_ack()
     {
-        state_machine_.setState(TCPState::SYN_RECEIVED);
+        state_machine_.onSynReceived();
         return seq_num_;
     }
 
     std::uint32_t TCPConnection::send_ack()
     {
-        state_machine_.setState(TCPState::ESTABLISHED);
+        state_machine_.onEstablished();
         return expected_ack_num_;
     }
 
     std::uint32_t TCPConnection::send_fin()
     {
-        if (getTcpState() == TCPState::ESTABLISHED) {
-            state_machine_.setState(TCPState::FIN_WAIT_1);
-        } else if (getTcpState() == TCPState::CLOSE_WAIT) {
-            state_machine_.setState(TCPState::LAST_ACK);
-        }
+        state_machine_.onFinSent();
 
         return seq_num_;
+    }
+
+    bool TCPConnection::expire_time_wait() noexcept
+    {
+        return state_machine_.onTimeWaitDone();
     }
 
 }

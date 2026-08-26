@@ -13,7 +13,7 @@ TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][ha
     const auto clientSeq = client.send_syn();
     REQUIRE(client.getTcpState() == TCPState::SYN_SENT);
 
-    server.receive_syn(clientSeq);
+    REQUIRE(server.receive_syn(clientSeq));
     REQUIRE(server.getTcpState() == TCPState::SYN_RECEIVED);
     REQUIRE(server.getExpectedAckNum() == clientSeq + 1);
 
@@ -42,4 +42,13 @@ TEST_CASE("TCPConnection ignores SYN ACK with unexpected ack number", "[tcp][han
 
     REQUIRE_FALSE(client.receive_syn_ack(500, 999));
     REQUIRE(client.getTcpState() == TCPState::SYN_SENT);
+}
+
+TEST_CASE("TCPConnection rejects invalid SYN after establishment", "[tcp][handshake]")
+{
+    TCPConnection connection(TCPState::ESTABLISHED, 100, 0, 1, 2);
+
+    REQUIRE_FALSE(connection.receive_syn(500));
+    REQUIRE(connection.getTcpState() == TCPState::ESTABLISHED);
+    REQUIRE(connection.getExpectedAckNum() == 0);
 }

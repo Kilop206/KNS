@@ -15,10 +15,8 @@ namespace kns {
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
 
-        if (client.getTcpState() == TCPState::TIME_WAIT) {
-            client.setTcpState(TCPState::CLOSED);
+        if (client.expire_time_wait()) {
+            session.setState(TCPState::CLOSED);
         }
-
-        session.setState(TCPState::CLOSED);
     }
 }

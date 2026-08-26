@@ -21,7 +21,6 @@ namespace kns {
             );
 
             TCPState getTcpState() const noexcept;
-            void setTcpState(TCPState state) noexcept;
 
             int getLocalNode() const noexcept;
             int getRemoteNode() const noexcept;
@@ -45,15 +44,16 @@ namespace kns {
             TCPSegment buildAck() const;
             TCPSegment buildFin() const;
 
-            void receive_syn(std::uint32_t remote_seq);
+            bool receive_syn(std::uint32_t remote_seq);
             bool receive_syn_ack(std::uint32_t remote_seq, std::uint32_t remote_ack);
             bool receive_ack(std::uint32_t remote_ack);
-            void receive_fin(std::uint32_t remote_seq);
+            bool receive_fin(std::uint32_t remote_seq);
 
             std::uint32_t send_syn();
             std::uint32_t send_syn_ack();
             std::uint32_t send_ack();
             std::uint32_t send_fin();
+            bool expire_time_wait() noexcept;
 
         private:
             static std::uint32_t generateInitialSeq();
