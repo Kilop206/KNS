@@ -437,3 +437,4 @@ namespace kns {
     void SimulationEngine::advanceTime(double time) {
         clock_.setTime(time);
     }
+} // namespace kns
