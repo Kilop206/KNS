@@ -59,10 +59,14 @@ namespace kns {
             LinkMode mode = LinkMode::FULL_DUPLEX;
             if (l.contains("mode")) {
                 std::string mode_str = l["mode"].get<std::string>();
-                if (mode_str == "half_duplex") {
+                if (mode_str == "full_duplex") {
+                    mode = LinkMode::FULL_DUPLEX;
+                } else if (mode_str == "half_duplex") {
                     mode = LinkMode::HALF_DUPLEX;
                 } else if (mode_str == "simplex") {
                     mode = LinkMode::SIMPLEX;
+                } else {
+                    throw std::invalid_argument("Unknown link mode in " + filename);
                 }
             }
 

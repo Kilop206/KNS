@@ -121,4 +121,12 @@ TEST_CASE("TopologyLoader rejects invalid JSON and throws descriptive exceptions
         })");
         REQUIRE_THROWS_AS(TopologyLoader::load_topology(temp.path), std::invalid_argument);
     }
+
+    SECTION("Unknown link mode") {
+        TempJsonFile temp("temp_unknown_mode.json", R"({
+            "name": "invalid",
+            "links": [{"from": 0, "to": 1, "bandwidth": 100.0, "delay": 10, "loss": 0.0, "mode": "wireless_magic"}]
+        })");
+        REQUIRE_THROWS_AS(TopologyLoader::load_topology(temp.path), std::invalid_argument);
+    }
 }
