@@ -16,4 +16,6 @@ if(KNS_ENABLE_WARNINGS)
     kns_enable_warnings(kns_tests)
 endif()
 
-add_test(NAME kns_tests COMMAND kns_tests)
+include(CTest)
+include(Catch)
+catch_discover_tests(kns_tests)

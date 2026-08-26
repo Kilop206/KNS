@@ -17,5 +17,6 @@ namespace kns {
         std::uint64_t getTimestamp() const noexcept;
 
         void execute(kns::SimulationEngine& engine) override;
+        const char* getName() const noexcept override { return "PrintEvent"; }
     };
 }
