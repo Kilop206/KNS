@@ -52,6 +52,10 @@ class Link {
         std::size_t getQueueSize() const noexcept;
         std::size_t getQueueCapacity() const noexcept;
 
+        // Up/down state for GUI toggling
+        bool isUp() const noexcept;
+        void setUp(bool up) noexcept;
+
     private:
         
         enum class DirectionSlot {
@@ -87,5 +91,7 @@ class Link {
 
         std::size_t queue_capacity_ = 32;
         std::size_t queued_packets_ = 0;
+
+        bool up_ = true;
     };
 }

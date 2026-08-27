@@ -20,7 +20,8 @@ namespace kns {
         bandwidth_mbps_(bandwidth_mbps),
         delay_ms_(delay_ms),
         loss_prob_(loss_prob),
-        mode_(mode)
+        mode_(mode),
+        up_(true)
     {
     }
 
@@ -164,5 +165,13 @@ namespace kns {
     std::size_t Link::getQueueCapacity() const noexcept
     {
         return queue_capacity_;
+    }
+
+    bool Link::isUp() const noexcept {
+        return up_;
+    }
+
+    void Link::setUp(bool up) noexcept {
+        up_ = up;
     }
 }
