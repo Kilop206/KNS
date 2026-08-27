@@ -1,6 +1,6 @@
 #include "engine/events/TCPHandshakeEvent.hpp"
 
-#include "engine/events/TCPHanshakeTimeoutEvent.hpp"
+#include "engine/events/TCPHandshakeTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/transport/tcp/TCPConnection.hpp"
 #include "network/transport/tcp/TCPSession.hpp"

@@ -22,11 +22,13 @@
 #include <deque>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib> // getenv
 
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
 #include "engine/core/Stats.hpp"
+#include "engine/core/RunConfig.hpp"
 #include "gui/include/GUIFormat.hpp"
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
@@ -381,7 +383,12 @@ static void renderStatsWindow(
         ImGui::SliderFloat("Simulation speed", &speedMultiplier, 0.25f, 4.0f, "%.2fx");
 
         if (!engineHasEvents) {
-            ImGui::TextDisabled("Simulation finished.");
+            // Distinguish between "no traffic was scheduled" and "simulation finished".
+            if (stats.packets_sent == 0) {
+                ImGui::TextDisabled("No traffic scheduled.");
+            } else {
+                ImGui::TextDisabled("Simulation finished.");
+            }
         }
     }
 
@@ -609,7 +616,6 @@ static void BeginDockSpaceHost(bool& dock_initialized) {
     ImGui::End();
 }
 
-
 static PickedNodes renderNetworkPanel(
     const Topology& topo,
     int selected_node,
@@ -793,7 +799,7 @@ static PickedNodes renderNetworkPanel(
     return PickedNodes{clicked_node, -1, false};
 }
 
-static void renderConfigWindow(bool& firstFrame, bool topologySelected) {
+static void renderConfigWindow(bool& firstFrame, bool topologySelected, std::unique_ptr<SimulationEngine>& engine, Topology& topo, SimulationState& state) {
     bool autoClick = false;
 
     ImGui::Begin("Settings");
@@ -813,6 +819,16 @@ static void renderConfigWindow(bool& firstFrame, bool topologySelected) {
                 "Select File",
                 ".json"
             );
+        }
+    }
+
+    // If there's a loaded topology and no events scheduled, offer a button to generate traffic.
+    if (topologySelected && !engine->hasEvents()) {
+        ImGui::Separator();
+        ImGui::TextWrapped("No traffic scheduled for the loaded topology.");
+        if (ImGui::Button("Generate traffic for all links")) {
+            generatePackets(engine, topo);
+            state = SimulationState::Running;
         }
     }
 
@@ -882,22 +898,25 @@ static void visualizeWindow(
                     session_id,
                     oss.str()
                 );
-
-                std::cout
-                    << "Observer type = "
-                    << static_cast<int>(p.packet_type)
-                    << '\n';
-
-                std::cout
-                    << "FIN enum = "
-                    << static_cast<int>(kns::PacketType::FIN)
-                    << '\n';
             }
         );
     };
 
     configureEngine(engine);
-    generatePackets(engine, topo);
+
+    // GUI auto-start: check env var KNS_AUTO_START first; default uses RunConfig::auto_start (you set to false)
+    bool gui_auto_start = false; // default false per your preference
+    if (const char* env = std::getenv("KNS_AUTO_START")) {
+        std::string v(env);
+        if (v == "0" || v == "false" || v == "False") {
+            gui_auto_start = false;
+        } else {
+            gui_auto_start = true;
+        }
+    }
+    if (gui_auto_start) {
+        generatePackets(engine, topo);
+    }
 
     double visualTime = 0.0;
     double lastRealTime = glfwGetTime();
@@ -974,7 +993,10 @@ static void visualizeWindow(
 
         renderConfigWindow(
             firstFrame,
-            topo.size() > 0
+            topo.size() > 0,
+            engine,
+            topo,
+            state
         );
 
         PickedNodes clicked_node = renderNetworkPanel(
@@ -1033,7 +1055,21 @@ static void visualizeWindow(
                         );
 
                     configureEngine(engine);
-                    generatePackets(engine, topo);
+
+                    // Respect env var when loading a topology in the GUI.
+                    bool loaded_auto_start = false; // default false per your preference
+                    if (const char* env = std::getenv("KNS_AUTO_START")) {
+                        std::string v(env);
+                        if (v == "0" || v == "false" || v == "False") {
+                            loaded_auto_start = false;
+                        } else {
+                            loaded_auto_start = true;
+                        }
+                    }
+
+                    if (loaded_auto_start) {
+                        generatePackets(engine, topo);
+                    }
 
                     selected_node = -1;
                     routingTable.clear();
@@ -1174,13 +1210,29 @@ int main(int argc, char* argv[])
 
         auto engine = std::make_unique<SimulationEngine>(topo);
 
-        generatePackets(engine, topo);
+        // Prepare RunConfig early so we can use its auto_start default if env var not set.
+        RunConfig runConfig;
+        runConfig.seed = 0;
+        // runConfig.auto_start default can be false as you configured.
+
+        // Respect environment override first (KNS_AUTO_START). Otherwise use runConfig.auto_start.
+        bool headless_auto_start = runConfig.auto_start;
+        if (const char* env = std::getenv("KNS_AUTO_START")) {
+            std::string v(env);
+            if (v == "0" || v == "false" || v == "False") {
+                headless_auto_start = false;
+            } else {
+                headless_auto_start = true;
+            }
+        }
+
+        if (headless_auto_start) {
+            generatePackets(engine, topo);
+        }
 
         while (engine->hasEvents()) {
             engine->processEvent();
         }
-
-        RunConfig runConfig;
 
         if (outputPathIndex >= 0 &&
             outputPathIndex < argc)
@@ -1190,8 +1242,6 @@ int main(int argc, char* argv[])
         else {
             runConfig.filename = "results/results.csv";
         }
-
-        runConfig.seed = 0;
 
         if (auto dir = fs::path(runConfig.filename).parent_path();
             !dir.empty())

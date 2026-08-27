@@ -7,5 +7,6 @@ namespace kns {
         std::string filename;
         int seed;
         int packet_size = 1500;
+        bool auto_start = false;
     };
 }
