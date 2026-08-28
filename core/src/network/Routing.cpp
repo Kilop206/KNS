@@ -40,6 +40,9 @@ namespace kns {
 			const auto& adjacency = topology.getLinksFromNode(u);
 
 			for (const auto& link : adjacency) {
+				if (!link || !link->isUp()) {
+					continue;
+				}
 
 				int v = link->getOtherNode(u);
 

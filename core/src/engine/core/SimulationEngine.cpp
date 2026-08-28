@@ -141,6 +141,10 @@ namespace kns {
 
     bool SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now)
     {
+        if (!link.isUp()) {
+            return false;
+        }
+
         const int next_node = link.getOtherNode(pkt.current_node);
         if (next_node == -1) {
             return false;

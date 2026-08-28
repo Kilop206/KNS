@@ -90,3 +90,35 @@ TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network]
     // Valid next hop
     REQUIRE(engine.getNextHop(0, 1) == 1);
 }
+
+TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][routing]")
+{
+    // Triangle: 0-1 (5ms), 0-2 (20ms), 1-2 (5ms)
+    Topology topo(3);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(0, 2, 10.0, 20.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    kns::SimulationEngine engine(topo);
+
+    // Initial shortest path from 0 to 2 is via 1 (5ms + 5ms = 10ms < 20ms)
+    REQUIRE(engine.getNextHop(0, 2) == 1);
+
+    // Turn link 0-1 DOWN
+    engine.toggleLinkUp(0, 1, false);
+
+    // Now shortest path from 0 to 2 must reroute directly via 2 (20ms)
+    REQUIRE(engine.getNextHop(0, 2) == 2);
+    // Node 1 is rerouted via 2 (0 -> 2 -> 1, 25ms)
+    REQUIRE(engine.getNextHop(0, 1) == 2);
+
+    // Turn link 0-2 DOWN as well -> node 1 and 2 become unreachable from 0
+    engine.toggleLinkUp(0, 2, false);
+    REQUIRE(engine.getNextHop(0, 1) == -1);
+    REQUIRE(engine.getNextHop(0, 2) == -1);
+
+    // Turn links back UP
+    engine.toggleLinkUp(0, 1, true);
+    engine.toggleLinkUp(0, 2, true);
+    REQUIRE(engine.getNextHop(0, 2) == 1);
+}
