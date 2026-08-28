@@ -83,6 +83,10 @@ namespace kns
             engine.notifyLatencyDelivered(latency);
         }
 
+        if (!engine.hasTCPSession(packet.session_id)) {
+            return;
+        }
+
         auto& session = engine.getTCPSession(packet.session_id);
         auto& client = session.getClientConnection();
         auto& server = session.getServerConnection();

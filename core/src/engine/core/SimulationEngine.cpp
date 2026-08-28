@@ -300,7 +300,13 @@ namespace kns {
         r.packets_sent = stats_.packets_sent;
         r.packets_delivered = stats_.packets_delivered;
         r.packets_lost = stats_.packets_lost;
-        r.completed_sessions = 0; // needs TCPSession introspection to compute properly
+        r.completed_sessions = 0;
+        for (const auto& pair : sessions) {
+            const auto state = pair.second.getState();
+            if (state == TCPState::ESTABLISHED || state == TCPState::CLOSED) {
+                r.completed_sessions++;
+            }
+        }
         r.sessions_ok = (r.total_sessions == 0) || (r.completed_sessions > 0);
         r.traffic_ok = (r.packets_delivered > 0);
         return r;
