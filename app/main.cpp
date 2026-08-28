@@ -514,9 +514,23 @@ static void renderStatsWindow(
 
         else if (state == SimulationState::Finished)
         {
-            ImGui::TextDisabled(
-                "Simulation finished."
-            );
+            ImGui::TextDisabled("Simulation finished.");
+            ImGui::SameLine();
+            if (ImGui::Button("Reset"))
+            {
+                engine = std::make_unique<SimulationEngine>(topo);
+                state = SimulationState::Ready;
+            }
+        }
+
+        if (state == SimulationState::Paused || state == SimulationState::Running)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Reset"))
+            {
+                engine = std::make_unique<SimulationEngine>(topo);
+                state = SimulationState::Ready;
+            }
         }
 
         ImGui::SliderFloat(
