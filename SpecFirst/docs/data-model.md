@@ -1,153 +1,27 @@
 # KNS — Data Model
 
-This document describes the principal runtime entities and relationships in KNS.
+## 1. Purpose
 
-The exact class definitions in the repository remain authoritative. This document defines the conceptual model and the contracts that the implementation should preserve.
+This document defines the principal runtime entities and their relationships in KNS.
+
+It describes the current data model and must remain aligned with the implementation.
 
 ---
 
-## 1. Entity Overview
+## 2. Simulation
 
-The principal entities are:
+The simulation is driven by an event queue and logical simulation time.
+
+Conceptually:
 
 ```text
-Topology
-├── Node
-└── Link
-
 Simulation
-├── Event
-└── Simulation State
-
-Network
-└── Packet
-
-TCP
-├── TCP Connection
-└── TCP Session
+├── SimulationState
+├── Logical Time
+└── Event Queue
 ```
 
----
-
-## 2. Topology
-
-The topology represents the simulated network graph.
-
-Conceptually:
-
-```text
-Topology
- ├── Nodes
- └── Links
-```
-
-A topology owns or otherwise manages the relationships between its network entities according to the implementation's ownership model.
-
-The topology is the authoritative source for current connectivity.
-
----
-
-## 3. Node
-
-A node represents a network endpoint.
-
-Conceptually:
-
-```text
-Node
-├── Identity
-├── Network relationships
-└── Protocol participation
-```
-
-Nodes may participate in:
-
-* routing;
-* packet transmission;
-* TCP connections;
-* topology visualization.
-
-Node identifiers must be unambiguous within the topology.
-
----
-
-## 4. Link
-
-A link connects two nodes.
-
-Conceptually:
-
-```text
-Link
-├── Endpoint A
-├── Endpoint B
-├── Operational state
-├── Transmission characteristics
-└── Queue / capacity state
-```
-
-A link may be operationally:
-
-```text
-UP
-DOWN
-```
-
-A `DOWN` link represents an unavailable network path for normal routing and transmission.
-
----
-
-## 5. Packet
-
-A packet represents a unit of simulated network traffic.
-
-Conceptually:
-
-```text
-Packet
-├── Source
-├── Destination
-├── Protocol information
-├── Payload / control information
-└── Transmission context
-```
-
-The exact fields depend on the packet implementation.
-
-### Identity
-
-Packet identity must be sufficient to distinguish packets when multiple packets coexist in the event queue or network.
-
-### Transmission context
-
-When required by the simulation, a packet or its associated event must preserve the identity of the transmission/link through which it was sent.
-
-This prevents mutable topology state from making an in-flight packet ambiguous.
-
----
-
-## 6. Event
-
-An event represents a scheduled unit of simulation work.
-
-Conceptually:
-
-```text
-Event
-├── Simulation timestamp
-├── Ordering information
-└── Action / event payload
-```
-
-Events are processed according to logical simulation time and the ordering rules established by the implementation.
-
-Events must contain enough information to execute correctly when they become due.
-
----
-
-## 7. Simulation State
-
-The simulation lifecycle is represented conceptually by:
+The simulation lifecycle is represented explicitly by:
 
 ```text
 Ready
@@ -156,165 +30,219 @@ Paused
 Finished
 ```
 
-The state describes execution lifecycle rather than network connectivity.
+An empty event queue does not, by itself, define the lifecycle state.
 
-The distinction is important:
+---
+
+## 3. Topology
+
+The topology represents the simulated network.
 
 ```text
-No events before Start
-        ≠
-Finished simulation
+Topology
+├── Nodes
+└── Links
 ```
 
-`Finished` should represent completion after simulation execution has exhausted its work.
+Nodes represent network endpoints or intermediate network entities.
+
+Links represent connectivity between nodes.
+
+---
+
+## 4. Node
+
+A node is identified by an integer node identifier.
+
+Nodes may participate in:
+
+* routing;
+* packet transmission;
+* TCP connections;
+* simulation events.
+
+---
+
+## 5. Link
+
+A link connects two nodes.
+
+A link has an operational state:
+
+```text
+UP
+DOWN
+```
+
+A link also maintains transmission-related state, including its packet queue and queue capacity.
+
+The presence of a queue does not by itself define complete FIFO semantics; FIFO behavior must follow the actual transmission contract and implementation.
+
+---
+
+## 6. Packet
+
+A packet represents simulated network data transported through the topology.
+
+Packets may contain protocol-specific information depending on the transport or network behavior being simulated.
+
+Packet processing occurs through simulation events rather than direct real-world network transmission.
+
+---
+
+## 7. TCP Session
+
+A `TCPSession` represents a simulated TCP communication between a source and destination node.
+
+The current implementation contains:
+
+```text
+TCPSession
+├── session_id
+├── source
+├── destination
+├── state
+├── total_packets
+├── packets_sent
+├── close_requested
+├── traffic_generated
+├── client_connection
+└── server_connection
+```
+
+A session therefore contains two `TCPConnection` instances:
+
+```text
+TCPSession
+├── client_connection
+└── server_connection
+```
 
 ---
 
 ## 8. TCP Connection
 
-A TCP connection represents protocol state between communicating endpoints.
+A `TCPConnection` represents one side of a simulated TCP connection.
 
-Conceptually:
+It contains:
 
 ```text
 TCPConnection
-├── Local endpoint
-├── Remote endpoint
-├── Connection state
-├── Sequence information
-├── Acknowledgement information
-└── Timers / expiration state
+├── TCP State Machine
+├── Sequence Number
+├── Expected ACK Number
+├── Local Node
+├── Remote Node
+└── SYN Retry State
 ```
 
-The exact data members are implementation-defined.
+The connection provides operations for:
+
+* SYN;
+* SYN-ACK;
+* ACK;
+* FIN;
+* SYN retry handling;
+* TIME_WAIT expiration;
+* TCP state transitions.
 
 ---
 
 ## 9. TCP State
 
-TCP state represents the current protocol phase.
+TCP state is represented using the project's `TCPState` model.
 
-The model includes behavior corresponding to:
+The exact state set is defined by the current TCP implementation and must not be duplicated independently in documentation.
+
+---
+
+## 10. Routing
+
+Routing operates over the current topology.
+
+A route consists conceptually of:
 
 ```text
-Connection establishment
-        ↓
-Established communication
-        ↓
-Termination
-        ↓
-TIME_WAIT
+Source
+ ↓
+Intermediate Nodes
+ ↓
+Destination
 ```
 
-The exact enumeration and state graph must follow the implementation.
+The current routing implementation excludes links that are not operational.
 
----
-
-## 10. TCP Session
-
-A session may represent a higher-level grouping of TCP connection activity.
-
-Conceptually:
+In particular:
 
 ```text
-TCPSession
-└── TCP connection(s)
+Link DOWN
+    ↓
+Routing
+    ↓
+Link is not considered available
 ```
 
-If session-level state is exposed, it must have a clearly defined relationship to the underlying connections.
+Routing behavior must remain independent from GUI presentation.
 
 ---
 
-## 11. Relationships
+## 11. Events
 
-The principal relationships can be represented as:
+Simulation behavior is executed through scheduled events.
+
+Events may represent operations such as:
+
+* packet generation;
+* packet transmission;
+* packet reception;
+* TCP handshake processing;
+* TCP timeout processing;
+* TCP termination;
+* TIME_WAIT expiration.
+
+The event queue is part of the simulation engine rather than the topology data model.
+
+---
+
+## 12. Relationship Overview
 
 ```text
-Topology
- │
- ├──────────────┐
- ▼              ▼
-Node           Link
- ▲              │
- │              │
- └──────────────┘
+SimulationEngine
+        │
+        ├── SimulationState
+        ├── Event Queue
+        │
+        └── Topology
+              │
+              ├── Nodes
+              │
+              └── Links
+                    │
+                    └── Packet Transmission
 
-Node
- │
- ├── Packet
- │
- └── TCPConnection
-
-Packet
- │
- ▼
-Event
-
-TCPConnection
- │
- ├── Control packets
- └── Data packets
+TCP Session
+        │
+        ├── Client TCPConnection
+        │
+        └── Server TCPConnection
 ```
 
 ---
 
-## 12. Ownership
+## 13. Documentation Status
 
-Ownership and lifetime must follow the actual implementation.
+The data model distinguishes between current implementation and future requirements.
 
-Documentation must not claim ownership semantics that are not present in the code.
+### Implemented
 
-When introducing new entities, explicitly define:
+Behavior directly represented by the current repository.
 
-* owner;
-* lifetime;
-* reference semantics;
-* mutation authority;
-* destruction behavior.
+### Required
 
----
+Behavior required by project specifications but not necessarily fully implemented.
 
-## 13. Identity and References
+### Planned
 
-References between simulation entities must remain valid for the lifetime in which they are used.
+Behavior intentionally reserved for future implementation.
 
-Special care is required when:
-
-* nodes are removed;
-* links are removed;
-* topology changes dynamically;
-* events remain queued;
-* packets remain in transit.
-
-An event must not blindly dereference an entity that may no longer exist.
-
----
-
-## 14. Invalid State
-
-Invalid states must be rejected or explicitly represented.
-
-Examples include:
-
-* unknown node identifiers;
-* invalid link endpoints;
-* invalid next-hop requests;
-* packets sent through unavailable links;
-* invalid TCP transitions.
-
-The appropriate failure mechanism depends on the API contract.
-
----
-
-## 15. Data Model Evolution
-
-Changes to entity structure should consider:
-
-1. existing serialized data;
-2. existing tests;
-3. event compatibility;
-4. topology mutation;
-5. TCP state;
-6. GUI consumers.
-
-Data-model changes should be accompanied by relevant tests and documentation updates.
+Documentation must not present `Required` or `Planned` behavior as implemented.

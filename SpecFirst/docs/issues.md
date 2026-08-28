@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document defines how KNS issues should be analyzed and resolved.
+This document defines how KNS issues are investigated, classified, implemented, and closed.
 
 ---
 
@@ -12,17 +12,17 @@ An open issue represents a reported concern or requested change.
 
 It does not prove that the problem still exists.
 
-Before implementation, compare the issue against the current branch.
+Every issue must be compared against the current target branch before implementation.
 
 ---
 
 ## 3. Issue Classification
 
-Each reviewed issue should be assigned one of:
+Each reviewed issue must be classified as one of:
 
 ### Resolved
 
-The current implementation already satisfies the requirement.
+The current implementation satisfies the issue's requirement.
 
 ### Partially Resolved
 
@@ -34,7 +34,7 @@ The reported problem remains present.
 
 ### Obsolete
 
-The issue no longer applies because the architecture, requirement, or affected component has changed.
+The issue no longer applies because the architecture, requirement, or implementation has changed.
 
 ---
 
@@ -45,44 +45,104 @@ For each issue:
 ```text
 Issue
  ↓
-Current repository
+Current Repository
  ↓
-Relevant implementation
+Relevant Implementation
  ↓
-Relevant tests
+Relevant Tests
  ↓
 Specification
  ↓
 Classification
 ```
 
-Do not implement an issue before this comparison.
+Implementation must not begin solely from the issue description.
 
 ---
 
-## 5. Valid Issue
+## 5. Current Known Engineering Areas
 
-A valid issue should have:
+The following areas have been identified for investigation or continued development.
 
-* a clear problem;
-* reproducible behavior where applicable;
-* affected component;
-* expected behavior;
-* acceptance criteria.
+Their presence here does not imply that every item is currently unresolved.
+
+### Packet transmission
+
+Verify that higher-level transmission functions correctly propagate failures from lower-level packet transmission operations.
+
+### In-flight packet and link identity
+
+Verify that a packet being transmitted retains an unambiguous association with the link responsible for the transmission.
+
+### Link operational state
+
+Routing already excludes links whose operational state is `DOWN`.
+
+Transmission behavior must independently ensure that unavailable links cannot be used for invalid packet transmission.
+
+### Queue semantics
+
+Verify that link transmission queues satisfy the intended FIFO and capacity contracts.
+
+### Dynamic topology changes
+
+Define and validate the behavior of already-scheduled events and in-flight packets when topology elements are modified or removed.
+
+### Topology API validation
+
+Validate identifiers, references, and invalid operations exposed through the `Topology` API.
+
+### Routing bounds and contracts
+
+Validate `getNextHop()` bounds and failure behavior.
+
+Validate the contract and returned representation of `getLinksFromNode()`.
+
+### TCP session state
+
+Review the aggregate state represented by `TCPSession` and its relationship with the contained client and server `TCPConnection` instances.
+
+### TCP transition failures
+
+Ensure failed or invalid TCP state transitions are observable and handled consistently.
+
+### Simulation lifecycle
+
+Ensure that simulation lifecycle state is explicitly distinguished from the presence or absence of queued events.
 
 ---
 
-## 6. Duplicate Issues
+## 6. Routing vs. Transmission
 
-If multiple issues describe the same underlying defect, consolidate their implementation work where appropriate.
+These are separate concerns.
 
-Do not create multiple independent fixes for one root cause.
+The current routing implementation already excludes `DOWN` links.
+
+Therefore:
+
+```text
+Routing
+    ↓
+DOWN link excluded
+```
+
+does not imply:
+
+```text
+Transmission
+    ↓
+DOWN link behavior completely validated
+```
+
+Both behaviors must be tested independently.
 
 ---
 
 ## 7. Regression Coverage
 
-A corrected issue should receive regression coverage whenever the behavior can be tested reliably.
+A corrected issue should receive regression coverage whenever the behavior can be reliably tested.
+
+Regression tests should verify observable behavior rather than implementation details whenever practical.
 
 ---
 
@@ -90,27 +150,16 @@ A corrected issue should receive regression coverage whenever the behavior can b
 
 An issue should only be considered complete after:
 
-* implementation is complete;
-* relevant tests pass;
+* the implementation satisfies the requirement;
 * acceptance criteria are satisfied;
-* documentation is updated where required.
+* relevant tests pass;
+* no unintended regression is identified;
+* affected documentation is consistent.
 
 ---
 
-## 9. Current Known Areas
+## 9. Current Repository as Authority
 
-Known areas requiring continued engineering attention include:
+Issue status must always be evaluated against the current repository.
 
-* packet transmission success propagation;
-* packet/link identity during transmission;
-* link availability in routing and transmission;
-* FIFO queue behavior;
-* dynamic topology changes;
-* topology API validation;
-* `getNextHop()` bounds and failure behavior;
-* `getLinksFromNode()` contract;
-* aggregate `TCPSession` state;
-* `TCPConnection` transition failures;
-* simulation lifecycle behavior.
-
-The current issue tracker remains authoritative for issue numbers and status.
+Historical implementations, previous conversations, and outdated documentation must not be treated as authoritative.

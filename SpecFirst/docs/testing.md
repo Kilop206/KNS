@@ -1,189 +1,83 @@
-# KNS — Testing Strategy
+# KNS — Testing
 
-## 1. Purpose
+## 1. Testing Principles
 
-Testing verifies that KNS behaves according to its defined contracts.
+Testing must validate observable KNS behavior and protect important architectural contracts.
 
-The primary objective is not maximum line coverage.
-
-The objective is confidence in:
-
-* simulation behavior;
-* topology integrity;
-* routing;
-* packet transmission;
-* TCP state transitions;
-* loaders;
-* GUI/core boundaries;
-* headless execution.
+Tests should prefer deterministic scenarios and should avoid unnecessary dependence on GUI rendering.
 
 ---
 
-## 2. Testing Principles
+## 2. Test Layers
 
-Tests should be:
-
-* deterministic;
-* isolated where practical;
-* repeatable;
-* meaningful;
-* focused on observable behavior.
-
-A passing test suite must provide evidence that the system behaves correctly, not merely that code executed without crashing.
-
----
-
-## 3. Test Levels
-
-KNS uses multiple levels of testing.
+KNS testing may include:
 
 ```text
-Unit tests
+Unit Tests
     ↓
-Component interaction
+Component Tests
     ↓
-Integration tests
+Integration Tests
     ↓
-Headless simulation scenarios
+Headless Simulation Tests
+    ↓
+GUI Validation
 ```
 
-The appropriate level depends on the behavior being tested.
+Not every change requires every layer.
 
 ---
 
-## 4. Unit Tests
+## 3. Core Testing
 
-Unit tests should validate individual component contracts.
+Core simulation behavior should be testable without the GUI.
 
-Examples include:
+Relevant areas include:
 
-* topology validation;
-* node management;
-* link state;
-* queue behavior;
+* event scheduling;
+* logical time;
+* topology;
+* links;
+* packet transmission;
 * routing;
-* packet behavior;
-* TCP state transitions;
-* loader validation.
-
-Unit tests should avoid requiring the GUI.
+* TCP state transitions.
 
 ---
 
-## 5. Topology Tests
-
-Topology tests should verify:
-
-* valid node creation;
-* invalid node operations;
-* link creation;
-* link removal;
-* duplicate or invalid links where relevant;
-* node/link lookup;
-* topology consistency.
-
-When topology APIs expose failure behavior, tests must verify the failure contract.
-
----
-
-## 6. Link Tests
+## 4. Link Tests
 
 Link tests should verify:
 
-* `UP` behavior;
-* `DOWN` behavior;
-* transmission acceptance;
-* transmission rejection;
+* connection endpoints;
+* operational state;
 * queue behavior;
-* capacity limits;
-* FIFO ordering where required.
+* queue capacity;
+* transmission behavior;
+* invalid operations.
 
-A `DOWN` link must not be accepted as a normal transmission path.
+The existence of a queue must not be treated as proof that all FIFO semantics are already validated.
 
 ---
 
-## 7. Routing Tests
+## 5. Routing Tests
 
 Routing tests should verify:
 
-* reachable destinations;
+* valid paths;
 * unreachable destinations;
-* valid next hops;
-* invalid node identifiers;
-* link-state awareness;
-* behavior after topology changes.
+* invalid nodes;
+* shortest-path behavior;
+* behavior when links are `DOWN`.
 
-A route should not normally traverse a `DOWN` link.
+The current routing implementation excludes `DOWN` links.
 
----
-
-## 8. Packet Tests
-
-Packet tests should verify:
-
-* source and destination;
-* protocol information;
-* identity;
-* transmission context;
-* delivery;
-* rejection conditions.
-
-Special attention should be given to packets that remain in flight while topology changes.
+Transmission through `DOWN` links is a separate contract and must be tested independently.
 
 ---
 
-## 9. Simulation Tests
+## 6. TCP Tests
 
-Simulation tests should verify lifecycle behavior:
-
-```text
-READY
- ↓ Start
-RUNNING
- ↓ Pause
-PAUSED
- ↓ Resume
-RUNNING
- ↓ queue exhausted
-FINISHED
-```
-
-Tests must specifically distinguish:
-
-```text
-READY + empty queue
-```
-
-from:
-
-```text
-FINISHED + empty queue
-```
-
-This prevents the simulation from being considered complete before it has started.
-
----
-
-## 10. Event Tests
-
-Event tests should verify:
-
-* scheduling;
-* ordering;
-* execution;
-* logical time;
-* queue exhaustion;
-* deterministic behavior.
-
-Events with the same logical timestamp must follow the ordering semantics defined by the implementation.
-
----
-
-## 11. TCP Tests
-
-TCP tests should verify the simplified protocol lifecycle.
-
-At minimum, test:
+TCP tests should cover, where applicable:
 
 ```text
 SYN
@@ -193,198 +87,108 @@ SYN-ACK
 ACK
  ↓
 Established
-```
-
-and:
-
-```text
-DATA
  ↓
-ACK
-```
-
-and:
-
-```text
+DATA / ACK
+ ↓
 FIN
  ↓
 TIME_WAIT
- ↓
-expiration
 ```
 
-Tests should also cover invalid or failed transitions where those are part of the API contract.
+Tests should also cover:
+
+* invalid transitions;
+* retry behavior;
+* timeout behavior;
+* sequence and acknowledgement handling;
+* termination;
+* TIME_WAIT expiration.
 
 ---
 
-## 12. TCP Failure Tests
+## 7. Simulation Lifecycle Tests
 
-TCP tests must not only validate successful transitions.
+The simulation lifecycle is explicit:
 
-They should also verify behavior when:
+```text
+READY
+  ↓ Start
+RUNNING
+  ↓ Pause
+PAUSED
+  ↓ Resume
+RUNNING
+  ↓ event processing completes
+FINISHED
+```
 
-* packets are rejected;
-* routes are unavailable;
-* links go down;
-* endpoints become invalid;
-* state transitions are invalid.
+An empty event queue before execution must not be interpreted as `FINISHED`.
 
-Failures must not silently become successful protocol transitions.
-
----
-
-## 13. Loader Tests
-
-Topology loading tests should verify:
-
-* valid input;
-* missing required fields;
-* malformed values;
-* invalid references;
-* invalid topology relationships.
-
-Invalid external data must not produce an apparently valid runtime topology.
+Loading a topology and creating a connection must remain distinguishable from starting simulation execution.
 
 ---
 
-## 14. Headless Testing
+## 8. GUI Tests
 
-Headless execution provides a way to validate the simulation without GUI dependencies.
-
-Headless tests are particularly useful for:
-
-* deterministic scenarios;
-* TCP handshake;
-* packet transmission;
-* routing;
-* simulation completion;
-* regression testing.
-
----
-
-## 15. GUI Testing
-
-GUI tests should focus on user-visible behavior and integration with the core.
+GUI validation should verify user-visible behavior when GUI code is affected.
 
 Examples include:
 
 * simulation controls;
 * state display;
 * topology interaction;
-* connection creation;
-* configuration behavior.
+* node manipulation;
+* configuration controls.
 
-GUI tests must verify that:
-
-```text
-Create connection
-```
-
-does not implicitly mean:
-
-```text
-Start simulation
-```
-
-when the intended behavior is to remain paused.
+Core behavior should not depend exclusively on GUI tests.
 
 ---
 
-## 16. Test Discovery
+## 9. Headless Tests
 
-Tests should be discoverable through the project's configured CTest infrastructure.
+Headless execution should be preferred for automated validation when rendering is unnecessary.
 
-Where supported, individual tests should be registered so they can be executed independently.
+This is particularly appropriate for:
 
-The repository currently uses test discovery mechanisms including:
-
-```text
-catch_discover_tests
-```
-
-when applicable.
-
----
-
-## 17. Regression Tests
-
-Every fixed bug that can be represented as a stable automated behavior should receive a regression test.
-
-The regression test should fail under the old behavior and pass under the corrected behavior.
+* routing;
+* packet delivery;
+* TCP;
+* event processing;
+* simulation lifecycle;
+* regression scenarios.
 
 ---
 
-## 18. Determinism Tests
+## 10. Test Discovery
 
-Where behavior depends on event ordering or logical time, tests should verify reproducibility.
+Where configured, tests should be discoverable through the project's CTest integration.
 
-Equivalent initial conditions should produce equivalent results.
-
----
-
-## 19. Test Naming
-
-Test names should describe behavior.
-
-Prefer:
-
-```text
-link_down_rejects_transmission
-```
-
-over:
-
-```text
-test_link_2
-```
-
-A test name should communicate what contract is being verified.
+The repository may use Catch2 test discovery through `catch_discover_tests`.
 
 ---
 
-## 20. Validation Before Commit
+## 11. Regression Tests
 
-Before committing a behavioral change:
+Bug fixes should add regression coverage when practical.
 
-```text
-Build
- ↓
-Run relevant tests
- ↓
-Run broader test suite
- ↓
-Inspect failures
- ↓
-Inspect git diff
- ↓
-Commit
-```
-
-Do not claim validation that was not actually performed.
+A regression test should reproduce the relevant failure before the fix and verify the expected behavior after the fix.
 
 ---
 
-## 21. Test Maintenance
+## 12. Test Status
 
-Tests must evolve with the implementation.
+Documentation must distinguish:
 
-When an API contract changes:
+### Implemented
 
-* update affected tests;
-* add coverage for the new behavior;
-* remove obsolete expectations;
-* update documentation.
+Behavior currently verified by existing tests.
 
-A stale test is not evidence of correct behavior.
+### Required
 
----
+Behavior that must have test coverage but may not yet be fully covered.
 
-## 22. Testing Completion Criteria
+### Planned
 
-A change is sufficiently validated when:
+Future testing work that has not yet been implemented.
 
-* relevant tests pass;
-* regression coverage exists where appropriate;
-* headless behavior remains correct;
-* no unrelated tests regress;
-* the changed contract is documented.
+Documentation must not claim that a test exists unless the repository actually contains and registers it.
