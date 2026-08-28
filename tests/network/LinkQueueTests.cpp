@@ -32,3 +32,18 @@ TEST_CASE("Link queue produces expected serialization of transmissions", "[netwo
     const double eps = 1e-6;
     REQUIRE(arrivals[1] - arrivals[0] >= 1.0 - eps);
 }
+
+TEST_CASE("PacketUtils sendPacketThroughTopology propagates drop status", "[network][utils]")
+{
+    Topology topo(2);
+    // Link with 100% loss probability
+    topo.addLink(0, 1, 100.0, 5.0, 1.0, LinkMode::FULL_DUPLEX);
+    SimulationEngine engine(topo);
+    auto& sess = engine.createTCPSession(0, 1);
+
+    Packet p(0, 1, 0, engine.now(), 1000, sess.getSession_id());
+
+    // Should return false when the packet is dropped by the link
+    bool result = PacketUtils::sendPacketThroughTopology(engine, p);
+    REQUIRE_FALSE(result);
+}

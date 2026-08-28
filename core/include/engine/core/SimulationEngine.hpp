@@ -107,7 +107,7 @@ namespace kns {
 
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 
-        void sendPacket(const Packet& pkt, Link& link, double now);
+        bool sendPacket(const Packet& pkt, Link& link, double now);
 
         void exportStatsCSV(const RunConfig& runConfig);
 

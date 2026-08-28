@@ -139,11 +139,11 @@ namespace kns {
         return now + propagation + transmission;
     }
 
-    void SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now)
+    bool SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now)
     {
         const int next_node = link.getOtherNode(pkt.current_node);
         if (next_node == -1) {
-            return;
+            return false;
         }
 
         const double transmission_time =
@@ -175,7 +175,7 @@ namespace kns {
 
         if (link.should_drop()) {
             stats_.packets_lost++;
-            return;
+            return false;
         }
 
         packets_in_transit.push_back(PacketTravelInfo{
@@ -197,6 +197,8 @@ namespace kns {
         event_queue_.schedule(
             std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
         );
+
+        return true;
     }
 
     void SimulationEngine::exportStatsCSV(const RunConfig& runConfig) {

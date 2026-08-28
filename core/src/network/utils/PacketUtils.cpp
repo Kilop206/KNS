@@ -27,8 +27,7 @@ namespace kns {
             return false;
         }
 
-        engine.sendPacket(pkt, *selected_link, engine.now());
-        return true;
+        return engine.sendPacket(pkt, *selected_link, engine.now());
     }
 
     bool PacketUtils::releasePacketThroughTopology(
