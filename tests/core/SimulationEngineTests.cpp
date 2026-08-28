@@ -7,10 +7,13 @@
 #include "network/Packet.hpp"
 #include "network/Topology.hpp"
 
+#include "engine/events/PacketGenerationEvent.hpp"
+
 using Catch::Approx;
 using kns::Link;
 using kns::LinkMode;
 using kns::Packet;
+using kns::PacketGenerationEvent;
 using kns::SimulationEngine;
 using kns::Topology;
 
@@ -27,4 +30,20 @@ TEST_CASE("SimulationEngine computes arrival time from propagation and transmiss
 
     // 25 ms propagation + 1500 bytes * 8 / 10 Mbps = 0.025 + 0.0012 seconds.
     REQUIRE(arrival == Approx(2.0262));
+}
+
+TEST_CASE("SimulationEngine lifecycle state transitions", "[core][engine][state]")
+{
+    Topology topo(2);
+    topo.addLink(0, 1, 100.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
+    SimulationEngine engine(topo);
+
+    REQUIRE_FALSE(engine.hasEvents());
+    
+    auto& sess = engine.createTCPSession(0, 1);
+    engine.schedule(std::make_unique<PacketGenerationEvent>(engine.now(), 0, 1, sess.getSession_id()));
+    REQUIRE(engine.hasEvents());
+
+    engine.run();
+    REQUIRE_FALSE(engine.hasEvents());
 }

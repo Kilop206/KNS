@@ -121,8 +121,8 @@ TEST_CASE("Topology getLinksFromNode bounds safety", "[network][topology]")
 {
     Topology topo(2);
     const auto& const_topo = topo;
-    REQUIRE(const_topo.getLinksFromNode(-1).empty());
-    REQUIRE(const_topo.getLinksFromNode(99).empty());
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(-1), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
     REQUIRE_THROWS_AS(topo.getLinksFromNode(-1), std::out_of_range);
     REQUIRE_THROWS_AS(topo.getLinksFromNode(99), std::out_of_range);
 }
