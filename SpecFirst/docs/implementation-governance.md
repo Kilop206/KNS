@@ -1,243 +1,160 @@
-# Governança de Implementação — KNS
+# KNS — Implementation Governance
 
-## 1. Objetivo
+## 1. Purpose
 
-Este documento define as regras para controlar escopo, autonomia, fases e decisões durante a evolução do KNS.
+This document defines how changes to KNS should be planned, implemented, validated, and reviewed.
 
-O objetivo é impedir que uma issue localizada resulte, sem aprovação, em uma alteração arquitetural ampla.
+The purpose is to keep implementation aligned with the actual repository, the current specification, and the project's engineering goals.
 
 ---
 
-## 2. Princípios
+## 2. Source of Truth
 
-O trabalho deve seguir:
+For repository-related work, the current GitHub branch being worked on is the primary source of truth unless the user explicitly provides local code for inspection.
+
+For the `tcp` development line, the current `tcp` branch must be inspected before making assumptions about implementation status.
+
+Previous conversations, old code snippets, and historical documentation must not override the current repository.
+
+---
+
+## 3. Specification Before Implementation
+
+Non-trivial changes should follow:
 
 ```text
-Especificação
+Requirement
     ↓
-Escopo aprovado
+Specification
     ↓
-Menor incremento seguro
+Acceptance criteria
     ↓
-Implementação
+Implementation
     ↓
-Validação
+Tests
     ↓
-Documentação
+Review
 ```
 
-As regras de governança devem permanecer subordinadas ao contrato de `AGENTS.md`.
+The specification must describe intended observable behavior.
+
+It must not claim that behavior already exists when it has only been planned.
 
 ---
 
-## 3. Menor incremento seguro
+## 4. Issue-Driven Changes
 
-Cada tarefa deve alterar somente o que for necessário para atingir seu objetivo.
+An issue must be compared against the current implementation before work begins.
 
-Exemplo:
+Each issue should be classified as:
 
 ```text
-Bug em transmissão
-    ↓
-corrigir contrato de transmissão
-    ↓
-adicionar teste
+Resolved
+Partially resolved
+Still valid
+Obsolete
 ```
 
-não:
+An open issue is not, by itself, evidence that implementation is still required.
+
+---
+
+## 5. Change Scope
+
+Every implementation should define its intended scope.
+
+Prefer the smallest change that completely satisfies the requirement.
+
+Avoid unrelated refactoring unless it is required to safely implement the requested behavior.
+
+---
+
+## 6. Acceptance Criteria
+
+A behavioral change should have observable acceptance criteria.
+
+Example:
 
 ```text
-Bug em transmissão
-    ↓
-reescrever arquitetura de rede
-    ↓
-alterar TCP
-    ↓
-alterar GUI
-    ↓
-introduzir novas abstrações
+Given:
+    the simulation is READY
+
+When:
+    Start is activated
+
+Then:
+    the simulation becomes RUNNING
 ```
 
-sem justificativa e aprovação.
+Acceptance criteria should be testable whenever practical.
 
 ---
 
-## 4. Bugfix, feature e refatoração
+## 7. Compatibility
 
-Sempre que possível, separar:
+Before modifying an existing API, evaluate:
 
-* **Bugfix:** corrige comportamento incorreto.
-* **Feature:** adiciona comportamento novo.
-* **Refatoração:** altera estrutura sem mudar comportamento esperado.
-* **Docs:** altera documentação sem mudar comportamento.
+* callers;
+* tests;
+* serialization;
+* GUI dependencies;
+* headless execution;
+* protocol behavior.
 
-Uma tarefa pode conter mais de uma categoria somente quando isso for necessário e estiver claramente justificado.
-
----
-
-## 5. Travamento de escopo
-
-A IA não deve:
-
-* criar uma issue nova quando a atual ainda resolve o problema;
-* expandir uma issue para uma feature não planejada;
-* alterar arquitetura sem necessidade;
-* trocar o contrato de uma API apenas por conveniência;
-* trocar o toolchain do projeto;
-* remover documentação sem aprovação;
-* pular uma fase com pendências obrigatórias;
-* transformar um bugfix em refatoração ampla.
-
-Quando uma mudança adicional for necessária:
-
-1. identificar a dependência;
-2. explicar o impacto;
-3. separar a mudança quando possível;
-4. obter decisão humana quando houver alteração relevante de escopo ou arquitetura.
+Breaking changes must be intentional and documented.
 
 ---
 
-## 6. Autonomia da IA
+## 8. Review Requirements
 
-A IA pode executar diretamente:
+Before considering a change complete:
 
-* correções locais;
-* criação de testes;
-* atualizações de documentação;
-* refatorações pequenas dentro do escopo aprovado;
-* mudanças mecânicas e reversíveis.
-
-A IA deve solicitar validação antes de:
-
-* mudar arquitetura;
-* criar um novo domínio;
-* alterar protocolo;
-* mudar modelo de dados compartilhado;
-* introduzir dependência relevante;
-* mudar toolchain;
-* alterar significativamente o comportamento da GUI;
-* alterar critérios de aceitação;
-* remover documentos.
+* inspect the implementation;
+* inspect the diff;
+* run relevant tests;
+* verify acceptance criteria;
+* verify documentation;
+* identify unintended side effects.
 
 ---
 
-## 7. Issues
+## 9. Documentation Consistency
 
-Uma issue deve ser diagnosticada antes de implementação.
+When behavior changes, all affected specifications must be updated.
 
-Classificações:
+Documentation must not contain contradictory descriptions of the same behavior.
+
+---
+
+## 10. AI-Assisted Development
+
+AI may assist with:
+
+* repository analysis;
+* design proposals;
+* implementation;
+* tests;
+* documentation;
+* issue analysis.
+
+AI-generated assumptions must be validated against the current repository.
+
+AI must not invent repository state, test results, or implementation details.
+
+---
+
+## 11. Completion
+
+A change is complete when:
 
 ```text
-Resolvida
-Parcialmente resolvida
-Ainda válida
-Obsoleta
+Requirement satisfied
+        +
+Tests validated
+        +
+Documentation consistent
+        +
+Diff reviewed
 ```
 
-Uma issue parcialmente resolvida deve gerar somente as mudanças ainda necessárias.
-
----
-
-## 8. Fases
-
-Uma fase representa um conjunto lógico de entregas.
-
-Uma fase só pode ser concluída quando:
-
-* os itens obrigatórios estiverem concluídos;
-* os testes e checks aplicáveis passarem;
-* as issues relacionadas estiverem atualizadas;
-* a documentação estiver sincronizada;
-* riscos residuais estiverem registrados.
-
----
-
-## 9. Bloqueios
-
-Uma tarefa deve ser marcada como bloqueada quando:
-
-* existe conflito de especificação;
-* existe decisão humana pendente;
-* a solução depende de outra tarefa ainda não concluída;
-* um check obrigatório não pode ser executado;
-* existe risco técnico que exige decisão.
-
-O bloqueio deve ser documentado.
-
----
-
-## 10. Decisões
-
-Registrar em `docs/decision-log.md` decisões duradouras sobre:
-
-* arquitetura;
-* protocolo;
-* contratos;
-* modelos de dados;
-* toolchain;
-* segurança;
-* fluxo operacional;
-* estratégia de testes.
-
-Não usar o Decision Log como histórico de cada alteração de código.
-
----
-
-## 11. Rastreabilidade
-
-Toda entrega relevante deve permitir responder:
-
-```text
-Por que mudou?
-    ↓
-Qual issue?
-    ↓
-Qual código?
-    ↓
-Qual teste?
-    ↓
-Qual documentação?
-```
-
-A relação deve permanecer recuperável através do issue tracker, plano e logs.
-
----
-
-## 12. Critério de avanço
-
-Não avançar uma fase apenas porque parte do código funciona.
-
-O avanço deve considerar:
-
-```text
-Comportamento
-+
-Testes
-+
-Checks
-+
-Documentação
-+
-Escopo
-```
-
----
-
-## 13. Regra especial para o KNS
-
-Por ser um simulador orientado a eventos, mudanças aparentemente pequenas podem afetar vários componentes.
-
-Antes de alterar:
-
-* `SimulationEngine`;
-* `EventQueue`;
-* `Topology`;
-* `Link`;
-* `Routing`;
-* `Packet`;
-* `TCPSession`;
-* `TCPConnection`;
-
-a IA deve procurar consumidores e testes existentes.
-
-A existência de dependências não autoriza automaticamente uma refatoração ampla; ela serve para medir o impacto da mudança.
+A successful compilation alone is not sufficient.

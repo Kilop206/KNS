@@ -1,94 +1,96 @@
-# Tooling Adapters
+# KNS — Tooling and Adapters
 
-## Por que este arquivo existe
+## 1. Purpose
 
-Este documento explica como conectar o SpecFirst a diferentes agentes e ferramentas sem duplicar regras.
+This document describes the role of development and validation tooling around KNS.
 
-SpecFirst usa `AGENTS.md` como contrato universal, mas algumas ferramentas leem arquivos proprios, como `CLAUDE.md`, `.cursorrules`, `.windsurfrules` ou equivalentes. Esses arquivos devem ser tratados como adaptadores operacionais.
+---
 
-## Natureza de Template
+## 2. CMake
 
-Este arquivo e um template. No primeiro chat de escopo, revise quais ferramentas serao usadas; mantenha apenas adaptadores relevantes e solicite aprovacao humana antes de remover arquivos como `CLAUDE.md`.
+CMake is responsible for configuring the build system and expressing project build requirements.
 
-## Principio
+The generated configuration must use the intended compiler environment.
 
-`AGENTS.md` e a fonte canonica.
+---
 
-`docs/*` e a documentacao canonica de produto, arquitetura, processo e governanca.
+## 3. CTest
 
-Arquivos especificos de ferramenta sao apenas portas de entrada para lembrar aquela ferramenta de ler o contrato certo.
+CTest provides test execution and integration with the project's test infrastructure.
 
-## Hierarquia
+Tests should be registered so that relevant test cases can be executed independently when supported.
 
-1. `AGENTS.md`
-2. `docs/*`
-3. Adaptadores de ferramenta, como `CLAUDE.md`, `.cursorrules`, `.windsurfrules` ou similares
+---
 
-Em caso de conflito, siga sempre `AGENTS.md` e `docs/*`.
+## 4. Catch2
 
-## Regras para Adaptadores
+Catch2 is used for automated C++ testing where configured by the repository.
 
-- Devem ser curtos.
-- Devem apontar para `AGENTS.md` e docs nucleares.
-- Nao devem copiar regras completas do projeto.
-- Nao devem contradizer `AGENTS.md`.
-- Devem existir apenas quando uma ferramenta se beneficiar de um arquivo proprio.
-- Devem reforcar que a IA nao deve criar codigo antes de adaptar ou validar o SpecFirst do projeto.
-
-## Adaptador para Claude Code
-
-Use `CLAUDE.md` na raiz do projeto.
-
-Conteudo recomendado:
-
-```md
-# CLAUDE.md
-
-Este projeto usa SpecFirst.
-
-Antes de qualquer implementacao, leia:
-
-1. `AGENTS.md`
-2. `docs/README.md`
-3. `docs/project-overview.md`
-4. `docs/architecture.md`
-5. `docs/ai-workflow.md`
-6. `docs/coding-standards.md`
-7. `docs/testing.md`
-
-`AGENTS.md` e a fonte canonica. Em caso de conflito, siga `AGENTS.md`, depois `docs/*`, depois este arquivo.
-
-Nao implemente codigo antes de adaptar ou validar a documentacao SpecFirst do projeto.
-```
-
-## Adaptador para Cursor
-
-Se o projeto usar Cursor, crie `.cursorrules` apenas como ponte para o contrato principal.
-
-Conteudo recomendado:
+Test discovery may use:
 
 ```text
-Este projeto usa SpecFirst.
-
-Leia AGENTS.md antes de implementar.
-Leia docs/README.md para encontrar a documentacao canonica.
-
-AGENTS.md e docs/* prevalecem sobre este arquivo.
-Nao crie codigo antes de validar o escopo documentado.
+catch_discover_tests
 ```
 
-## Adaptador para outras ferramentas
+The exact configuration remains defined by the repository.
 
-Para qualquer ferramenta nova:
+---
 
-1. descubra qual arquivo ela le automaticamente;
-2. crie um adaptador curto;
-3. aponte para `AGENTS.md` e docs nucleares;
-4. nao duplique o contrato;
-5. atualize este documento se o adaptador virar padrao do projeto.
+## 5. Headless Runner
 
-## Antipadrao
+Headless execution provides a way to validate core simulation behavior without the GUI.
 
-Nao mantenha regras completas em varios arquivos.
+It should be preferred for automated scenarios that do not require rendering.
 
-Duplicar regras em `AGENTS.md`, `CLAUDE.md`, `.cursorrules` e outros adaptadores cria divergencia. O objetivo e ter muitas portas de entrada, mas uma unica fonte de verdade.
+---
+
+## 6. GUI Tooling
+
+The GUI uses:
+
+```text
+Dear ImGui
+GLFW
+OpenGL
+```
+
+These dependencies belong to the presentation layer.
+
+Core simulation behavior should remain testable independently.
+
+---
+
+## 7. JSON / Topology Data
+
+Topology data is loaded from external representations.
+
+The loader is responsible for validating input before creating runtime topology state.
+
+---
+
+## 8. Toolchain Consistency
+
+Development tooling must use a consistent compiler/runtime environment.
+
+For the intended Windows configuration:
+
+```text
+C:\mingw64
+```
+
+is the target MinGW installation.
+
+---
+
+## 9. Tooling Changes
+
+When adding or replacing tooling, evaluate:
+
+* reproducibility;
+* build integration;
+* CI compatibility;
+* developer experience;
+* dependency impact;
+* test integration.
+
+Avoid introducing tooling solely to solve a local environment problem.

@@ -1,131 +1,91 @@
-# Segurança — KNS
+# KNS — Security and Safety Considerations
 
-## 1. Objetivo
+## 1. Purpose
 
-O KNS não possui atualmente um modelo tradicional de autenticação/autorização de usuários como uma aplicação web.
+KNS is a network simulation project.
 
-As principais preocupações de segurança estão relacionadas a:
-
-* credenciais de desenvolvimento;
-* arquivos de configuração;
-* execução de scripts;
-* arquivos de topologia;
-* dependências externas;
-* logs;
-* integridade do repositório;
-* execução de ferramentas auxiliares.
+Its primary security concern is maintaining safe, predictable handling of project inputs, execution state, and development infrastructure.
 
 ---
 
-# 2. Credenciais
+## 2. Topology Input
 
-Nunca armazenar no repositório:
+Topology files are external input and must be validated before being converted into runtime state.
 
-* GitHub PATs;
-* senhas;
-* chaves privadas;
-* tokens;
-* credenciais de APIs;
-* secrets de CI;
-* arquivos de autenticação.
+Validation should cover:
 
-Credenciais devem ser fornecidas através de mecanismos externos apropriados.
-
----
-
-# 3. Arquivos de topologia
-
-Arquivos JSON de topologia são entradas externas e devem ser validados.
-
-Nunca assumir que:
-
-* número de nós é válido;
-* endpoints de Links existem;
-* valores numéricos são válidos;
-* propriedades estão presentes;
-* enumerações possuem valores conhecidos.
-
-A validação deve ocorrer antes da criação de estruturas internas inconsistentes.
+* required fields;
+* value types;
+* identifiers;
+* references;
+* topology relationships;
+* invalid or inconsistent values.
 
 ---
 
-# 4. Scripts e automação
+## 3. Resource Limits
 
-Scripts Python e outras ferramentas auxiliares não devem executar comandos destrutivos ou interpretar entrada externa de forma insegura sem validação.
+Simulation inputs may potentially create large numbers of:
 
-Particular atenção deve ser dada a:
+* nodes;
+* links;
+* packets;
+* events.
 
-* caminhos de arquivos;
-* argumentos CLI;
-* nomes de arquivos;
-* diretórios de resultados;
-* parâmetros de experimentos.
-
----
-
-# 5. Logs
-
-Logs podem registrar informações úteis para depuração, como:
-
-* timestamps;
-* tipos de pacotes;
-* nós;
-* sessões;
-* resultados de operações.
-
-Não registrar:
-
-* tokens;
-* senhas;
-* credenciais;
-* dados externos desnecessários.
+Implementations should avoid uncontrolled resource consumption where practical.
 
 ---
 
-# 6. Dependências
+## 4. File Handling
 
-Dependências externas devem ser adicionadas através do mecanismo oficial do CMake e permanecer fixadas/gerenciadas de forma reproduzível quando o projeto exigir.
+Input paths and file operations should be handled explicitly.
 
-Novas dependências relevantes devem passar por avaliação.
-
----
-
-# 7. Build
-
-O ambiente Windows alvo utiliza o toolchain definido para o KNS.
-
-Não misturar:
-
-```text
-C:\mingw64
-```
-
-com runtimes incompatíveis como:
-
-```text
-C:\msys64\ucrt64
-```
-
-sem uma decisão explícita.
-
-Mistura de runtimes pode produzir executáveis que funcionam apenas em determinados ambientes.
+The application should not assume that external files are trustworthy or correctly formatted.
 
 ---
 
-# 8. Dados gerados
+## 5. Network Simulation Safety
 
-Resultados de experimentos, gráficos e CSVs não devem conter segredos.
+KNS simulates network behavior.
 
-Arquivos temporários e artefatos gerados devem ser separados do código-fonte quando apropriado.
+Its simulated packets and links must not be confused with real network traffic.
+
+Core simulation operations should remain isolated from unintended external network communication unless such functionality is explicitly introduced.
 
 ---
 
-# 9. Segurança do modelo de IA
+## 6. Dependency Safety
 
-Agentes de IA não devem:
+Dependencies should be kept intentional and reviewed when introduced.
 
-* solicitar ou registrar credenciais desnecessariamente;
-* inserir secrets em arquivos;
-* alterar controles de segurança sem justificativa;
-* ocultar falhas de validação;
-* desabilitar verificações para fazer um teste passar.
+Build environments should avoid mixing incompatible runtime libraries.
+
+---
+
+## 7. Secrets
+
+Credentials, API keys, access tokens, and other secrets must never be committed to the repository.
+
+Secrets should be provided through appropriate environment or credential-management mechanisms.
+
+---
+
+## 8. Logging
+
+Logs should avoid exposing sensitive information unnecessarily.
+
+Debug output should not accidentally disclose credentials, tokens, or private environment information.
+
+---
+
+## 9. AI-Assisted Development
+
+Sensitive credentials must not be pasted into AI conversations unless the environment explicitly supports secure secret handling.
+
+Repository analysis should avoid exposing unnecessary secrets.
+
+---
+
+## 10. Security Changes
+
+Security-related changes should receive dedicated review and regression testing where appropriate.

@@ -1,160 +1,116 @@
-# Issues — KNS
+# KNS — Issue Management
 
-## 1. Objetivo
+## 1. Purpose
 
-Este documento mantém o estado operacional das issues relevantes para o desenvolvimento do KNS.
-
-O GitHub continua sendo o issue tracker oficial.
-
-Este arquivo existe para manter uma visão documental sincronizada com o plano e o histórico técnico.
+This document defines how KNS issues should be analyzed and resolved.
 
 ---
 
-# 2. Estados
+## 2. Issue Is Not Implementation
 
-Uma issue pode estar:
+An open issue represents a reported concern or requested change.
 
-* **Planejada**
-* **Em andamento**
-* **Concluída**
-* **Bloqueada**
-* **Resolvida**
-* **Parcialmente resolvida**
-* **Obsoleta**
+It does not prove that the problem still exists.
 
-A classificação de uma issue deve refletir o código e a especificação atuais.
+Before implementation, compare the issue against the current branch.
 
 ---
 
-# 3. Regra de diagnóstico
+## 3. Issue Classification
 
-Antes de implementar:
+Each reviewed issue should be assigned one of:
+
+### Resolved
+
+The current implementation already satisfies the requirement.
+
+### Partially Resolved
+
+The implementation addresses part of the issue, but a relevant gap remains.
+
+### Still Valid
+
+The reported problem remains present.
+
+### Obsolete
+
+The issue no longer applies because the architecture, requirement, or affected component has changed.
+
+---
+
+## 4. Investigation Procedure
+
+For each issue:
 
 ```text
 Issue
  ↓
-Código atual
+Current repository
  ↓
-Documentação
+Relevant implementation
  ↓
-Testes
+Relevant tests
  ↓
-Classificação
+Specification
+ ↓
+Classification
 ```
 
-Não implementar uma issue apenas porque ela permanece aberta.
+Do not implement an issue before this comparison.
 
 ---
 
-# 4. Issues prioritárias atuais
+## 5. Valid Issue
 
-## ISSUE-091 — `sendPacket()` pode reportar sucesso incorretamente
+A valid issue should have:
 
-**Tipo:** Bug
-**Status:** Planejada
-**Fase:** Fase 1 — Integridade da transmissão
-
-### Objetivo
-
-Garantir que o resultado da transmissão seja propagado corretamente pelo caminho de envio.
-
-### Critérios de aceite
-
-* envio aceito deve ser reportado como sucesso;
-* envio rejeitado deve ser reportado como falha;
-* `sendPacketThroughTopology()` não pode retornar sucesso após uma rejeição;
-* testes de regressão devem cobrir ambos os caminhos.
-
-### Docs relevantes
-
-* `docs/architecture.md`
-* `docs/data-model.md`
-* `docs/workflows.md`
-* `docs/testing.md`
-
-### Estado atual
-
-* **2026-08-28:** Identificada divergência entre o resultado real da transmissão e o resultado reportado ao chamador.
+* a clear problem;
+* reproducible behavior where applicable;
+* affected component;
+* expected behavior;
+* acceptance criteria.
 
 ---
 
-## ISSUE-094 — Fila FIFO real no Link
+## 6. Duplicate Issues
 
-**Tipo:** Bug / Design
-**Status:** Planejada
-**Fase:** Fase 1 — Integridade da transmissão
+If multiple issues describe the same underlying defect, consolidate their implementation work where appropriate.
 
-### Objetivo
-
-Garantir que a fila de pacotes de um Link preserve a ordem de chegada e respeite sua capacidade.
-
-### Critérios de aceite
-
-* primeiro pacote inserido deve ser o primeiro removido;
-* fila cheia deve rejeitar novos pacotes conforme o contrato;
-* tamanho da fila deve permanecer consistente;
-* caminho real de transmissão deve utilizar a fila quando o contrato exigir;
-* testes devem verificar múltiplos pacotes em sequência.
-
-### Docs relevantes
-
-* `docs/architecture.md`
-* `docs/data-model.md`
-* `docs/testing.md`
-* `docs/workflows.md`
-
-### Estado atual
-
-* **2026-08-28:** Estrutura de fila já existe em `Link`, mas precisa ser validada contra o caminho real de transmissão.
+Do not create multiple independent fixes for one root cause.
 
 ---
 
-# 5. Dependências
+## 7. Regression Coverage
 
-As issues #91 e #94 possuem forte relação:
-
-```text
-#94
-fila/capacidade
-   ↓
-resultado da transmissão
-   ↓
-#91
-```
-
-Alterações devem evitar duplicação de lógica entre os dois problemas.
+A corrected issue should receive regression coverage whenever the behavior can be tested reliably.
 
 ---
 
-# 6. Issues relacionadas
+## 8. Issue Completion
 
-* #92 — identidade do Link em trânsito;
-* #93 — respeito a Links DOWN;
-* #95 — eventos após mudanças da topologia;
-* #96 — validações adicionais da Topology;
-* #97 — bounds de `getNextHop()`;
-* #98 — contrato de `getLinksFromNode()`;
-* #99 — estado agregado de `TCPSession`;
-* #100 — falhas nas transições de `TCPConnection`;
-* #101 — lifecycle da simulação.
+An issue should only be considered complete after:
+
+* implementation is complete;
+* relevant tests pass;
+* acceptance criteria are satisfied;
+* documentation is updated where required.
 
 ---
 
-# 7. Regra de sincronização
+## 9. Current Known Areas
 
-Ao concluir uma issue:
+Known areas requiring continued engineering attention include:
 
-1. atualizar seu status neste arquivo;
-2. registrar progresso no GitHub;
-3. atualizar `implementation-plan.md`;
-4. registrar a entrega em `deployment-log.md`;
-5. atualizar documentos afetados;
-6. registrar decisão em `decision-log.md` quando aplicável.
+* packet transmission success propagation;
+* packet/link identity during transmission;
+* link availability in routing and transmission;
+* FIFO queue behavior;
+* dynamic topology changes;
+* topology API validation;
+* `getNextHop()` bounds and failure behavior;
+* `getLinksFromNode()` contract;
+* aggregate `TCPSession` state;
+* `TCPConnection` transition failures;
+* simulation lifecycle behavior.
 
----
-
-# 8. Histórico
-
-Novas entradas devem ser adicionadas em `### Estado atual` de cada issue, com data e resumo objetivo.
-
-Não apagar histórico relevante para substituir por uma nova descrição.
+The current issue tracker remains authoritative for issue numbers and status.

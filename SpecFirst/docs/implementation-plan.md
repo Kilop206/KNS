@@ -1,272 +1,148 @@
-# Plano de Implementação — KNS
+# KNS — Implementation Plan
 
-## 1. Objetivo
+## 1. Purpose
 
-Organizar a evolução do KNS em fases verificáveis, evitando que o desenvolvimento avance sem critérios claros.
+This document defines the general implementation process used to evolve KNS.
 
-O plano deve refletir o estado real do projeto e ser atualizado conforme as issues forem concluídas.
-
----
-
-# 2. Estado atual
-
-O KNS já possui uma base funcional composta por:
-
-* simulação orientada a eventos;
-* tempo lógico;
-* topologia;
-* nós;
-* Links;
-* roteamento;
-* transmissão de pacotes;
-* GUI;
-* headless mode;
-* testes automatizados;
-* TCP simplificado;
-* handshake;
-* ACK/data;
-* encerramento;
-* `TIME_WAIT`.
-
-A evolução deve preservar essa base.
+It is a process document rather than a permanent list of individual tasks.
 
 ---
 
-# 3. Fase 1 — Fundação SpecFirst
+## 2. Phase 1 — Understand
 
-**Status:** Concluída
+Before modifying code:
 
-### Objetivo
-
-Adaptar completamente o framework SpecFirst ao KNS.
-
-### Checklist
-
-* [x] Adaptar `AGENTS.md`.
-* [x] Adaptar `README.md`.
-* [x] Adaptar `docs/README.md`.
-* [x] Adaptar `project-overview.md`.
-* [x] Adaptar `architecture.md`.
-* [x] Adaptar `ai-workflow.md`.
-* [x] Adaptar `coding-standards.md`.
-* [x] Adaptar `testing.md`.
-* [x] Adaptar `domains.md`.
-* [x] Adaptar `data-model.md`.
-* [x] Adaptar `workflows.md`.
-* [x] Adaptar `implementation-governance.md`.
-* [x] Adaptar `implementation-plan.md`.
-* [x] Adaptar `issues.md`.
-* [x] Revisar `decision-log.md`.
-* [x] Adaptar `deployment-log.md`.
-* [x] Revisar `security.md`.
-* [x] Revisar `tooling-adapters.md` e referências.
-* [x] Fazer revisão cruzada de todos os documentos.
-* [x] Eliminar placeholders restantes.
-* [x] Confirmar referências internas válidas.
+1. Inspect the current branch.
+2. Inspect applicable repository instructions.
+3. Inspect the relevant specification.
+4. Identify affected components.
+5. Identify existing tests.
+6. Check related issues.
 
 ---
 
-# 4. Fase 1 — Integridade da transmissão
+## 3. Phase 2 — Specify
 
-**Status:** Próxima fase
+Define:
 
-### Objetivo
+* problem;
+* desired behavior;
+* constraints;
+* acceptance criteria;
+* affected domains;
+* expected failure behavior.
 
-Garantir que o caminho de transmissão represente corretamente aceitação, rejeição, filas e capacidade.
-
-### Issues prioritárias
-
-* #91 — resultado de `sendPacket()`;
-* #94 — FIFO real;
-* #92 — identidade do Link;
-* #93 — Links DOWN.
-
-### Critérios
-
-* falha de transmissão não pode ser reportada como sucesso;
-* fila deve preservar FIFO;
-* capacidade deve ser respeitada;
-* Link DOWN não deve transportar;
-* identidade do Link deve permanecer disponível quando exigida.
+For complex changes, update the relevant SpecFirst documents before implementation.
 
 ---
 
-# 5. Fase 2 — Consistência da Topology
+## 4. Phase 3 — Design
 
-**Status:** Planejada
+Determine:
 
-### Objetivo
+* affected APIs;
+* state transitions;
+* data flow;
+* event behavior;
+* ownership;
+* compatibility concerns;
+* test strategy.
 
-Fortalecer contratos e comportamento da topologia.
-
-### Issues relacionadas
-
-* #95;
-* #96;
-* #97;
-* #98;
-* #82;
-* #81.
-
-### Critérios
-
-* entradas inválidas devem ser rejeitadas corretamente;
-* índices devem possuir bounds seguros;
-* contratos const/non-const devem ser consistentes;
-* alterações da topologia devem possuir comportamento definido;
-* roteamento deve refletir o estado atual da rede.
+Prefer designs that preserve existing architecture unless a structural change is justified.
 
 ---
 
-# 6. Fase 3 — Consistência do TCP
+## 5. Phase 4 — Implement
 
-**Status:** Planejada
+Implementation should be incremental.
 
-### Objetivo
-
-Fortalecer a máquina de estados e o estado agregado das sessões.
-
-### Issues relacionadas
-
-* #99;
-* #100;
-* #101.
-
-### Critérios
-
-* transições inválidas devem ser rejeitadas;
-* falhas de envio não devem gerar transições falsas;
-* estado de `TCPSession` deve representar corretamente seus endpoints;
-* GUI não deve confundir conexão agendada com execução.
-
----
-
-# 7. Fase 4 — TCP Reliability
-
-**Status:** Planejada
-
-### Ordem prevista
+Prefer:
 
 ```text
-Buffers
-   ↓
-Sliding Window
-   ↓
-RTO
-   ↓
-Retransmission
-   ↓
-Duplicate ACK
-   ↓
-Fast Retransmit
-   ↓
-Delayed ACK
-   ↓
-Congestion Control
+Small change
+ ↓
+Build
+ ↓
+Test
+ ↓
+Inspect
+ ↓
+Next change
 ```
 
-Issues relacionadas incluem:
-
-* #74;
-* #73;
-* #76;
-* #77;
-* #75.
-
-Cada etapa deve ser implementada incrementalmente.
+rather than accumulating many unrelated modifications.
 
 ---
 
-# 8. Fase 5 — Arquitetura de rede futura
+## 6. Phase 5 — Validate
 
-**Status:** Planejada
+Validation should include the smallest relevant test set first.
 
-Possíveis evoluções:
+Then run broader validation when practical.
 
-* Node/Interface;
-* listener TCP;
-* múltiplas conexões;
-* roteamento dinâmico;
-* falhas avançadas de Links;
-* edição dinâmica da topologia.
+Validation should include:
 
-Issues relacionadas:
-
-* #79;
-* #80;
-* #81;
-* #95.
+* compilation;
+* unit tests;
+* integration tests;
+* headless scenarios;
+* GUI validation when applicable.
 
 ---
 
-# 9. Fase 6 — Hardening
+## 7. Phase 6 — Review
 
-**Status:** Planejada
-
-### Objetivo
-
-Preparar o KNS para evolução e uso experimental mais amplo.
-
-Inclui:
-
-* cobertura de testes;
-* validações;
-* determinismo;
-* observabilidade;
-* automação;
-* benchmarks;
-* documentação;
-* estabilidade da GUI;
-* consistência do build.
-
----
-
-# 10. Regras de avanço
-
-Não iniciar uma fase posterior enquanto:
-
-* a fase atual possuir bloqueios;
-* existirem critérios obrigatórios não atendidos;
-* testes essenciais estiverem quebrados;
-* a documentação necessária estiver inconsistente.
-
-Uma exceção deve ser uma decisão humana explícita e registrada.
-
----
-
-# 11. Critérios globais
-
-Uma entrega deve:
-
-* preservar determinismo;
-* respeitar a arquitetura;
-* possuir testes relevantes;
-* passar os checks aplicáveis;
-* manter o comportamento documentado;
-* atualizar a issue correspondente;
-* atualizar o log técnico;
-* atualizar o plano quando houver avanço de fase.
-
----
-
-# 12. Dependências principais
-
-A evolução do KNS deve considerar especialmente:
+Review:
 
 ```text
-Topology
-   ↓
-Routing
-   ↓
-Link
-   ↓
-Packet transmission
-   ↓
-Events
-   ↓
-TCP
+Code
+Tests
+Specification
+Diff
+Issue
 ```
 
-Mudanças em camadas inferiores podem afetar camadas superiores.
+Check for:
 
-Por isso, a ordem acima serve como referência de impacto, não como autorização para implementar tudo simultaneamente.
+* accidental changes;
+* undocumented behavior;
+* inconsistent contracts;
+* unnecessary complexity.
+
+---
+
+## 8. Phase 7 — Integrate
+
+After validation:
+
+1. Stage intended changes.
+2. Review staged diff.
+3. Commit with a meaningful message.
+4. Push to the appropriate branch.
+
+---
+
+## 9. Issue Resolution Order
+
+Issues should generally be prioritized by:
+
+1. correctness;
+2. data integrity;
+3. simulation determinism;
+4. core architecture;
+5. protocol correctness;
+6. testing infrastructure;
+7. GUI behavior;
+8. documentation and polish.
+
+Dependencies between issues may change this order.
+
+---
+
+## 10. Reassessment
+
+Implementation plans are not immutable.
+
+If repository state changes, reassess the plan before continuing.
+
+The current implementation always takes precedence over assumptions made when the plan was written.

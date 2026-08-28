@@ -1,109 +1,80 @@
-# Deployment Log — KNS
+# KNS — Deployment and Build Environment Log
 
-## 1. Objetivo
+## 1. Purpose
 
-Este documento registra as entregas técnicas efetivamente realizadas no KNS.
+This document records relevant build and deployment environment decisions.
 
-Ele responde:
-
-> O que foi entregue, por qual issue, em qual fase e com quais validações?
+KNS is primarily a development and simulation application rather than a conventional server deployment.
 
 ---
 
-# 2. Regras
+## 2. Windows Toolchain
 
-Toda entrega relevante deve registrar:
+The intended Windows compiler environment is MinGW:
 
-* data;
-* issue ou contexto;
-* fase;
-* comportamento entregue;
-* arquivos modificados;
-* testes/checks;
-* documentação afetada;
-* riscos residuais.
-
-As entradas mais recentes ficam no topo.
-
----
-
-# 3. Diferença entre registros
-
-### `issues.md`
-
-Mostra o estado vivo do trabalho.
-
-### `implementation-plan.md`
-
-Mostra onde a implementação está e para onde vai.
-
-### `decision-log.md`
-
-Explica decisões duradouras.
-
-### `deployment-log.md`
-
-Registra o que foi tecnicamente entregue.
-
----
-
-# 4. Entregas relacionadas à adaptação SpecFirst
-
-## [2026-08-28] — Adaptação inicial do contrato ao KNS
-
-* **Fase:** Fase 0 — Fundação SpecFirst
-* **Contexto:** adaptação documental
-* **O que foi feito:** redefinição do contrato operacional do SpecFirst para refletir o KNS, incluindo C++20, CMake, core/app/tests, simulação determinística, rede, TCP, GUI, headless e regras de trabalho com issues.
-* **Arquivos:** `SpecFirst_Temp/AGENTS.md`
-* **Checks:** revisão documental contra a estrutura atual da branch `tcp`.
-* **Riscos:** demais documentos do framework ainda estavam em processo de adaptação.
-
----
-
-## [2026-08-28] — Primeiro lote documental
-
-* **Fase:** Fase 0 — Fundação SpecFirst
-* **Contexto:** adaptação documental
-* **O que foi feito:** adaptação de README, índice de docs, visão geral, arquitetura, workflow de IA, coding standards e testing.
-* **Arquivos:** documentos correspondentes em `SpecFirst_Temp/`.
-* **Checks:** revisão cruzada com estrutura atual do KNS.
-* **Riscos:** documentos especializados ainda precisavam ser adaptados.
-
----
-
-## [2026-08-28] — Segundo lote documental
-
-* **Fase:** Fase 0 — Fundação SpecFirst
-* **Contexto:** adaptação documental
-* **O que foi feito:** adaptação de domínios, modelo de dados e workflows.
-* **Checks:** comparação com `Topology`, `Packet`, estrutura do core e fluxos atuais.
-* **Riscos:** governança e rastreabilidade ainda precisavam ser adaptadas.
-
----
-
-# 5. Entregas de engenharia
-
-Novas entregas técnicas devem ser adicionadas nesta seção.
-
-Formato:
-
-```md
-## [AAAA-MM-DD] — ISSUE-XXX
-
-- **Fase:** [fase]
-- **O que foi feito:** [entrega]
-- **Arquivos modificados:** `[arquivo]`
-- **Resultados dos testes:** [resultado]
-- **Docs atualizados:** `[arquivo]`
-- **Riscos/Débito técnico:** [risco ou "Nenhum conhecido"]
+```text
+C:\mingw64
 ```
 
+The project must avoid mixing binaries and runtime libraries from unrelated toolchains.
+
 ---
 
-# 6. Nota sobre histórico anterior
+## 3. CMake
 
-As entradas históricas originalmente presentes neste arquivo descreviam principalmente a evolução do framework SpecFirst, e não entregas do KNS.
+KNS uses CMake as its build-system configuration layer.
 
-Elas não devem ser interpretadas como histórico de implementação do simulador.
+The active compiler and runtime environment should be verified through the generated CMake configuration.
 
-O histórico original deve ser preservado em caso de necessidade de auditoria, mas o registro operacional futuro deve utilizar este formato específico do KNS.
+Do not assume that the selected compiler is the one implied by the system PATH.
+
+---
+
+## 4. Runtime Compatibility
+
+Executable runtime failures may result from incompatible or missing runtime libraries.
+
+A known class of failure occurred when the build was configured for MSYS2 UCRT64 while the environment prioritized another MinGW installation.
+
+The correct approach is to configure and build consistently with the intended toolchain rather than relying on PATH workarounds.
+
+---
+
+## 5. Build Verification
+
+After changing toolchains:
+
+```text
+Clean configuration
+        ↓
+CMake configure
+        ↓
+Build
+        ↓
+Run tests
+        ↓
+Run executable
+```
+
+The generated build configuration should be inspected before assuming the correct compiler was selected.
+
+---
+
+## 6. Deployment Artifacts
+
+Deployment artifacts must correspond to the same compiler/runtime environment used during the build.
+
+Do not distribute an executable together with DLLs originating from an incompatible toolchain.
+
+---
+
+## 7. Environment Changes
+
+Significant changes to:
+
+* compiler;
+* CMake generator;
+* runtime;
+* dependency versions;
+
+should be recorded when they affect reproducibility.

@@ -1,58 +1,160 @@
-# Operations
+# KNS — Operations
 
-## Por que este arquivo existe
+## 1. Purpose
 
-Este documento explica como rodar, configurar, manter e publicar o projeto. Ele deve permitir que alguem opere o sistema sem depender de memoria oral.
+This document describes routine operational procedures for building, testing, and validating KNS.
 
-## Natureza de Template
+---
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste ambiente local, variaveis, URLs, seeds, backup, checks e checklist de deploy ao projeto real.
+## 2. Repository Verification
 
-## Ambiente Local
+Before beginning implementation work:
 
-1. Instalar runtime: `[Node, Python, Docker, etc.]`
-2. Instalar dependencias: `[comando]`
-3. Criar arquivo de ambiente a partir de `[arquivo exemplo]`
-4. Rodar projeto: `[comando]`
-
-## Variaveis de Ambiente
-
-| Variavel | Obrigatoria | Descricao |
-| --- | --- | --- |
-| `[VARIAVEL]` | Sim/Nao | `[descricao]` |
-
-## URLs Locais
-
-- App: `[URL]`
-- Admin/API/Docs: `[URL]`
-
-## Seeds, Fixtures ou Dados Iniciais
-
-Explique se existe comando para popular dados.
-
-```bash
-[comando_seed]
+```text
+Check branch
+ ↓
+Check working tree
+ ↓
+Inspect current repository
+ ↓
+Inspect relevant documentation
 ```
 
-## Backup e Restauracao
+The current target branch is the source of truth.
 
-Explique o que precisa ser copiado para restaurar o projeto.
+---
 
-- Banco: `[estrategia]`
-- Uploads/assets: `[estrategia]`
-- Configuracao: `[estrategia]`
+## 3. Build
 
-## Checks de Qualidade
+The build process should use the project's configured CMake workflow and the intended compiler toolchain.
 
-```bash
-[comando_lint]
-[comando_typecheck]
-[comando_test]
-[comando_build]
+On Windows, the intended toolchain is MinGW at:
+
+```text
+C:\mingw64
 ```
 
-## Checklist de Deploy
+Do not mix runtime files from another compiler environment.
 
-- `[item de deploy]`
-- `[item de seguranca]`
-- `[item de verificacao]`
+---
+
+## 4. Test
+
+After building:
+
+```text
+Run relevant unit tests
+        ↓
+Run integration tests
+        ↓
+Run headless scenarios
+```
+
+GUI validation should be performed when GUI behavior is affected.
+
+---
+
+## 5. Headless Operation
+
+Headless execution should be used whenever a behavior can be validated without rendering.
+
+This is particularly useful for:
+
+* routing;
+* packet delivery;
+* TCP;
+* event processing;
+* simulation lifecycle;
+* regression scenarios.
+
+---
+
+## 6. Simulation Diagnostics
+
+When diagnosing simulation behavior, inspect:
+
+* current simulation state;
+* logical simulation time;
+* pending events;
+* topology state;
+* link state;
+* packet path;
+* TCP state.
+
+Avoid diagnosing a failure from GUI appearance alone.
+
+---
+
+## 7. Topology Diagnostics
+
+When a packet fails to reach a destination, inspect:
+
+```text
+Source
+ ↓
+Destination
+ ↓
+Route
+ ↓
+Next hop
+ ↓
+Link state
+ ↓
+Queue
+ ↓
+Transmission event
+```
+
+---
+
+## 8. TCP Diagnostics
+
+For TCP failures, inspect the sequence:
+
+```text
+SYN
+ ↓
+SYN-ACK
+ ↓
+ACK
+ ↓
+Established
+ ↓
+DATA / ACK
+ ↓
+FIN
+ ↓
+TIME_WAIT
+```
+
+The exact state transitions must match the current implementation.
+
+---
+
+## 9. Issue Diagnostics
+
+When investigating an issue:
+
+1. Reproduce the reported behavior.
+2. Inspect the current implementation.
+3. Determine whether the issue remains valid.
+4. Identify the smallest affected component.
+5. Add or identify regression coverage.
+6. Implement the correction.
+7. Re-run validation.
+
+---
+
+## 10. Clean Environment
+
+When diagnosing build-specific failures, perform a clean configuration using the intended toolchain.
+
+Do not rely on manually copying DLLs from unrelated installations as a permanent fix.
+
+---
+
+## 11. Operational Principle
+
+Prefer reproducible procedures over machine-specific workarounds.
+
+If a fix only works because of a particular PATH configuration, IDE state, or local installation, investigate the underlying environment before considering the problem resolved.

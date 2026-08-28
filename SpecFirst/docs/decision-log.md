@@ -1,178 +1,145 @@
-# Decision Log — KNS
+# KNS — Decision Log
 
-## 1. Objetivo
+## 1. Purpose
 
-Este documento registra decisões duradouras que afetam arquitetura, protocolo, modelo, segurança, operação ou processo de desenvolvimento do KNS.
+This document records significant architectural and behavioral decisions affecting KNS.
 
-Não é um histórico geral de commits.
-
----
-
-# 2. Estados
-
-Uma decisão pode estar:
-
-* **Proposta**
-* **Aceita**
-* **Substituída**
-* **Rejeitada**
-
-Decisões substituídas devem apontar para a decisão que as substituiu.
+Decisions should explain why a direction was chosen, not merely what code changed.
 
 ---
 
-# 3. Decisões do KNS
+## Decision 001 — Discrete-Event Simulation
 
-## 0001 — Manter o core independente da GUI
+**Status:** Accepted
 
-* **Data:** anterior ao processo SpecFirst
-* **Estado:** Aceita
+KNS uses a discrete-event simulation model with deterministic logical time.
 
-### Contexto
-
-O simulador possui aplicação gráfica e execução headless.
-
-### Decisão
-
-A lógica principal do simulador deve permanecer no `core`, sem dependência da GUI.
-
-### Consequências
-
-* `core` pode ser utilizado em headless;
-* GUI atua como camada de aplicação;
-* testes podem executar o núcleo sem OpenGL/ImGui.
+The simulator processes scheduled events rather than directly coupling simulation progression to wall-clock time.
 
 ---
 
-## 0002 — Adotar simulação determinística orientada a eventos
+## Decision 002 — Headless Execution
 
-* **Data:** anterior ao processo SpecFirst
-* **Estado:** Aceita
+**Status:** Accepted
 
-### Contexto
+Core simulation behavior must be executable without requiring the GUI.
 
-Experimentos de rede precisam ser reproduzíveis.
-
-### Decisão
-
-O KNS utiliza tempo lógico e ordenação determinística de eventos.
-
-### Consequências
-
-* execuções podem ser reproduzidas;
-* testes podem verificar ordem de eventos;
-* comportamento não deve depender do relógio da GUI.
+This enables automated testing and deterministic simulation scenarios.
 
 ---
 
-## 0003 — Usar Dijkstra para o roteamento atual
+## Decision 003 — Simulation Lifecycle States
 
-* **Data:** anterior ao processo SpecFirst
-* **Estado:** Aceita
+**Status:** Accepted
 
-### Contexto
-
-O simulador precisa encontrar caminhos em topologias arbitrárias.
-
-### Decisão
-
-O roteamento atual utiliza Dijkstra para construir as tabelas necessárias à transmissão.
-
-### Consequências
-
-* cálculo de rota permanece separado da transmissão;
-* mudanças dinâmicas da topologia podem exigir evolução futura do mecanismo.
-
----
-
-## 0004 — Utilizar C++20 e CMake
-
-* **Data:** anterior ao processo SpecFirst
-* **Estado:** Aceita
-
-### Decisão
-
-O KNS utiliza C++20 e CMake como base de desenvolvimento.
-
-### Consequências
-
-* código deve permanecer compatível com C++20;
-* build deve ser reproduzível;
-* dependências são gerenciadas através do sistema de build.
-
----
-
-## 0005 — Manter TCP como modelo simplificado
-
-* **Data:** anterior ao processo SpecFirst
-* **Estado:** Aceita
-
-### Decisão
-
-O TCP do KNS representa um subconjunto determinístico e orientado à simulação, não uma implementação completa da pilha TCP do sistema operacional.
-
-### Consequências
-
-Novos mecanismos devem ser adicionados incrementalmente sobre a arquitetura existente.
-
----
-
-## 0006 — Separar criação de conexão e execução da simulação
-
-* **Data:** 2026-08-28
-* **Estado:** Aceita
-
-### Contexto
-
-A interação da GUI pode criar/agendar uma conexão TCP antes do início da execução.
-
-### Decisão
-
-Criar ou agendar uma conexão não deve iniciar automaticamente o processamento da simulação.
-
-### Consequências
-
-O ciclo da simulação permanece explicitamente:
+The simulation lifecycle distinguishes:
 
 ```text
-READY
- ↓
-RUNNING
- ↓
-PAUSED
- ↓
-RUNNING
- ↓
-FINISHED
+Ready
+Running
+Paused
+Finished
 ```
 
-A conexão pode existir enquanto a simulação permanece pausada.
+An empty event queue before execution must not be interpreted as a completed simulation.
 
 ---
 
-# 4. Decisões do SpecFirst
+## Decision 004 — Explicit Simulation Start
 
-As decisões históricas relacionadas ao próprio framework permanecem válidas como decisões de governança do processo.
+**Status:** Accepted
 
-Elas não devem ser confundidas com decisões do domínio do KNS.
+Creating or scheduling a network connection must not implicitly start simulation execution.
 
-Entre elas:
-
-* `AGENTS.md` como contrato universal;
-* sincronização entre issue, plano e log técnico;
-* humano como navegador e IA como piloto;
-* menor incremento seguro;
-* aprovação humana para mudanças relevantes.
+Network configuration and simulation execution are separate responsibilities.
 
 ---
 
-# 5. Regra
+## Decision 005 — Link Operational State
 
-Uma nova decisão só deve ser registrada quando tiver efeito duradouro.
+**Status:** Accepted
 
-Não registrar:
+Links have an operational state represented conceptually as:
 
-* pequenos detalhes de implementação;
-* cada commit;
-* ajustes triviais;
-* correções locais sem consequência arquitetural.
+```text
+UP
+DOWN
+```
+
+Routing and normal transmission must respect link availability.
+
+---
+
+## Decision 006 — Simplified TCP
+
+**Status:** Accepted
+
+KNS implements a simplified TCP model for simulation purposes rather than attempting to reproduce every aspect of production TCP.
+
+The implementation nevertheless models meaningful connection states, control exchange, data transfer, acknowledgement, termination, and TIME_WAIT behavior.
+
+---
+
+## Decision 007 — Current Repository as Source of Truth
+
+**Status:** Accepted
+
+Implementation analysis must be based on the current repository state and target branch.
+
+Historical snippets and previous implementation assumptions must not override the current code.
+
+---
+
+## Decision 008 — Specification-First Development
+
+**Status:** Accepted
+
+Non-trivial behavior changes should be specified before implementation.
+
+The specification and implementation must remain consistent.
+
+---
+
+## Decision 009 — Issue Revalidation
+
+**Status:** Accepted
+
+Open issues must be revalidated against the current implementation before being implemented.
+
+An issue may be resolved, partially resolved, still valid, or obsolete.
+
+---
+
+## Decision 010 — GUI/Core Separation
+
+**Status:** Accepted
+
+The GUI is responsible for presentation and user interaction.
+
+Core simulation behavior should remain independent from GUI rendering.
+
+---
+
+## Decision 011 — MinGW Toolchain
+
+**Status:** Accepted
+
+The intended Windows development toolchain is MinGW installed at:
+
+```text
+C:\mingw64
+```
+
+The project should not mix incompatible compiler/runtime environments.
+
+In particular, MSYS2 UCRT64 artifacts should not be mixed with the intended MinGW environment.
+
+---
+
+## Decision 012 — Documentation Language
+
+**Status:** Accepted
+
+The SpecFirst engineering documentation is maintained in English.
+
+The documentation should use KNS-specific terminology and avoid generic templates that do not correspond to the project.

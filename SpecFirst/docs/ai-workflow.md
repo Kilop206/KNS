@@ -1,292 +1,126 @@
-# Fluxo de Trabalho com IA — KNS
+# KNS — AI-Assisted Development Workflow
 
-## 1. Princípio
+## 1. Purpose
 
-O desenvolvimento do KNS utiliza o seguinte modelo:
+This document defines how AI assistance should be used when developing KNS.
 
-```text
-Humano = navegador
-IA     = piloto
-```
-
-O humano define:
-
-* o que deve ser feito;
-* por que deve ser feito;
-* prioridade;
-* escopo;
-* decisões importantes.
-
-A IA é responsável por propor e executar a solução técnica dentro desse escopo.
+AI is an engineering assistant, not a substitute for repository verification.
 
 ---
 
-## 2. Regra principal
+## 2. Repository First
 
-A IA não deve implementar uma mudança relevante sem primeiro compreender:
+Before making implementation claims, inspect the current repository state.
 
-* objetivo;
-* estado atual;
-* documentação;
-* testes;
-* critério de aceitação;
-* riscos.
+The current target branch is authoritative.
 
----
+Do not assume that code from:
 
-## 3. Antes da implementação
+* previous conversations;
+* old commits;
+* local copies;
+* previous generated answers;
 
-Para uma tarefa relevante:
-
-### 1. Ler o contrato
-
-Ler:
-
-```text
-SpecFirst_Temp/AGENTS.md
-```
-
-### 2. Ler o contexto
-
-Consultar os documentos relevantes.
-
-### 3. Verificar o estado real
-
-Quando a tarefa depender do estado atual do KNS:
-
-* consultar a branch `tcp`;
-* verificar a implementação atual;
-* não assumir equivalência com código local.
-
-### 4. Verificar a issue
-
-Determinar se a issue continua válida.
-
-### 5. Verificar os testes
-
-Pesquisar testes existentes antes de criar novos.
+matches the current repository.
 
 ---
 
-## 4. Diagnóstico de issue
+## 3. Instruction Hierarchy
 
-Toda issue deve seguir:
+Before modifying code, identify applicable instructions such as:
 
 ```text
-Issue
- ↓
-Código atual
- ↓
-Documentação
- ↓
-Testes
- ↓
-Diagnóstico
- ↓
-Classificação
+AGENTS.md
+project documentation
+SpecFirst documentation
+source-code conventions
 ```
 
-Classificações:
-
-* resolvida;
-* parcialmente resolvida;
-* ainda válida;
-* obsoleta.
-
-Não implementar uma issue somente por ela estar aberta.
+More specific repository instructions take precedence over generic recommendations.
 
 ---
 
-## 5. Red-Green-Refactor
+## 4. Understand Before Changing
 
-Para comportamento novo ou bug:
+AI-assisted work should follow:
 
 ```text
-RED
+Inspect
  ↓
-teste reproduz o comportamento esperado
+Understand
  ↓
-GREEN
+Specify
  ↓
-implementação mínima
+Propose
  ↓
-REFACTOR
+Implement
  ↓
-melhoria estrutural sem mudança de comportamento
+Test
+ ↓
+Review
 ```
 
-Refatoração ampla não deve ser introduzida automaticamente durante um bugfix.
+Avoid immediately changing code based only on an issue title.
 
 ---
 
-## 6. Menor incremento seguro
+## 5. No Invented Repository State
 
-Preferir:
+AI must not claim:
 
-```text
-uma mudança pequena
-+
-um contrato claro
-+
-um teste
-+
-uma validação
-```
-
-em vez de:
-
-```text
-um bug
-↓
-reescrita de várias camadas
-```
-
-Quando uma solução exigir mudança arquitetural, isso deve ser apresentado como decisão separada.
+* a file exists without checking;
+* a test passed without running it;
+* an issue is fixed without verifying the implementation;
+* a behavior exists based only on documentation.
 
 ---
 
-## 7. Quando pedir decisão humana
+## 6. Code Generation
 
-A IA deve parar e solicitar decisão quando a tarefa exigir:
+Generated code must conform to:
 
-* expansão de escopo;
-* alteração arquitetural relevante;
-* novo módulo principal;
-* mudança importante do protocolo;
-* mudança de contrato público;
-* mudança do modelo de dados;
-* troca de toolchain;
-* nova dependência importante;
-* remoção de documento;
-* reordenação significativa do plano.
+* C++20;
+* existing repository style;
+* current architecture;
+* current API contracts;
+* relevant specifications.
+
+Generated code should be reviewed before integration.
 
 ---
 
-## 8. Implementação
+## 7. Testing
 
-Durante a implementação:
+After implementation, AI should identify the most relevant tests and recommend or execute them when the environment permits.
 
-1. alterar apenas os arquivos necessários;
-2. preservar as interfaces existentes quando possível;
-3. evitar duplicação;
-4. não esconder falhas;
-5. manter o determinismo;
-6. adicionar testes;
-7. validar os efeitos colaterais.
+Test output must be treated as evidence.
 
 ---
 
-## 9. Documentação durante a implementação
+## 8. Diff Review
 
-Atualizar documentação quando:
+The final change should be reviewed as a diff.
 
-* uma regra mudou;
-* uma interface mudou;
-* uma arquitetura mudou;
-* o comportamento de um componente mudou;
-* uma issue foi concluída;
-* uma decisão duradoura foi tomada.
+The review should identify:
 
----
-
-## 10. Fechamento
-
-Antes de considerar uma tarefa concluída:
-
-```text
-Código
- ↓
-Testes
- ↓
-Checks
- ↓
-Issue
- ↓
-Plano
- ↓
-Deployment Log
- ↓
-Decision Log, se aplicável
-```
-
-O chat deve relatar:
-
-* arquivos modificados;
-* comportamento implementado;
-* testes executados;
-* resultado dos checks;
-* documentação atualizada;
-* riscos residuais.
+* unrelated modifications;
+* accidental deletions;
+* API changes;
+* specification inconsistencies;
+* test omissions.
 
 ---
 
-## 11. Proibições
+## 9. Documentation
 
-A IA não deve:
+If behavior changes, AI should identify affected documentation.
 
-* inventar requisitos;
-* inventar comportamento sem declarar a suposição;
-* mudar escopo silenciosamente;
-* declarar issue resolvida sem verificar o código;
-* fechar uma tarefa sem testes quando testes forem aplicáveis;
-* esconder falhas de build;
-* misturar toolchains;
-* introduzir dependências desnecessárias;
-* substituir a arquitetura por conveniência local.
+Documentation updates must describe actual behavior or explicitly identify future behavior as planned.
 
 ---
 
-## 12. Contexto parcial
+## 10. Human Authority
 
-Quando nem todo o repositório precisar ser lido, a IA deve buscar apenas o contexto necessário.
+Final architectural and product decisions remain with the project owner.
 
-Exemplos:
-
-```text
-Mudança em Link
-→ Link.hpp
-→ Link.cpp
-→ SimulationEngine
-→ PacketUtils
-→ testes de Link/transmissão
-```
-
-```text
-Mudança TCP
-→ TCPConnection
-→ TCPSession
-→ eventos relevantes
-→ protocol_spec.md
-→ tcp_design.md
-→ testes TCP
-```
-
-O objetivo é manter contexto suficiente sem gerar leitura indiscriminada do repositório.
-
----
-
-## 13. Estado versus intenção
-
-Um documento pode descrever uma intenção futura.
-
-O código descreve o comportamento efetivamente implementado.
-
-A IA deve distinguir:
-
-```text
-"planejado"
-```
-
-de:
-
-```text
-"implementado"
-```
-
-e:
-
-```text
-"parcialmente implementado"
-```
-
-Essa distinção é especialmente importante para as issues do KNS.
+AI suggestions are proposals until accepted and validated.
