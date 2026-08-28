@@ -431,7 +431,8 @@ static void renderStatsWindow(
     float& lossProb,
     float& speedMultiplier,
     bool& stepRequested,
-    bool engineHasEvents
+    bool engineHasEvents,
+    Topology& topo
 )
 {
     ImGui::Begin("Stats");
@@ -440,39 +441,82 @@ static void renderStatsWindow(
         "Simulation",
         ImGuiTreeNodeFlags_DefaultOpen))
     {
+        // --------------------------------------------------
+        // READY
+        // --------------------------------------------------
+
         if (state == SimulationState::Ready)
         {
             ImGui::TextDisabled("Simulation ready.");
 
-            if (engineHasEvents) {
-                if (ImGui::Button("Start")) {
-                    state = SimulationState::Running;
+            if (ImGui::Button("Start"))
+            {
+                // If there are no events yet, create the
+                // default traffic plan first.
+                if (!engine->hasEvents())
+                {
+                    generatePackets(
+                        engine,
+                        topo
+                    );
+                }
+
+                if (engine->hasEvents())
+                {
+                    state =
+                        SimulationState::Running;
                 }
             }
         }
+
+        // --------------------------------------------------
+        // RUNNING
+        // --------------------------------------------------
+
         else if (state == SimulationState::Running)
         {
-            if (ImGui::Button("Pause")) {
-                state = SimulationState::Paused;
+            if (ImGui::Button("Pause"))
+            {
+                state =
+                    SimulationState::Paused;
             }
         }
+
+        // --------------------------------------------------
+        // PAUSED
+        // --------------------------------------------------
+
         else if (state == SimulationState::Paused)
         {
-            if (ImGui::Button("Resume")) {
-                state = SimulationState::Running;
+            if (ImGui::Button("Resume"))
+            {
+                if (engineHasEvents)
+                {
+                    state =
+                        SimulationState::Running;
+                }
             }
 
-            if (engineHasEvents) {
+            if (engineHasEvents)
+            {
                 ImGui::SameLine();
 
-                if (ImGui::Button("Step")) {
+                if (ImGui::Button("Step"))
+                {
                     stepRequested = true;
                 }
             }
         }
+
+        // --------------------------------------------------
+        // FINISHED
+        // --------------------------------------------------
+
         else if (state == SimulationState::Finished)
         {
-            ImGui::TextDisabled("Simulation finished.");
+            ImGui::TextDisabled(
+                "Simulation finished."
+            );
         }
 
         ImGui::SliderFloat(
@@ -491,6 +535,10 @@ static void renderStatsWindow(
             );
         }
     }
+
+    // ------------------------------------------------------
+    // Traffic
+    // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
         "Traffic",
@@ -532,6 +580,10 @@ static void renderStatsWindow(
         );
     }
 
+    // ------------------------------------------------------
+    // Statistics
+    // ------------------------------------------------------
+
     if (ImGui::CollapsingHeader(
         "Statistics",
         ImGuiTreeNodeFlags_DefaultOpen))
@@ -539,6 +591,10 @@ static void renderStatsWindow(
         MetricsPannel panel;
         panel.render(stats, buffer);
     }
+
+    // ------------------------------------------------------
+    // Network configuration
+    // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
         "Network Configuration"))
@@ -554,7 +610,12 @@ static void renderStatsWindow(
         );
     }
 
-    if (ImGui::CollapsingHeader("Validation"))
+    // ------------------------------------------------------
+    // Validation
+    // ------------------------------------------------------
+
+    if (ImGui::CollapsingHeader(
+        "Validation"))
     {
         ImGui::Text(
             "Packets sent: %d",
@@ -1359,36 +1420,6 @@ static void renderConfigWindow(
         }
     }
 
-    if (topologySelected &&
-        !engine->hasEvents())
-    {
-        ImGui::Separator();
-
-        ImGui::TextWrapped(
-            "No traffic scheduled for the loaded topology."
-        );
-
-        if (ImGui::Button(
-            "Generate traffic for all links"))
-        {
-            generatePackets(
-                engine,
-                topo
-            );
-
-            if (engine->hasEvents())
-            {
-                state =
-                    SimulationState::Paused;
-            }
-            else
-            {
-                state =
-                    SimulationState::Ready;
-            }
-        }
-    }
-
     ImGui::End();
 }
 
@@ -1481,6 +1512,10 @@ static void visualizeWindow(
 
     configureEngine(engine);
 
+    // --------------------------------------------------
+    // Optional environment-based auto start
+    // --------------------------------------------------
+
     bool gui_auto_start = false;
 
     if (const char* env =
@@ -1501,6 +1536,13 @@ static void visualizeWindow(
             topo
         );
 
+        state =
+            engine->hasEvents()
+                ? SimulationState::Paused
+                : SimulationState::Ready;
+    }
+    else
+    {
         state =
             engine->hasEvents()
                 ? SimulationState::Paused
@@ -1533,6 +1575,10 @@ static void visualizeWindow(
 
         lastRealTime =
             currentRealTime;
+
+        // --------------------------------------------------
+        // Run simulation
+        // --------------------------------------------------
 
         if (state == SimulationState::Running)
         {
@@ -1579,6 +1625,10 @@ static void visualizeWindow(
             dock_initialized
         );
 
+        // --------------------------------------------------
+        // Automatic topology dialog
+        // --------------------------------------------------
+
         if (firstFrame &&
             topo.size() == 0)
         {
@@ -1594,6 +1644,10 @@ static void visualizeWindow(
 
         bool stepRequested = false;
 
+        // --------------------------------------------------
+        // Statistics / simulation controls
+        // --------------------------------------------------
+
         renderStatsWindow(
             engine,
             state,
@@ -1603,8 +1657,13 @@ static void visualizeWindow(
             lossProb,
             speedMultiplier,
             stepRequested,
-            engine->hasEvents()
+            engine->hasEvents(),
+            topo
         );
+
+        // --------------------------------------------------
+        // Step
+        // --------------------------------------------------
 
         if (stepRequested &&
             engine->hasEvents())
@@ -1618,6 +1677,10 @@ static void visualizeWindow(
             }
         }
 
+        // --------------------------------------------------
+        // Settings
+        // --------------------------------------------------
+
         renderConfigWindow(
             firstFrame,
             topo.size() > 0,
@@ -1625,6 +1688,10 @@ static void visualizeWindow(
             topo,
             state
         );
+
+        // --------------------------------------------------
+        // Network interaction
+        // --------------------------------------------------
 
         PickedNodes clicked_node =
             renderNetworkPanel(
@@ -1663,6 +1730,10 @@ static void visualizeWindow(
             routingTable
         );
 
+        // --------------------------------------------------
+        // Topology loading
+        // --------------------------------------------------
+
         if (ImGuiFileDialog::Instance()
                 ->Display(
                     "TopologyKey",
@@ -1692,7 +1763,9 @@ static void visualizeWindow(
                             topo
                         );
 
-                    configureEngine(engine);
+                    configureEngine(
+                        engine
+                    );
 
                     bool loaded_auto_start = false;
 
