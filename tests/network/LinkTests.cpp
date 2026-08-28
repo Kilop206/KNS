@@ -126,3 +126,21 @@ TEST_CASE("Topology getLinksFromNode bounds safety", "[network][topology]")
     REQUIRE_THROWS_AS(topo.getLinksFromNode(-1), std::out_of_range);
     REQUIRE_THROWS_AS(topo.getLinksFromNode(99), std::out_of_range);
 }
+
+TEST_CASE("Topology addLink programmatic API validation", "[network][topology]")
+{
+    Topology topo(3);
+
+    // Reject negative node indices
+    REQUIRE_THROWS_AS(topo.addLink(-1, 1, 100.0, 10.0), std::invalid_argument);
+    
+    // Reject self-loops
+    REQUIRE_THROWS_AS(topo.addLink(1, 1, 100.0, 10.0), std::invalid_argument);
+
+    // Reject non-positive bandwidth
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 0.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, -50.0, 10.0), std::invalid_argument);
+
+    // Reject invalid loss probability
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 100.0, 10.0, 1.5), std::invalid_argument);
+}

@@ -12,10 +12,26 @@ namespace kns {
     }
 
     void Topology::addLink(const Link& link) {
-        auto ptr = std::make_shared<Link>(link);
+        const int a = link.getA();
+        const int b = link.getB();
 
-        const int a = ptr->getA();
-        const int b = ptr->getB();
+        if (a < 0 || b < 0) {
+            throw std::invalid_argument("Node indices cannot be negative");
+        }
+        if (a == b) {
+            throw std::invalid_argument("Self-loops are not supported");
+        }
+        if (link.getBandwidthMbps() <= 0.0) {
+            throw std::invalid_argument("Bandwidth must be positive");
+        }
+        if (link.getDelayMs() < 0.0) {
+            throw std::invalid_argument("Delay cannot be negative");
+        }
+        if (link.getLossProb() < 0.0 || link.getLossProb() > 1.0) {
+            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
+        }
+
+        auto ptr = std::make_shared<Link>(link);
         const int max_node = std::max(a, b);
 
         if (max_node >= static_cast<int>(adjacency_list_.size())) {
