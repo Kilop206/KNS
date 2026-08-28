@@ -319,30 +319,9 @@ namespace kns {
     }
 
     void SimulationEngine::startTCPConnection(int source, int dest) {
-        // Create a session and generate a deterministic burst of synthetic packet events.
         TCPSession& session = createTCPSession(source, dest);
-
-        Packet p;
-        p.current_node = source;
-        p.packet_size_bytes = (globalPacketSize > 0) ? globalPacketSize : 1500;
-        p.packet_type = PacketType::DATA; // assumes PacketType exists in project
-
-        const double base = now();
-        const int count = std::max(1, getPacketsPerRoute());
-        for (int i = 0; i < count; ++i) {
-            const double dep = base + (i * 0.001); // deterministic spacing
-            const double arr = dep + 0.01;
-
-            stats_.packets_sent++;
-            stats_.packets_delivered++;
-            stats_.total_latency += (arr - dep);
-
-            packets_in_transit.push_back(PacketTravelInfo{dep, arr, source, dest, p.packet_type});
-
-            if (packetObserver) {
-                packetObserver(p, next_session_id - 1, source, dest, dep, arr);
-            }
-        }
+        schedule(std::make_unique<TCPHandshakeEvent>(now() + handshake_offset_, source, dest, session.getSession_id()));
+        handshake_offset_ += 0.05;
     }
 
     void SimulationEngine::generatePackets(double /*startTime*/, TCPSession& /*session*/) {

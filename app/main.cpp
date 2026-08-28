@@ -1543,25 +1543,15 @@ static void visualizeWindow(
               v == "False");
     }
 
-    if (gui_auto_start)
-    {
-        generatePackets(
-            engine,
-            topo
-        );
+    generatePackets(
+        engine,
+        topo
+    );
 
-        state =
-            engine->hasEvents()
-                ? SimulationState::Paused
-                : SimulationState::Ready;
-    }
-    else
-    {
-        state =
-            engine->hasEvents()
-                ? SimulationState::Paused
-                : SimulationState::Ready;
-    }
+    state =
+        engine->hasEvents()
+            ? (gui_auto_start ? SimulationState::Running : SimulationState::Paused)
+            : SimulationState::Ready;
 
     double visualTime = 0.0;
 
