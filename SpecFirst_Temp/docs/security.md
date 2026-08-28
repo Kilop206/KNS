@@ -1,41 +1,131 @@
-# Security
+# Segurança — KNS
 
-## Por que este arquivo existe
+## 1. Objetivo
 
-Este documento registra controles minimos de seguranca. Ele deve orientar mudancas em autenticacao, autorizacao, uploads, secrets, dados sensiveis e exposicao publica.
+O KNS não possui atualmente um modelo tradicional de autenticação/autorização de usuários como uma aplicação web.
 
-## Natureza de Template
+As principais preocupações de segurança estão relacionadas a:
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste modelo de acesso, auth, autorizacao, validacao de input, secrets, dados publicos/privados e logs seguros ao projeto real.
+* credenciais de desenvolvimento;
+* arquivos de configuração;
+* execução de scripts;
+* arquivos de topologia;
+* dependências externas;
+* logs;
+* integridade do repositório;
+* execução de ferramentas auxiliares.
 
-## Modelo de Acesso
+---
 
-Descreva quem acessa o sistema e com quais papeis.
+# 2. Credenciais
 
-- `[papel]`: `[permissoes]`
+Nunca armazenar no repositório:
 
-## Autenticacao e Autorizacao
+* GitHub PATs;
+* senhas;
+* chaves privadas;
+* tokens;
+* credenciais de APIs;
+* secrets de CI;
+* arquivos de autenticação.
 
-- `[como usuarios autenticam]`
-- `[onde permissoes sao verificadas]`
-- `[acoes sensiveis] devem ser validadas no backend`
+Credenciais devem ser fornecidas através de mecanismos externos apropriados.
 
-## Validacao de Input
+---
 
-- Entradas externas devem ser validadas com `[ferramenta ou camada]`.
-- Mensagens de erro devem ser claras sem revelar detalhes internos.
+# 3. Arquivos de topologia
 
-## Secrets e Configuracao
+Arquivos JSON de topologia são entradas externas e devem ser validados.
 
-- Segredos devem ficar em variaveis de ambiente.
-- `.env.example` deve documentar variaveis obrigatorias sem valores reais.
-- Nenhum segredo deve ser exposto no frontend, logs ou exemplos.
+Nunca assumir que:
 
-## Dados Publicos e Privados
+* número de nós é válido;
+* endpoints de Links existem;
+* valores numéricos são válidos;
+* propriedades estão presentes;
+* enumerações possuem valores conhecidos.
 
-- Declare quais dados podem ser serializados para o cliente.
-- Declare quais dados nunca devem sair do backend.
+A validação deve ocorrer antes da criação de estruturas internas inconsistentes.
 
-## Observabilidade Segura
+---
 
-- Logs devem ajudar investigacao sem registrar senhas, tokens ou payloads sensiveis.
+# 4. Scripts e automação
+
+Scripts Python e outras ferramentas auxiliares não devem executar comandos destrutivos ou interpretar entrada externa de forma insegura sem validação.
+
+Particular atenção deve ser dada a:
+
+* caminhos de arquivos;
+* argumentos CLI;
+* nomes de arquivos;
+* diretórios de resultados;
+* parâmetros de experimentos.
+
+---
+
+# 5. Logs
+
+Logs podem registrar informações úteis para depuração, como:
+
+* timestamps;
+* tipos de pacotes;
+* nós;
+* sessões;
+* resultados de operações.
+
+Não registrar:
+
+* tokens;
+* senhas;
+* credenciais;
+* dados externos desnecessários.
+
+---
+
+# 6. Dependências
+
+Dependências externas devem ser adicionadas através do mecanismo oficial do CMake e permanecer fixadas/gerenciadas de forma reproduzível quando o projeto exigir.
+
+Novas dependências relevantes devem passar por avaliação.
+
+---
+
+# 7. Build
+
+O ambiente Windows alvo utiliza o toolchain definido para o KNS.
+
+Não misturar:
+
+```text
+C:\mingw64
+```
+
+com runtimes incompatíveis como:
+
+```text
+C:\msys64\ucrt64
+```
+
+sem uma decisão explícita.
+
+Mistura de runtimes pode produzir executáveis que funcionam apenas em determinados ambientes.
+
+---
+
+# 8. Dados gerados
+
+Resultados de experimentos, gráficos e CSVs não devem conter segredos.
+
+Arquivos temporários e artefatos gerados devem ser separados do código-fonte quando apropriado.
+
+---
+
+# 9. Segurança do modelo de IA
+
+Agentes de IA não devem:
+
+* solicitar ou registrar credenciais desnecessariamente;
+* inserir secrets em arquivos;
+* alterar controles de segurança sem justificativa;
+* ocultar falhas de validação;
+* desabilitar verificações para fazer um teste passar.

@@ -1,83 +1,272 @@
-# Implementation Plan
+# Plano de Implementação — KNS
 
-## Por que este arquivo existe
+## 1. Objetivo
 
-Este documento organiza a sequencia de implementacao. Ele deve transformar visao e arquitetura em fases executaveis.
+Organizar a evolução do KNS em fases verificáveis, evitando que o desenvolvimento avance sem critérios claros.
 
-Use para planejar sprints, marcos, dependencias e criterios globais de aceite.
+O plano deve refletir o estado real do projeto e ser atualizado conforme as issues forem concluídas.
 
-Este documento deve refletir o estado real da implementacao. A IA deve atualiza-lo sempre que concluir uma tarefa que avance fase, checklist ou dependencia critica.
+---
 
-## Natureza de Template
+# 2. Estado atual
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste objetivo, escopo da primeira entrega, fases, dependencias, criterios globais de aceite e regras de avanco ao projeto real.
+O KNS já possui uma base funcional composta por:
 
-## Objetivo
+* simulação orientada a eventos;
+* tempo lógico;
+* topologia;
+* nós;
+* Links;
+* roteamento;
+* transmissão de pacotes;
+* GUI;
+* headless mode;
+* testes automatizados;
+* TCP simplificado;
+* handshake;
+* ACK/data;
+* encerramento;
+* `TIME_WAIT`.
 
-Implementar `[NOME_DO_PROJETO]` para `[resultado esperado]`.
+A evolução deve preservar essa base.
 
-## Escopo da Primeira Entrega
+---
 
-- `[item]`
+# 3. Fase 1 — Fundação SpecFirst
 
-## Sequencia de Implementacao
+**Status:** Concluída
 
-### Fase 0 - Fundacao documental
+### Objetivo
 
-**Status:** Concluida
+Adaptar completamente o framework SpecFirst ao KNS.
 
-- [x] Criar ou revisar `AGENTS.md`.
-- [x] Criar docs canonicos.
-- [x] Registrar decisoes iniciais.
-- [x] Definir sincronia obrigatoria entre plano, issues e log tecnico.
-- [x] Criar `docs/deployment-log.md`.
-- [x] Documentar travamento de escopo em `docs/implementation-governance.md`.
-- [x] Documentar o fluxo Spec-First de adaptar docs ao projeto antes de gerar codigo.
-- [x] Documentar adaptadores de ferramenta e criar `CLAUDE.md`.
-- [x] Criar diretrizes de design para UI e frontend.
-- [x] Documentar adaptacao inicial completa do framework ao escopo do projeto.
-- [x] Reequilibrar autonomia da IA para o modelo humano navegador/IA piloto.
-- [x] Explicitar natureza de template em todos os documentos do framework.
-- [x] Evoluir diretrizes de design com baseline de tokens, layout e componentes.
-- [x] Exigir kickoff visual quando houver UI sem preferencias humanas definidas.
+### Checklist
 
-### Fase 1 - Scaffold tecnico
+* [x] Adaptar `AGENTS.md`.
+* [x] Adaptar `README.md`.
+* [x] Adaptar `docs/README.md`.
+* [x] Adaptar `project-overview.md`.
+* [x] Adaptar `architecture.md`.
+* [x] Adaptar `ai-workflow.md`.
+* [x] Adaptar `coding-standards.md`.
+* [x] Adaptar `testing.md`.
+* [x] Adaptar `domains.md`.
+* [x] Adaptar `data-model.md`.
+* [x] Adaptar `workflows.md`.
+* [x] Adaptar `implementation-governance.md`.
+* [x] Adaptar `implementation-plan.md`.
+* [x] Adaptar `issues.md`.
+* [x] Revisar `decision-log.md`.
+* [x] Adaptar `deployment-log.md`.
+* [x] Revisar `security.md`.
+* [x] Revisar `tooling-adapters.md` e referências.
+* [x] Fazer revisão cruzada de todos os documentos.
+* [x] Eliminar placeholders restantes.
+* [x] Confirmar referências internas válidas.
 
-**Status:** Planejada | Em andamento | Concluida | Bloqueada
+---
 
-- [ ] `[tarefa]`
+# 4. Fase 1 — Integridade da transmissão
 
-### Fase 2 - Modelo ou dominio principal
+**Status:** Próxima fase
 
-**Status:** Planejada | Em andamento | Concluida | Bloqueada
+### Objetivo
 
-- [ ] `[tarefa]`
+Garantir que o caminho de transmissão represente corretamente aceitação, rejeição, filas e capacidade.
 
-### Fase 3 - Interface, API ou integracao publica
+### Issues prioritárias
 
-**Status:** Planejada | Em andamento | Concluida | Bloqueada
+* #91 — resultado de `sendPacket()`;
+* #94 — FIFO real;
+* #92 — identidade do Link;
+* #93 — Links DOWN.
 
-- [ ] `[tarefa]`
+### Critérios
 
-### Fase 4 - Hardening e deploy
+* falha de transmissão não pode ser reportada como sucesso;
+* fila deve preservar FIFO;
+* capacidade deve ser respeitada;
+* Link DOWN não deve transportar;
+* identidade do Link deve permanecer disponível quando exigida.
 
-**Status:** Planejada | Em andamento | Concluida | Bloqueada
+---
 
-- [ ] `[tarefa]`
+# 5. Fase 2 — Consistência da Topology
 
-## Regras de Avanco
+**Status:** Planejada
 
-- Nao marcar fase como `Concluida` se houver checklist obrigatorio aberto.
-- Nao iniciar fase posterior quando a fase atual tiver bloqueios sem decisao registrada.
-- Ao concluir item de fase, atualizar a issue relacionada em `docs/issues.md`.
-- Ao entregar mudanca tecnica, registrar entrada em `docs/deployment-log.md`.
-- Ao mudar a ordem das fases ou criterio de aceite, registrar decisao em `docs/decision-log.md`.
+### Objetivo
 
-## Dependencias Criticas
+Fortalecer contratos e comportamento da topologia.
 
-1. `[dependencia]`
-2. `[dependencia]`
+### Issues relacionadas
 
-## Criterios Globais de Aceite
+* #95;
+* #96;
+* #97;
+* #98;
+* #82;
+* #81.
 
-- `[criterio]`
+### Critérios
+
+* entradas inválidas devem ser rejeitadas corretamente;
+* índices devem possuir bounds seguros;
+* contratos const/non-const devem ser consistentes;
+* alterações da topologia devem possuir comportamento definido;
+* roteamento deve refletir o estado atual da rede.
+
+---
+
+# 6. Fase 3 — Consistência do TCP
+
+**Status:** Planejada
+
+### Objetivo
+
+Fortalecer a máquina de estados e o estado agregado das sessões.
+
+### Issues relacionadas
+
+* #99;
+* #100;
+* #101.
+
+### Critérios
+
+* transições inválidas devem ser rejeitadas;
+* falhas de envio não devem gerar transições falsas;
+* estado de `TCPSession` deve representar corretamente seus endpoints;
+* GUI não deve confundir conexão agendada com execução.
+
+---
+
+# 7. Fase 4 — TCP Reliability
+
+**Status:** Planejada
+
+### Ordem prevista
+
+```text
+Buffers
+   ↓
+Sliding Window
+   ↓
+RTO
+   ↓
+Retransmission
+   ↓
+Duplicate ACK
+   ↓
+Fast Retransmit
+   ↓
+Delayed ACK
+   ↓
+Congestion Control
+```
+
+Issues relacionadas incluem:
+
+* #74;
+* #73;
+* #76;
+* #77;
+* #75.
+
+Cada etapa deve ser implementada incrementalmente.
+
+---
+
+# 8. Fase 5 — Arquitetura de rede futura
+
+**Status:** Planejada
+
+Possíveis evoluções:
+
+* Node/Interface;
+* listener TCP;
+* múltiplas conexões;
+* roteamento dinâmico;
+* falhas avançadas de Links;
+* edição dinâmica da topologia.
+
+Issues relacionadas:
+
+* #79;
+* #80;
+* #81;
+* #95.
+
+---
+
+# 9. Fase 6 — Hardening
+
+**Status:** Planejada
+
+### Objetivo
+
+Preparar o KNS para evolução e uso experimental mais amplo.
+
+Inclui:
+
+* cobertura de testes;
+* validações;
+* determinismo;
+* observabilidade;
+* automação;
+* benchmarks;
+* documentação;
+* estabilidade da GUI;
+* consistência do build.
+
+---
+
+# 10. Regras de avanço
+
+Não iniciar uma fase posterior enquanto:
+
+* a fase atual possuir bloqueios;
+* existirem critérios obrigatórios não atendidos;
+* testes essenciais estiverem quebrados;
+* a documentação necessária estiver inconsistente.
+
+Uma exceção deve ser uma decisão humana explícita e registrada.
+
+---
+
+# 11. Critérios globais
+
+Uma entrega deve:
+
+* preservar determinismo;
+* respeitar a arquitetura;
+* possuir testes relevantes;
+* passar os checks aplicáveis;
+* manter o comportamento documentado;
+* atualizar a issue correspondente;
+* atualizar o log técnico;
+* atualizar o plano quando houver avanço de fase.
+
+---
+
+# 12. Dependências principais
+
+A evolução do KNS deve considerar especialmente:
+
+```text
+Topology
+   ↓
+Routing
+   ↓
+Link
+   ↓
+Packet transmission
+   ↓
+Events
+   ↓
+TCP
+```
+
+Mudanças em camadas inferiores podem afetar camadas superiores.
+
+Por isso, a ordem acima serve como referência de impacto, não como autorização para implementar tudo simultaneamente.

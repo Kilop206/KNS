@@ -1,143 +1,292 @@
-# AI Workflow
+# Fluxo de Trabalho com IA — KNS
 
-## Por que este arquivo existe
+## 1. Princípio
 
-Este documento define como agentes de IA devem trabalhar no projeto. Ele reduz entregas impulsivas e cria um fluxo previsivel de contexto, implementacao, validacao e documentacao.
+O desenvolvimento do KNS utiliza o seguinte modelo:
 
-## Natureza de Template
+```text
+Humano = navegador
+IA     = piloto
+```
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste principio, fluxo operacional, inicializacao, limites de autonomia, kickoff, fechamento e diferenca entre logs ao projeto real.
+O humano define:
 
-## Principio
+* o que deve ser feito;
+* por que deve ser feito;
+* prioridade;
+* escopo;
+* decisões importantes.
 
-- Humano = navegador: define o que sera feito, por que sera feito, prioridade, contexto de negocio e decisoes de produto, arquitetura e escopo.
-- IA = piloto: define o como tecnico, escreve codigo, gera testes, lida com boilerplate, executa refatoracoes mecanicas e mantem documentacao sincronizada.
+A IA é responsável por propor e executar a solução técnica dentro desse escopo.
 
-A IA deve propor, explicar tradeoffs e pedir decisao quando houver mudanca relevante. Ela nao deve agir como dona do produto nem tomar decisoes de escopo sozinha.
+---
 
-## Fluxo Operacional
+## 2. Regra principal
 
-1. **Especificacao antes do codigo**
-   - Adaptar `AGENTS.md` e `docs/*` ao escopo real do projeto antes de criar implementacao.
-2. **Intencao antes de implementar**
-   - Definir objetivo, restricoes e criterio de pronto.
-3. **Contexto minimo**
-   - Ler `AGENTS.md` e docs relevantes.
-4. **Contrato antes da UI ou automacao**
-   - Confirmar dados, entradas, saidas e fronteiras.
-5. **Teste antes do codigo**
-   - Criar teste quando houver comportamento novo ou contrato importante.
-6. **Pequenas entregas**
-   - Implementar incrementos curtos, revisaveis e reversiveis.
-7. **Validacao**
-   - Rodar checks aplicaveis.
-8. **Sincronia de progresso**
-   - Atualizar issue, plano e log tecnico antes de considerar a tarefa pronta.
-9. **Documentacao viva**
-   - Atualizar docs quando arquitetura, modelo ou fluxo mudar.
+A IA não deve implementar uma mudança relevante sem primeiro compreender:
 
-## Inicializacao de Projeto
+* objetivo;
+* estado atual;
+* documentação;
+* testes;
+* critério de aceitação;
+* riscos.
 
-Quando o SpecFirst for copiado para um projeto novo, a primeira tarefa da IA nao e criar codigo. A primeira tarefa e transformar o framework inteiro em documentacao especifica do projeto.
+---
 
-A IA deve:
+## 3. Antes da implementação
 
-1. ler `AGENTS.md`, `README.md`, adaptadores de ferramenta e `docs/README.md`;
-2. receber do humano o escopo inicial do produto, app, API, site, biblioteca ou automacao;
-3. revisar todos os arquivos de `docs/*`, nao apenas os nucleares;
-4. propor ajustes em `AGENTS.md` ao projeto real, incluindo proposito, regras, stack, estrutura e Definition of Done;
-5. propor preenchimento de escopo, fora de escopo, dominios, dados, riscos, fases e criterios de aceite;
-6. identificar documentos que talvez nao se apliquem ao projeto e pedir aprovacao humana antes de remove-los;
-7. se a remocao for aprovada, limpar referencias para arquivos removidos em `README.md`, `AGENTS.md`, `docs/README.md` e documentos relacionados;
-8. registrar duvidas, suposicoes ou decisoes pendentes;
-9. aguardar validacao humana antes de iniciar implementacao.
+Para uma tarefa relevante:
 
-Arquivos normalmente ajustados nessa etapa:
+### 1. Ler o contrato
 
-- `AGENTS.md`;
-- `README.md`;
-- `CLAUDE.md` ou outros adaptadores, quando existirem;
-- `docs/README.md`;
-- `docs/project-overview.md`;
-- `docs/architecture.md`;
-- `docs/domains.md`;
-- `docs/data-model.md`;
-- `docs/design-guidelines.md`, quando houver UI, marca, frontend ou experiencia visual;
-- `docs/security.md`, quando houver auth, permissoes, secrets ou dados sensiveis;
-- `docs/workflows.md`;
-- `docs/implementation-plan.md`;
-- `docs/issues.md`;
-- `docs/testing.md`.
+Ler:
 
-Arquivos que podem ser propostos para remocao quando nao fizerem sentido:
+```text
+SpecFirst_Temp/AGENTS.md
+```
 
-- `docs/editor.md`, se o projeto nao tiver conteudo editavel ou CMS;
-- `docs/pdf-export.md`, se o projeto nao gerar documentos imprimiveis;
-- `docs/new-client-workflow.md`, se o projeto nao for replicado por cliente ou instancia;
-- `docs/client-launch-checklist.md`, se nao houver entrega para cliente, area interna ou operador final;
-- qualquer outro documento cuja manutencao gere ruido maior que valor.
+### 2. Ler o contexto
 
-Se a IA notar que precisa inventar produto, regra de negocio, entidade ou fluxo sem informacao suficiente, deve registrar a suposicao e pedir decisao humana.
+Consultar os documentos relevantes.
 
-## Limites de Autonomia
+### 3. Verificar o estado real
 
-A IA pode executar sem nova aprovacao quando a tarefa for mecanica, local e ja estiver coberta pelo escopo aprovado.
+Quando a tarefa depender do estado atual do KNS:
 
-A IA deve pedir aprovacao humana antes de:
+* consultar a branch `tcp`;
+* verificar a implementação atual;
+* não assumir equivalência com código local.
 
-- alterar escopo;
-- escolher ou trocar arquitetura;
-- criar ou remover modulo relevante;
-- mudar modelo de dados;
-- alterar regras de seguranca;
-- definir direcao visual de projeto com UI quando `docs/design-guidelines.md` nao estiver preenchido com preferencias humanas;
-- remover documentos do framework;
-- pular fases ou reordenar o plano;
-- adicionar dependencia nova;
-- executar refatoracao ampla.
+### 4. Verificar a issue
 
-## Kickoff de Tarefa
+Determinar se a issue continua válida.
 
-Antes de implementar, a IA deve registrar:
+### 5. Verificar os testes
 
-- objetivo;
-- issue ou fase relacionada;
-- docs lidos;
-- criterio de aceite;
-- impacto em dados, seguranca, UI e testes;
-- impacto em design, tokens, componentes e responsividade, quando houver UI;
-- riscos ou suposicoes.
+Pesquisar testes existentes antes de criar novos.
 
-## Fechamento de Tarefa
+---
 
-Antes de encerrar a tarefa, commitar ou responder como concluida, a IA deve persistir o progresso no repositorio:
+## 4. Diagnóstico de issue
 
-1. Atualizar `docs/issues.md`.
-   - Mudar o status da issue quando aplicavel: `Planejada`, `Em andamento`, `Concluida` ou `Bloqueada`.
-   - Registrar uma nota datada em `### Estado atual`.
-2. Atualizar `docs/implementation-plan.md`.
-   - Marcar checklists concluidos.
-   - Atualizar a fase atual quando a entrega destravar a proxima etapa.
-   - Nao pular fases com pendencias abertas sem decisao humana.
-3. Atualizar `docs/deployment-log.md`.
-   - Registrar o que foi feito, arquivos modificados, checks executados e riscos tecnicos.
-4. Atualizar `docs/decision-log.md` apenas quando houver decisao de arquitetura, produto, modelo, seguranca ou operacao.
+Toda issue deve seguir:
 
-Depois de persistir o progresso, a IA deve relatar no chat:
+```text
+Issue
+ ↓
+Código atual
+ ↓
+Documentação
+ ↓
+Testes
+ ↓
+Diagnóstico
+ ↓
+Classificação
+```
 
-- arquivos alterados;
-- comportamento entregue;
-- testes ou checks executados;
-- status atualizado da issue;
-- fase ou checklist atualizado no plano;
-- entrada criada no log tecnico;
-- pendencias ou riscos residuais;
-- docs atualizados.
+Classificações:
 
-## Diferenca entre Logs
+* resolvida;
+* parcialmente resolvida;
+* ainda válida;
+* obsoleta.
 
-- `docs/decision-log.md` registra decisoes duradouras e seus motivos.
-- `docs/deployment-log.md` registra entregas tecnicas realizadas.
-- `docs/issues.md` registra o estado vivo de cada trabalho planejado.
+Não implementar uma issue somente por ela estar aberta.
 
-Nao misture decisao arquitetural com historico operacional. Se uma entrega tecnica tambem gerar uma decisao duradoura, registre nos dois lugares com propositos diferentes.
+---
+
+## 5. Red-Green-Refactor
+
+Para comportamento novo ou bug:
+
+```text
+RED
+ ↓
+teste reproduz o comportamento esperado
+ ↓
+GREEN
+ ↓
+implementação mínima
+ ↓
+REFACTOR
+ ↓
+melhoria estrutural sem mudança de comportamento
+```
+
+Refatoração ampla não deve ser introduzida automaticamente durante um bugfix.
+
+---
+
+## 6. Menor incremento seguro
+
+Preferir:
+
+```text
+uma mudança pequena
++
+um contrato claro
++
+um teste
++
+uma validação
+```
+
+em vez de:
+
+```text
+um bug
+↓
+reescrita de várias camadas
+```
+
+Quando uma solução exigir mudança arquitetural, isso deve ser apresentado como decisão separada.
+
+---
+
+## 7. Quando pedir decisão humana
+
+A IA deve parar e solicitar decisão quando a tarefa exigir:
+
+* expansão de escopo;
+* alteração arquitetural relevante;
+* novo módulo principal;
+* mudança importante do protocolo;
+* mudança de contrato público;
+* mudança do modelo de dados;
+* troca de toolchain;
+* nova dependência importante;
+* remoção de documento;
+* reordenação significativa do plano.
+
+---
+
+## 8. Implementação
+
+Durante a implementação:
+
+1. alterar apenas os arquivos necessários;
+2. preservar as interfaces existentes quando possível;
+3. evitar duplicação;
+4. não esconder falhas;
+5. manter o determinismo;
+6. adicionar testes;
+7. validar os efeitos colaterais.
+
+---
+
+## 9. Documentação durante a implementação
+
+Atualizar documentação quando:
+
+* uma regra mudou;
+* uma interface mudou;
+* uma arquitetura mudou;
+* o comportamento de um componente mudou;
+* uma issue foi concluída;
+* uma decisão duradoura foi tomada.
+
+---
+
+## 10. Fechamento
+
+Antes de considerar uma tarefa concluída:
+
+```text
+Código
+ ↓
+Testes
+ ↓
+Checks
+ ↓
+Issue
+ ↓
+Plano
+ ↓
+Deployment Log
+ ↓
+Decision Log, se aplicável
+```
+
+O chat deve relatar:
+
+* arquivos modificados;
+* comportamento implementado;
+* testes executados;
+* resultado dos checks;
+* documentação atualizada;
+* riscos residuais.
+
+---
+
+## 11. Proibições
+
+A IA não deve:
+
+* inventar requisitos;
+* inventar comportamento sem declarar a suposição;
+* mudar escopo silenciosamente;
+* declarar issue resolvida sem verificar o código;
+* fechar uma tarefa sem testes quando testes forem aplicáveis;
+* esconder falhas de build;
+* misturar toolchains;
+* introduzir dependências desnecessárias;
+* substituir a arquitetura por conveniência local.
+
+---
+
+## 12. Contexto parcial
+
+Quando nem todo o repositório precisar ser lido, a IA deve buscar apenas o contexto necessário.
+
+Exemplos:
+
+```text
+Mudança em Link
+→ Link.hpp
+→ Link.cpp
+→ SimulationEngine
+→ PacketUtils
+→ testes de Link/transmissão
+```
+
+```text
+Mudança TCP
+→ TCPConnection
+→ TCPSession
+→ eventos relevantes
+→ protocol_spec.md
+→ tcp_design.md
+→ testes TCP
+```
+
+O objetivo é manter contexto suficiente sem gerar leitura indiscriminada do repositório.
+
+---
+
+## 13. Estado versus intenção
+
+Um documento pode descrever uma intenção futura.
+
+O código descreve o comportamento efetivamente implementado.
+
+A IA deve distinguir:
+
+```text
+"planejado"
+```
+
+de:
+
+```text
+"implementado"
+```
+
+e:
+
+```text
+"parcialmente implementado"
+```
+
+Essa distinção é especialmente importante para as issues do KNS.

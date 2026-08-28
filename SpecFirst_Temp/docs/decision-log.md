@@ -1,79 +1,178 @@
-# Decision Log
+# Decision Log — KNS
 
-## Por que este arquivo existe
+## 1. Objetivo
 
-Este documento registra decisoes que mudam arquitetura, modelo, fluxo, escopo ou operacao. Ele evita que o motivo de uma escolha desapareca com o tempo.
+Este documento registra decisões duradouras que afetam arquitetura, protocolo, modelo, segurança, operação ou processo de desenvolvimento do KNS.
 
-Nao use este arquivo como historico de entregas tecnicas. Para isso, use `docs/deployment-log.md`.
+Não é um histórico geral de commits.
 
-## Natureza de Template
+---
 
-Este arquivo e um template. No primeiro chat de escopo, revise decisoes iniciais, mantenha apenas as que fizerem sentido para o projeto real e registre novas decisoes quando o humano validar uma escolha duradoura.
+# 2. Estados
 
-## Como Usar
+Uma decisão pode estar:
 
-- Identificador incremental: `0001`, `0002`, `0003`.
-- Estado: `Proposta`, `Aceita`, `Substituida` ou `Rejeitada`.
-- Cada decisao deve listar contexto, decisao e consequencias.
-- Decisoes substituidas devem apontar para a decisao nova.
+* **Proposta**
+* **Aceita**
+* **Substituída**
+* **Rejeitada**
 
-## Template de Decisao
+Decisões substituídas devem apontar para a decisão que as substituiu.
 
-```md
-## 0001 - [Titulo curto]
+---
 
-- **Data:** AAAA-MM-DD
-- **Estado:** Proposta
+# 3. Decisões do KNS
+
+## 0001 — Manter o core independente da GUI
+
+* **Data:** anterior ao processo SpecFirst
+* **Estado:** Aceita
 
 ### Contexto
 
-[Qual problema, conflito ou oportunidade motivou a decisao?]
+O simulador possui aplicação gráfica e execução headless.
 
-### Decisao
+### Decisão
 
-[O que foi decidido?]
+A lógica principal do simulador deve permanecer no `core`, sem dependência da GUI.
 
-### Consequencias
+### Consequências
 
-- [Impacto positivo]
-- [Tradeoff]
-- [O que precisa mudar agora]
+* `core` pode ser utilizado em headless;
+* GUI atua como camada de aplicação;
+* testes podem executar o núcleo sem OpenGL/ImGui.
+
+---
+
+## 0002 — Adotar simulação determinística orientada a eventos
+
+* **Data:** anterior ao processo SpecFirst
+* **Estado:** Aceita
+
+### Contexto
+
+Experimentos de rede precisam ser reproduzíveis.
+
+### Decisão
+
+O KNS utiliza tempo lógico e ordenação determinística de eventos.
+
+### Consequências
+
+* execuções podem ser reproduzidas;
+* testes podem verificar ordem de eventos;
+* comportamento não deve depender do relógio da GUI.
+
+---
+
+## 0003 — Usar Dijkstra para o roteamento atual
+
+* **Data:** anterior ao processo SpecFirst
+* **Estado:** Aceita
+
+### Contexto
+
+O simulador precisa encontrar caminhos em topologias arbitrárias.
+
+### Decisão
+
+O roteamento atual utiliza Dijkstra para construir as tabelas necessárias à transmissão.
+
+### Consequências
+
+* cálculo de rota permanece separado da transmissão;
+* mudanças dinâmicas da topologia podem exigir evolução futura do mecanismo.
+
+---
+
+## 0004 — Utilizar C++20 e CMake
+
+* **Data:** anterior ao processo SpecFirst
+* **Estado:** Aceita
+
+### Decisão
+
+O KNS utiliza C++20 e CMake como base de desenvolvimento.
+
+### Consequências
+
+* código deve permanecer compatível com C++20;
+* build deve ser reproduzível;
+* dependências são gerenciadas através do sistema de build.
+
+---
+
+## 0005 — Manter TCP como modelo simplificado
+
+* **Data:** anterior ao processo SpecFirst
+* **Estado:** Aceita
+
+### Decisão
+
+O TCP do KNS representa um subconjunto determinístico e orientado à simulação, não uma implementação completa da pilha TCP do sistema operacional.
+
+### Consequências
+
+Novos mecanismos devem ser adicionados incrementalmente sobre a arquitetura existente.
+
+---
+
+## 0006 — Separar criação de conexão e execução da simulação
+
+* **Data:** 2026-08-28
+* **Estado:** Aceita
+
+### Contexto
+
+A interação da GUI pode criar/agendar uma conexão TCP antes do início da execução.
+
+### Decisão
+
+Criar ou agendar uma conexão não deve iniciar automaticamente o processamento da simulação.
+
+### Consequências
+
+O ciclo da simulação permanece explicitamente:
+
+```text
+READY
+ ↓
+RUNNING
+ ↓
+PAUSED
+ ↓
+RUNNING
+ ↓
+FINISHED
 ```
 
-## 0001 - Adotar AGENTS.md como contrato universal
+A conexão pode existir enquanto a simulação permanece pausada.
 
-- **Data:** 2026-05-19
-- **Estado:** Aceita
+---
 
-### Contexto
+# 4. Decisões do SpecFirst
 
-O projeto pode ser trabalhado por pessoas, agentes e ferramentas diferentes. Sem uma fonte comum, regras e arquitetura podem divergir.
+As decisões históricas relacionadas ao próprio framework permanecem válidas como decisões de governança do processo.
 
-### Decisao
+Elas não devem ser confundidas com decisões do domínio do KNS.
 
-Adotar `AGENTS.md` como contrato universal e `docs/*` como fonte canonica tecnica e de produto.
+Entre elas:
 
-### Consequencias
+* `AGENTS.md` como contrato universal;
+* sincronização entre issue, plano e log técnico;
+* humano como navegador e IA como piloto;
+* menor incremento seguro;
+* aprovação humana para mudanças relevantes.
 
-- Menos dependencia de uma ferramenta especifica.
-- Maior consistencia entre entregas.
-- Necessidade de manter documentacao viva.
+---
 
-## 0002 - Sincronizar plano, issues e log tecnico
+# 5. Regra
 
-- **Data:** 2026-05-20
-- **Estado:** Aceita
+Uma nova decisão só deve ser registrada quando tiver efeito duradouro.
 
-### Contexto
+Não registrar:
 
-Projetos tocados por IA perdem governanca quando a implementacao avanca mas `docs/issues.md`, `docs/implementation-plan.md` e o historico tecnico ficam desatualizados.
-
-### Decisao
-
-Tornar obrigatoria a sincronizacao entre issue, plano de implementacao e `docs/deployment-log.md` antes de qualquer tarefa ser considerada concluida.
-
-### Consequencias
-
-- A IA passa a ser responsavel por registrar o proprio avanco.
-- O fechamento de tarefa deixa de ser apenas relato no chat e passa a persistir historico no repositorio.
-- `docs/decision-log.md` fica reservado para decisoes duradouras, enquanto `docs/deployment-log.md` registra entregas tecnicas.
+* pequenos detalhes de implementação;
+* cada commit;
+* ajustes triviais;
+* correções locais sem consequência arquitetural.

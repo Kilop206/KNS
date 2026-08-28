@@ -1,72 +1,243 @@
-# Implementation Governance
+# Governança de Implementação — KNS
 
-## Por que este arquivo existe
+## 1. Objetivo
 
-Este documento define como controlar escopo durante a implementacao. Ele ajuda a evitar que uma tarefa pequena vire reescrita ampla.
+Este documento define as regras para controlar escopo, autonomia, fases e decisões durante a evolução do KNS.
 
-## Natureza de Template
+O objetivo é impedir que uma issue localizada resulte, sem aprovação, em uma alteração arquitetural ampla.
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste regras de governanca, limites de autonomia, travamento de escopo, avanco de fase e criterios para pausar e decidir ao projeto real.
+---
 
-## Regras de Governanca
+## 2. Princípios
 
-- Implementar o menor incremento seguro.
-- Registrar tradeoffs relevantes.
-- Atualizar docs quando mudar contrato, arquitetura ou fluxo.
-- Nao adicionar dependencia nova sem motivo claro.
-- Separar bugfix, refatoracao e feature quando possivel.
-- Manter `docs/issues.md`, `docs/implementation-plan.md` e `docs/deployment-log.md` sincronizados.
+O trabalho deve seguir:
 
-## Adaptacao Inicial do Framework
+```text
+Especificação
+    ↓
+Escopo aprovado
+    ↓
+Menor incremento seguro
+    ↓
+Implementação
+    ↓
+Validação
+    ↓
+Documentação
+```
 
-No primeiro chat de escopo de um projeto novo, a IA deve tratar o SpecFirst como material bruto a ser adaptado, nao como estrutura imutavel.
+As regras de governança devem permanecer subordinadas ao contrato de `AGENTS.md`.
 
-A IA deve:
+---
 
-- revisar `AGENTS.md`, `README.md`, adaptadores de ferramenta e todos os arquivos em `docs/*`;
-- preencher o que for essencial ao projeto;
-- propor ao humano quais arquivos nao se aplicam;
-- remover arquivos somente apos aprovacao humana explicita;
-- limpar referencias para arquivos removidos quando a remocao for aprovada;
-- registrar no chat quais documentos foram mantidos, alterados, propostos para remocao ou removidos;
-- aguardar aprovacao humana antes de iniciar codigo.
+## 3. Menor incremento seguro
 
-Remover arquivo documental nao e quebra de governanca quando a remocao reduz ruido e mantem o contexto mais preciso.
+Cada tarefa deve alterar somente o que for necessário para atingir seu objetivo.
 
-## Travamento de Escopo
+Exemplo:
 
-A IA nao tem autorizacao para:
+```text
+Bug em transmissão
+    ↓
+corrigir contrato de transmissão
+    ↓
+adicionar teste
+```
 
-- criar nova issue quando a tarefa atual ainda puder ser resolvida dentro da issue existente;
-- pular para a proxima fase se a fase atual tiver checklists obrigatorios abertos;
-- expandir o escopo para uma feature nao planejada;
-- transformar uma correcao pequena em refatoracao ampla sem aprovacao humana.
-- remover documento do framework sem aprovacao humana;
-- tomar decisao de arquitetura, produto, seguranca ou modelo de dados sem validacao humana.
-- definir direcao visual de um projeto com UI sem perguntar preferencias humanas quando `docs/design-guidelines.md` ainda estiver generico.
+não:
 
-Se a IA identificar que precisa mudar o rumo, deve pausar e pedir decisao humana antes de implementar.
+```text
+Bug em transmissão
+    ↓
+reescrever arquitetura de rede
+    ↓
+alterar TCP
+    ↓
+alterar GUI
+    ↓
+introduzir novas abstrações
+```
 
-## Avanco de Fase
+sem justificativa e aprovação.
 
-Uma fase so pode ser marcada como concluida quando:
+---
 
-- os itens do checklist da fase foram concluidos ou explicitamente descartados;
-- os checks definidos em `docs/testing.md` foram executados ou tiveram impossibilidade registrada;
-- issues relacionadas foram atualizadas em `docs/issues.md`;
-- a entrega foi registrada em `docs/deployment-log.md`.
+## 4. Bugfix, feature e refatoração
 
-## Quando Pausar e Decidir
+Sempre que possível, separar:
 
-Pausar para decisao humana quando:
+* **Bugfix:** corrige comportamento incorreto.
+* **Feature:** adiciona comportamento novo.
+* **Refatoração:** altera estrutura sem mudar comportamento esperado.
+* **Docs:** altera documentação sem mudar comportamento.
 
-- houver conflito entre docs;
-- a solucao exigir mudanca arquitetural;
-- houver risco de perda de dados;
-- o escopo crescer alem da issue original.
+Uma tarefa pode conter mais de uma categoria somente quando isso for necessário e estiver claramente justificado.
 
-## Registro
+---
 
-Decisoes duradouras vao para `docs/decision-log.md`.
-Entregas tecnicas vao para `docs/deployment-log.md`.
-Pendencias operacionais vao para `docs/issues.md` ou issue tracker.
+## 5. Travamento de escopo
+
+A IA não deve:
+
+* criar uma issue nova quando a atual ainda resolve o problema;
+* expandir uma issue para uma feature não planejada;
+* alterar arquitetura sem necessidade;
+* trocar o contrato de uma API apenas por conveniência;
+* trocar o toolchain do projeto;
+* remover documentação sem aprovação;
+* pular uma fase com pendências obrigatórias;
+* transformar um bugfix em refatoração ampla.
+
+Quando uma mudança adicional for necessária:
+
+1. identificar a dependência;
+2. explicar o impacto;
+3. separar a mudança quando possível;
+4. obter decisão humana quando houver alteração relevante de escopo ou arquitetura.
+
+---
+
+## 6. Autonomia da IA
+
+A IA pode executar diretamente:
+
+* correções locais;
+* criação de testes;
+* atualizações de documentação;
+* refatorações pequenas dentro do escopo aprovado;
+* mudanças mecânicas e reversíveis.
+
+A IA deve solicitar validação antes de:
+
+* mudar arquitetura;
+* criar um novo domínio;
+* alterar protocolo;
+* mudar modelo de dados compartilhado;
+* introduzir dependência relevante;
+* mudar toolchain;
+* alterar significativamente o comportamento da GUI;
+* alterar critérios de aceitação;
+* remover documentos.
+
+---
+
+## 7. Issues
+
+Uma issue deve ser diagnosticada antes de implementação.
+
+Classificações:
+
+```text
+Resolvida
+Parcialmente resolvida
+Ainda válida
+Obsoleta
+```
+
+Uma issue parcialmente resolvida deve gerar somente as mudanças ainda necessárias.
+
+---
+
+## 8. Fases
+
+Uma fase representa um conjunto lógico de entregas.
+
+Uma fase só pode ser concluída quando:
+
+* os itens obrigatórios estiverem concluídos;
+* os testes e checks aplicáveis passarem;
+* as issues relacionadas estiverem atualizadas;
+* a documentação estiver sincronizada;
+* riscos residuais estiverem registrados.
+
+---
+
+## 9. Bloqueios
+
+Uma tarefa deve ser marcada como bloqueada quando:
+
+* existe conflito de especificação;
+* existe decisão humana pendente;
+* a solução depende de outra tarefa ainda não concluída;
+* um check obrigatório não pode ser executado;
+* existe risco técnico que exige decisão.
+
+O bloqueio deve ser documentado.
+
+---
+
+## 10. Decisões
+
+Registrar em `docs/decision-log.md` decisões duradouras sobre:
+
+* arquitetura;
+* protocolo;
+* contratos;
+* modelos de dados;
+* toolchain;
+* segurança;
+* fluxo operacional;
+* estratégia de testes.
+
+Não usar o Decision Log como histórico de cada alteração de código.
+
+---
+
+## 11. Rastreabilidade
+
+Toda entrega relevante deve permitir responder:
+
+```text
+Por que mudou?
+    ↓
+Qual issue?
+    ↓
+Qual código?
+    ↓
+Qual teste?
+    ↓
+Qual documentação?
+```
+
+A relação deve permanecer recuperável através do issue tracker, plano e logs.
+
+---
+
+## 12. Critério de avanço
+
+Não avançar uma fase apenas porque parte do código funciona.
+
+O avanço deve considerar:
+
+```text
+Comportamento
++
+Testes
++
+Checks
++
+Documentação
++
+Escopo
+```
+
+---
+
+## 13. Regra especial para o KNS
+
+Por ser um simulador orientado a eventos, mudanças aparentemente pequenas podem afetar vários componentes.
+
+Antes de alterar:
+
+* `SimulationEngine`;
+* `EventQueue`;
+* `Topology`;
+* `Link`;
+* `Routing`;
+* `Packet`;
+* `TCPSession`;
+* `TCPConnection`;
+
+a IA deve procurar consumidores e testes existentes.
+
+A existência de dependências não autoriza automaticamente uma refatoração ampla; ela serve para medir o impacto da mudança.

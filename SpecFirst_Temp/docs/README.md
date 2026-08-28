@@ -1,44 +1,168 @@
-# Docs - SpecFirst
+# KNS Documentation
 
-## Por que este arquivo existe
+This directory contains the engineering documentation used to specify, implement, test, and maintain the KNS (Kinetic Network Simulator).
 
-Este indice organiza a documentacao canonica do SpecFirst. A raiz do repositorio e o proprio template que deve ser copiado para outros projetos.
+The documentation is organized around the actual architecture and development workflow of KNS rather than around a generic project template.
 
-## Natureza de Template
+---
 
-Este arquivo e um template. No primeiro chat de escopo, revise e ajuste este indice para refletir apenas os documentos usados pelo projeto real.
+## Documentation Map
 
-Se algum documento for removido com aprovacao humana, remova tambem sua entrada deste indice.
+### Project
 
-## Rotas principais
+| Document              | Purpose                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `project-overview.md` | Defines KNS, its scope, goals, and major capabilities        |
+| `architecture.md`     | Defines system boundaries and architectural responsibilities |
+| `domains.md`          | Describes the major KNS domains                              |
+| `data-model.md`       | Describes important domain entities and relationships        |
+| `workflows.md`        | Describes important simulation and development workflows     |
 
-- `README.md` -> guia de uso do SpecFirst.
-- `AGENTS.md` -> contrato universal generico para novos projetos.
-- `docs/*` -> documentacao canonica generica.
+### Engineering
 
-## Documentos nucleares
+| Document               | Purpose                                          |
+| ---------------------- | ------------------------------------------------ |
+| `coding-standards.md`  | C++ and project coding conventions               |
+| `testing.md`           | Test strategy and validation requirements        |
+| `security.md`          | Security and credential-handling requirements    |
+| `design-guidelines.md` | GUI visual and interaction guidelines            |
+| `operations.md`        | Build, execution, and troubleshooting procedures |
+| `tooling-adapters.md`  | Tool-specific project integration                |
+| `ai-workflow.md`       | AI-assisted engineering workflow                 |
 
-- `project-overview.md` -> problema, publico, objetivo e escopo do projeto.
-- `architecture.md` -> arquitetura documental e rotas autorizadas.
-- `ai-workflow.md` -> como agentes devem trabalhar no projeto.
-- `coding-standards.md` -> padroes para manter a documentacao consistente.
-- `testing.md` -> validacoes esperadas para mudancas no framework.
-- `design-guidelines.md` -> direcao visual, tokens, componentes, layout e regras para UI.
-- `implementation-plan.md` -> fases, checklists e criterios globais de aceite.
-- `issues.md` -> trabalho planejado e estado vivo de cada issue.
-- `deployment-log.md` -> historico tecnico das entregas realizadas.
-- `tooling-adapters.md` -> como conectar SpecFirst a Claude Code, Cursor, Windsurf e outros agentes sem duplicar regras.
+### Governance
 
-## Fronteira entre Historicos
+| Document                       | Purpose                                        |
+| ------------------------------ | ---------------------------------------------- |
+| `implementation-governance.md` | Rules governing implementation work            |
+| `implementation-plan.md`       | Planned implementation phases                  |
+| `issues.md`                    | Analysis and tracking of implementation issues |
+| `decision-log.md`              | Significant engineering decisions              |
+| `deployment-log.md`            | Delivery and deployment history                |
 
-- `decision-log.md` guarda o motivo de decisoes duradouras.
-- `deployment-log.md` guarda o que foi tecnicamente entregue.
-- `issues.md` guarda o status e o progresso operacional de cada tarefa.
+---
 
-## Regra
+## How to Use the Documentation
 
-Quando uma rota ou documento novo entrar no framework, atualize este indice, `README.md` e `AGENTS.md`.
+Documentation should be read according to the task.
 
-No primeiro chat de escopo de um projeto novo, a IA deve revisar todos os arquivos do framework e adaptar esta lista ao projeto real. Documentos que nao se aplicam podem ser removidos, desde que suas referencias tambem sejam removidas dos indices e documentos relacionados.
+### Architectural work
 
-Todos os documentos podem ser atualizados quando o escopo mudar ou quando o projeto evoluir. A IA deve propor a atualizacao, explicar o motivo e aguardar decisao humana quando a mudanca afetar produto, arquitetura, seguranca, dados, operacao ou remocao de arquivos.
+Start with:
+
+```text
+project-overview.md
+        ↓
+architecture.md
+        ↓
+domains.md
+        ↓
+data-model.md
+```
+
+### Feature or bug implementation
+
+Start with:
+
+```text
+Issue
+ ↓
+project-overview.md
+ ↓
+architecture.md
+ ↓
+relevant domain document
+ ↓
+workflows.md
+ ↓
+implementation-governance.md
+ ↓
+testing.md
+```
+
+### GUI work
+
+Start with:
+
+```text
+architecture.md
+ ↓
+workflows.md
+ ↓
+design-guidelines.md
+ ↓
+relevant implementation
+```
+
+### AI-assisted work
+
+Start with:
+
+```text
+AGENTS.md
+ ↓
+ai-workflow.md
+ ↓
+task-specific documentation
+```
+
+---
+
+## Documentation Principles
+
+### Current behavior is authoritative
+
+Documentation must not claim that a feature exists if it does not exist in the current implementation.
+
+### Specifications precede implementation
+
+For meaningful behavioral changes, define the expected behavior before modifying the implementation.
+
+### Avoid duplication
+
+A rule should have one canonical location.
+
+Other documents should reference that rule instead of reproducing it.
+
+### Keep documents actionable
+
+Documentation should help developers answer concrete questions about KNS.
+
+Avoid generic process language that does not affect the project.
+
+---
+
+## Repository Relationship
+
+This documentation does not replace:
+
+* source code;
+* tests;
+* Git history;
+* GitHub Issues.
+
+Instead, it connects those artifacts into a coherent engineering process.
+
+```text
+GitHub Issues
+      │
+      ▼
+Specification
+      │
+      ▼
+Implementation
+      │
+      ▼
+Tests
+      │
+      ▼
+Decision / Delivery records
+```
+
+---
+
+## Change Requirement
+
+When a code change alters externally observable behavior, determine whether one or more documents in this directory must also be updated.
+
+A completed change should leave code, tests, and documentation consistent.
