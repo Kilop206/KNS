@@ -32,9 +32,49 @@ namespace kns {
         return destination;
     }
 
+    /// Returns the aggregate TCP state of this session, derived from the
+    /// actual states of the client and server connections.
+    /// Precedence (highest to lowest):
+    ///   ESTABLISHED > CLOSE_WAIT > LAST_ACK > FIN_WAIT_1 > FIN_WAIT_2
+    ///   > CLOSING > TIME_WAIT > CLOSED > SYN_RECEIVED > SYN_SENT > LISTEN
+    /// Falls back to the client connection state when no explicit rule matches.
     TCPState TCPSession::getState() const
     {
-        return state;
+        const TCPState cs = client_connection.getTcpState();
+        const TCPState ss = server_connection.getTcpState();
+
+        if (cs == TCPState::ESTABLISHED && ss == TCPState::ESTABLISHED)
+            return TCPState::ESTABLISHED;
+
+        if (cs == TCPState::CLOSE_WAIT || ss == TCPState::CLOSE_WAIT)
+            return TCPState::CLOSE_WAIT;
+
+        if (cs == TCPState::LAST_ACK || ss == TCPState::LAST_ACK)
+            return TCPState::LAST_ACK;
+
+        if (cs == TCPState::FIN_WAIT_1 || ss == TCPState::FIN_WAIT_1)
+            return TCPState::FIN_WAIT_1;
+
+        if (cs == TCPState::FIN_WAIT_2 || ss == TCPState::FIN_WAIT_2)
+            return TCPState::FIN_WAIT_2;
+
+        if (cs == TCPState::CLOSING || ss == TCPState::CLOSING)
+            return TCPState::CLOSING;
+
+        if (cs == TCPState::TIME_WAIT || ss == TCPState::TIME_WAIT)
+            return TCPState::TIME_WAIT;
+
+        if (cs == TCPState::CLOSED && ss == TCPState::CLOSED)
+            return TCPState::CLOSED;
+
+        if (cs == TCPState::SYN_RECEIVED || ss == TCPState::SYN_RECEIVED)
+            return TCPState::SYN_RECEIVED;
+
+        if (cs == TCPState::SYN_SENT || ss == TCPState::SYN_SENT)
+            return TCPState::SYN_SENT;
+
+        // Default: delegate to the client's own state.
+        return cs;
     }
 
     void TCPSession::incrementPacketsSent()
