@@ -162,5 +162,10 @@ namespace kns {
         bool deleteLink(int a, int b);
         bool toggleLinkUp(int a, int b, bool up);
         void rebuildRoutingTables();
+
+        /// Schedule a link failure (up=false) or recovery (up=true) at the
+        /// given simulation time. This is the event-driven equivalent of
+        /// toggleLinkUp() for use inside a running simulation.
+        void scheduleLinkFailure(double at_time, int node_a, int node_b, bool up);
     };
 }

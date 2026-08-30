@@ -10,6 +10,7 @@
 #include "engine/events/TCPHandshakeTimeoutEvent.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/events/LinkFailureEvent.hpp"
 #include "network/utils/PacketUtils.hpp"
 #include "engine/core/Random.hpp"
 
@@ -378,6 +379,10 @@ namespace kns {
         for (int u = 0; u < n; ++u) {
             routing_tables_[static_cast<std::size_t>(u)] = routing.buildRoutingTable(topology_, u);
         }
+    }
+
+    void SimulationEngine::scheduleLinkFailure(double at_time, int node_a, int node_b, bool up) {
+        schedule(std::make_unique<LinkFailureEvent>(at_time, node_a, node_b, up));
     }
 
 } // namespace kns
