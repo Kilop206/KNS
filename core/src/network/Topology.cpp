@@ -8,6 +8,10 @@ namespace kns {
     Topology::Topology(int nodes) {
         if (nodes > 0) {
             adjacency_list_.resize(static_cast<std::size_t>(nodes));
+            nodes_.reserve(static_cast<std::size_t>(nodes));
+            for (int i = 0; i < nodes; ++i) {
+                nodes_.emplace_back(i);
+            }
         }
     }
 
@@ -35,12 +39,20 @@ namespace kns {
         const int max_node = std::max(a, b);
 
         if (max_node >= static_cast<int>(adjacency_list_.size())) {
+            const std::size_t old_size = adjacency_list_.size();
             adjacency_list_.resize(static_cast<std::size_t>(max_node + 1));
+            for (std::size_t i = old_size; i <= static_cast<std::size_t>(max_node); ++i) {
+                nodes_.emplace_back(static_cast<int>(i));
+            }
         }
 
         links_.push_back(ptr);
         adjacency_list_[static_cast<std::size_t>(a)].push_back(ptr);
         adjacency_list_[static_cast<std::size_t>(b)].push_back(ptr);
+
+        // Register an Interface for each endpoint.
+        interfaces_.emplace_back(a, ptr->getId());
+        interfaces_.emplace_back(b, ptr->getId());
     }
 
     Topology::LinkPtr Topology::addLinkPtr(
@@ -55,12 +67,19 @@ namespace kns {
 
         const int max_node = std::max(a, b);
         if (max_node >= static_cast<int>(adjacency_list_.size())) {
+            const std::size_t old_size = adjacency_list_.size();
             adjacency_list_.resize(static_cast<std::size_t>(max_node + 1));
+            for (std::size_t i = old_size; i <= static_cast<std::size_t>(max_node); ++i) {
+                nodes_.emplace_back(static_cast<int>(i));
+            }
         }
 
         links_.push_back(ptr);
         adjacency_list_[static_cast<std::size_t>(a)].push_back(ptr);
         adjacency_list_[static_cast<std::size_t>(b)].push_back(ptr);
+
+        interfaces_.emplace_back(a, ptr->getId());
+        interfaces_.emplace_back(b, ptr->getId());
 
         return ptr;
     }
@@ -111,8 +130,10 @@ namespace kns {
     }
 
     int Topology::addNode() {
+        const int id = static_cast<int>(adjacency_list_.size());
         adjacency_list_.push_back({});
-        return static_cast<int>(adjacency_list_.size()) - 1;
+        nodes_.emplace_back(id);
+        return id;
     }
 
     bool Topology::removeNode(int id) {
@@ -120,7 +141,7 @@ namespace kns {
             return false;
         }
 
-        // Remove all links that reference this node
+        // Remove all links that reference this node (and their interfaces)
         std::vector<LinkPtr> to_remove;
         for (auto& link : links_) {
             if (link->getA() == id || link->getB() == id) {
@@ -144,10 +165,22 @@ namespace kns {
                 auto& vec = adjacency_list_[static_cast<std::size_t>(b)];
                 vec.erase(std::remove(vec.begin(), vec.end(), link), vec.end());
             }
+
+            // Remove interfaces for this link's endpoints
+            const std::uint64_t lid = link->getId();
+            interfaces_.erase(
+                std::remove_if(interfaces_.begin(), interfaces_.end(),
+                               [lid](const Interface& iface) { return iface.getLinkId() == lid; }),
+                interfaces_.end());
         }
 
         // Clear adjacency entry for the node (leave hole to preserve indices)
         adjacency_list_[static_cast<std::size_t>(id)].clear();
+
+        // Mark the Node inactive (preserve index slot for referential integrity)
+        if (static_cast<std::size_t>(id) < nodes_.size()) {
+            nodes_[static_cast<std::size_t>(id)].setActive(false);
+        }
         return true;
     }
 
@@ -165,6 +198,13 @@ namespace kns {
                     vec.erase(std::remove(vec.begin(), vec.end(), link), vec.end());
                 }
 
+                // Remove the two Interface objects for this link
+                const std::uint64_t lid = link->getId();
+                interfaces_.erase(
+                    std::remove_if(interfaces_.begin(), interfaces_.end(),
+                                   [lid](const Interface& iface) { return iface.getLinkId() == lid; }),
+                    interfaces_.end());
+
                 links_.erase(it);
                 return true;
             }
@@ -180,6 +220,16 @@ namespace kns {
             }
         }
         return false;
+    }
+
+    const Node* Topology::getNode(int id) const noexcept {
+        if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size()) return nullptr;
+        return &nodes_[static_cast<std::size_t>(id)];
+    }
+
+    Node* Topology::getNode(int id) noexcept {
+        if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size()) return nullptr;
+        return &nodes_[static_cast<std::size_t>(id)];
     }
 
 }

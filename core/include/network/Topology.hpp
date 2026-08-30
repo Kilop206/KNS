@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "network/Link.hpp"
+#include "network/Node.hpp"
+#include "network/Interface.hpp"
 
 namespace kns {
 
@@ -51,9 +53,18 @@ namespace kns {
         bool removeLink(int a, int b);
         bool setLinkUp(int a, int b, bool up);
 
+        /// Access the Node object for a given id. Returns nullptr if out of range.
+        const Node* getNode(int id) const noexcept;
+        Node* getNode(int id) noexcept;
+
+        /// All interface objects (one per link endpoint on a node).
+        const std::vector<Interface>& getInterfaces() const noexcept { return interfaces_; }
+
     private:
         std::vector<LinkPtr> links_;
         std::vector<std::vector<LinkPtr>> adjacency_list_;
+        std::vector<Node> nodes_;           ///< One Node per adjacency_list_ slot.
+        std::vector<Interface> interfaces_; ///< Interface objects for every link endpoint.
         std::string name_;
     };
 
