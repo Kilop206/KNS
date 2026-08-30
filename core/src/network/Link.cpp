@@ -7,6 +7,8 @@
 
 namespace kns {
 
+    std::uint64_t Link::next_id_ = 0;
+
     Link::Link(
         int a,
         int b,
@@ -15,7 +17,8 @@ namespace kns {
         double loss_prob,
         LinkMode mode
     )
-        : a_(a),
+        : id_(next_id_++),
+        a_(a),
         b_(b),
         bandwidth_mbps_(bandwidth_mbps),
         delay_ms_(delay_ms),
@@ -24,6 +27,8 @@ namespace kns {
         up_(true)
     {
     }
+
+    std::uint64_t Link::getId() const noexcept { return id_; }
 
     int Link::getA() const noexcept {
         return a_;

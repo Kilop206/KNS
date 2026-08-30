@@ -45,6 +45,10 @@ namespace kns {
 
         std::uint64_t session_id = 0;
 
+        /// Identity of the Link used for the last hop. Set by sendPacket()
+        /// so that the arrival event can release exactly the right link.
+        std::uint64_t link_id = 0;
+
         TCPSegment tcp;
 
         PacketType packet_type = PacketType::DATA;

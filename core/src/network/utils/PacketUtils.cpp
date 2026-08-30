@@ -38,11 +38,14 @@ namespace kns {
             return false;
         }
 
+        // Use the stable link_id recorded at transmission time so that the
+        // correct link is released even when multiple parallel links exist
+        // between the same pair of nodes (fixes issue #92).
         const auto& links =
             engine.getTopology().getLinksFromNode(pkt.previous_node);
 
         for (const auto& link_ptr : links) {
-            if (link_ptr && link_ptr->getOtherNode(pkt.previous_node) == pkt.current_node) {
+            if (link_ptr && link_ptr->getId() == pkt.link_id) {
                 link_ptr->dequeuePacket();
                 return true;
             }

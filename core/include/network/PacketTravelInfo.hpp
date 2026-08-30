@@ -1,3 +1,8 @@
+#pragma once
+
+#include <cstdint>
+#include "enums/PacketType.hpp"
+
 namespace kns {
     struct PacketTravelInfo {
         double departure_time;
@@ -6,7 +11,9 @@ namespace kns {
         int to_node;
         PacketType packet_type;
 
-        int link_from = -1;
-        int link_to = -1;
+        /// Stable identity of the Link used for this transmission.
+        /// Set by sendPacket(). Used by releasePacketThroughTopology() to
+        /// release exactly the right link even when parallel links exist.
+        std::uint64_t link_id = 0;
     };
 }

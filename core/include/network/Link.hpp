@@ -20,6 +20,9 @@ class Link {
             LinkMode mode = LinkMode::FULL_DUPLEX
         );
 
+        /// Stable numeric identity assigned at construction. Unique within a simulation run.
+        std::uint64_t getId() const noexcept;
+
         int getA() const noexcept;
         int getB() const noexcept;
         int getOtherNode(int node) const noexcept;
@@ -76,6 +79,9 @@ class Link {
         std::deque<LinkTransmission> queue_;
 
         DirectionSlot getDirectionSlot(int from, int to) const noexcept;
+
+        const std::uint64_t id_;
+        static std::uint64_t next_id_;
 
         const int a_;
         const int b_;

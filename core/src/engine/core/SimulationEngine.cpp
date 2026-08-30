@@ -81,11 +81,13 @@ namespace kns {
     bool SimulationEngine::removePacketInTransit(double departure_time,
                                     double arrival_time,
                                     int& from,
-                                    int& to) {
+                                    int& to,
+                                    std::uint64_t& link_id) {
         for (auto it = packets_in_transit.begin(); it != packets_in_transit.end(); ++it) {
             if (it->departure_time == departure_time && it->arrival_time == arrival_time) {
                 from = it->from_node;
                 to = it->to_node;
+                link_id = it->link_id;
                 packets_in_transit.erase(it);
                 return true;
             }
@@ -170,6 +172,8 @@ namespace kns {
 
         Packet new_pkt = pkt;
         new_pkt.current_node = next_node;
+        new_pkt.previous_node = pkt.current_node;
+        new_pkt.link_id = link.getId();
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
 
@@ -187,7 +191,8 @@ namespace kns {
             arrival_time,
             pkt.current_node,
             next_node,
-            pkt.packet_type
+            pkt.packet_type,
+            link.getId()
         });
 
         emitPacketEvent(

@@ -118,7 +118,8 @@ namespace kns {
         bool removePacketInTransit(double departure_time,
                                     double arrival_time,
                                     int& from,
-                                    int& to);
+                                    int& to,
+                                    std::uint64_t& link_id);
 
         void setGlobalLossProb(float value);
 
