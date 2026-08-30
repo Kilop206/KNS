@@ -46,7 +46,36 @@ namespace kns {
         const std::string& getName() const noexcept;
         void setName(std::string name);
 
-        // Node/link management for GUI
+    /// Dynamic topology change policy (issue #95)
+    /// ============================================
+    /// The simulation allows topology mutations during a run (GUI edits,
+    /// LinkFailureEvent, deleteNode/deleteLink). The following invariants
+    /// define how in-flight packets and scheduled events are affected:
+    ///
+    /// 1. Packets already in transit (in packets_in_transit and scheduled as
+    ///    PacketReceivedEvent) CONTINUE to their destination. They carry a
+    ///    stable link_id that was valid when sendPacket() was called; on
+    ///    arrival the release step simply becomes a no-op if the link has
+    ///    since been removed.
+    ///
+    /// 2. A packet arriving at a node that has been removed is processed
+    ///    normally until the TCP session lookup. hasTCPSession() guards
+    ///    against use-after-free; unrecognised packets are silently dropped.
+    ///
+    /// 3. A packet mid-route (not yet at destination) whose next hop
+    ///    no longer exists is counted as lost (sendPacketThroughTopology
+    ///    returns false, stats.packets_lost incremented).
+    ///
+    /// 4. TCP sessions are NOT automatically torn down when a topology
+    ///    mutation makes their path unreachable. The session stays open until
+    ///    the SYN handshake timeout exhausts retries and declares it failed.
+    ///
+    /// 5. Routing tables are rebuilt synchronously on every topology mutation
+    ///    (rebuildRoutingTables) so that newly scheduled packets use the
+    ///    updated topology. Packets already scheduled use their pre-computed
+    ///    route (hop-by-hop via getNextHop at arrival time).
+
+    // Node/link management for GUI
         int addNode();
         bool removeNode(int id);
 
