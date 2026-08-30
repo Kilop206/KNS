@@ -12,6 +12,7 @@
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
+#include "network/transport/tcp/TCPListener.hpp"
 #include "engine/core/Event.hpp"
 #include "engine/core/Stats.hpp"
 #include "engine/core/EventQueue.hpp"
@@ -81,8 +82,11 @@ namespace kns {
 
         unsigned int kPacketsPerRoute = 20;
 
-        /// Metric used by Dijkstra when (re)building routing tables.
+        /// Routing metric used by Dijkstra.
         RoutingMetric routing_metric_ = RoutingMetric::Delay;
+
+        /// Passive TCP listeners keyed by the listening node id.
+        std::map<int, TCPListener> listeners_;
 
     public:
         double random();
@@ -136,6 +140,17 @@ namespace kns {
         int getGlobalPacketSize() const;
 
         void startTCPConnection(int source, int dest);
+
+        /// Make node_id passively listen for incoming TCP connections.
+        /// Returns a reference to the created listener (backlog defaults to 128).
+        TCPListener& startTCPListen(int node_id, int backlog = 128);
+
+        /// Returns true if node_id has an active listener registered.
+        bool hasListener(int node_id) const noexcept;
+
+        /// Accept an incoming SYN on a listening node. Returns the new
+        /// session_id (0 on failure). Called by PacketReceivedEvent.
+        std::uint64_t acceptOnListener(int listening_node, int connecting_node);
 
         void setPacketObserver(
             std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer

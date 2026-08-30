@@ -84,7 +84,23 @@ namespace kns
         }
 
         if (!engine.hasTCPSession(packet.session_id)) {
-            return;
+            // If the destination node has a passive listener and this is a SYN,
+            // let the listener create a new session (issue #79).
+            if (packet.packet_type == PacketType::SYN &&
+                engine.hasListener(packet.destination))
+            {
+                const std::uint64_t new_sid =
+                    engine.acceptOnListener(packet.destination, packet.source);
+                if (new_sid != 0) {
+                    // Rewrite the packet's session_id and continue handling below.
+                    packet.session_id = new_sid;
+                    // Fall through — the session now exists.
+                } else {
+                    return; // Backlog full — drop (could send RST in the future).
+                }
+            } else {
+                return;
+            }
         }
 
         auto& session = engine.getTCPSession(packet.session_id);

@@ -337,6 +337,22 @@ namespace kns {
         handshake_offset_ += 0.05;
     }
 
+    TCPListener& SimulationEngine::startTCPListen(int node_id, int backlog) {
+        auto [it, _] = listeners_.emplace(node_id, TCPListener(node_id, backlog));
+        return it->second;
+    }
+
+    bool SimulationEngine::hasListener(int node_id) const noexcept {
+        const auto it = listeners_.find(node_id);
+        return it != listeners_.end() && it->second.isListening();
+    }
+
+    std::uint64_t SimulationEngine::acceptOnListener(int listening_node, int connecting_node) {
+        auto it = listeners_.find(listening_node);
+        if (it == listeners_.end()) return 0;
+        return it->second.accept(connecting_node, *this);
+    }
+
     void SimulationEngine::generatePackets(double /*startTime*/, TCPSession& /*session*/) {
         // No-op for now; startTCPConnection currently synthesizes packet events.
     }
