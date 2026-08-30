@@ -142,12 +142,37 @@ namespace kns {
     }
     
     std::size_t Link::estimatedQueueSize(double /*now*/, int /*from*/, int /*to*/) const {
-        return getQueueSize();
+        return queue_.size();
     }
 
     bool Link::canQueue() const noexcept
     {
-        return queued_packets_ < queue_capacity_;
+        return queue_.size() < queue_capacity_;
+    }
+
+    void Link::enqueueTransmission(int from, int to,
+                                    double departure_time,
+                                    double arrival_time) noexcept
+    {
+        queue_.push_back({from, to, departure_time, arrival_time});
+        ++queued_packets_;
+    }
+
+    bool Link::dequeueTransmission(int from, int to,
+                                    double departure_time,
+                                    double arrival_time) noexcept
+    {
+        for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+            if (it->from == from && it->to == to &&
+                it->departure_time == departure_time &&
+                it->arrival_time == arrival_time)
+            {
+                queue_.erase(it);
+                if (queued_packets_ > 0) --queued_packets_;
+                return true;
+            }
+        }
+        return false;
     }
 
     void Link::enqueuePacket() noexcept
@@ -164,7 +189,7 @@ namespace kns {
 
     std::size_t Link::getQueueSize() const noexcept
     {
-        return queued_packets_;
+        return queue_.size();
     }
 
     std::size_t Link::getQueueCapacity() const noexcept

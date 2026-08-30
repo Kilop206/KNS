@@ -39,6 +39,7 @@ namespace kns {
 
         double creation_time = 0.0;
         double departure_time = 0.0;
+        double arrival_time = 0.0;  ///< Simulation time at which this packet arrived at current_node.
 
         int packet_size_bytes = 0;
         int hop_count = 0;

@@ -49,6 +49,21 @@ class Link {
         std::size_t estimatedQueueSize(double now, int from, int to) const;
 
         bool canQueue() const noexcept;
+
+        /// Record a transmission in the FIFO queue. Does NOT check capacity —
+        /// caller must call canQueue() first. Supersedes the bare enqueuePacket().
+        void enqueueTransmission(int from, int to,
+                                  double departure_time,
+                                  double arrival_time) noexcept;
+
+        /// Remove the oldest matching transmission from the FIFO queue.
+        /// Returns true if a matching entry was found and removed.
+        bool dequeueTransmission(int from, int to,
+                                  double departure_time,
+                                  double arrival_time) noexcept;
+
+        /// Legacy counter-only helpers kept for callers that have not yet been
+        /// migrated to the typed FIFO methods.
         void enqueuePacket() noexcept;
         void dequeuePacket() noexcept;
 

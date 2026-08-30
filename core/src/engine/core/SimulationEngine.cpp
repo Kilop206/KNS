@@ -176,6 +176,7 @@ namespace kns {
         new_pkt.link_id = link.getId();
         new_pkt.hop_count++;
         new_pkt.departure_time = actual_departure_time;
+        new_pkt.arrival_time = arrival_time;
 
         if (pkt.hop_count == 0) {
             stats_.packets_sent++;
@@ -185,6 +186,12 @@ namespace kns {
             stats_.packets_lost++;
             return false;
         }
+
+        // Record in the FIFO queue so the arrival event can release the exact slot.
+        link.enqueueTransmission(
+            pkt.current_node, next_node,
+            actual_departure_time, arrival_time
+        );
 
         packets_in_transit.push_back(PacketTravelInfo{
             actual_departure_time,
