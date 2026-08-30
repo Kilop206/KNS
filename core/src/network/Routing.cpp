@@ -11,29 +11,66 @@
 
 namespace kns {
 
-	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src) {
+	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
+	                                                 RoutingMetric metric) {
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 
 		const double inf = std::numeric_limits<double>::infinity();
 
-		std::vector<double> dist(n, inf);
+		// For Bandwidth metric we maximise the minimum bandwidth, so we start with
+		// 0.0 as "worst" and use a max-heap. For all other metrics we minimise cost
+		// and start with +inf.
+		const bool maximise = (metric == RoutingMetric::Bandwidth);
+
+		std::vector<double> dist(n, maximise ? 0.0 : inf);
 		std::vector<int> parent(n, -1);
 
-		std::priority_queue<
-			std::pair<double, int>,
-			std::vector<std::pair<double, int>>,
-			std::greater<>
-		> pq;
+		// min-heap for cost metrics, max-heap for Bandwidth
+		using Pair = std::pair<double, int>;
+		std::priority_queue<Pair, std::vector<Pair>,
+		                    std::conditional_t<false, std::less<Pair>, std::greater<Pair>>> pq;
 
-		dist[src] = 0.0;
-		pq.push({0.0, src});
+		// For Bandwidth we need a max-heap; use a lambda comparator via the adapter below.
+		// Simpler: just negate the cost for Bandwidth and keep a min-heap.
+		auto encode  = [&](double v) { return maximise ? -v : v; };
+		auto decode  = [&](double v) { return maximise ? -v : v; };
+		auto better  = [&](double candidate, double current) {
+			return maximise ? candidate > current : candidate < current;
+		};
+
+		dist[src] = maximise ? inf : 0.0;
+		pq.push({encode(dist[src]), src});
+
+		auto linkCost = [&](const Link& link) -> double {
+			switch (metric) {
+				case RoutingMetric::Delay:
+					return link.getDelayMs();
+				case RoutingMetric::Bandwidth:
+					return link.getBandwidthMbps();   // will be negated via encode()
+				case RoutingMetric::HopCount:
+					return 1.0;
+				case RoutingMetric::DelayBandwidth:
+					return (link.getBandwidthMbps() > 0.0)
+					       ? link.getDelayMs() / link.getBandwidthMbps()
+					       : inf;
+				default:
+					return link.getDelayMs();
+			}
+		};
+
+		auto combine  = [&](double current_dist, double edge_cost) -> double {
+			if (metric == RoutingMetric::Bandwidth)
+				return std::min(current_dist, edge_cost);   // bottleneck bandwidth
+			return current_dist + edge_cost;
+		};
 
 		while (!pq.empty()) {
-			auto [currentDist, u] = pq.top();
+			auto [encoded, u] = pq.top();
 			pq.pop();
+			double currentDist = decode(encoded);
 
-			if (currentDist > dist[u]) {
+			if (!better(currentDist, dist[u]) && currentDist != dist[u]) {
 				continue;
 			}
 
@@ -45,13 +82,12 @@ namespace kns {
 				}
 
 				int v = link->getOtherNode(u);
+				double newDist = combine(dist[u], linkCost(*link));
 
-				double newDist = dist[u] + link->getDelayMs();
-
-				if (newDist < dist[v]) {
+				if (better(newDist, dist[v])) {
 					dist[v] = newDist;
 					parent[v] = u;
-					pq.push({newDist, v});
+					pq.push({encode(newDist), v});
 				}
 			}
 		}
@@ -59,11 +95,12 @@ namespace kns {
 		return {dist, parent};
 	}
 
-	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src) {
+	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src,
+	                                                               RoutingMetric metric) {
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 
-		DijkstraResult result = buildDijkstra(topology, src);
+		DijkstraResult result = buildDijkstra(topology, src, metric);
 
 		const auto& parent = result.parent;
 		const auto& dist = result.dist;
@@ -79,9 +116,11 @@ namespace kns {
 			entry.distance = dist[d];
 			entry.next_hop = -1;
 
-			if (d == src || dist[d] == inf) {
-				table.push_back(entry);
-				continue;
+			if (d == src || dist[d] == inf || dist[d] == 0.0) {
+				if (d == src || (metric != RoutingMetric::Bandwidth && dist[d] == inf)) {
+					table.push_back(entry);
+					continue;
+				}
 			}
 
 			int current = d;

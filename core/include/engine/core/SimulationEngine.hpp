@@ -80,6 +80,10 @@ namespace kns {
         double handshake_offset_ = 0.0;
 
         unsigned int kPacketsPerRoute = 20;
+
+        /// Metric used by Dijkstra when (re)building routing tables.
+        RoutingMetric routing_metric_ = RoutingMetric::Delay;
+
     public:
         double random();
 
@@ -162,6 +166,10 @@ namespace kns {
         bool deleteLink(int a, int b);
         bool toggleLinkUp(int a, int b, bool up);
         void rebuildRoutingTables();
+
+        /// Change the routing metric and immediately rebuild all routing tables.
+        void setRoutingMetric(RoutingMetric metric);
+        RoutingMetric getRoutingMetric() const noexcept;
 
         /// Schedule a link failure (up=false) or recovery (up=true) at the
         /// given simulation time. This is the event-driven equivalent of

@@ -377,8 +377,18 @@ namespace kns {
         routing_tables_.resize(static_cast<std::size_t>(n));
         Routing routing;
         for (int u = 0; u < n; ++u) {
-            routing_tables_[static_cast<std::size_t>(u)] = routing.buildRoutingTable(topology_, u);
+            routing_tables_[static_cast<std::size_t>(u)] =
+                routing.buildRoutingTable(topology_, u, routing_metric_);
         }
+    }
+
+    void SimulationEngine::setRoutingMetric(RoutingMetric metric) {
+        routing_metric_ = metric;
+        rebuildRoutingTables();
+    }
+
+    RoutingMetric SimulationEngine::getRoutingMetric() const noexcept {
+        return routing_metric_;
     }
 
     void SimulationEngine::scheduleLinkFailure(double at_time, int node_a, int node_b, bool up) {
