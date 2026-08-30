@@ -29,7 +29,13 @@ namespace kns {
             << session_id_
             << '\n');
 
-        client.send_fin();
+        if (!client.send_fin()) {
+            KNS_DEBUG_LOG(
+                "[TCP] send_fin() rejected in state "
+                << static_cast<int>(client.getTcpState())
+                << " — close aborted\n");
+            return;
+        }
 
         Packet fin(
             client.getLocalNode(),

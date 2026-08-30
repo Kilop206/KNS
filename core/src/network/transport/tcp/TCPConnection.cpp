@@ -238,36 +238,41 @@ namespace kns {
         return true;
     }
 
-    std::uint32_t TCPConnection::send_syn()
+    bool TCPConnection::send_syn()
     {
-        if (getTcpState() != TCPState::SYN_SENT) {
-            if (!state_machine_.onSynSent()) {
-                return seq_num_;
-            }
-
-            seq_num_ = generateInitialSeq();
+        if (getTcpState() == TCPState::SYN_SENT) {
+            // Already in SYN_SENT (retransmit path) — seq is already set.
+            return true;
         }
 
-        return seq_num_;
+        if (!state_machine_.onSynSent()) {
+            return false;
+        }
+
+        seq_num_ = generateInitialSeq();
+        return true;
     }
 
-    std::uint32_t TCPConnection::send_syn_ack()
+    bool TCPConnection::send_syn_ack()
     {
-        state_machine_.onSynReceived();
-        return seq_num_;
+        // The server transitions to SYN_RECEIVED when it receives a SYN
+        // (receive_syn()), not when it sends the SYN-ACK. So this method only
+        // validates that we are already in SYN_RECEIVED before allowing the
+        // segment to be sent — no state change needed.
+        return getTcpState() == TCPState::SYN_RECEIVED;
     }
 
-    std::uint32_t TCPConnection::send_ack()
+    bool TCPConnection::send_ack()
     {
-        state_machine_.onEstablished();
-        return expected_ack_num_;
+        // Sending a plain ACK is valid from many states (handshake, data,
+        // close). This is a pure segment construction call — it does NOT drive
+        // the state machine. The state machine is advanced by receive_*().
+        return true;
     }
 
-    std::uint32_t TCPConnection::send_fin()
+    bool TCPConnection::send_fin()
     {
-        state_machine_.onFinSent();
-
-        return seq_num_;
+        return state_machine_.onFinSent();
     }
 
     bool TCPConnection::expire_time_wait() noexcept

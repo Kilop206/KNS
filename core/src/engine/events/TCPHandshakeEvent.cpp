@@ -33,7 +33,15 @@ namespace kns {
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
 
-        client.send_syn();
+        if (!client.send_syn()) {
+            KNS_DEBUG_LOG(
+                "[TCP][SESSION "
+                << session_id_
+                << "] send_syn() rejected in state "
+                << static_cast<int>(client.getTcpState())
+                << " — handshake aborted\n");
+            return;
+        }
 
         Packet syn(
             source_,

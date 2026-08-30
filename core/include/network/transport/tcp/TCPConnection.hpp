@@ -49,10 +49,23 @@ namespace kns {
             bool receive_ack(std::uint32_t remote_ack);
             bool receive_fin(std::uint32_t remote_seq);
 
-            std::uint32_t send_syn();
-            std::uint32_t send_syn_ack();
-            std::uint32_t send_ack();
-            std::uint32_t send_fin();
+            /// Transition to SYN_SENT and record the initial seq.
+            /// Returns false if the current state does not allow sending a SYN.
+            bool send_syn();
+
+            /// Transition to SYN_RECEIVED (server answers with SYN-ACK).
+            /// Returns false if the current state does not allow the transition.
+            bool send_syn_ack();
+
+            /// Pure segment construction — does NOT change state.
+            /// Call after receive_syn_ack() / receive_syn() confirmed the handshake.
+            /// Always returns true.
+            bool send_ack();
+
+            /// Transition to FIN_WAIT_1 (ESTABLISHED) or LAST_ACK (CLOSE_WAIT).
+            /// Returns false if the current state does not allow sending a FIN.
+            bool send_fin();
+
             bool expire_time_wait() noexcept;
 
         private:

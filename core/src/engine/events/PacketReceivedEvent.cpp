@@ -97,7 +97,9 @@ namespace kns
         switch (packet.packet_type) {
             case PacketType::SYN: {
 
-                server.receive_syn(packet.tcp.seq);
+                if (!server.receive_syn(packet.tcp.seq)) {
+                    break;
+                }
 
                 Packet synAck(
                     server.getLocalNode(),
@@ -117,7 +119,9 @@ namespace kns
 
             case PacketType::SYN_ACK: {
 
-                client.receive_syn_ack(packet.tcp.seq, packet.tcp.ack);
+                if (!client.receive_syn_ack(packet.tcp.seq, packet.tcp.ack)) {
+                    break;
+                }
 
                 Packet ack(
                     client.getLocalNode(),
@@ -177,7 +181,9 @@ namespace kns
             }
 
             case PacketType::FIN: {
-                receiver.receive_fin(packet.tcp.seq);
+                if (!receiver.receive_fin(packet.tcp.seq)) {
+                    break;
+                }
 
                 if (client.getTcpState() == TCPState::TIME_WAIT) {
                     engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(engine.now() + 0.1, session.getSession_id()));
@@ -198,21 +204,21 @@ namespace kns
                 PacketUtils::sendPacketThroughTopology(engine, ack);
 
                 if (receiver.getTcpState() == TCPState::CLOSE_WAIT) {
-                    receiver.send_fin();
+                    if (receiver.send_fin()) {
+                        Packet fin(
+                            receiver.getLocalNode(),
+                            receiver.getRemoteNode(),
+                            receiver.getLocalNode(),
+                            engine.now(),
+                            engine.getGlobalPacketSize(),
+                            packet.session_id
+                        );
 
-                    Packet fin(
-                        receiver.getLocalNode(),
-                        receiver.getRemoteNode(),
-                        receiver.getLocalNode(),
-                        engine.now(),
-                        engine.getGlobalPacketSize(),
-                        packet.session_id
-                    );
+                        fin.tcp = receiver.buildFin();
+                        fin.packet_type = inferPacketType(fin.tcp);
 
-                    fin.tcp = receiver.buildFin();
-                    fin.packet_type = inferPacketType(fin.tcp);
-
-                    PacketUtils::sendPacketThroughTopology(engine, fin);
+                        PacketUtils::sendPacketThroughTopology(engine, fin);
+                    }
                 }
 
                 refreshSessionState(session);
