@@ -48,19 +48,25 @@ class Link {
 
         std::size_t estimatedQueueSize(double now, int from, int to) const;
 
-        bool canQueue() const noexcept;
+        bool canQueue(int from, int to) const noexcept;
 
         /// Record a transmission in the FIFO queue. Does NOT check capacity —
         /// caller must call canQueue() first. Supersedes the bare enqueuePacket().
-        void enqueueTransmission(int from, int to,
-                                  double departure_time,
-                                  double arrival_time) noexcept;
+        void enqueueTransmission(
+            int from,
+            int to,
+            double departure_time,
+            double arrival_time
+        ) noexcept;
 
         /// Remove the oldest matching transmission from the FIFO queue.
         /// Returns true if a matching entry was found and removed.
-        bool dequeueTransmission(int from, int to,
-                                  double departure_time,
-                                  double arrival_time) noexcept;
+        bool dequeueTransmission(
+            int from,
+            int to,
+            double departure_time,
+            double arrival_time
+        ) noexcept;
 
         /// Legacy counter-only helpers kept for callers that have not yet been
         /// migrated to the typed FIFO methods.
@@ -91,9 +97,14 @@ class Link {
         };
 
         double busy_until_ = 0.0;
-        std::deque<LinkTransmission> queue_;
 
         DirectionSlot getDirectionSlot(int from, int to) const noexcept;
+
+        std::deque<LinkTransmission>&
+        queueForSlot(DirectionSlot slot) noexcept;
+
+        const std::deque<LinkTransmission>&
+        queueForSlot(DirectionSlot slot) const noexcept;
 
         const std::uint64_t id_;
         static std::uint64_t next_id_;
@@ -110,9 +121,14 @@ class Link {
         mutable double busy_until_ba_ = 0.0;
         mutable double busy_until_shared_ = 0.0;
 
+        std::deque<LinkTransmission> queue_ab_;
+        std::deque<LinkTransmission> queue_ba_;
+        std::deque<LinkTransmission> queue_shared_;
+
         std::size_t queue_capacity_ = 32;
-        std::size_t queued_packets_ = 0;
 
         bool up_ = true;
+
+        DirectionSlot getQueueSlot(int from, int to) const noexcept;
     };
 }

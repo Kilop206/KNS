@@ -47,3 +47,86 @@ TEST_CASE("PacketUtils sendPacketThroughTopology propagates drop status", "[netw
     bool result = PacketUtils::sendPacketThroughTopology(engine, p);
     REQUIRE_FALSE(result);
 }
+
+TEST_CASE(
+    "Link rejects transmission when queue capacity is full",
+    "[network][link][queue]"
+) {
+    Link link(0, 1, 100.0, 1.0, 0.0);
+
+    for (std::size_t i = 0; i < link.getQueueCapacity(); ++i) {
+        REQUIRE(link.canQueue(0, 1));
+
+        link.enqueueTransmission(
+            0,
+            1,
+            static_cast<double>(i),
+            static_cast<double>(i + 1)
+        );
+    }
+
+    REQUIRE(link.getQueueSize() == link.getQueueCapacity());
+    REQUIRE_FALSE(link.canQueue(0, 1));
+}
+
+TEST_CASE(
+    "FULL_DUPLEX queues are independent",
+    "[network][link][queue]"
+) {
+    Link link(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    link.enqueueTransmission(0, 1, 0.0, 1.0);
+
+    REQUIRE(link.estimatedQueueSize(0.0, 0, 1) == 1);
+    REQUIRE(link.estimatedQueueSize(0.0, 1, 0) == 0);
+
+    link.enqueueTransmission(1, 0, 0.0, 1.0);
+
+    REQUIRE(link.estimatedQueueSize(0.0, 0, 1) == 1);
+    REQUIRE(link.estimatedQueueSize(0.0, 1, 0) == 1);
+}
+
+TEST_CASE(
+    "HALF_DUPLEX shares one queue",
+    "[network][link][queue]"
+) {
+    Link link(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        LinkMode::HALF_DUPLEX
+    );
+
+    link.enqueueTransmission(0, 1, 0.0, 1.0);
+
+    REQUIRE(link.estimatedQueueSize(0.0, 0, 1) == 1);
+    REQUIRE(link.estimatedQueueSize(0.0, 1, 0) == 1);
+
+    REQUIRE(link.canQueue(1, 0));
+}
+
+TEST_CASE(
+    "SIMPLEX rejects reverse direction",
+    "[network][link][queue]"
+) {
+    Link link(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        LinkMode::SIMPLEX
+    );
+
+    REQUIRE(link.canQueue(0, 1));
+    REQUIRE_FALSE(link.canQueue(1, 0));
+}

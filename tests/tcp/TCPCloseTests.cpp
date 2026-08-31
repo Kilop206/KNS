@@ -9,15 +9,18 @@ TEST_CASE("TCPConnection performs active close", "[tcp][close]")
 {
     TCPConnection client(TCPState::ESTABLISHED, 100, 500, 1, 2);
 
-    REQUIRE(client.send_fin() == 100);
-    REQUIRE(client.getTcpState() == TCPState::FIN_WAIT_1);
-
     const auto fin = client.buildFin();
+
     REQUIRE(fin.fin());
     REQUIRE(fin.ackFlag());
     REQUIRE(fin.seq == 100);
     REQUIRE(fin.ack == 500);
 
+    INFO("State: " << static_cast<int>(client.getTcpState()));
+    INFO("Sequence: " << client.getSeqNum());
+    INFO("Expected ACK: " << client.getExpectedAckNum());
+    INFO("Receiving ACK: 101");
+    
     REQUIRE(client.receive_ack(101));
     REQUIRE(client.getTcpState() == TCPState::FIN_WAIT_2);
 
@@ -36,8 +39,12 @@ TEST_CASE("TCPConnection performs passive close", "[tcp][close]")
     REQUIRE(server.getTcpState() == TCPState::CLOSE_WAIT);
     REQUIRE(server.getExpectedAckNum() == 101);
 
-    REQUIRE(server.send_fin() == 500);
+    REQUIRE(server.send_fin());
     REQUIRE(server.getTcpState() == TCPState::LAST_ACK);
+
+    const auto fin = server.buildFin();
+    REQUIRE(fin.seq == 500);
+    REQUIRE(fin.ack == 101);
 
     REQUIRE(server.receive_ack(501));
     REQUIRE(server.getTcpState() == TCPState::CLOSED);

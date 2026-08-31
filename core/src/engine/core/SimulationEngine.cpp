@@ -142,14 +142,25 @@ namespace kns {
         return now + propagation + transmission;
     }
 
-    bool SimulationEngine::sendPacket(const Packet& pkt, Link& link, double now)
+    bool SimulationEngine::sendPacket(
+        const Packet& pkt,
+        Link& link,
+        double now
+    )
     {
         if (!link.isUp()) {
             return false;
         }
 
-        const int next_node = link.getOtherNode(pkt.current_node);
+        const int next_node =
+            link.getOtherNode(pkt.current_node);
+
         if (next_node == -1) {
+            return false;
+        }
+
+        if (!link.canQueue(pkt.current_node, next_node)) {
+            stats_.packets_lost++;
             return false;
         }
 
@@ -290,10 +301,22 @@ namespace kns {
         }
     }
 
-    TCPSession& SimulationEngine::createTCPSession(int source, int destination) {
-        uint64_t id = next_session_id++;
-        sessions.emplace(id, TCPSession());
-        // optional: initialize session endpoints if TCPSession exposes such methods
+    TCPSession& SimulationEngine::createTCPSession(
+        int source,
+        int destination
+    ) {
+        const std::uint64_t id = next_session_id++;
+
+        sessions.emplace(
+            id,
+            TCPSession(
+                id,
+                source,
+                destination,
+                TCPState::CLOSED
+            )
+        );
+
         return sessions.at(id);
     }
 

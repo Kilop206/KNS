@@ -10,8 +10,10 @@ TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][ha
     TCPConnection client(TCPState::CLOSED, 100, 0, 1, 2);
     TCPConnection server(TCPState::LISTEN, 500, 0, 2, 1);
 
-    const auto clientSeq = client.send_syn();
+    REQUIRE(client.send_syn());
     REQUIRE(client.getTcpState() == TCPState::SYN_SENT);
+
+    const auto clientSeq = client.getSeqNum();
 
     REQUIRE(server.receive_syn(clientSeq));
     REQUIRE(server.getTcpState() == TCPState::SYN_RECEIVED);

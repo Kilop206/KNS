@@ -87,25 +87,39 @@ TEST_CASE("Link simplex transmission model", "[network][link]")
     REQUIRE(link.isBusy(1, 2, 10.0));
 }
 
-TEST_CASE("Link queue management limits", "[network][link]")
+TEST_CASE("Link queue management limits", "[network][link][queue]")
 {
     Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
 
     REQUIRE(link.getQueueSize() == 0);
     REQUIRE(link.getQueueCapacity() == 32);
-    REQUIRE(link.canQueue());
+    REQUIRE(link.canQueue(1, 2));
 
-    for (std::size_t i = 0; i < 32; ++i) {
-        REQUIRE(link.canQueue());
-        link.enqueuePacket();
+    for (std::size_t i = 0; i < link.getQueueCapacity(); ++i) {
+        REQUIRE(link.canQueue(1, 2));
+
+        link.enqueueTransmission(
+            1,
+            2,
+            static_cast<double>(i),
+            static_cast<double>(i + 1)
+        );
     }
 
-    REQUIRE_FALSE(link.canQueue());
-    REQUIRE(link.getQueueSize() == 32);
+    REQUIRE(link.getQueueSize() == link.getQueueCapacity());
+    REQUIRE_FALSE(link.canQueue(1, 2));
 
-    link.dequeuePacket();
-    REQUIRE(link.canQueue());
+    REQUIRE(
+        link.dequeueTransmission(
+            1,
+            2,
+            0.0,
+            1.0
+        )
+    );
+
     REQUIRE(link.getQueueSize() == 31);
+    REQUIRE(link.canQueue(1, 2));
 }
 
 TEST_CASE("Link drop behavior based on probability", "[network][link]")

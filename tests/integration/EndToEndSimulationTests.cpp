@@ -50,5 +50,22 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
 
     // The validation function can be run to check the simulation sanity
     const auto report = engine.validateSimulation();
+
+    INFO("Session state: "
+        << static_cast<int>(session.getState()));
+
+    INFO("Client state: "
+        << static_cast<int>(
+                session.getClientConnection().getTcpState()));
+
+    INFO("Server state: "
+        << static_cast<int>(
+                session.getServerConnection().getTcpState()));
+
+    INFO("Total sessions: " << report.total_sessions);
+    INFO("Completed sessions: " << report.completed_sessions);
+    INFO("Sessions OK: " << report.sessions_ok);
+    INFO("Traffic OK: " << report.traffic_ok);
+
     REQUIRE(report.passed());
 }

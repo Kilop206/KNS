@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <vector>
+#include <algorithm>
 
 namespace kns {
 
