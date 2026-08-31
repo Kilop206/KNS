@@ -23,6 +23,17 @@ namespace kns {
 
     void PacketGenerationEvent::execute(SimulationEngine& engine)
     {
+        auto& session = engine.getTCPSession(session_id_);
+        auto& client = session.getClientConnection();
+
+        if (session.getState() != TCPState::ESTABLISHED) {
+            return;
+        }
+
+        if (session.isComplete()) {
+            return;
+        }
+
         Packet pkt(
             source_,
             destination_,
@@ -31,9 +42,6 @@ namespace kns {
             engine.getGlobalPacketSize(),
             session_id_
         );
-
-        auto& session = engine.getTCPSession(session_id_);
-        auto& client = session.getClientConnection();
 
         const std::size_t payload_size =
             pkt.packet_size_bytes > 0
@@ -45,15 +53,32 @@ namespace kns {
         pkt.tcp.ack = client.getExpectedAckNum();
         pkt.tcp.window = 0;
         pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
-        pkt.tcp.payload.assign(payload_size, 0x41); // 'A'
+        pkt.tcp.payload.assign(payload_size, 0x41);
         pkt.departure_time = engine.now();
 
+        const bool accepted =
+            PacketUtils::sendPacketThroughTopology(engine, pkt);
+
+        if (!accepted) {
+            return;
+        }
+
         client.setSeqNum(
-            client.getSeqNum() + static_cast<std::uint32_t>(payload_size)
+            client.getSeqNum() +
+            static_cast<std::uint32_t>(payload_size)
         );
+
         session.incrementPacketsSent();
 
-        PacketUtils::sendPacketThroughTopology(engine, pkt);
+        if (!session.isComplete()) {
+            engine.schedule(
+                std::make_unique<PacketGenerationEvent>(
+                    engine.now(),
+                    source_,
+                    destination_,
+                    session_id_
+                )
+            );
+        }
     }
-
-}
+} // namespace kns

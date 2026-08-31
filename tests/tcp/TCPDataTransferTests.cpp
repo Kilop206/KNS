@@ -2,10 +2,16 @@
 
 #include <map>
 
+#include "engine/core/SimulationEngine.hpp"
+#include "network/Topology.hpp"
+#include "network/Link.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 
+using kns::LinkMode;
+using kns::SimulationEngine;
 using kns::TCPSession;
 using kns::TCPState;
+using kns::Topology;
 
 TEST_CASE("TCPSession tracks packet completion", "[tcp][session]")
 {
@@ -37,6 +43,7 @@ TEST_CASE("TCPSession owns client and server endpoints", "[tcp][session]")
 TEST_CASE("TCPSession default constructor is defined", "[tcp][session]")
 {
     TCPSession session;
+
     REQUIRE(session.getSession_id() == 0);
     REQUIRE(session.getSource() == 0);
     REQUIRE(session.getDestination() == 0);
@@ -46,6 +53,39 @@ TEST_CASE("TCPSession default constructor is defined", "[tcp][session]")
     // was declared in the header but never defined.
     std::map<int, TCPSession> sessions;
     sessions[7];
+
     REQUIRE(sessions.at(7).getSession_id() == 0);
     REQUIRE(sessions.at(7).getState() == TCPState::CLOSED);
+}
+
+TEST_CASE(
+    "Simulation generates DATA packets after TCP handshake",
+    "[tcp][data][integration]"
+)
+{
+    Topology topology(2);
+
+    auto link = topology.addLinkPtr(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    REQUIRE(link != nullptr);
+
+    SimulationEngine engine(topology);
+
+    engine.setGlobalPacketSize(1000);
+    engine.startTCPConnection(0, 1);
+
+    engine.run();
+
+    const auto& stats = engine.getStats();
+
+    REQUIRE(stats.packets_sent >= 20);
+    REQUIRE(stats.packets_delivered >= 20);
+    REQUIRE(stats.packets_lost == 0);
 }

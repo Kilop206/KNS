@@ -376,8 +376,29 @@ namespace kns {
         return it->second.accept(connecting_node, *this);
     }
 
-    void SimulationEngine::generatePackets(double /*startTime*/, TCPSession& /*session*/) {
-        // No-op for now; startTCPConnection currently synthesizes packet events.
+    void SimulationEngine::generatePackets(
+        double startTime,
+        TCPSession& session
+    ) {
+        if (session.hasGeneratedTraffic()) {
+            return;
+        }
+
+        if (session.getState() != TCPState::ESTABLISHED) {
+            return;
+        }
+
+        session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
+        session.markTrafficGenerated();
+
+        schedule(
+            std::make_unique<PacketGenerationEvent>(
+                startTime,
+                session.getSource(),
+                session.getDestination(),
+                session.getSession_id()
+            )
+        );
     }
 
     int SimulationEngine::createNode() {
