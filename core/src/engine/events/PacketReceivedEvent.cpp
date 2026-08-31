@@ -171,6 +171,23 @@ namespace kns
                     engine.generatePackets(engine.now(), session);
                 }
 
+                if (
+                    client.getTcpState() == TCPState::ESTABLISHED &&
+                    server.getTcpState() == TCPState::ESTABLISHED &&
+                    session.hasGeneratedTraffic() &&
+                    session.isComplete() &&
+                    !session.isCloseRequest()
+                ) {
+                    session.setCloseRequest(true);
+
+                    engine.schedule(
+                        std::make_unique<TCPConnectionCloseEvent>(
+                            engine.now(),
+                            session.getSession_id()
+                        )
+                    );
+                }
+
                 break;
             }
 
