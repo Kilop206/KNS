@@ -46,8 +46,10 @@ namespace kns
             TCPState getState() const;
 
             TCPConnection& getClientConnection();
+            const TCPConnection& getClientConnection() const;
 
             TCPConnection& getServerConnection();
+            const TCPConnection& getServerConnection() const;
 
             void incrementPacketsSent();
 

@@ -124,4 +124,14 @@ namespace kns {
     TCPConnection& TCPSession::getServerConnection() {
         return server_connection;
     }
+
+    const TCPConnection& TCPSession::getClientConnection() const
+    {
+        return client_connection;
+    }
+
+    const TCPConnection& TCPSession::getServerConnection() const
+    {
+        return server_connection;
+    }
 }
