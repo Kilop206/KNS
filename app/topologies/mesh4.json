@@ -1,7 +1,7 @@
 {
   "nodes": 4,
   "name": "mesh4",
-  "links": [
+  "links": [Get-Content .\build\mesh4.csv
     {
       "from": 0,
       "to": 1,

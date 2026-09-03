@@ -79,20 +79,28 @@ namespace kns {
         return packets_in_transit;
     }
 
-    bool SimulationEngine::removePacketInTransit(double departure_time,
-                                    double arrival_time,
-                                    int& from,
-                                    int& to,
-                                    std::uint64_t& link_id) {
-        for (auto it = packets_in_transit.begin(); it != packets_in_transit.end(); ++it) {
-            if (it->departure_time == departure_time && it->arrival_time == arrival_time) {
-                from = it->from_node;
-                to = it->to_node;
-                link_id = it->link_id;
+    bool SimulationEngine::removePacketInTransit(
+        double departure_time,
+        double arrival_time,
+        int from,
+        int to,
+        std::uint64_t link_id) {
+
+        for (auto it = packets_in_transit.begin();
+            it != packets_in_transit.end();
+            ++it) {
+
+            if (it->departure_time == departure_time &&
+                it->arrival_time == arrival_time &&
+                it->from_node == from &&
+                it->to_node == to &&
+                it->link_id == link_id) {
+
                 packets_in_transit.erase(it);
                 return true;
             }
         }
+
         return false;
     }
 
@@ -343,14 +351,23 @@ namespace kns {
         r.packets_delivered = stats_.packets_delivered;
         r.packets_lost = stats_.packets_lost;
         r.completed_sessions = 0;
+
         for (const auto& pair : sessions) {
             const auto state = pair.second.getState();
-            if (state == TCPState::ESTABLISHED || state == TCPState::CLOSED) {
+
+            if (state == TCPState::CLOSED) {
                 r.completed_sessions++;
             }
         }
-        r.sessions_ok = (r.total_sessions == 0) || (r.completed_sessions > 0);
-        r.traffic_ok = (r.packets_delivered > 0);
+
+        r.sessions_ok =
+            (r.total_sessions == 0) ||
+            (r.completed_sessions == r.total_sessions);
+
+        r.traffic_ok =
+            (r.packets_sent > 0) &&
+            (r.packets_delivered == r.packets_sent) &&
+            (r.packets_lost == 0);
         return r;
     }
 

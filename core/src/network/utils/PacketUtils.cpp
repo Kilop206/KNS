@@ -40,8 +40,8 @@ namespace kns {
 
         // Use the stable link_id recorded at transmission time so that the
         // correct link is released even when multiple parallel links exist
-        // between the same pair of nodes (fixes issue #92).
-        // Use the typed FIFO dequeue to maintain ordering correctness (#94).
+        // between the same pair of nodes (issue #92).
+        // Use the typed FIFO dequeue to maintain ordering correctness (issue #94).
         const auto& links =
             engine.getTopology().getLinksFromNode(pkt.previous_node);
 
@@ -53,6 +53,15 @@ namespace kns {
                     pkt.departure_time,
                     pkt.arrival_time
                 );
+
+                engine.removePacketInTransit(
+                    pkt.departure_time,
+                    pkt.arrival_time,
+                    pkt.previous_node,
+                    pkt.current_node,
+                    pkt.link_id
+                );
+
                 return true;
             }
         }

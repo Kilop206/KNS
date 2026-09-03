@@ -15,7 +15,7 @@ TEST_CASE("Link queue produces expected serialization of transmissions", "[netwo
     SimulationEngine engine(topo);
     std::vector<double> arrivals;
 
-    engine.setPacketObserver([&](const Packet& p, uint64_t, int from, int to, double dep, double arr) {
+    engine.setPacketObserver([&](const Packet& /* p */, uint64_t, int from, int to, double /* dep */, double arr) {
         if (from == 0 && to == 1) arrivals.push_back(arr);
     });
 
