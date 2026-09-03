@@ -367,7 +367,9 @@ namespace kns {
         r.traffic_ok =
             (r.packets_sent > 0) &&
             (r.packets_delivered == r.packets_sent) &&
-            (r.packets_lost == 0);
+            (r.packets_lost == 0) &&
+            packets_in_transit.empty();
+
         return r;
     }
 
