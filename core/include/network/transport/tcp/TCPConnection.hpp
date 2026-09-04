@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include "enums/TCPState.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
@@ -113,6 +114,15 @@ namespace kns {
         void onAcknowledged(
             std::uint32_t ack_number,
             double acknowledgement_time
+        ) noexcept;
+
+        std::optional<TCPSegment> getOutstandingSegment(
+            std::uint32_t sequence
+        ) const;
+
+        bool markSegmentRetransmitted(
+            std::uint32_t sequence,
+            double retransmission_time
         ) noexcept;
 
     private:

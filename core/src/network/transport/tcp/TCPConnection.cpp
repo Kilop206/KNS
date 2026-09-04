@@ -561,4 +561,30 @@ namespace kns {
             );
         }
     }
+
+    std::optional<TCPSegment>
+    TCPConnection::getOutstandingSegment(
+        std::uint32_t sequence
+    ) const
+    {
+        const TCPSendEntry* entry =
+            send_buffer_.find(sequence);
+
+        if (entry == nullptr) {
+            return std::nullopt;
+        }
+
+        return entry->segment;
+    }
+
+    bool TCPConnection::markSegmentRetransmitted(
+        std::uint32_t sequence,
+        double retransmission_time
+    ) noexcept
+    {
+        return send_buffer_.markRetransmitted(
+            sequence,
+            retransmission_time
+        );
+    }
 }

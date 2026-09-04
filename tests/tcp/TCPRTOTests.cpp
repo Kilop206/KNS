@@ -2,11 +2,21 @@
 
 #include <cmath>
 
-#include "network/transport/tcp/timer/RTOManager.hpp"
-#include "network/transport/tcp/timer/RTTEstimator.hpp"
+#include "engine/core/SimulationEngine.hpp"
+#include "engine/events/TCPTimeoutEvent.hpp"
+#include "network/Topology.hpp"
+#include "network/transport/tcp/TCPSegment.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
 
 using kns::RTOManager;
 using kns::RTTEstimator;
+using kns::SimulationEngine;
+using kns::TCPConnection;
+using kns::TCPFlag;
+using kns::TCPState;
+using kns::TCPSegment;
+using kns::TCPTimeoutEvent;
+using kns::Topology;
 
 namespace {
 
@@ -249,5 +259,94 @@ TEST_CASE(
     REQUIRE(
         manager.currentRTO() ==
         RTTEstimator::INITIAL_RTO
+    );
+}
+
+TEST_CASE(
+    "TCP timeout retransmits outstanding segment and applies Karn",
+    "[tcp][rto][timeout][retransmission]"
+)
+{
+    Topology topology(2);
+
+    topology.addLink(
+        0,
+        1,
+        10.0,
+        10.0,
+        0.0,
+        kns::LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+
+    auto& session =
+        engine.createTCPSession(0, 1);
+
+    auto& client =
+        session.getClientConnection();
+
+    TCPSegment segment;
+
+    segment.seq =
+        client.getSendNext();
+
+    segment.payload.assign(
+        100,
+        0x41
+    );
+
+    segment.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        client.queueSentSegment(
+            segment,
+            engine.now()
+        )
+    );
+
+    REQUIRE(
+        client.hasOutstandingSegment(
+            segment.seq
+        )
+    );
+
+    const double initial_rto =
+        client.getCurrentRTO();
+
+    TCPTimeoutEvent timeout(
+        engine.now(),
+        session.getSession_id(),
+        segment.seq
+    );
+
+    REQUIRE_NOTHROW(
+        timeout.execute(engine)
+    );
+
+    REQUIRE(
+        client.getCurrentRTO() >
+        initial_rto
+    );
+
+    const auto outstanding =
+        client.getOutstandingSegment(
+            segment.seq
+        );
+
+    REQUIRE(
+        outstanding.has_value()
+    );
+
+    REQUIRE(
+        outstanding->seq ==
+        segment.seq
+    );
+
+    REQUIRE(
+        outstanding->payload ==
+        segment.payload
     );
 }
