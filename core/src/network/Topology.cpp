@@ -6,6 +6,9 @@
 namespace kns {
 
     Topology::Topology(int nodes) {
+        if (nodes < 0) {
+            throw std::invalid_argument("Node count cannot be negative");
+        }
         if (nodes > 0) {
             adjacency_list_.resize(static_cast<std::size_t>(nodes));
             nodes_.reserve(static_cast<std::size_t>(nodes));
@@ -13,46 +16,6 @@ namespace kns {
                 nodes_.emplace_back(i);
             }
         }
-    }
-
-    void Topology::addLink(const Link& link) {
-        const int a = link.getA();
-        const int b = link.getB();
-
-        if (a < 0 || b < 0) {
-            throw std::invalid_argument("Node indices cannot be negative");
-        }
-        if (a == b) {
-            throw std::invalid_argument("Self-loops are not supported");
-        }
-        if (link.getBandwidthMbps() <= 0.0) {
-            throw std::invalid_argument("Bandwidth must be positive");
-        }
-        if (link.getDelayMs() < 0.0) {
-            throw std::invalid_argument("Delay cannot be negative");
-        }
-        if (link.getLossProb() < 0.0 || link.getLossProb() > 1.0) {
-            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
-        }
-
-        auto ptr = std::make_shared<Link>(link);
-        const int max_node = std::max(a, b);
-
-        if (max_node >= static_cast<int>(adjacency_list_.size())) {
-            const std::size_t old_size = adjacency_list_.size();
-            adjacency_list_.resize(static_cast<std::size_t>(max_node + 1));
-            for (std::size_t i = old_size; i <= static_cast<std::size_t>(max_node); ++i) {
-                nodes_.emplace_back(static_cast<int>(i));
-            }
-        }
-
-        links_.push_back(ptr);
-        adjacency_list_[static_cast<std::size_t>(a)].push_back(ptr);
-        adjacency_list_[static_cast<std::size_t>(b)].push_back(ptr);
-
-        // Register an Interface for each endpoint.
-        interfaces_.emplace_back(a, ptr->getId());
-        interfaces_.emplace_back(b, ptr->getId());
     }
 
     Topology::LinkPtr Topology::addLinkPtr(
@@ -63,6 +26,22 @@ namespace kns {
         double loss_prob,
         LinkMode mode
     ) {
+        if (a < 0 || b < 0) {
+            throw std::invalid_argument("Node indices cannot be negative");
+        }
+        if (a == b) {
+            throw std::invalid_argument("Self-loops are not supported");
+        }
+        if (bandwidth_mbps <= 0.0) {
+            throw std::invalid_argument("Bandwidth must be positive");
+        }
+        if (delay_ms < 0.0) {
+            throw std::invalid_argument("Delay cannot be negative");
+        }
+        if (loss_prob < 0.0 || loss_prob > 1.0) {
+            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
+        }
+
         auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
 
         const int max_node = std::max(a, b);
@@ -84,6 +63,17 @@ namespace kns {
         return ptr;
     }
 
+    void Topology::addLink(const Link& link) {
+        addLinkPtr(
+            link.getA(),
+            link.getB(),
+            link.getBandwidthMbps(),
+            link.getDelayMs(),
+            link.getLossProb(),
+            link.getMode()
+        );
+    }
+
     void Topology::addLink(
         int a,
         int b,
@@ -92,7 +82,7 @@ namespace kns {
         double loss_prob,
         LinkMode mode
     ) {
-        addLink(Link(a, b, bandwidth_mbps, delay_ms, loss_prob, mode));
+        addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
     }
 
 
@@ -116,6 +106,9 @@ namespace kns {
     }
 
     void Topology::setGlobalLossProb(double value) {
+        if (value < 0.0 || value > 1.0) {
+            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
+        }
         for (auto& link : links_) {
             link->setLossProb(value);
         }

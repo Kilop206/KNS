@@ -155,20 +155,46 @@ TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[net
     REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
 }
 
-TEST_CASE("Topology addLink programmatic API validation", "[network][topology]")
+TEST_CASE("Topology programmatic API validation", "[network][topology]")
 {
+    // Constructor negative node count
+    REQUIRE_THROWS_AS(Topology(-1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Topology(-10), std::invalid_argument);
+
     Topology topo(3);
 
-    // Reject negative node indices
+    // Reject negative node indices (both endpoints)
     REQUIRE_THROWS_AS(topo.addLink(-1, 1, 100.0, 10.0), std::invalid_argument);
-    
+    REQUIRE_THROWS_AS(topo.addLink(0, -2, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(-1, 1, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, -2, 100.0, 10.0), std::invalid_argument);
+
     // Reject self-loops
     REQUIRE_THROWS_AS(topo.addLink(1, 1, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(2, 2, 100.0, 10.0), std::invalid_argument);
 
     // Reject non-positive bandwidth
     REQUIRE_THROWS_AS(topo.addLink(0, 1, 0.0, 10.0), std::invalid_argument);
     REQUIRE_THROWS_AS(topo.addLink(0, 1, -50.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 0.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, -10.0, 10.0), std::invalid_argument);
+
+    // Reject negative delay
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 10.0, -1.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, -5.0), std::invalid_argument);
 
     // Reject invalid loss probability
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 100.0, 10.0, -0.1), std::invalid_argument);
     REQUIRE_THROWS_AS(topo.addLink(0, 1, 100.0, 10.0, 1.5), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 100.0, 10.0, -0.01), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 100.0, 10.0, 2.0), std::invalid_argument);
+
+    // Reject invalid global loss probability
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(-0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(1.1), std::invalid_argument);
+
+    // Valid parameters succeed
+    REQUIRE_NOTHROW(topo.addLink(0, 1, 10.0, 5.0, 0.0));
+    REQUIRE_NOTHROW(topo.addLinkPtr(1, 2, 10.0, 5.0, 1.0));
+    REQUIRE_NOTHROW(topo.setGlobalLossProb(0.25));
 }
