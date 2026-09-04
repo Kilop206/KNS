@@ -116,11 +116,17 @@ namespace kns {
 			entry.distance = dist[d];
 			entry.next_hop = -1;
 
-			if (d == src || dist[d] == inf || dist[d] == 0.0) {
-				if (d == src || (metric != RoutingMetric::Bandwidth && dist[d] == inf)) {
-					table.push_back(entry);
-					continue;
-				}
+			if (d == src) {
+				table.push_back(entry);
+				continue;
+			}
+
+			const bool unreachable = (metric == RoutingMetric::Bandwidth)
+			                             ? (dist[d] <= 0.0)
+			                             : (dist[d] == inf);
+			if (unreachable) {
+				table.push_back(entry);
+				continue;
 			}
 
 			int current = d;
