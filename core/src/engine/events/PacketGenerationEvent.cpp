@@ -3,6 +3,7 @@
 #include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 
@@ -38,6 +39,17 @@ namespace kns {
             return;
         }
 
+        const std::size_t payload_size =
+            engine.getGlobalPacketSize() > 0
+                ? static_cast<std::size_t>(
+                      engine.getGlobalPacketSize()
+                  )
+                : 1;
+
+        if (!client.canSend(payload_size)) {
+            return;
+        }
+
         Packet pkt(
             source_,
             destination_,
@@ -47,15 +59,17 @@ namespace kns {
             session_id_
         );
 
-        const std::size_t payload_size =
-            pkt.packet_size_bytes > 0
-                ? static_cast<std::size_t>(pkt.packet_size_bytes)
-                : 1;
-
         pkt.packet_type = PacketType::DATA;
-        pkt.tcp.seq = client.getSeqNum();
+        pkt.tcp.seq = client.getSendNext();
         pkt.tcp.ack = client.getExpectedAckNum();
-        pkt.tcp.window = 0;
+
+        pkt.tcp.window = static_cast<std::uint16_t>(
+            std::min<std::uint32_t>(
+                client.getSendWindow(),
+                65535U
+            )
+        );
+
         pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
         pkt.tcp.payload.assign(payload_size, 0x41);
         pkt.departure_time = engine.now();
@@ -67,10 +81,9 @@ namespace kns {
             return;
         }
 
-        client.setSeqNum(
-            client.getSeqNum() +
-            static_cast<std::uint32_t>(payload_size)
-        );
+        if (!client.queueSentSegment(pkt.tcp, engine.now())) {
+            return;
+        }
 
         session.incrementPacketsSent();
 
@@ -85,4 +98,5 @@ namespace kns {
             );
         }
     }
+
 } // namespace kns
