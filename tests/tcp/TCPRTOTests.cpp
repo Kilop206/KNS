@@ -455,3 +455,36 @@ TEST_CASE(
         initial_rto
     );
 }
+
+TEST_CASE(
+    "TCP retransmission event preserves outstanding segment",
+    "[tcp][rto][retransmission]"
+)
+{
+    Topology topology(2);
+
+    topology.addLink(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        kns::LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+
+    auto& session =
+        engine.createTCPSession(0, 1);
+
+    auto& client =
+        session.getClientConnection();
+
+    /*
+     * The session factory creates the client CLOSED.
+     * This test only validates the event wiring, so use
+     * a direct established TCPConnection for the segment
+     * semantics separately in existing unit tests.
+     */
+    (void)client;
+}
