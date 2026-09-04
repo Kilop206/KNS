@@ -191,10 +191,12 @@ namespace kns
                 break;
             }
 
-            case PacketType::DATA: {
-                receiver.setExpectedAckNum(
-                    packet.tcp.seq +
-                    static_cast<std::uint32_t>(packet.tcp.payload.size())
+            case PacketType::DATA:
+            {
+                receiver.receive_data(
+                    packet.tcp.seq,
+                    packet.tcp.payload,
+                    engine.now()
                 );
 
                 Packet ack(
@@ -209,7 +211,11 @@ namespace kns
                 ack.tcp = receiver.buildAck();
                 ack.packet_type = inferPacketType(ack.tcp);
 
-                PacketUtils::sendPacketThroughTopology(engine, ack);
+                PacketUtils::sendPacketThroughTopology(
+                    engine,
+                    ack
+                );
+
                 break;
             }
 

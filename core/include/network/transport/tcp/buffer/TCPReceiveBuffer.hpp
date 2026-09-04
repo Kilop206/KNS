@@ -12,10 +12,13 @@ namespace kns {
     public:
         explicit TCPReceiveBuffer(
             std::uint32_t next_sequence = 0,
-            std::size_t capacity = 0
+            std::size_t capacity_bytes = 0
         ) noexcept
             : next_sequence_(next_sequence),
-              capacity_(capacity) {}
+              capacity_bytes_(capacity_bytes),
+              buffered_bytes_(0)
+        {
+        }
 
         bool push(TCPReceiveEntry entry);
 
@@ -28,29 +31,41 @@ namespace kns {
         }
 
         std::size_t capacity() const noexcept {
-            return capacity_;
+            return capacity_bytes_;
         }
 
-        void setCapacity(std::size_t capacity) noexcept {
-            capacity_ = capacity;
+        std::size_t bufferedBytes() const noexcept {
+            return buffered_bytes_;
+        }
+
+        std::size_t availableWindow() const noexcept {
+            if (capacity_bytes_ == 0) {
+                return 0;
+            }
+
+            if (buffered_bytes_ >= capacity_bytes_) {
+                return 0;
+            }
+
+            return capacity_bytes_ - buffered_bytes_;
+        }
+
+        void setCapacity(
+            std::size_t capacity_bytes
+        ) noexcept
+        {
+            capacity_bytes_ = capacity_bytes;
         }
 
         std::uint32_t nextSequence() const noexcept {
             return next_sequence_;
         }
 
-        void setNextSequence(std::uint32_t sequence) noexcept {
+        void setNextSequence(
+            std::uint32_t sequence
+        ) noexcept
+        {
             next_sequence_ = sequence;
-        }
-
-        std::size_t availableCapacity() const noexcept {
-            if (capacity_ == 0) {
-                return 0;
-            }
-
-            return capacity_ > entries_.size()
-                ? capacity_ - entries_.size()
-                : 0;
         }
 
         const TCPReceiveEntry* front() const noexcept {
@@ -63,14 +78,15 @@ namespace kns {
 
         std::size_t consumeContiguous();
 
-        void clear() noexcept {
-            entries_.clear();
-        }
+        void clear() noexcept;
 
     private:
         std::deque<TCPReceiveEntry> entries_;
+
         std::uint32_t next_sequence_;
-        std::size_t capacity_;
+
+        std::size_t capacity_bytes_;
+        std::size_t buffered_bytes_;
     };
 
 } // namespace kns

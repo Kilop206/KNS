@@ -6,6 +6,7 @@
 #include "enums/TCPState.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
 #include "network/transport/tcp/TCPStateMachine.hpp"
+#include "network/transport/tcp/buffer/TCPReceiveBuffer.hpp"
 #include "network/transport/tcp/buffer/TCPSendBuffer.hpp"
 
 namespace kns {
@@ -14,6 +15,7 @@ namespace kns {
     public:
         static constexpr std::uint32_t MAX_SYN_RETRIES = 5;
         static constexpr std::uint32_t DEFAULT_SEND_WINDOW = 65535;
+        static constexpr std::size_t DEFAULT_RECEIVE_WINDOW = 65535;
 
         TCPConnection(
             TCPState state,
@@ -84,6 +86,18 @@ namespace kns {
             std::uint32_t ack_number
         );
 
+        std::size_t getReceiveBufferSize() const noexcept;
+
+        std::size_t getReceiveBufferedBytes() const noexcept;
+
+        std::size_t getReceiveWindow() const noexcept;
+
+        bool receive_data(
+            std::uint32_t sequence,
+            const std::vector<std::uint8_t>& payload,
+            double received_at
+        );
+
     private:
         static std::uint32_t generateInitialSeq();
 
@@ -106,6 +120,7 @@ namespace kns {
         std::uint32_t syn_retries_ = 0;
 
         TCPSendBuffer send_buffer_;
+        TCPReceiveBuffer receive_buffer_;
     };
 
 }

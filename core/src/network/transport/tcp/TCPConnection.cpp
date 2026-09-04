@@ -1,5 +1,8 @@
 #include "network/transport/tcp/TCPConnection.hpp"
 
+#include <algorithm>
+#include <utility>
+
 #include "engine/core/Log.hpp"
 #include "engine/core/Random.hpp"
 
@@ -23,7 +26,11 @@ namespace kns {
           send_unacknowledged_(seq_num),
           send_window_(DEFAULT_SEND_WINDOW),
           local_node_(local_node),
-          remote_node_(remote_node)
+          remote_node_(remote_node),
+          receive_buffer_(
+              expected_ack_num,
+              DEFAULT_RECEIVE_WINDOW
+          )
     {
     }
 
@@ -60,6 +67,8 @@ namespace kns {
     void TCPConnection::setExpectedAckNum(std::uint32_t value) noexcept
     {
         expected_ack_num_ = value;
+
+        receive_buffer_.setNextSequence(value);
     }
 
     std::uint32_t TCPConnection::getSynRetries() const noexcept
@@ -95,40 +104,68 @@ namespace kns {
     TCPSegment TCPConnection::buildSyn() const
     {
         TCPSegment seg;
+
         seg.seq = seq_num_;
         seg.ack = 0;
-        seg.window = 0;
+        seg.window = static_cast<std::uint16_t>(
+            std::min<std::size_t>(
+                receive_buffer_.availableWindow(),
+                65535
+            )
+        );
         seg.flags = TCPFlag::SYN;
+
         return seg;
     }
 
     TCPSegment TCPConnection::buildSynAck() const
     {
         TCPSegment seg;
+
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
-        seg.window = 0;
+        seg.window = static_cast<std::uint16_t>(
+            std::min<std::size_t>(
+                receive_buffer_.availableWindow(),
+                65535
+            )
+        );
         seg.flags = TCPFlag::SYN | TCPFlag::ACK;
+
         return seg;
     }
 
     TCPSegment TCPConnection::buildAck() const
     {
         TCPSegment seg;
+
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
-        seg.window = 0;
+        seg.window = static_cast<std::uint16_t>(
+            std::min<std::size_t>(
+                receive_buffer_.availableWindow(),
+                65535
+            )
+        );
         seg.flags = TCPFlag::ACK;
+
         return seg;
     }
 
     TCPSegment TCPConnection::buildFin() const
     {
         TCPSegment seg;
+
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
-        seg.window = 0;
+        seg.window = static_cast<std::uint16_t>(
+            std::min<std::size_t>(
+                receive_buffer_.availableWindow(),
+                65535
+            )
+        );
         seg.flags = TCPFlag::FIN | TCPFlag::ACK;
+
         return seg;
     }
 
@@ -140,6 +177,10 @@ namespace kns {
 
         expected_ack_num_ = remote_seq + 1;
 
+        receive_buffer_.setNextSequence(
+            expected_ack_num_
+        );
+
         KNS_DEBUG_LOG(
             "[TCP SYN] "
             << "local=" << local_node_
@@ -147,7 +188,8 @@ namespace kns {
             << " local_seq=" << seq_num_
             << " remote_seq=" << remote_seq
             << " expected_ack=" << expected_ack_num_
-            << '\n');
+            << '\n'
+        );
 
         return true;
     }
@@ -166,7 +208,8 @@ namespace kns {
             << " remote_ack=" << remote_ack
             << " expected_ack=" << (seq_num_ + 1)
             << " state=" << static_cast<int>(getTcpState())
-            << '\n');
+            << '\n'
+        );
 
         if (getTcpState() != TCPState::SYN_SENT) {
             return false;
@@ -182,7 +225,13 @@ namespace kns {
 
         expected_ack_num_ = remote_seq + 1;
 
-        updateSendUnacknowledged(remote_ack);
+        receive_buffer_.setNextSequence(
+            expected_ack_num_
+        );
+
+        // The SYN consumes one sequence number.
+        seq_num_ = remote_ack;
+        send_unacknowledged_ = remote_ack;
 
         resetSynRetries();
 
@@ -199,19 +248,24 @@ namespace kns {
             << " local_seq=" << seq_num_
             << " remote_ack=" << remote_ack
             << " expected=" << (seq_num_ + 1)
-            << '\n');
+            << '\n'
+        );
 
         if (
             getTcpState() == TCPState::SYN_RECEIVED &&
             remote_ack == seq_num_ + 1
         ) {
-            KNS_DEBUG_LOG("[TCP ACK] SERVER -> ESTABLISHED\n");
+            KNS_DEBUG_LOG(
+                "[TCP ACK] SERVER -> ESTABLISHED\n"
+            );
 
             if (!state_machine_.onEstablished()) {
                 return false;
             }
 
-            updateSendUnacknowledged(remote_ack);
+            // The SYN-ACK consumes one sequence number.
+            seq_num_ = remote_ack;
+            send_unacknowledged_ = remote_ack;
 
             resetSynRetries();
 
@@ -250,19 +304,27 @@ namespace kns {
         return true;
     }
 
-    bool TCPConnection::receive_fin(std::uint32_t remote_seq)
+    bool TCPConnection::receive_fin(
+        std::uint32_t remote_seq
+    )
     {
         if (!state_machine_.onPeerFin()) {
             return false;
         }
 
         expected_ack_num_ = remote_seq + 1;
+
+        receive_buffer_.setNextSequence(
+            expected_ack_num_
+        );
+
         return true;
     }
 
     bool TCPConnection::send_syn()
     {
         if (getTcpState() == TCPState::SYN_SENT) {
+            // Already in SYN_SENT (retransmit path).
             return true;
         }
 
@@ -271,7 +333,6 @@ namespace kns {
         }
 
         seq_num_ = generateInitialSeq();
-
         send_unacknowledged_ = seq_num_;
 
         return true;
@@ -279,11 +340,14 @@ namespace kns {
 
     bool TCPConnection::send_syn_ack()
     {
+        // The server transitions to SYN_RECEIVED when it receives
+        // the SYN. Sending the SYN-ACK does not change state.
         return getTcpState() == TCPState::SYN_RECEIVED;
     }
 
     bool TCPConnection::send_ack()
     {
+        // Plain ACK generation does not drive the state machine.
         return true;
     }
 
@@ -331,8 +395,10 @@ namespace kns {
         const std::uint32_t in_flight =
             seq_num_ - send_unacknowledged_;
 
-        if (payload_size >
-            static_cast<std::size_t>(send_window_)) {
+        if (
+            payload_size >
+            static_cast<std::size_t>(send_window_)
+        ) {
             return false;
         }
 
@@ -375,10 +441,9 @@ namespace kns {
             return false;
         }
 
-        seq_num_ +=
-            static_cast<std::uint32_t>(
-                segment.payloadSize()
-            );
+        seq_num_ += static_cast<std::uint32_t>(
+            segment.payloadSize()
+        );
 
         return true;
     }
@@ -387,7 +452,9 @@ namespace kns {
         std::uint32_t ack_number
     )
     {
-        return send_buffer_.acknowledge(ack_number);
+        return send_buffer_.acknowledge(
+            ack_number
+        );
     }
 
     void TCPConnection::updateSendUnacknowledged(
@@ -397,6 +464,59 @@ namespace kns {
         if (ack_number > send_unacknowledged_) {
             send_unacknowledged_ = ack_number;
         }
+    }
+
+    bool TCPConnection::receive_data(
+        std::uint32_t sequence,
+        const std::vector<std::uint8_t>& payload,
+        double received_at
+    )
+    {
+        if (payload.empty()) {
+            return false;
+        }
+
+        TCPSegment segment;
+
+        segment.seq = sequence;
+        segment.ack = expected_ack_num_;
+        segment.window = 0;
+        segment.flags = TCPFlag::ACK | TCPFlag::PSH;
+        segment.payload = payload;
+
+        TCPReceiveEntry entry{
+            segment,
+            received_at
+        };
+
+        if (!receive_buffer_.push(std::move(entry))) {
+            return false;
+        }
+
+        receive_buffer_.consumeContiguous();
+
+        expected_ack_num_ =
+            receive_buffer_.nextSequence();
+
+        return true;
+    }
+
+    std::size_t TCPConnection::getReceiveBufferSize()
+        const noexcept
+    {
+        return receive_buffer_.size();
+    }
+
+    std::size_t TCPConnection::getReceiveBufferedBytes()
+        const noexcept
+    {
+        return receive_buffer_.bufferedBytes();
+    }
+
+    std::size_t TCPConnection::getReceiveWindow()
+        const noexcept
+    {
+        return receive_buffer_.availableWindow();
     }
 
 }

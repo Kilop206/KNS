@@ -2,21 +2,23 @@
 
 #include <algorithm>
 #include <utility>
-#include <vector>
 
 namespace kns {
 
     bool TCPReceiveBuffer::push(TCPReceiveEntry entry)
     {
-        if (capacity_ != 0 && entries_.size() >= capacity_) {
-            return false;
-        }
-
         if (entry.payload_size() == 0) {
             return false;
         }
 
         if (entry.segment.seq < next_sequence_) {
+            return false;
+        }
+
+        if (
+            capacity_bytes_ != 0 &&
+            entry.payload_size() > availableWindow()
+        ) {
             return false;
         }
 
@@ -36,12 +38,18 @@ namespace kns {
             entries_.begin(),
             entries_.end(),
             entry.segment.seq,
-            [](const TCPReceiveEntry& existing, std::uint32_t seq) {
+            [](const TCPReceiveEntry& existing,
+               std::uint32_t seq) {
                 return existing.segment.seq < seq;
             }
         );
 
-        entries_.insert(position, std::move(entry));
+        buffered_bytes_ += entry.payload_size();
+
+        entries_.insert(
+            position,
+            std::move(entry)
+        );
 
         return true;
     }
@@ -57,13 +65,24 @@ namespace kns {
                 break;
             }
 
-            next_sequence_ = entry.sequence_end();
+            next_sequence_ =
+                entry.sequence_end();
+
+            buffered_bytes_ -=
+                entry.payload_size();
 
             entries_.pop_front();
+
             ++consumed;
         }
 
         return consumed;
+    }
+
+    void TCPReceiveBuffer::clear() noexcept
+    {
+        entries_.clear();
+        buffered_bytes_ = 0;
     }
 
 } // namespace kns
