@@ -95,6 +95,9 @@ namespace kns {
 
         std::size_t getReceiveBufferedBytes() const noexcept;
 
+        std::optional<std::uint32_t>
+            getOldestOutstandingSequence() const noexcept;
+
         std::size_t getReceiveWindow() const noexcept;
 
         bool receive_data(

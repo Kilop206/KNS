@@ -517,6 +517,19 @@ namespace kns {
         return receive_buffer_.bufferedBytes();
     }
 
+    std::optional<std::uint32_t>
+    TCPConnection::getOldestOutstandingSequence() const noexcept
+    {
+        const TCPSendEntry* entry =
+            send_buffer_.front();
+
+        if (entry == nullptr) {
+            return std::nullopt;
+        }
+
+        return entry->segment.seq;
+    }
+
     std::size_t TCPConnection::getReceiveWindow()
         const noexcept
     {

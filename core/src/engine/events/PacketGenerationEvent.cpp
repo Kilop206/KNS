@@ -85,6 +85,9 @@ namespace kns {
             return;
         }
 
+        const bool hadOutstandingData =
+            client.getSendBufferSize() != 0;
+
         if (!client.queueSentSegment(
                 pkt.tcp,
                 engine.now()
@@ -92,14 +95,16 @@ namespace kns {
             return;
         }
 
-        engine.schedule(
-            std::make_unique<TCPTimeoutEvent>(
-                engine.now() +
-                    client.getCurrentRTO(),
-                session_id_,
-                pkt.tcp.seq
-            )
-        );
+        if (!hadOutstandingData) {
+            engine.schedule(
+                std::make_unique<TCPTimeoutEvent>(
+                    engine.now() +
+                        client.getCurrentRTO(),
+                    session_id_,
+                    pkt.tcp.seq
+                )
+            );
+        }
 
         session.incrementPacketsSent();
 

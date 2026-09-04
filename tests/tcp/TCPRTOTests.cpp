@@ -350,3 +350,108 @@ TEST_CASE(
         segment.payload
     );
 }
+
+TEST_CASE(
+    "TCP RTO only expires the oldest outstanding segment",
+    "[tcp][rto][timeout]"
+)
+{
+    Topology topology(2);
+
+    topology.addLink(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        kns::LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+
+    auto& session =
+        engine.createTCPSession(0, 1);
+
+    auto& client =
+        session.getClientConnection();
+
+    client.send_syn();
+
+    TCPSegment first;
+
+    first.seq = client.getSendNext();
+    first.payload.assign(
+        100,
+        0x41
+    );
+    first.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        client.queueSentSegment(
+            first,
+            engine.now()
+        )
+    );
+
+    TCPSegment second;
+
+    second.seq = client.getSendNext();
+    second.payload.assign(
+        100,
+        0x42
+    );
+    second.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        client.queueSentSegment(
+            second,
+            engine.now()
+        )
+    );
+
+    REQUIRE(
+        client.getOldestOutstandingSequence()
+            .value() == first.seq
+    );
+
+    const double initial_rto =
+        client.getCurrentRTO();
+
+    TCPTimeoutEvent second_timeout(
+        engine.now(),
+        session.getSession_id(),
+        second.seq
+    );
+
+    REQUIRE_NOTHROW(
+        second_timeout.execute(engine)
+    );
+
+    /*
+     * The second segment is not the oldest one,
+     * so its timeout must have no effect.
+     */
+    REQUIRE(
+        client.getCurrentRTO() ==
+        initial_rto
+    );
+
+    TCPTimeoutEvent first_timeout(
+        engine.now(),
+        session.getSession_id(),
+        first.seq
+    );
+
+    REQUIRE_NOTHROW(
+        first_timeout.execute(engine)
+    );
+
+    REQUIRE(
+        client.getCurrentRTO() >
+        initial_rto
+    );
+}

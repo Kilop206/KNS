@@ -9,6 +9,7 @@
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/events/TCPTimeoutEvent.hpp"
 #include "engine/events/TCPTimeWaitTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
@@ -157,10 +158,27 @@ namespace kns
 
             case PacketType::ACK:
             {
-                receiver.receive_ack(
-                    packet.tcp.ack,
-                    engine.now()
-                );
+                const bool acknowledged =
+                    receiver.receive_ack(
+                        packet.tcp.ack,
+                        engine.now()
+                    );
+
+                if (acknowledged) {
+                    const auto oldest =
+                        receiver.getOldestOutstandingSequence();
+
+                    if (oldest.has_value()) {
+                        engine.schedule(
+                            std::make_unique<TCPTimeoutEvent>(
+                                engine.now() +
+                                    receiver.getCurrentRTO(),
+                                session.getSession_id(),
+                                *oldest
+                            )
+                        );
+                    }
+                }
 
                 refreshSessionState(session);
 

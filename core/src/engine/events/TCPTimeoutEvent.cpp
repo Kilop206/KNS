@@ -39,32 +39,30 @@ namespace kns {
         const auto segment =
             client.getOutstandingSegment(sequence_);
 
-        /*
-        * Logical timer cancellation:
-        *
-        * If the segment disappeared from the send buffer,
-        * it was cumulatively acknowledged before this timeout
-        * event reached the queue.
-        */
         if (!segment.has_value()) {
             return;
         }
 
-        /*
-        * A timeout always backs off the RTO while the
-        * corresponding segment remains outstanding.
-        */
-        client.onSendTimeout();
+        const auto oldest =
+            client.getOldestOutstandingSequence();
 
         /*
-        * Once the connection leaves ESTABLISHED, the TCP
-        * session is already entering its closing path.
+        * Only the timer associated with the oldest
+        * unacknowledged segment is authoritative.
         *
-        * Do not create new retransmission work or new timers,
-        * otherwise the event queue can remain non-empty forever
-        * because the original DATA segment is retained until the
-        * closing sequence finishes.
+        * Older logical timer events can remain in the
+        * EventQueue because the queue has no physical
+        * cancellation mechanism.
         */
+        if (
+            !oldest.has_value() ||
+            *oldest != sequence_
+        ) {
+            return;
+        }
+
+        client.onSendTimeout();
+
         if (!client.isEstablished()) {
             return;
         }
@@ -111,19 +109,18 @@ namespace kns {
             << '\n'
         );
 
-        const bool accepted =
-            PacketUtils::sendPacketThroughTopology(
-                engine,
-                retransmission
-            );
-
-        if (!accepted) {
-            return;
-        }
+        PacketUtils::sendPacketThroughTopology(
+            engine,
+            retransmission
+        );
 
         /*
-        * Schedule another logical timer only when the
-        * retransmission was actually accepted by the network.
+        * The segment is still outstanding, therefore its
+        * timer must continue to exist.
+        *
+        * If the segment is ACKed before this event executes,
+        * getOutstandingSegment() will return nullopt and
+        * the event becomes a no-op.
         */
         if (client.hasOutstandingSegment(sequence_)) {
             engine.schedule(
