@@ -137,6 +137,8 @@ namespace kns {
             std::uint32_t sequence
         ) const noexcept;
 
+        bool failRetransmission() noexcept;
+
     private:
         static std::uint32_t generateInitialSeq();
 

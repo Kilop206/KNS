@@ -41,6 +41,16 @@ namespace kns {
             return;
         }
 
+        const auto oldest =
+            client.getOldestOutstandingSequence();
+
+        if (
+            !oldest.has_value() ||
+            *oldest != sequence_
+        ) {
+            return;
+        }
+
         if (!client.canRetransmit(sequence_)) {
             KNS_DEBUG_LOG(
                 "[TCP][RTO] retransmission limit reached "
@@ -50,16 +60,7 @@ namespace kns {
                 << '\n'
             );
 
-            return;
-        }
-
-        const auto oldest =
-            client.getOldestOutstandingSequence();
-
-        if (
-            !oldest.has_value() ||
-            *oldest != sequence_
-        ) {
+            client.failRetransmission();
             return;
         }
 

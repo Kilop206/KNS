@@ -98,6 +98,15 @@ namespace kns {
                 return false;
             }
 
+            bool onRetransmissionFailure() noexcept {
+                if (state_ == TCPState::CLOSED) {
+                    return false;
+                }
+
+                state_ = TCPState::CLOSED;
+                return true;
+            }
+
         private:
             TCPState state_;
     };

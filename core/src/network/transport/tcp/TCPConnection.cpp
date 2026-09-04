@@ -622,4 +622,18 @@ namespace kns {
         return getRetransmissionCount(sequence) <
             MAX_DATA_RETRANSMISSIONS;
     }
+
+    bool TCPConnection::failRetransmission() noexcept
+    {
+        if (!state_machine_.onRetransmissionFailure()) {
+            return false;
+        }
+
+        send_buffer_.clear();
+        receive_buffer_.clear();
+
+        rto_manager_.reset();
+
+        return true;
+    }
 }

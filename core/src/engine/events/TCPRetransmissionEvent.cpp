@@ -44,6 +44,15 @@ namespace kns {
             return;
         }
 
+        if (!client.isEstablished()) {
+            return;
+        }
+
+        if (!client.canRetransmit(sequence_)) {
+            client.failRetransmission();
+            return;
+        }
+
         if (!client.canRetransmit(sequence_)) {
             KNS_DEBUG_LOG(
                 "[TCP][RTO] retransmission limit reached "
