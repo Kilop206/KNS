@@ -1,10 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "engine/events/PacketGenerationEvent.hpp"
-#include "engine/core/SimulationEngine.hpp"
-#include "network/transport/tcp/TCPSession.hpp"
+#include "network/transport/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/TCPSegment.hpp"
 
-using kns::SimulationEngine;
+using kns::TCPConnection;
+using kns::TCPFlag;
+using kns::TCPSegment;
 using kns::TCPState;
 
 TEST_CASE(
@@ -12,55 +13,37 @@ TEST_CASE(
     "[tcp][window][integration]"
 )
 {
-    Topology topology(2);
-
-    topology.addLink(
+    TCPConnection client(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
         0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
+        1
     );
-
-    SimulationEngine engine(topology);
-
-    auto& session = engine.createTCPSession(0, 1);
-    auto& client = session.getClientConnection();
 
     client.setSendWindow(100);
 
-    const auto initial_seq = client.getSendNext();
-
-    REQUIRE(
-        client.getSendBufferSize() == 0
-    );
+    REQUIRE(client.getSendUnacknowledged() == 1000);
+    REQUIRE(client.getSendNext() == 1000);
+    REQUIRE(client.getSendBufferSize() == 0);
 
     TCPSegment first;
-    first.seq = initial_seq;
+    first.seq = 1000;
     first.payload.assign(100, 0x41);
     first.flags = TCPFlag::ACK | TCPFlag::PSH;
 
     REQUIRE(
         client.queueSentSegment(
             first,
-            engine.now()
+            0.0
         )
     );
 
-    REQUIRE(
-        client.getSendNext() ==
-        initial_seq + 100
-    );
+    REQUIRE(client.getSendUnacknowledged() == 1000);
+    REQUIRE(client.getSendNext() == 1100);
+    REQUIRE(client.getSendBufferSize() == 1);
 
-    REQUIRE(
-        client.getSendUnacknowledged() ==
-        initial_seq
-    );
-
-    REQUIRE_FALSE(
-        client.canSend(1)
-    );
+    REQUIRE_FALSE(client.canSend(1));
 }
 
 TEST_CASE(
@@ -68,63 +51,57 @@ TEST_CASE(
     "[tcp][window][integration]"
 )
 {
-    Topology topology(2);
-
-    topology.addLink(
+    TCPConnection client(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
         0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
+        1
     );
-
-    SimulationEngine engine(topology);
-
-    auto& session = engine.createTCPSession(0, 1);
-    auto& client = session.getClientConnection();
 
     client.setSendWindow(200);
 
-    const auto initial_seq = client.getSendNext();
-
     TCPSegment first;
-    first.seq = initial_seq;
+    first.seq = 1000;
     first.payload.assign(100, 0x41);
     first.flags = TCPFlag::ACK | TCPFlag::PSH;
 
     TCPSegment second;
-    second.seq = initial_seq + 100;
+    second.seq = 1100;
     second.payload.assign(100, 0x42);
     second.flags = TCPFlag::ACK | TCPFlag::PSH;
 
     REQUIRE(
         client.queueSentSegment(
             first,
-            engine.now()
+            0.0
         )
     );
 
     REQUIRE(
         client.queueSentSegment(
             second,
-            engine.now()
+            0.0
         )
     );
 
-    REQUIRE_FALSE(
-        client.canSend(1)
-    );
+    REQUIRE(client.getSendUnacknowledged() == 1000);
+    REQUIRE(client.getSendNext() == 1200);
+    REQUIRE(client.getSendBufferSize() == 2);
 
-    REQUIRE(
-        client.receive_ack(initial_seq + 100)
-    );
+    // Both segments occupy the complete 200-byte send window.
+    REQUIRE_FALSE(client.canSend(1));
 
-    REQUIRE(
-        client.getSendBufferSize() == 1
-    );
+    // Cumulative ACK for the first 100 bytes.
+    REQUIRE(client.receive_ack(1100));
 
-    REQUIRE(
-        client.canSend(100)
-    );
+    REQUIRE(client.getSendUnacknowledged() == 1100);
+    REQUIRE(client.getSendNext() == 1200);
+    REQUIRE(client.getSendBufferSize() == 1);
+
+    // Exactly 100 bytes are available again.
+    REQUIRE(client.canSend(100));
+
+    // One additional byte would exceed the remaining window.
+    REQUIRE_FALSE(client.canSend(101));
 }
