@@ -4,9 +4,12 @@
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPTimeoutEvent.hpp"
+#include "engine/events/TCPRetransmissionEvent.hpp"
 #include "network/Topology.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
 #include "network/transport/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/timer/RTOManager.hpp"
+#include "network/utils/PacketUtils.hpp"
 
 using kns::RTOManager;
 using kns::RTTEstimator;
@@ -17,6 +20,7 @@ using kns::TCPState;
 using kns::TCPSegment;
 using kns::TCPTimeoutEvent;
 using kns::Topology;
+using kns::PacketUtils;
 
 namespace {
 
@@ -962,5 +966,281 @@ TEST_CASE(
      */
     REQUIRE(
         connection.getCurrentRTO() == 6.0
+    );
+}
+
+TEST_CASE(
+    "TCP retransmission recovers after a real link loss",
+    "[tcp][rto][retransmission][integration]"
+)
+{
+    Topology topology(2);
+
+    auto link = topology.addLinkPtr(
+        0,
+        1,
+        100.0,
+        1.0,
+        0.0,
+        kns::LinkMode::FULL_DUPLEX
+    );
+
+    REQUIRE(link != nullptr);
+
+    SimulationEngine engine(topology);
+
+    auto& session =
+        engine.createTCPSession(0, 1);
+
+    auto& client =
+        session.getClientConnection();
+
+    auto& server =
+        session.getServerConnection();
+
+    /*
+     * Establish the TCP endpoints through their public state
+     * transition API without relying on the full traffic generator.
+     */
+    REQUIRE(
+        client.send_syn()
+    );
+
+    const TCPSegment syn =
+        client.buildSyn();
+
+    REQUIRE(
+        server.receive_syn(
+            syn.seq
+        )
+    );
+
+    const TCPSegment syn_ack =
+        server.buildSynAck();
+
+    REQUIRE(
+        client.receive_syn_ack(
+            syn_ack.seq,
+            syn_ack.ack
+        )
+    );
+
+    const TCPSegment ack =
+        client.buildAck();
+
+    REQUIRE(
+        server.receive_ack(
+            ack.ack,
+            engine.now()
+        )
+    );
+
+    REQUIRE(
+        client.isEstablished()
+    );
+
+    REQUIRE(
+        server.isEstablished()
+    );
+
+    TCPSegment data;
+
+    data.seq =
+        client.getSendNext();
+
+    data.ack =
+        client.getExpectedAckNum();
+
+    data.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    data.payload.assign(
+        100,
+        0x41
+    );
+
+    /*
+     * The segment is outstanding before the network attempt.
+     */
+    REQUIRE(
+        client.queueSentSegment(
+            data,
+            engine.now()
+        )
+    );
+
+    REQUIRE(
+        client.hasOutstandingSegment(
+            data.seq
+        )
+    );
+
+    /*
+     * Force the first network transmission to fail.
+     */
+    link->setLossProb(1.0);
+
+    kns::Packet packet(
+        client.getLocalNode(),
+        client.getRemoteNode(),
+        client.getLocalNode(),
+        engine.now(),
+        static_cast<int>(
+            data.payloadSize()
+        ),
+        session.getSession_id()
+    );
+
+    packet.packet_type =
+        kns::PacketType::DATA;
+
+    packet.tcp = data;
+
+    REQUIRE_FALSE(
+        PacketUtils::sendPacketThroughTopology(
+            engine,
+            packet
+        )
+    );
+
+    REQUIRE(
+        engine.getStats().packets_lost > 0
+    );
+
+    /*
+     * The RTO timer fires for the still-outstanding segment.
+     */
+    TCPTimeoutEvent timeout(
+        engine.now(),
+        session.getSession_id(),
+        data.seq
+    );
+
+    const double initial_rto =
+        client.getCurrentRTO();
+
+    REQUIRE_NOTHROW(
+        timeout.execute(engine)
+    );
+
+    REQUIRE(
+        client.getCurrentRTO() >
+        initial_rto
+    );
+
+    /*
+     * Recover the link before the retransmission event executes.
+     */
+    link->setLossProb(0.0);
+
+    REQUIRE(
+        engine.hasEvents()
+    );
+
+    /*
+     * Execute the scheduled retransmission event.
+     */
+    REQUIRE(
+        engine.processEvent()
+    );
+
+    REQUIRE(
+        client.hasOutstandingSegment(
+            data.seq
+        )
+    );
+}
+
+TEST_CASE(
+    "TCP RTT/RTO pipeline updates and backs off correctly",
+    "[tcp][rtt-rto]"
+)
+{
+    RTOManager manager;
+
+    REQUIRE(
+        almostEqual(
+            manager.currentRTO(),
+            RTTEstimator::INITIAL_RTO
+        )
+    );
+
+    // Primeiro RTT:
+    // SRTT = 1.0
+    // RTTVAR = 0.5
+    // RTO = 3.0
+    manager.onAcknowledgement(1.0);
+
+    REQUIRE(
+        almostEqual(
+            manager.getEstimator().getSRTT(),
+            1.0
+        )
+    );
+
+    REQUIRE(
+        almostEqual(
+            manager.getEstimator().getRTTVAR(),
+            0.5
+        )
+    );
+
+    REQUIRE(
+        almostEqual(
+            manager.currentRTO(),
+            3.0
+        )
+    );
+
+    // Timeout: backoff 2x.
+    REQUIRE(
+        almostEqual(
+            manager.onTimeout(),
+            6.0
+        )
+    );
+
+    REQUIRE(
+        almostEqual(
+            manager.getBackoff(),
+            2.0
+        )
+    );
+
+    // Novo ACK com RTT válido:
+    // o backoff deve voltar para 1.
+    manager.onAcknowledgement(1.0);
+
+    REQUIRE(
+        almostEqual(
+            manager.getBackoff(),
+            1.0
+        )
+    );
+
+    // Segunda amostra:
+    // SRTT = 1.0
+    // RTTVAR = 0.375
+    // RTO = 2.5
+    REQUIRE(
+        almostEqual(
+            manager.getEstimator().getSRTT(),
+            1.0
+        )
+    );
+
+    REQUIRE(
+        almostEqual(
+            manager.getEstimator().getRTTVAR(),
+            0.375
+        )
+    );
+
+    REQUIRE(
+        almostEqual(
+            manager.currentRTO(),
+            2.5
+        )
     );
 }
