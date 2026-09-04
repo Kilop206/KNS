@@ -123,3 +123,54 @@ TEST_CASE("Dynamic topology: topology mutation during TCP activity executes safe
     REQUIRE(engine.getTCPSessions().size() == 1);
     REQUIRE(engine.getPacketsInTransit().empty());
 }
+
+TEST_CASE(
+    "Dynamic topology: packet arriving at removed node is handled safely",
+    "[network][topology][dynamic]"
+)
+{
+    // The packet is accepted before the destination node is removed.
+    // Its arrival event must remain safe after the topology mutation.
+    Topology topo(2);
+    topo.addLink(
+        0,
+        1,
+        10.0,
+        10.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topo);
+    auto& session = engine.createTCPSession(0, 1);
+
+    Packet pkt(
+        0,
+        1,
+        0,
+        engine.now(),
+        1000,
+        session.getSession_id()
+    );
+    pkt.packet_type = PacketType::DATA;
+
+    REQUIRE(
+        PacketUtils::sendPacketThroughTopology(engine, pkt)
+    );
+    REQUIRE(engine.getPacketsInTransit().size() == 1);
+
+    // Remove the destination node while the packet is still in flight.
+    REQUIRE(engine.deleteNode(1));
+
+    // The scheduled PacketReceivedEvent must execute safely.
+    REQUIRE_NOTHROW(engine.run());
+
+    // The in-flight packet must not remain stuck after its arrival event.
+    REQUIRE(engine.getPacketsInTransit().empty());
+
+    // The removed node remains as an inactive slot rather than being reused
+    // or physically erased, preserving node indices.
+    const Node* removed_node = engine.getTopology().getNode(1);
+    REQUIRE(removed_node != nullptr);
+    REQUIRE_FALSE(removed_node->isActive());
+}
