@@ -28,7 +28,7 @@ TEST_CASE("TCPConnection performs active close", "[tcp][close]")
     REQUIRE(fin_sent);
     REQUIRE(client.getTcpState() == TCPState::FIN_WAIT_1);
 
-    REQUIRE(client.receive_ack(101));
+    REQUIRE(client.receive_ack(101, 1.0));
     REQUIRE(client.getTcpState() == TCPState::FIN_WAIT_2);
 }
 
@@ -47,7 +47,7 @@ TEST_CASE("TCPConnection performs passive close", "[tcp][close]")
     REQUIRE(fin.seq == 500);
     REQUIRE(fin.ack == 101);
 
-    REQUIRE(server.receive_ack(501));
+    REQUIRE(server.receive_ack(501, 1.0));
     REQUIRE(server.getTcpState() == TCPState::CLOSED);
 }
 

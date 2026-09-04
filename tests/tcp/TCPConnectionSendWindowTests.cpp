@@ -126,12 +126,12 @@ TEST_CASE(
     REQUIRE(connection.getSendNext() == 1200);
     REQUIRE(connection.getSendUnacknowledged() == 1000);
 
-    REQUIRE(connection.receive_ack(1100));
+    REQUIRE(connection.receive_ack(1100, 1.0));
 
     REQUIRE(connection.getSendBufferSize() == 1);
     REQUIRE(connection.getSendUnacknowledged() == 1100);
 
-    REQUIRE(connection.receive_ack(1200));
+    REQUIRE(connection.receive_ack(1200, 1.0));
 
     REQUIRE(connection.getSendBufferSize() == 0);
     REQUIRE(connection.getSendUnacknowledged() == 1200);
@@ -161,11 +161,11 @@ TEST_CASE(
         )
     );
 
-    REQUIRE_FALSE(connection.receive_ack(1200));
+    REQUIRE_FALSE(connection.receive_ack(1200, 1.0));
     REQUIRE(connection.getSendBufferSize() == 1);
     REQUIRE(connection.getSendUnacknowledged() == 1000);
 
-    REQUIRE_FALSE(connection.receive_ack(900));
+    REQUIRE_FALSE(connection.receive_ack(900, 1.0));
     REQUIRE(connection.getSendBufferSize() == 1);
     REQUIRE(connection.getSendUnacknowledged() == 1000);
 }
@@ -194,7 +194,7 @@ TEST_CASE(
         )
     );
 
-    REQUIRE(connection.receive_ack(1100));
+    REQUIRE(connection.receive_ack(1100, 1.0));
 
     REQUIRE(connection.getSendBufferSize() == 0);
     REQUIRE(connection.getSendUnacknowledged() == 1100);

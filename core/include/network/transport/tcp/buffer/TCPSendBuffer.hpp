@@ -55,6 +55,18 @@ namespace kns {
             return &entries_.front();
         }
 
+        const TCPSendEntry* find(
+            std::uint32_t sequence
+        ) const noexcept;
+
+        TCPSendEntry* find(
+            std::uint32_t sequence
+        ) noexcept;
+
+        bool contains(
+            std::uint32_t sequence
+        ) const noexcept;
+
         std::size_t acknowledge(
             std::uint32_t ack_number
         );

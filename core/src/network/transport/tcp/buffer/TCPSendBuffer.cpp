@@ -1,7 +1,6 @@
 #include "network/transport/tcp/buffer/TCPSendBuffer.hpp"
 
 #include <cmath>
-#include <limits>
 #include <utility>
 
 namespace kns {
@@ -22,6 +21,39 @@ namespace kns {
         );
 
         return true;
+    }
+
+    const TCPSendEntry* TCPSendBuffer::find(
+        std::uint32_t sequence
+    ) const noexcept
+    {
+        for (const auto& entry : entries_) {
+            if (entry.segment.seq == sequence) {
+                return &entry;
+            }
+        }
+
+        return nullptr;
+    }
+
+    TCPSendEntry* TCPSendBuffer::find(
+        std::uint32_t sequence
+    ) noexcept
+    {
+        for (auto& entry : entries_) {
+            if (entry.segment.seq == sequence) {
+                return &entry;
+            }
+        }
+
+        return nullptr;
+    }
+
+    bool TCPSendBuffer::contains(
+        std::uint32_t sequence
+    ) const noexcept
+    {
+        return find(sequence) != nullptr;
     }
 
     std::size_t TCPSendBuffer::acknowledge(
@@ -63,17 +95,18 @@ namespace kns {
         double retransmission_time
     ) noexcept
     {
-        for (auto& entry : entries_) {
-            if (entry.segment.seq == sequence) {
-                entry.markRetransmitted(
-                    retransmission_time
-                );
+        TCPSendEntry* entry =
+            find(sequence);
 
-                return true;
-            }
+        if (entry == nullptr) {
+            return false;
         }
 
-        return false;
+        entry->markRetransmitted(
+            retransmission_time
+        );
+
+        return true;
     }
 
     std::optional<double>

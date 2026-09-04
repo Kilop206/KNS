@@ -40,7 +40,7 @@ TEST_CASE("TCPSession aggregate state tracks 3-way handshake lifecycle", "[tcp][
     REQUIRE(session.getState() == TCPState::SYN_RECEIVED);
 
     // 5. Server receives ACK -> ESTABLISHED (both ESTABLISHED)
-    REQUIRE(server.receive_ack(server.getSeqNum() + 1));
+    REQUIRE(server.receive_ack(server.getSeqNum() + 1, 1.0));
     REQUIRE(client.getTcpState() == TCPState::ESTABLISHED);
     REQUIRE(server.getTcpState() == TCPState::ESTABLISHED);
     REQUIRE(session.getState() == TCPState::ESTABLISHED);
@@ -72,7 +72,7 @@ TEST_CASE("TCPSession aggregate state tracks active close lifecycle", "[tcp][ses
     REQUIRE(session.getState() == TCPState::CLOSE_WAIT);
 
     // 3. Client receives ACK -> FIN_WAIT_2
-    REQUIRE(client.receive_ack(client.getSeqNum() + 1));
+    REQUIRE(client.receive_ack(client.getSeqNum() + 1, 1.0));
     REQUIRE(client.getTcpState() == TCPState::FIN_WAIT_2);
     REQUIRE(server.getTcpState() == TCPState::CLOSE_WAIT);
     REQUIRE(session.getState() == TCPState::CLOSE_WAIT);
@@ -90,7 +90,7 @@ TEST_CASE("TCPSession aggregate state tracks active close lifecycle", "[tcp][ses
     REQUIRE(session.getState() == TCPState::LAST_ACK);
 
     // 6. Server receives ACK -> CLOSED
-    REQUIRE(server.receive_ack(server.getSeqNum() + 1));
+    REQUIRE(server.receive_ack(server.getSeqNum() + 1, 1.0));
     REQUIRE(server.getTcpState() == TCPState::CLOSED);
     REQUIRE(client.getTcpState() == TCPState::TIME_WAIT);
     REQUIRE(session.getState() == TCPState::TIME_WAIT);
@@ -125,7 +125,7 @@ TEST_CASE("TCPSession aggregate state tracks passive close lifecycle", "[tcp][se
     REQUIRE(session.getState() == TCPState::CLOSE_WAIT);
 
     // 3. Server receives ACK -> FIN_WAIT_2
-    REQUIRE(server.receive_ack(server.getSeqNum() + 1));
+    REQUIRE(server.receive_ack(server.getSeqNum() + 1, 1.0));
     REQUIRE(server.getTcpState() == TCPState::FIN_WAIT_2);
     REQUIRE(client.getTcpState() == TCPState::CLOSE_WAIT);
     REQUIRE(session.getState() == TCPState::CLOSE_WAIT);
@@ -142,7 +142,7 @@ TEST_CASE("TCPSession aggregate state tracks passive close lifecycle", "[tcp][se
     REQUIRE(session.getState() == TCPState::LAST_ACK);
 
     // 6. Client receives ACK -> CLOSED
-    REQUIRE(client.receive_ack(client.getSeqNum() + 1));
+    REQUIRE(client.receive_ack(client.getSeqNum() + 1, 1.0));
     REQUIRE(client.getTcpState() == TCPState::CLOSED);
     REQUIRE(server.getTcpState() == TCPState::TIME_WAIT);
     REQUIRE(session.getState() == TCPState::TIME_WAIT);

@@ -8,6 +8,7 @@
 #include "network/transport/tcp/TCPStateMachine.hpp"
 #include "network/transport/tcp/buffer/TCPReceiveBuffer.hpp"
 #include "network/transport/tcp/buffer/TCPSendBuffer.hpp"
+#include "network/transport/tcp/timer/RTOManager.hpp"
 
 namespace kns {
 
@@ -54,7 +55,10 @@ namespace kns {
             std::uint32_t remote_seq,
             std::uint32_t remote_ack
         );
-        bool receive_ack(std::uint32_t remote_ack);
+        bool receive_ack(
+            std::uint32_t remote_ack,
+            double acknowledgement_time
+        );
         bool receive_fin(std::uint32_t remote_seq);
 
         bool send_syn();
@@ -98,6 +102,19 @@ namespace kns {
             double received_at
         );
 
+        bool hasOutstandingSegment(
+            std::uint32_t sequence
+        ) const noexcept;
+
+        double getCurrentRTO() const noexcept;
+
+        void onSendTimeout() noexcept;
+
+        void onAcknowledged(
+            std::uint32_t ack_number,
+            double acknowledgement_time
+        ) noexcept;
+
     private:
         static std::uint32_t generateInitialSeq();
 
@@ -106,6 +123,9 @@ namespace kns {
         ) noexcept;
 
     private:
+
+        RTOManager rto_manager_;
+
         TCPStateMachine state_machine_;
 
         std::uint32_t seq_num_;

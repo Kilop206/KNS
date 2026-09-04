@@ -1,5 +1,6 @@
 #include "engine/events/PacketGenerationEvent.hpp"
 
+#include "engine/events/TCPTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"
 
@@ -75,15 +76,30 @@ namespace kns {
         pkt.departure_time = engine.now();
 
         const bool accepted =
-            PacketUtils::sendPacketThroughTopology(engine, pkt);
+            PacketUtils::sendPacketThroughTopology(
+                engine,
+                pkt
+            );
 
         if (!accepted) {
             return;
         }
 
-        if (!client.queueSentSegment(pkt.tcp, engine.now())) {
+        if (!client.queueSentSegment(
+                pkt.tcp,
+                engine.now()
+            )) {
             return;
         }
+
+        engine.schedule(
+            std::make_unique<TCPTimeoutEvent>(
+                engine.now() +
+                    client.getCurrentRTO(),
+                session_id_,
+                pkt.tcp.seq
+            )
+        );
 
         session.incrementPacketsSent();
 

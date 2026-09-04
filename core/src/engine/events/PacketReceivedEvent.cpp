@@ -157,7 +157,10 @@ namespace kns
 
             case PacketType::ACK:
             {
-                receiver.receive_ack(packet.tcp.ack);
+                receiver.receive_ack(
+                    packet.tcp.ack,
+                    engine.now()
+                );
 
                 refreshSessionState(session);
 

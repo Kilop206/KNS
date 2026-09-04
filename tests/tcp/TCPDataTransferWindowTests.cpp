@@ -93,7 +93,7 @@ TEST_CASE(
     REQUIRE_FALSE(client.canSend(1));
 
     // Cumulative ACK for the first 100 bytes.
-    REQUIRE(client.receive_ack(1100));
+    REQUIRE(client.receive_ack(1100, 1.0));
 
     REQUIRE(client.getSendUnacknowledged() == 1100);
     REQUIRE(client.getSendNext() == 1200);

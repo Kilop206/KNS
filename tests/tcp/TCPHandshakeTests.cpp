@@ -34,7 +34,7 @@ TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][ha
     REQUIRE_FALSE(ack.syn());
     REQUIRE(ack.ack == 501);
 
-    REQUIRE(server.receive_ack(ack.ack));
+    REQUIRE(server.receive_ack(ack.ack, 1.0));
     REQUIRE(server.getTcpState() == TCPState::ESTABLISHED);
 }
 

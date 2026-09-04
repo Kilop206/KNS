@@ -238,7 +238,10 @@ namespace kns {
         return true;
     }
 
-    bool TCPConnection::receive_ack(std::uint32_t remote_ack)
+    bool TCPConnection::receive_ack(
+        std::uint32_t remote_ack,
+        double acknowledgement_time
+    )
     {
         KNS_DEBUG_LOG(
             "[TCP ACK] "
@@ -263,7 +266,6 @@ namespace kns {
                 return false;
             }
 
-            // The SYN-ACK consumes one sequence number.
             seq_num_ = remote_ack;
             send_unacknowledged_ = remote_ack;
 
@@ -298,8 +300,10 @@ namespace kns {
             return false;
         }
 
-        acknowledgeSentData(remote_ack);
-        updateSendUnacknowledged(remote_ack);
+        onAcknowledged(
+            remote_ack,
+            acknowledgement_time
+        );
 
         return true;
     }
@@ -519,4 +523,42 @@ namespace kns {
         return receive_buffer_.availableWindow();
     }
 
+    bool TCPConnection::hasOutstandingSegment(
+        std::uint32_t sequence
+    ) const noexcept
+    {
+        return send_buffer_.contains(sequence);
+    }
+
+    double TCPConnection::getCurrentRTO() const noexcept
+    {
+        return rto_manager_.currentRTO();
+    }
+
+    void TCPConnection::onSendTimeout() noexcept
+    {
+        rto_manager_.onTimeout();
+    }
+
+    void TCPConnection::onAcknowledged(
+        std::uint32_t ack_number,
+        double acknowledgement_time
+    ) noexcept
+    {
+        const auto sample =
+            send_buffer_.acknowledgeAndGetRtt(
+                ack_number,
+                acknowledgement_time
+            );
+
+        updateSendUnacknowledged(
+            ack_number
+        );
+
+        if (sample.has_value()) {
+            rto_manager_.onAcknowledgement(
+                *sample
+            );
+        }
+    }
 }
