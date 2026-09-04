@@ -1,12 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
+#include "network/utils/PacketUtils.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include <limits>
 
 using kns::Topology;
 using kns::Routing;
 using kns::LinkMode;
+using kns::PacketUtils;
+using kns::Packet;
+using kns::PacketType;
+using kns::SimulationEngine;
+using kns::Link;
 
 TEST_CASE("Routing calculates shortest paths correctly in a chain topology", "[network][routing]")
 {
@@ -140,4 +146,92 @@ TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][
     engine.toggleLinkUp(0, 1, true);
     engine.toggleLinkUp(0, 2, true);
     REQUIRE(engine.getNextHop(0, 2) == 1);
+}
+
+TEST_CASE("Link UP and DOWN integration with packet transmission and alternate paths", "[network][routing][link]")
+{
+    // Triangle: 0-1 (5ms), 1-2 (5ms), 0-2 (50ms alternate path)
+    Topology topo(3);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(0, 2, 10.0, 50.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    SimulationEngine engine(topo);
+    auto& session = engine.createTCPSession(0, 2);
+
+    // 1. Initial state: UP -> shortest route 0->2 goes via 1
+    REQUIRE(engine.getNextHop(0, 2) == 1);
+
+    Packet p1(0, 2, 0, engine.now(), 1000, session.getSession_id());
+    p1.packet_type = PacketType::DATA;
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, p1));
+
+    // 2. Link 0-1 goes DOWN -> route avoids 0-1 and chooses alternate path 0-2
+    REQUIRE(engine.toggleLinkUp(0, 1, false));
+    REQUIRE(engine.getNextHop(0, 2) == 2);
+
+    // Direct transmission on 0-1 must be rejected
+    auto& links_from_0 = engine.getTopology().getLinksFromNode(0);
+    Link* link_0_1 = nullptr;
+    for (const auto& l : links_from_0) {
+        if (l->getOtherNode(0) == 1) link_0_1 = l.get();
+    }
+    REQUIRE(link_0_1 != nullptr);
+    REQUIRE_FALSE(link_0_1->isUp());
+    REQUIRE_FALSE(engine.sendPacket(p1, *link_0_1, engine.now()));
+
+    // But transmission towards node 2 succeeds using the alternate path 0-2
+    Packet p2(0, 2, 0, engine.now(), 1000, session.getSession_id());
+    p2.packet_type = PacketType::DATA;
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, p2));
+
+    // 3. Link 0-2 also goes DOWN -> node 2 is unreachable, transmission rejected
+    REQUIRE(engine.toggleLinkUp(0, 2, false));
+    REQUIRE(engine.getNextHop(0, 2) == -1);
+
+    Packet p3(0, 2, 0, engine.now(), 1000, session.getSession_id());
+    p3.packet_type = PacketType::DATA;
+    REQUIRE_FALSE(PacketUtils::sendPacketThroughTopology(engine, p3));
+
+    // 4. Link 0-1 returns UP -> route 0-2 is restored via 1 (0 -> 1 -> 2)
+    REQUIRE(engine.toggleLinkUp(0, 1, true));
+    REQUIRE(engine.getNextHop(0, 2) == 1);
+
+    Packet p4(0, 2, 0, engine.now(), 1000, session.getSession_id());
+    p4.packet_type = PacketType::DATA;
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, p4));
+
+    // Run engine and verify deliveries
+    engine.run();
+    REQUIRE(engine.getStats().packets_delivered > 0);
+    REQUIRE(engine.getPacketsInTransit().empty());
+}
+
+TEST_CASE("Link UP and DOWN with parallel links selects available UP link", "[network][routing][link]")
+{
+    Topology topo(2);
+    // Add two parallel links between 0 and 1
+    auto l1 = topo.addLinkPtr(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    auto l2 = topo.addLinkPtr(0, 1, 20.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    SimulationEngine engine(topo);
+    auto& session = engine.createTCPSession(0, 1);
+
+    // Turn link 1 DOWN, link 2 remains UP
+    l1->setUp(false);
+    REQUIRE_FALSE(l1->isUp());
+    REQUIRE(l2->isUp());
+
+    // sendPacketThroughTopology should choose the UP link
+    Packet p(0, 1, 0, engine.now(), 1000, session.getSession_id());
+    p.packet_type = PacketType::DATA;
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, p));
+
+    // Turn link 2 DOWN as well -> both DOWN
+    l2->setUp(false);
+    REQUIRE_FALSE(PacketUtils::sendPacketThroughTopology(engine, p));
+
+    // Restore link 1 UP -> transmission succeeds again
+    l1->setUp(true);
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, p));
 }

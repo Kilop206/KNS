@@ -21,7 +21,7 @@ namespace kns {
         Link* selected_link = nullptr;
 
         for (const auto& link_ptr : links) {
-            if (link_ptr && link_ptr->getOtherNode(pkt.current_node) == next) {
+            if (link_ptr && link_ptr->isUp() && link_ptr->getOtherNode(pkt.current_node) == next) {
                 selected_link = link_ptr.get();
                 break;
             }
