@@ -105,6 +105,8 @@ namespace kns {
 
         double now() const;
 
+        /// Returns the next hop node index towards destination, or -1 if the destination
+        /// is unreachable, current == destination, or if either node ID is invalid/out-of-bounds.
         int getNextHop(int current, int destination) const;
 
         Topology& getTopology();

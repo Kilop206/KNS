@@ -87,8 +87,27 @@ TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network]
     // Unreachable destination should return -1
     REQUIRE(engine.getNextHop(0, 2) == -1);
 
+    // Same node (current == destination) has no next hop
+    REQUIRE(engine.getNextHop(0, 0) == -1);
+    REQUIRE(engine.getNextHop(1, 1) == -1);
+
     // Valid next hop
     REQUIRE(engine.getNextHop(0, 1) == 1);
+    REQUIRE(engine.getNextHop(1, 0) == 0);
+
+    // Empty topology safely returns -1
+    Topology empty_topo(0);
+    kns::SimulationEngine empty_engine(empty_topo);
+    REQUIRE(empty_engine.getNextHop(0, 0) == -1);
+    REQUIRE(empty_engine.getNextHop(-1, 0) == -1);
+
+    // Dynamic topology mutation updates bounds correctly
+    const int new_node = engine.createNode(); // creates node 3
+    REQUIRE(engine.getNextHop(0, new_node) == -1); // unreachable
+    engine.createLink(1, new_node, 10.0, 5.0);
+    REQUIRE(engine.getNextHop(0, new_node) == 1); // now reachable via 1
+    engine.deleteNode(new_node);
+    REQUIRE(engine.getNextHop(0, new_node) == -1);
 }
 
 TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][routing]")
