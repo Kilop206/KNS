@@ -27,10 +27,10 @@ namespace kns {
         double measured_rtt
     ) noexcept
     {
-        estimator_.update(measured_rtt);
+        estimator_.update(
+            measured_rtt
+        );
 
-        // A valid RTT sample means the retransmission
-        // episode has ended. Restore normal timing.
         backoff_ = INITIAL_BACKOFF;
     }
 
