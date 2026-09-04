@@ -53,8 +53,9 @@ namespace kns {
             /// Returns false if the current state does not allow sending a SYN.
             bool send_syn();
 
-            /// Transition to SYN_RECEIVED (server answers with SYN-ACK).
-            /// Returns false if the current state does not allow the transition.
+            /// Validate that a SYN-ACK may be sent.
+            /// The connection must already be in SYN_RECEIVED.
+            /// Returns false otherwise; does not change the state.
             bool send_syn_ack();
 
             /// Pure segment construction — does NOT change state.
