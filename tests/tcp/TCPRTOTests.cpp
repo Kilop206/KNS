@@ -730,3 +730,237 @@ TEST_CASE(
      */
     (void)client;
 }
+
+TEST_CASE(
+    "TCP ACK updates RTO from a valid RTT sample",
+    "[tcp][rto][ack]"
+)
+{
+    TCPConnection connection(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
+        0,
+        1
+    );
+
+    TCPSegment segment;
+
+    segment.seq = 1000;
+    segment.payload.assign(
+        100,
+        0x41
+    );
+    segment.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        connection.queueSentSegment(
+            segment,
+            2.0
+        )
+    );
+
+    /*
+     * Force a non-default backoff first.
+     */
+    connection.onSendTimeout();
+
+    REQUIRE(
+        connection.getCurrentRTO() == 2.0
+    );
+
+    /*
+     * ACK at t = 3.0 for a segment transmitted at t = 2.0.
+     * RTT sample = 1.0.
+     *
+     * First Jacobson sample:
+     * SRTT   = 1.0
+     * RTTVAR = 0.5
+     * RTO    = 3.0
+     *
+     * The acknowledgement must also reset backoff to 1x.
+     */
+    REQUIRE(
+        connection.receive_ack(
+            1100,
+            3.0
+        )
+    );
+
+    REQUIRE(
+        connection.getSendUnacknowledged() == 1100
+    );
+
+    REQUIRE(
+        connection.getSendBufferSize() == 0
+    );
+
+    REQUIRE(
+        connection.getCurrentRTO() == 3.0
+    );
+}
+
+TEST_CASE(
+    "TCP ACK after retransmission does not reset RTO backoff",
+    "[tcp][rto][ack][karn]"
+)
+{
+    TCPConnection connection(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
+        0,
+        1
+    );
+
+    TCPSegment segment;
+
+    segment.seq = 1000;
+    segment.payload.assign(
+        100,
+        0x41
+    );
+    segment.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        connection.queueSentSegment(
+            segment,
+            2.0
+        )
+    );
+
+    /*
+     * Mark the transmission as retransmitted.
+     * Karn therefore forbids RTT measurement.
+     */
+    REQUIRE(
+        connection.markSegmentRetransmitted(
+            1000,
+            4.0
+        )
+    );
+
+    /*
+     * Simulate one timeout/backoff.
+     */
+    connection.onSendTimeout();
+
+    REQUIRE(
+        connection.getCurrentRTO() == 2.0
+    );
+
+    /*
+     * ACK arrives at t = 5.0.
+     *
+     * RTT sample must be rejected because the segment
+     * was retransmitted.
+     *
+     * Therefore the backoff must remain 2x.
+     */
+    REQUIRE(
+        connection.receive_ack(
+            1100,
+            5.0
+        )
+    );
+
+    REQUIRE(
+        connection.getSendBufferSize() == 0
+    );
+
+    REQUIRE(
+        connection.getCurrentRTO() == 2.0
+    );
+}
+
+TEST_CASE(
+    "TCP cumulative ACK uses one valid RTT sample",
+    "[tcp][rto][ack][karn]"
+)
+{
+    TCPConnection connection(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
+        0,
+        1
+    );
+
+    TCPSegment first;
+
+    first.seq = 1000;
+    first.payload.assign(
+        100,
+        0x41
+    );
+    first.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    TCPSegment second;
+
+    second.seq = 1100;
+    second.payload.assign(
+        100,
+        0x42
+    );
+    second.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        connection.queueSentSegment(
+            first,
+            1.0
+        )
+    );
+
+    REQUIRE(
+        connection.queueSentSegment(
+            second,
+            1.5
+        )
+    );
+
+    connection.onSendTimeout();
+
+    REQUIRE(
+        connection.getCurrentRTO() == 2.0
+    );
+
+    /*
+     * Cumulative ACK acknowledges both segments.
+     *
+     * The first entry provides the valid RTT sample.
+     * The RTO must therefore be recalculated and the
+     * backoff must return to 1x.
+     */
+    REQUIRE(
+        connection.receive_ack(
+            1200,
+            3.0
+        )
+    );
+
+    REQUIRE(
+        connection.getSendBufferSize() == 0
+    );
+
+    REQUIRE(
+        connection.getSendUnacknowledged() == 1200
+    );
+
+    /*
+     * First sample:
+     * RTT = 3.0 - 1.0 = 2.0
+     *
+     * RTO = 2.0 + 4 * 1.0 = 6.0
+     */
+    REQUIRE(
+        connection.getCurrentRTO() == 6.0
+    );
+}
