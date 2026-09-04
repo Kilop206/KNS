@@ -20,6 +20,8 @@ namespace kns {
         : state_machine_(state),
           seq_num_(seq_num),
           expected_ack_num_(expected_ack_num),
+          send_unacknowledged_(seq_num),
+          send_window_(DEFAULT_SEND_WINDOW),
           local_node_(local_node),
           remote_node_(remote_node)
     {
@@ -179,6 +181,9 @@ namespace kns {
         }
 
         expected_ack_num_ = remote_seq + 1;
+
+        updateSendUnacknowledged(remote_ack);
+
         resetSynRetries();
 
         return true;
@@ -206,6 +211,8 @@ namespace kns {
                 return false;
             }
 
+            updateSendUnacknowledged(remote_ack);
+
             resetSynRetries();
 
             return true;
@@ -225,7 +232,22 @@ namespace kns {
             return state_machine_.onFinAcked();
         }
 
-        return false;
+        if (!isEstablished()) {
+            return false;
+        }
+
+        if (remote_ack <= send_unacknowledged_) {
+            return false;
+        }
+
+        if (remote_ack > seq_num_) {
+            return false;
+        }
+
+        acknowledgeSentData(remote_ack);
+        updateSendUnacknowledged(remote_ack);
+
+        return true;
     }
 
     bool TCPConnection::receive_fin(std::uint32_t remote_seq)
@@ -241,7 +263,6 @@ namespace kns {
     bool TCPConnection::send_syn()
     {
         if (getTcpState() == TCPState::SYN_SENT) {
-            // Already in SYN_SENT (retransmit path) — seq is already set.
             return true;
         }
 
@@ -250,23 +271,19 @@ namespace kns {
         }
 
         seq_num_ = generateInitialSeq();
+
+        send_unacknowledged_ = seq_num_;
+
         return true;
     }
 
     bool TCPConnection::send_syn_ack()
     {
-        // The server transitions to SYN_RECEIVED when it receives a SYN
-        // (receive_syn()), not when it sends the SYN-ACK. So this method only
-        // validates that we are already in SYN_RECEIVED before allowing the
-        // segment to be sent — no state change needed.
         return getTcpState() == TCPState::SYN_RECEIVED;
     }
 
     bool TCPConnection::send_ack()
     {
-        // Sending a plain ACK is valid from many states (handshake, data,
-        // close). This is a pure segment construction call — it does NOT drive
-        // the state machine. The state machine is advanced by receive_*().
         return true;
     }
 
@@ -278,6 +295,108 @@ namespace kns {
     bool TCPConnection::expire_time_wait() noexcept
     {
         return state_machine_.onTimeWaitDone();
+    }
+
+    std::uint32_t TCPConnection::getSendUnacknowledged() const noexcept
+    {
+        return send_unacknowledged_;
+    }
+
+    std::uint32_t TCPConnection::getSendNext() const noexcept
+    {
+        return seq_num_;
+    }
+
+    std::uint32_t TCPConnection::getSendWindow() const noexcept
+    {
+        return send_window_;
+    }
+
+    void TCPConnection::setSendWindow(
+        std::uint32_t window
+    ) noexcept
+    {
+        send_window_ = window;
+    }
+
+    std::size_t TCPConnection::getSendBufferSize() const noexcept
+    {
+        return send_buffer_.size();
+    }
+
+    bool TCPConnection::canSend(
+        std::size_t payload_size
+    ) const noexcept
+    {
+        const std::uint32_t in_flight =
+            seq_num_ - send_unacknowledged_;
+
+        if (payload_size >
+            static_cast<std::size_t>(send_window_)) {
+            return false;
+        }
+
+        if (
+            in_flight >
+            send_window_ -
+                static_cast<std::uint32_t>(
+                    payload_size
+                )
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool TCPConnection::queueSentSegment(
+        const TCPSegment& segment,
+        double sent_at
+    )
+    {
+        if (segment.payloadSize() == 0) {
+            return false;
+        }
+
+        if (segment.seq != seq_num_) {
+            return false;
+        }
+
+        if (!canSend(segment.payloadSize())) {
+            return false;
+        }
+
+        TCPSendEntry entry{
+            segment,
+            sent_at
+        };
+
+        if (!send_buffer_.push(std::move(entry))) {
+            return false;
+        }
+
+        seq_num_ +=
+            static_cast<std::uint32_t>(
+                segment.payloadSize()
+            );
+
+        return true;
+    }
+
+    std::size_t TCPConnection::acknowledgeSentData(
+        std::uint32_t ack_number
+    )
+    {
+        return send_buffer_.acknowledge(ack_number);
+    }
+
+    void TCPConnection::updateSendUnacknowledged(
+        std::uint32_t ack_number
+    ) noexcept
+    {
+        if (ack_number > send_unacknowledged_) {
+            send_unacknowledged_ = ack_number;
+        }
     }
 
 }
