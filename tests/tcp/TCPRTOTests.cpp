@@ -488,3 +488,130 @@ TEST_CASE(
      */
     (void)client;
 }
+
+TEST_CASE(
+    "TCP retransmission count is tracked per segment",
+    "[tcp][rto][retransmission]"
+)
+{
+    TCPConnection connection(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
+        0,
+        1
+    );
+
+    TCPSegment segment;
+
+    segment.seq = 1000;
+    segment.payload.assign(
+        100,
+        0x41
+    );
+    segment.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        connection.queueSentSegment(
+            segment,
+            0.0
+        )
+    );
+
+    REQUIRE(
+        connection.getRetransmissionCount(
+            1000
+        ) == 0
+    );
+
+    REQUIRE(
+        connection.canRetransmit(
+            1000
+        )
+    );
+
+    REQUIRE(
+        connection.markSegmentRetransmitted(
+            1000,
+            1.0
+        )
+    );
+
+    REQUIRE(
+        connection.getRetransmissionCount(
+            1000
+        ) == 1
+    );
+
+    REQUIRE(
+        connection.canRetransmit(
+            1000
+        )
+    );
+}
+
+TEST_CASE(
+    "TCP retransmission limit is enforced per segment",
+    "[tcp][rto][retransmission]"
+)
+{
+    TCPConnection connection(
+        TCPState::ESTABLISHED,
+        1000,
+        2000,
+        0,
+        1
+    );
+
+    TCPSegment segment;
+
+    segment.seq = 1000;
+    segment.payload.assign(
+        100,
+        0x41
+    );
+    segment.flags =
+        TCPFlag::ACK |
+        TCPFlag::PSH;
+
+    REQUIRE(
+        connection.queueSentSegment(
+            segment,
+            0.0
+        )
+    );
+
+    for (
+        std::uint32_t i = 0;
+        i < TCPConnection::MAX_DATA_RETRANSMISSIONS;
+        ++i
+    ) {
+        REQUIRE(
+            connection.canRetransmit(
+                1000
+            )
+        );
+
+        REQUIRE(
+            connection.markSegmentRetransmitted(
+                1000,
+                static_cast<double>(i + 1)
+            )
+        );
+    }
+
+    REQUIRE(
+        connection.getRetransmissionCount(
+            1000
+        ) ==
+        TCPConnection::MAX_DATA_RETRANSMISSIONS
+    );
+
+    REQUIRE_FALSE(
+        connection.canRetransmit(
+            1000
+        )
+    );
+}

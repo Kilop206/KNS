@@ -600,4 +600,26 @@ namespace kns {
             retransmission_time
         );
     }
+
+    std::uint32_t TCPConnection::getRetransmissionCount(
+        std::uint32_t sequence
+    ) const noexcept
+    {
+        const TCPSendEntry* entry =
+            send_buffer_.find(sequence);
+
+        if (entry == nullptr) {
+            return 0;
+        }
+
+        return entry->retransmission_count;
+    }
+
+    bool TCPConnection::canRetransmit(
+        std::uint32_t sequence
+    ) const noexcept
+    {
+        return getRetransmissionCount(sequence) <
+            MAX_DATA_RETRANSMISSIONS;
+    }
 }

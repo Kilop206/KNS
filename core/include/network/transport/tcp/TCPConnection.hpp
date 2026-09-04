@@ -18,6 +18,7 @@ namespace kns {
         static constexpr std::uint32_t MAX_SYN_RETRIES = 5;
         static constexpr std::uint32_t DEFAULT_SEND_WINDOW = 65535;
         static constexpr std::size_t DEFAULT_RECEIVE_WINDOW = 65535;
+        static constexpr std::uint32_t MAX_DATA_RETRANSMISSIONS = 5;
 
         TCPConnection(
             TCPState state,
@@ -127,6 +128,14 @@ namespace kns {
             std::uint32_t sequence,
             double retransmission_time
         ) noexcept;
+
+        std::uint32_t getRetransmissionCount(
+            std::uint32_t sequence
+        ) const noexcept;
+
+        bool canRetransmit(
+            std::uint32_t sequence
+        ) const noexcept;
 
     private:
         static std::uint32_t generateInitialSeq();

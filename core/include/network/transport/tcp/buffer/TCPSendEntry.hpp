@@ -18,9 +18,14 @@ namespace kns {
         // não pode fornecer amostra válida de RTT.
         bool retransmitted = false;
 
+        // Número de retransmissões realizadas para este segmento.
+        std::uint32_t retransmission_count = 0;
+
         std::uint32_t sequence_end() const noexcept {
             return segment.seq +
-                   static_cast<std::uint32_t>(segment.payloadSize());
+                   static_cast<std::uint32_t>(
+                       segment.payloadSize()
+                   );
         }
 
         std::size_t payload_size() const noexcept {
@@ -43,6 +48,7 @@ namespace kns {
         {
             sent_at = retransmission_time;
             retransmitted = true;
+            ++retransmission_count;
         }
     };
 
