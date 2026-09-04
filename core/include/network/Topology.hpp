@@ -35,8 +35,13 @@ namespace kns {
             LinkMode mode = LinkMode::FULL_DUPLEX
         );
 
-        std::vector<LinkPtr>& getLinksFromNode(int);
-        const std::vector<LinkPtr>& getLinksFromNode(int) const;
+        /// Returns a reference to the list of links connected to the given node.
+        /// Throws std::out_of_range if node < 0 or node >= size().
+        std::vector<LinkPtr>& getLinksFromNode(int node);
+
+        /// Returns a const reference to the list of links connected to the given node.
+        /// Throws std::out_of_range if node < 0 or node >= size().
+        const std::vector<LinkPtr>& getLinksFromNode(int node) const;
 
         const std::vector<LinkPtr>& getLinks() const noexcept { return links_; }
 

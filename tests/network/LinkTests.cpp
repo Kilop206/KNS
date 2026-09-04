@@ -131,14 +131,28 @@ TEST_CASE("Link drop behavior based on probability", "[network][link]")
     REQUIRE(link_total_loss.should_drop());
 }
 
-TEST_CASE("Topology getLinksFromNode bounds safety", "[network][topology]")
+TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[network][topology]")
 {
     Topology topo(2);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
     const auto& const_topo = topo;
-    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(-1), std::out_of_range);
-    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
+
+    // Valid node: both const and non-const overloads return identical link list
+    REQUIRE(topo.getLinksFromNode(0).size() == 1);
+    REQUIRE(const_topo.getLinksFromNode(0).size() == 1);
+    REQUIRE(topo.getLinksFromNode(0)[0]->getId() == const_topo.getLinksFromNode(0)[0]->getId());
+    REQUIRE(topo.getLinksFromNode(1).size() == 1);
+    REQUIRE(const_topo.getLinksFromNode(1).size() == 1);
+
+    // Invalid negative node ID throws std::out_of_range consistently
     REQUIRE_THROWS_AS(topo.getLinksFromNode(-1), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(-1), std::out_of_range);
+
+    // Invalid node ID above range throws std::out_of_range consistently
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(2), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(2), std::out_of_range);
     REQUIRE_THROWS_AS(topo.getLinksFromNode(99), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
 }
 
 TEST_CASE("Topology addLink programmatic API validation", "[network][topology]")
