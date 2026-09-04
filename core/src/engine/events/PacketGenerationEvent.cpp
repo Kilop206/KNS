@@ -23,6 +23,10 @@ namespace kns {
 
     void PacketGenerationEvent::execute(SimulationEngine& engine)
     {
+        if (!engine.hasTCPSession(session_id_)) {
+            return;
+        }
+
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
 
