@@ -9,6 +9,7 @@
 #include "network/transport/tcp/TCPStateMachine.hpp"
 #include "network/transport/tcp/buffer/TCPReceiveBuffer.hpp"
 #include "network/transport/tcp/buffer/TCPSendBuffer.hpp"
+#include "network/transport/tcp/recovery/TCPLossDetector.hpp"
 #include "network/transport/tcp/timer/RTOManager.hpp"
 
 namespace kns {
@@ -53,14 +54,17 @@ namespace kns {
         TCPSegment buildFin() const;
 
         bool receive_syn(std::uint32_t remote_seq);
+
         bool receive_syn_ack(
             std::uint32_t remote_seq,
             std::uint32_t remote_ack
         );
+
         bool receive_ack(
             std::uint32_t remote_ack,
             double acknowledgement_time
         );
+
         bool receive_fin(std::uint32_t remote_seq);
 
         bool send_syn();
@@ -77,11 +81,15 @@ namespace kns {
         std::uint32_t getSendNext() const noexcept;
         std::uint32_t getSendWindow() const noexcept;
 
-        void setSendWindow(std::uint32_t window) noexcept;
+        void setSendWindow(
+            std::uint32_t window
+        ) noexcept;
 
         std::size_t getSendBufferSize() const noexcept;
 
-        bool canSend(std::size_t payload_size) const noexcept;
+        bool canSend(
+            std::size_t payload_size
+        ) const noexcept;
 
         bool queueSentSegment(
             const TCPSegment& segment,
@@ -139,6 +147,15 @@ namespace kns {
 
         bool failRetransmission() noexcept;
 
+        /*
+         * Duplicate ACK / fast retransmit detection.
+         */
+        std::uint32_t getDuplicateAckCount() const noexcept;
+
+        bool shouldFastRetransmit() const noexcept;
+
+        void resetLossDetection() noexcept;
+
     private:
         static std::uint32_t generateInitialSeq();
 
@@ -147,7 +164,6 @@ namespace kns {
         ) noexcept;
 
     private:
-
         RTOManager rto_manager_;
 
         TCPStateMachine state_machine_;
@@ -165,6 +181,8 @@ namespace kns {
 
         TCPSendBuffer send_buffer_;
         TCPReceiveBuffer receive_buffer_;
+
+        TCPLossDetector loss_detector_;
     };
 
 }
