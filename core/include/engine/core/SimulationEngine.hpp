@@ -236,7 +236,9 @@ namespace kns {
             LinkMode mode = LinkMode::FULL_DUPLEX
         );
         bool deleteLink(int a, int b);
+        bool deleteLinkById(std::uint64_t link_id);
         bool toggleLinkUp(int a, int b, bool up);
+        bool toggleLinkUpById(std::uint64_t link_id, bool up);
         void rebuildRoutingTables();
 
         /// Change the routing metric and immediately rebuild all routing tables.
@@ -247,5 +249,9 @@ namespace kns {
         /// given simulation time. This is the event-driven equivalent of
         /// toggleLinkUp() for use inside a running simulation.
         void scheduleLinkFailure(double at_time, int node_a, int node_b, bool up);
+
+        /// Schedule a state change for one specific link. Prefer this overload
+        /// whenever parallel links can exist between the same endpoints.
+        void scheduleLinkFailure(double at_time, std::uint64_t link_id, bool up);
     };
 }

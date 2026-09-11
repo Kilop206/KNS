@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -84,8 +85,19 @@ namespace kns {
         int addNode();
         bool removeNode(int id);
 
+        /// Remove the only link between two endpoints. Returns false when the
+        /// pair is missing or ambiguous; use removeLinkById for parallel links.
         bool removeLink(int a, int b);
+
+        /// Remove one specific link by its stable identity.
+        bool removeLinkById(std::uint64_t link_id);
+
+        /// Change the state of the only link between two endpoints. Returns
+        /// false when the pair is missing or ambiguous.
         bool setLinkUp(int a, int b, bool up);
+
+        /// Change the state of one specific link by its stable identity.
+        bool setLinkUpById(std::uint64_t link_id, bool up);
 
         /// Access the Node object for a given id. Returns nullptr if out of range.
         const Node* getNode(int id) const noexcept;

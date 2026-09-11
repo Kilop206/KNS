@@ -45,3 +45,30 @@ TEST_CASE("Topology add/remove nodes and links", "[network][topology]") {
     REQUIRE(topo.removeNode(2) == true);
     REQUIRE(topo.getLinksFromNode(2).empty());
 }
+
+TEST_CASE("Topology requires link ids for ambiguous parallel-link mutations", "[network][topology]") {
+    Topology topo(2);
+    auto first = topo.addLinkPtr(0, 1, 10.0, 5.0);
+    auto second = topo.addLinkPtr(0, 1, 20.0, 10.0);
+
+    REQUIRE_FALSE(topo.setLinkUp(0, 1, false));
+    REQUIRE(first->isUp());
+    REQUIRE(second->isUp());
+
+    REQUIRE(topo.setLinkUpById(first->getId(), false));
+    REQUIRE_FALSE(first->isUp());
+    REQUIRE(second->isUp());
+
+    REQUIRE_FALSE(topo.removeLink(0, 1));
+    REQUIRE(topo.getLinks().size() == 2);
+
+    REQUIRE(topo.removeLinkById(second->getId()));
+    REQUIRE(topo.getLinks().size() == 1);
+    REQUIRE(topo.getLinks().front()->getId() == first->getId());
+    REQUIRE(topo.getInterfaces().size() == 2);
+    REQUIRE(topo.getInterfaces().front().getLinkId() == first->getId());
+    REQUIRE_FALSE(topo.removeLinkById(second->getId()));
+
+    REQUIRE(topo.removeLink(0, 1));
+    REQUIRE(topo.getLinks().empty());
+}

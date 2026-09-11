@@ -190,41 +190,89 @@ namespace kns {
     }
 
     bool Topology::removeLink(int a, int b) {
-        for (auto it = links_.begin(); it != links_.end(); ++it) {
-            const auto& link = *it;
-            if ((link->getA() == a && link->getB() == b) || (link->getA() == b && link->getB() == a)) {
-                // remove from adjacency lists
-                if (link->getA() >= 0 && static_cast<std::size_t>(link->getA()) < adjacency_list_.size()) {
-                    auto& vec = adjacency_list_[static_cast<std::size_t>(link->getA())];
-                    vec.erase(std::remove(vec.begin(), vec.end(), link), vec.end());
+        LinkPtr match;
+        for (const auto& link : links_) {
+            const bool has_endpoints =
+                (link->getA() == a && link->getB() == b) ||
+                (link->getA() == b && link->getB() == a);
+            if (has_endpoints) {
+                if (match) {
+                    return false;
                 }
-                if (link->getB() >= 0 && static_cast<std::size_t>(link->getB()) < adjacency_list_.size()) {
-                    auto& vec = adjacency_list_[static_cast<std::size_t>(link->getB())];
-                    vec.erase(std::remove(vec.begin(), vec.end(), link), vec.end());
-                }
-
-                // Remove the two Interface objects for this link
-                const std::uint64_t lid = link->getId();
-                interfaces_.erase(
-                    std::remove_if(interfaces_.begin(), interfaces_.end(),
-                                   [lid](const Interface& iface) { return iface.getLinkId() == lid; }),
-                    interfaces_.end());
-
-                links_.erase(it);
-                return true;
+                match = link;
             }
         }
-        return false;
+
+        return match && removeLinkById(match->getId());
+    }
+
+    bool Topology::removeLinkById(std::uint64_t link_id) {
+        const auto it = std::find_if(
+            links_.begin(),
+            links_.end(),
+            [link_id](const LinkPtr& link) { return link->getId() == link_id; }
+        );
+        if (it == links_.end()) {
+            return false;
+        }
+
+        const auto& link = *it;
+        const int endpoints[] = {link->getA(), link->getB()};
+        for (const int endpoint : endpoints) {
+            if (endpoint >= 0 &&
+                static_cast<std::size_t>(endpoint) < adjacency_list_.size()) {
+                auto& adjacent = adjacency_list_[static_cast<std::size_t>(endpoint)];
+                adjacent.erase(
+                    std::remove(adjacent.begin(), adjacent.end(), link),
+                    adjacent.end()
+                );
+            }
+        }
+
+        interfaces_.erase(
+            std::remove_if(
+                interfaces_.begin(),
+                interfaces_.end(),
+                [link_id](const Interface& iface) {
+                    return iface.getLinkId() == link_id;
+                }
+            ),
+            interfaces_.end()
+        );
+
+        links_.erase(it);
+        return true;
     }
 
     bool Topology::setLinkUp(int a, int b, bool up) {
-        for (auto& link : links_) {
-            if ((link->getA() == a && link->getB() == b) || (link->getA() == b && link->getB() == a)) {
-                link->setUp(up);
-                return true;
+        LinkPtr match;
+        for (const auto& link : links_) {
+            const bool has_endpoints =
+                (link->getA() == a && link->getB() == b) ||
+                (link->getA() == b && link->getB() == a);
+            if (has_endpoints) {
+                if (match) {
+                    return false;
+                }
+                match = link;
             }
         }
-        return false;
+
+        return match && setLinkUpById(match->getId(), up);
+    }
+
+    bool Topology::setLinkUpById(std::uint64_t link_id, bool up) {
+        const auto it = std::find_if(
+            links_.begin(),
+            links_.end(),
+            [link_id](const LinkPtr& link) { return link->getId() == link_id; }
+        );
+        if (it == links_.end()) {
+            return false;
+        }
+
+        (*it)->setUp(up);
+        return true;
     }
 
     const Node* Topology::getNode(int id) const noexcept {

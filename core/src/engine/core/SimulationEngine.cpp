@@ -580,8 +580,20 @@ namespace kns {
         return ok;
     }
 
+    bool SimulationEngine::deleteLinkById(std::uint64_t link_id) {
+        const bool ok = topology_.removeLinkById(link_id);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
     bool SimulationEngine::toggleLinkUp(int a, int b, bool up) {
         const bool ok = topology_.setLinkUp(a, b, up);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    bool SimulationEngine::toggleLinkUpById(std::uint64_t link_id, bool up) {
+        const bool ok = topology_.setLinkUpById(link_id, up);
         if (ok) rebuildRoutingTables();
         return ok;
     }
@@ -608,6 +620,14 @@ namespace kns {
 
     void SimulationEngine::scheduleLinkFailure(double at_time, int node_a, int node_b, bool up) {
         schedule(std::make_unique<LinkFailureEvent>(at_time, node_a, node_b, up));
+    }
+
+    void SimulationEngine::scheduleLinkFailure(
+        double at_time,
+        std::uint64_t link_id,
+        bool up
+    ) {
+        schedule(std::make_unique<LinkFailureEvent>(at_time, link_id, up));
     }
 
 } // namespace kns

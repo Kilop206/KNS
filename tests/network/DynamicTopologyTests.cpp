@@ -197,3 +197,43 @@ TEST_CASE(
     REQUIRE(topology.getLinks().empty());
     REQUIRE(engine.getNextHop(0, 1) == -1);
 }
+
+TEST_CASE(
+    "Dynamic topology: link-id events control parallel links independently",
+    "[network][topology][dynamic]"
+)
+{
+    Topology topo(2);
+    auto first = topo.addLinkPtr(0, 1, 10.0, 5.0);
+    auto second = topo.addLinkPtr(0, 1, 20.0, 5.0);
+
+    SimulationEngine engine(topo);
+
+    // Endpoint-based mutations reject this ambiguous pair.
+    REQUIRE_FALSE(engine.toggleLinkUp(0, 1, false));
+    REQUIRE(first->isUp());
+    REQUIRE(second->isUp());
+
+    engine.scheduleLinkFailure(1.0, first->getId(), false);
+    engine.scheduleLinkFailure(2.0, second->getId(), false);
+    engine.scheduleLinkFailure(3.0, first->getId(), true);
+
+    REQUIRE(engine.processEvent());
+    REQUIRE_FALSE(first->isUp());
+    REQUIRE(second->isUp());
+    REQUIRE(engine.getNextHop(0, 1) == 1);
+
+    REQUIRE(engine.processEvent());
+    REQUIRE_FALSE(first->isUp());
+    REQUIRE_FALSE(second->isUp());
+    REQUIRE(engine.getNextHop(0, 1) == -1);
+
+    REQUIRE(engine.processEvent());
+    REQUIRE(first->isUp());
+    REQUIRE_FALSE(second->isUp());
+    REQUIRE(engine.getNextHop(0, 1) == 1);
+
+    REQUIRE(engine.deleteLinkById(first->getId()));
+    REQUIRE(engine.getTopology().getLinks().size() == 1);
+    REQUIRE(engine.getTopology().getLinks().front()->getId() == second->getId());
+}
