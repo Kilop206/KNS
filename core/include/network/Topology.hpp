@@ -82,10 +82,12 @@ namespace kns {
     ///    mutation makes their path unreachable. The session stays open until
     ///    the SYN handshake timeout exhausts retries and declares it failed.
     ///
-    /// 5. Routing tables are rebuilt synchronously on every topology mutation
-    ///    (rebuildRoutingTables) so that newly scheduled packets use the
-    ///    updated topology. Packets already scheduled use their pre-computed
-    ///    route (hop-by-hop via getNextHop at arrival time).
+    /// 5. Every routing-relevant topology or Link mutation increments a shared
+    ///    revision. SimulationEngine APIs rebuild synchronously, while direct
+    ///    mutations through getTopology() are rebuilt on the next getNextHop()
+    ///    or getRoutingTable() call. Consequently, newly forwarded packets
+    ///    never use a stale route. Packets already scheduled continue hop by
+    ///    hop and consult getNextHop() again when they arrive at a router.
 
     // Node/link management for GUI
         int addNode();
