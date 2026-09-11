@@ -149,3 +149,15 @@ Implementation plans are not immutable.
 If repository state changes, reassess the plan before continuing.
 
 The current implementation always takes precedence over assumptions made when the plan was written.
+
+---
+
+## 11. Completion Record
+
+### 2026-09-11 — Issue #102 Link parameter validation
+
+The issue was classified as a correctness defect because invalid direct `Link`
+mutation could reach transmission-time division. The implemented scope keeps
+validation at the model boundary and verifies the same finite-value contract at
+the topology API boundary. Regression coverage validates rejected construction,
+rejected setters, and state preservation.

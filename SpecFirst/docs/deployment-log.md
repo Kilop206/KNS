@@ -89,3 +89,10 @@ Delivered commits `53ebba2` and `9c1cdfb` on branch `tcp`.
 
 Validation completed with a full CMake build, 224 passing CTest cases, and a
 headless run using `app/topologies/mesh4.json`.
+
+### 2026-09-11 — Issue #102 Link parameter validation
+
+Delivered commits `f34bbcc` and `69b6738` on branch `tcp`.
+
+Validation completed with a full CMake build, 225 passing CTest cases, and a
+headless run using `app/topologies/mesh4.json`.
