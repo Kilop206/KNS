@@ -118,6 +118,37 @@ TEST_CASE("SimulationEngine dynamically switches routing metrics", "[network][ro
     REQUIRE(engine.getNextHop(0, 2) == 2);
 }
 
+TEST_CASE(
+    "SimulationEngine exposes the active routing table after metric and topology changes",
+    "[network][routing][metric]"
+)
+{
+    Topology topo(3);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    topo.addLink(0, 2, 100.0, 30.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    SimulationEngine engine(topo);
+
+    const auto delay_table = engine.getRoutingTable(0);
+    REQUIRE(delay_table.size() == 3);
+    REQUIRE(delay_table[2].next_hop == 1);
+    REQUIRE(delay_table[2].distance == 10.0);
+
+    engine.setRoutingMetric(RoutingMetric::Bandwidth);
+    const auto bandwidth_table = engine.getRoutingTable(0);
+    REQUIRE(bandwidth_table[2].next_hop == 2);
+    REQUIRE(bandwidth_table[2].distance == 100.0);
+
+    REQUIRE(engine.toggleLinkUp(0, 2, false));
+    const auto rerouted_table = engine.getRoutingTable(0);
+    REQUIRE(rerouted_table[2].next_hop == 1);
+    REQUIRE(rerouted_table[2].distance == 10.0);
+
+    REQUIRE(engine.getRoutingTable(-1).empty());
+    REQUIRE(engine.getRoutingTable(3).empty());
+}
+
 TEST_CASE("Routing metrics handle unreachable nodes consistently", "[network][routing][metric]")
 {
     // 0 <-> 1 and isolated node 2

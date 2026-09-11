@@ -26,23 +26,29 @@ namespace kns {
 		std::vector<double> dist(n, maximise ? 0.0 : inf);
 		std::vector<int> parent(n, -1);
 
-		// min-heap for cost metrics, max-heap for Bandwidth
-		using Pair = std::pair<double, int>;
-		std::priority_queue<Pair, std::vector<Pair>,
-		                    std::conditional_t<false, std::less<Pair>, std::greater<Pair>>> pq;
+		using QueueEntry = std::pair<double, int>;
+		std::priority_queue<
+			QueueEntry,
+			std::vector<QueueEntry>,
+			std::greater<>
+		> pq;
 
-		// For Bandwidth we need a max-heap; use a lambda comparator via the adapter below.
-		// Simpler: just negate the cost for Bandwidth and keep a min-heap.
-		auto encode  = [&](double v) { return maximise ? -v : v; };
-		auto decode  = [&](double v) { return maximise ? -v : v; };
-		auto better  = [&](double candidate, double current) {
+		// Negating the bottleneck capacity lets the min-heap also service the
+		// bandwidth maximisation case.
+		const auto encode = [maximise](double value) {
+			return maximise ? -value : value;
+		};
+		const auto decode = [maximise](double value) {
+			return maximise ? -value : value;
+		};
+		const auto better = [maximise](double candidate, double current) {
 			return maximise ? candidate > current : candidate < current;
 		};
 
 		dist[src] = maximise ? inf : 0.0;
 		pq.push({encode(dist[src]), src});
 
-		auto linkCost = [&](const Link& link) -> double {
+		const auto linkCost = [metric, inf](const Link& link) -> double {
 			switch (metric) {
 				case RoutingMetric::Delay:
 					return link.getDelayMs();
@@ -59,7 +65,7 @@ namespace kns {
 			}
 		};
 
-		auto combine  = [&](double current_dist, double edge_cost) -> double {
+		const auto combine = [metric](double current_dist, double edge_cost) -> double {
 			if (metric == RoutingMetric::Bandwidth)
 				return std::min(current_dist, edge_cost);   // bottleneck bandwidth
 			return current_dist + edge_cost;

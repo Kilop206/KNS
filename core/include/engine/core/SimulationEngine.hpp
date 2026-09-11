@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <functional>
 #include <map>
+#include <span>
 #include <utility>
 
 #include "network/transport/tcp/TCPSession.hpp"
@@ -109,6 +110,10 @@ namespace kns {
         /// Returns the next hop node index towards destination, or -1 if the destination
         /// is unreachable, current == destination, or if either node ID is invalid/out-of-bounds.
         int getNextHop(int current, int destination) const;
+
+        /// Returns the routing table currently used by source, or an empty view for an invalid node.
+        /// The view is invalidated when the engine rebuilds its routing tables.
+        std::span<const Routing::RoutingEntry> getRoutingTable(int source) const noexcept;
 
         Topology& getTopology();
 

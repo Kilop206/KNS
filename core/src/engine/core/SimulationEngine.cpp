@@ -75,6 +75,16 @@ namespace kns {
         return rt_row[static_cast<std::size_t>(destination)].next_hop;
     }
 
+    std::span<const Routing::RoutingEntry>
+    SimulationEngine::getRoutingTable(int source) const noexcept {
+        if (source < 0 ||
+            static_cast<std::size_t>(source) >= routing_tables_.size()) {
+            return {};
+        }
+
+        return routing_tables_[static_cast<std::size_t>(source)];
+    }
+
     const std::vector<PacketTravelInfo>& SimulationEngine::getPacketsInTransit() const {
         return packets_in_transit;
     }

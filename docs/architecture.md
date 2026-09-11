@@ -14,8 +14,7 @@ Separating the project into `core/` and `app/` modules improves code organizatio
 
 ## Dijkstra
 
-Dijkstra's algorithm is calculated only at the beginning rather than for every packet because recalculating it repeatedly would significantly increase execution time. Not only would it need 
-to run for each packet, but also for every node the packet traverses, making the system inefficient and slow.
+Dijkstra's algorithm builds the routing tables when the engine starts and rebuilds them after an explicit routing change, such as selecting a new metric or mutating the topology. It is not recalculated for every packet: doing so for every traversed node would significantly increase execution time.
 Dijkstra's algorithm is implemented in `src/network/Routing.cpp`, and, as explained in the file, it has an execution time of O((V + E) log V), where E is the number os edges and V is the number of nodes received by the algorithm.
 
 ## Unique_ptr used to store events
