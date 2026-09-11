@@ -68,6 +68,9 @@ Routing tests should verify:
 * invalid nodes;
 * shortest-path behavior;
 * behavior when links are `DOWN`.
+* metric-dependent path selection;
+* routing-table refresh after a metric or topology change;
+* invalid-source behavior when reading an active routing table.
 
 The current routing implementation excludes `DOWN` links.
 

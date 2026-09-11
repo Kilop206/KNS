@@ -178,6 +178,17 @@ Routing must account for the operational state of links.
 
 The routing layer must not return a path that depends on an unavailable link unless such behavior is explicitly part of the API contract.
 
+The engine supports delay, bandwidth, hop-count, and delay-bandwidth routing
+metrics. Changing the metric rebuilds the engine-owned routing tables. Engine
+topology operations and GUI link-property edits also rebuild those tables so
+future next-hop lookups reflect the changed topology; the engine does not
+recalculate routes for every packet.
+
+The GUI may configure the metric and display a routing table, but it must read
+the table maintained by `SimulationEngine` rather than independently compute a
+potentially different route. The read-only routing-table view is invalidated by
+the next table rebuild.
+
 Next-hop APIs must define:
 
 * valid source;

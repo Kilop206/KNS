@@ -34,6 +34,9 @@ Define:
 
 For complex changes, update the relevant SpecFirst documents before implementation.
 
+For issue work, record the issue classification and acceptance criteria in
+`issues.md` before modifying code.
+
 ---
 
 ## 4. Phase 3 — Design

@@ -143,3 +143,18 @@ In particular, MSYS2 UCRT64 artifacts should not be mixed with the intended MinG
 The SpecFirst engineering documentation is maintained in English.
 
 The documentation should use KNS-specific terminology and avoid generic templates that do not correspond to the project.
+
+---
+
+## Decision 013 — Engine-Owned Active Routing Tables
+
+**Status:** Accepted
+
+`SimulationEngine` is the source of truth for active routing tables and their
+selected metric. Configuration and engine-managed topology changes rebuild
+these tables explicitly; the GUI reads the resulting table rather than
+calculating a separate delay-only view.
+
+The public routing-table API exposes a read-only `std::span`, which is invalid
+after a rebuild. This keeps the GUI synchronized with the core while avoiding
+an ownership transfer or a second routing implementation.

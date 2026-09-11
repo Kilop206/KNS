@@ -112,7 +112,32 @@ Ensure that simulation lifecycle state is explicitly distinguished from the pres
 
 ---
 
-## 6. Routing vs. Transmission
+## 6. Resolved Issue Records
+
+### Issue #81 — Configurable routing metrics and explicit table rebuild
+
+**Classification:** Partially resolved at investigation; resolved by commits
+`53ebba2` and `9c1cdfb`.
+
+The routing core already supported delay, bandwidth, hop-count, and
+delay-bandwidth metrics, and it rebuilt tables for engine-owned topology
+changes. The remaining gap was observable behavior: the GUI node panel rebuilt
+its own delay-only table, so it could disagree with the engine after a metric
+selection or topology edit.
+
+**Acceptance criteria met:**
+
+* the GUI selects one of the supported metrics through `SimulationEngine`;
+* node details read the engine's current routing table;
+* metric changes and topology updates through `SimulationEngine` or the GUI rebuild the active tables;
+* invalid table sources return an empty read-only view.
+
+Regression coverage is in `tests/network/RoutingMetricTests.cpp`. Full CTest
+validation and a headless simulation completed successfully on 2026-09-11.
+
+---
+
+## 7. Routing vs. Transmission
 
 These are separate concerns.
 
@@ -138,7 +163,7 @@ Both behaviors must be tested independently.
 
 ---
 
-## 7. Regression Coverage
+## 8. Regression Coverage
 
 A corrected issue should receive regression coverage whenever the behavior can be reliably tested.
 
@@ -146,7 +171,7 @@ Regression tests should verify observable behavior rather than implementation de
 
 ---
 
-## 8. Issue Completion
+## 9. Issue Completion
 
 An issue should only be considered complete after:
 
@@ -158,7 +183,7 @@ An issue should only be considered complete after:
 
 ---
 
-## 9. Current Repository as Authority
+## 10. Current Repository as Authority
 
 Issue status must always be evaluated against the current repository.
 

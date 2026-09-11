@@ -57,7 +57,7 @@ Topology state directly affects routing and transmission.
 
 ### 3.4 Routing
 
-KNS supports network path selection and next-hop decisions.
+KNS supports network path selection and next-hop decisions using a configurable routing metric.
 
 Routing must respect the current topology and operational state of links.
 

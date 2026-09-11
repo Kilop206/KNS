@@ -78,3 +78,14 @@ Significant changes to:
 * dependency versions;
 
 should be recorded when they affect reproducibility.
+
+---
+
+## 8. Delivery Record
+
+### 2026-09-11 — Issue #81 routing configuration and active-table display
+
+Delivered commits `53ebba2` and `9c1cdfb` on branch `tcp`.
+
+Validation completed with a full CMake build, 224 passing CTest cases, and a
+headless run using `app/topologies/mesh4.json`.
