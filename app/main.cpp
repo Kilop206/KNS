@@ -36,6 +36,8 @@
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/PacketRenderer.hpp"
 #include "gui/include/TcpCongestionPanel.hpp"
+#include "gui/include/TcpConnectionPanel.hpp"
+#include "gui/include/TopologyPannel.hpp"
 #include "gui/include/VisualPacketManager.hpp"
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
@@ -142,6 +144,11 @@ struct EventLog {
         if (lines.size() > max_lines) {
             lines.pop_front();
         }
+    }
+
+    void clear() noexcept
+    {
+        lines.clear();
     }
 };
 
@@ -479,7 +486,7 @@ static int pickNodeAtMouse(
 }
 
 static void renderStatsWindow(
-    std::unique_ptr<SimulationEngine>& engine,
+    SimulationEngine& engine,
     SimulationState& state,
     const Stats& stats,
     CircularBuffer& buffer,
@@ -488,7 +495,7 @@ static void renderStatsWindow(
     float& speedMultiplier,
     bool& stepRequested,
     bool engineHasEvents,
-    Topology& topo
+    bool& restartRequested
 )
 {
     ImGui::Begin("Stats");
@@ -505,24 +512,13 @@ static void renderStatsWindow(
         {
             ImGui::TextDisabled("Simulation ready.");
 
-            if (ImGui::Button("Start"))
-            {
-                // If there are no events yet, create the
-                // default traffic plan first.
-                if (!engine->hasEvents())
-                {
-                    generatePackets(
-                        engine,
-                        topo
-                    );
-                }
+            ImGui::BeginDisabled(!engineHasEvents);
 
-                if (engine->hasEvents())
-                {
-                    state =
-                        SimulationState::Running;
-                }
+            if (ImGui::Button("Start")) {
+                state = SimulationState::Running;
             }
+
+            ImGui::EndDisabled();
         }
 
         // --------------------------------------------------
@@ -571,22 +567,10 @@ static void renderStatsWindow(
         else if (state == SimulationState::Finished)
         {
             ImGui::TextDisabled("Simulation finished.");
-            ImGui::SameLine();
-            if (ImGui::Button("Reset"))
-            {
-                engine = std::make_unique<SimulationEngine>(topo);
-                state = SimulationState::Ready;
-            }
         }
 
-        if (state == SimulationState::Paused || state == SimulationState::Running)
-        {
-            ImGui::SameLine();
-            if (ImGui::Button("Reset"))
-            {
-                engine = std::make_unique<SimulationEngine>(topo);
-                state = SimulationState::Ready;
-            }
+        if (ImGui::Button("Restart")) {
+            restartRequested = true;
         }
 
         ImGui::SliderFloat(
@@ -627,7 +611,7 @@ static void renderStatsWindow(
             lossProb =
                 lossPercent / 100.0f;
 
-            engine->setGlobalLossProb(
+            engine.setGlobalLossProb(
                 lossProb
             );
         }
@@ -639,7 +623,7 @@ static void renderStatsWindow(
             65535,
             "%d B"))
         {
-            engine->setGlobalPacketSize(
+            engine.setGlobalPacketSize(
                 packetSize
             );
         }
@@ -671,7 +655,7 @@ static void renderStatsWindow(
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         TcpCongestionPanel panel;
-        panel.render(*engine);
+        panel.render(engine);
     }
 
     // ------------------------------------------------------
@@ -688,7 +672,7 @@ static void renderStatsWindow(
 
         ImGui::Text(
             "Packets per route: %d",
-            engine->getPacketsPerRoute()
+            engine.getPacketsPerRoute()
         );
     }
 
@@ -1601,10 +1585,9 @@ static void visualizeWindow(
     const bool gui_auto_start =
         autoStartFromEnvironment(false);
 
-    generatePackets(
-        engine,
-        topo
-    );
+    if (gui_auto_start) {
+        generatePackets(engine, topo);
+    }
 
     state =
         engine->hasEvents()
@@ -1622,6 +1605,23 @@ static void visualizeWindow(
         routingTable;
 
     Routing routing;
+
+    TcpConnectionPanel tcpConnectionPanel;
+    TopologyPanel topologyPanel;
+
+    auto restartSimulation = [&]()
+    {
+        visualTime = 0.0;
+        lastRealTime = glfwGetTime();
+        visualManager.clear();
+        eventLog.clear();
+        buffer.clear();
+
+        engine = std::make_unique<SimulationEngine>(topo);
+        configureEngine(engine);
+
+        state = SimulationState::Ready;
+    };
 
     bool firstFrame = true;
     bool dock_initialized = false;
@@ -1705,13 +1705,14 @@ static void visualizeWindow(
         }
 
         bool stepRequested = false;
+        bool restartRequested = false;
 
         // --------------------------------------------------
         // Statistics / simulation controls
         // --------------------------------------------------
 
         renderStatsWindow(
-            engine,
+            *engine,
             state,
             engine->getStats(),
             buffer,
@@ -1720,8 +1721,12 @@ static void visualizeWindow(
             speedMultiplier,
             stepRequested,
             engine->hasEvents(),
-            topo
+            restartRequested
         );
+
+        if (restartRequested) {
+            restartSimulation();
+        }
 
         // --------------------------------------------------
         // Step
@@ -1750,6 +1755,25 @@ static void visualizeWindow(
             topo,
             state
         );
+
+        topologyPanel.render(*engine);
+
+        if (const auto action = tcpConnectionPanel.render(*engine);
+            action.has_value())
+        {
+            if (action->type == TcpConnectionActionType::Open) {
+                engine->startTCPConnection(
+                    action->source,
+                    action->destination,
+                    action->source_port,
+                    action->destination_port
+                );
+                state = SimulationState::Paused;
+            } else if (engine->cancelTCPSession(action->session_id) &&
+                       !engine->hasEvents()) {
+                state = SimulationState::Ready;
+            }
+        }
 
         // --------------------------------------------------
         // Network interaction
@@ -1813,31 +1837,14 @@ static void visualizeWindow(
                                 ->GetFilePathName()
                         );
 
-                    visualTime = 0.0;
-
-                    lastRealTime =
-                        glfwGetTime();
-
-                    visualManager.clear();
-
-                    engine =
-                        std::make_unique<SimulationEngine>(
-                            topo
-                        );
-
-                    configureEngine(
-                        engine
-                    );
+                    restartSimulation();
 
                     const bool loaded_auto_start =
                         autoStartFromEnvironment(false);
 
                     if (loaded_auto_start)
                     {
-                        generatePackets(
-                            engine,
-                            topo
-                        );
+                        generatePackets(engine, topo);
                     }
 
                     selected_node = -1;

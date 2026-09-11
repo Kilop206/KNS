@@ -9,6 +9,7 @@ namespace gui {
         explicit CircularBuffer(std::size_t capacity = 100);
 
         void addLatencyToBuffer(float latency);
+        void clear() noexcept;
 
         std::vector<float> values() const;
 

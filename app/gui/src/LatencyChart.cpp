@@ -37,6 +37,12 @@ namespace gui {
         recomputeStatistics();
     }
 
+    void CircularBuffer::clear() noexcept {
+        start_ = 0;
+        count_ = 0;
+        recomputeStatistics();
+    }
+
     std::vector<float> CircularBuffer::values() const {
         std::vector<float> ordered;
         ordered.reserve(count_);
