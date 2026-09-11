@@ -444,8 +444,22 @@ namespace kns {
         return ok;
     }
 
-    Topology::LinkPtr SimulationEngine::createLink(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob, LinkMode mode) {
-        auto ptr = topology_.addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
+    Topology::LinkPtr SimulationEngine::createLink(
+        int a,
+        int b,
+        double bandwidth_mbps,
+        double delay_ms,
+        double link_loss_prob,
+        LinkMode mode
+    ) {
+        auto ptr = topology_.addLinkPtr(
+            a,
+            b,
+            bandwidth_mbps,
+            delay_ms,
+            link_loss_prob,
+            mode
+        );
         rebuildRoutingTables();
         return ptr;
     }

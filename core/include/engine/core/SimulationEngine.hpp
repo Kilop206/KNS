@@ -185,7 +185,14 @@ namespace kns {
         // GUI / topology modification helpers
         int createNode();
         bool deleteNode(int id);
-        Topology::LinkPtr createLink(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob = 0.0, LinkMode mode = LinkMode::FULL_DUPLEX);
+        Topology::LinkPtr createLink(
+            int a,
+            int b,
+            double bandwidth_mbps,
+            double delay_ms,
+            double link_loss_prob = 0.0,
+            LinkMode mode = LinkMode::FULL_DUPLEX
+        );
         bool deleteLink(int a, int b);
         bool toggleLinkUp(int a, int b, bool up);
         void rebuildRoutingTables();
