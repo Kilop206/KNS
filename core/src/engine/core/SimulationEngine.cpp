@@ -333,6 +333,13 @@ namespace kns {
         }
     }
 
+    void SimulationEngine::requireActiveTCPNode(int node_id) const {
+        const auto* node = topology_.getNode(node_id);
+        if (!node || !node->isActive()) {
+            throw std::invalid_argument("TCP endpoint must reference an active topology node");
+        }
+    }
+
     TCPSession& SimulationEngine::createTCPSession(
         int source,
         int destination
@@ -346,6 +353,8 @@ namespace kns {
         std::uint16_t source_port,
         std::uint16_t destination_port
     ) {
+        requireActiveTCPNode(source);
+        requireActiveTCPNode(destination);
         const std::uint64_t id = next_session_id++;
 
         sessions.emplace(
@@ -450,6 +459,7 @@ namespace kns {
         std::uint16_t port,
         int backlog
     ) {
+        requireActiveTCPNode(node_id);
         auto [it, _] = listeners_.emplace(
             std::make_pair(node_id, port),
             TCPListener(node_id, port, backlog)
@@ -496,6 +506,12 @@ namespace kns {
         std::uint16_t connecting_port,
         std::uint16_t listening_port
     ) {
+        const auto* listener_node = topology_.getNode(listening_node);
+        const auto* peer_node = topology_.getNode(connecting_node);
+        if (!listener_node || !listener_node->isActive() ||
+            !peer_node || !peer_node->isActive()) {
+            return TCPListener::INVALID_SESSION_ID;
+        }
         auto it = listeners_.find(
             std::make_pair(listening_node, listening_port)
         );

@@ -94,6 +94,7 @@ namespace kns {
 
         void refreshRoutingTables() const;
         void refreshRoutingTablesIfNeeded() const;
+        void requireActiveTCPNode(int node_id) const;
 
     public:
         double random();

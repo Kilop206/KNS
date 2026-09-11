@@ -78,3 +78,35 @@ TEST_CASE("SimulationEngine lifecycle state transitions", "[core][engine][state]
     engine.run();
     REQUIRE_FALSE(engine.hasEvents());
 }
+
+TEST_CASE("TCP APIs reject invalid nodes without partial state", "[core][engine][tcp][validation]")
+{
+    for (const int invalid : {-1, 2, 3, 999}) {
+        for (const bool use_ports : {false, true}) {
+            CAPTURE(invalid, use_ports);
+            Topology topology(3);
+            topology.removeNode(2);
+            SimulationEngine engine(topology);
+            for (const bool invalid_source : {false, true}) {
+                const int source = invalid_source ? invalid : 0;
+                const int destination = invalid_source ? 1 : invalid;
+                if (use_ports) {
+                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination, 49152, 80), std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination, 49152, 80), std::invalid_argument);
+                } else {
+                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination), std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination), std::invalid_argument);
+                }
+            }
+            if (use_ports) {
+                REQUIRE_THROWS_AS(engine.startTCPListen(invalid, std::uint16_t{80}, 2), std::invalid_argument);
+            } else {
+                REQUIRE_THROWS_AS(engine.startTCPListen(invalid), std::invalid_argument);
+            }
+            REQUIRE_FALSE(engine.hasListener(invalid));
+            REQUIRE(engine.getTCPSessions().empty());
+            REQUIRE_FALSE(engine.hasEvents());
+            REQUIRE(engine.createTCPSession(0, 1).getSession_id() == 0);
+        }
+    }
+}
