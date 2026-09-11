@@ -25,6 +25,21 @@ struct TempJsonFile {
     }
 };
 
+TEST_CASE("Topology JSON validates optional queue capacity", "[network][loader][queue]")
+{
+    for (const auto capacity : {"1", "5", "0", "-1", "1.5", "2147483648", "\"4\""}) {
+        CAPTURE(capacity);
+        const std::string content = std::string(R"({"nodes":2,"links":[{"from":0,"to":1,"bandwidth":10,"delay":1,"loss":0,"queue_capacity":)") + capacity + "}]}";
+        TempJsonFile file("temp_queue_capacity.json", content);
+        if (std::string(capacity) == "1" || std::string(capacity) == "5") {
+            const auto topology = TopologyLoader::load_topology(file.path);
+            REQUIRE(topology.getLinks().front()->getQueueCapacity() == std::stoul(capacity));
+        } else {
+            REQUIRE_THROWS_AS(TopologyLoader::load_topology(file.path), std::invalid_argument);
+        }
+    }
+}
+
 TEST_CASE("TopologyLoader parses valid topologies with mode and isolated nodes", "[network][loader]")
 {
     std::string json_content = R"({

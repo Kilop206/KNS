@@ -20,7 +20,8 @@ class Link {
             double bandwidth_mbps,
             double delay_ms,
             double loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX
+            LinkMode mode = LinkMode::FULL_DUPLEX,
+            int queue_capacity = 32
         );
 
         /// Stable numeric identity assigned at construction. Unique within a simulation run.
@@ -81,6 +82,9 @@ class Link {
 
         std::size_t getQueueSize() const noexcept;
         std::size_t getQueueCapacity() const noexcept;
+        /// Positive capacity per direction (FULL_DUPLEX) or shared (HALF_DUPLEX).
+        /// Cannot shrink below the current occupancy of any queue.
+        void setQueueCapacity(int capacity);
 
         // Up/down state for GUI toggling
         bool isUp() const noexcept;

@@ -27,7 +27,8 @@ namespace kns {
         double bandwidth_mbps,
         double delay_ms,
         double loss_prob,
-        LinkMode mode
+        LinkMode mode,
+        int queue_capacity
     ) {
         if (a < 0 || b < 0) {
             throw std::invalid_argument("Node indices cannot be negative");
@@ -54,7 +55,7 @@ namespace kns {
             );
         }
 
-        auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
+        auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
         ptr->attachRoutingRevision(routing_revision_);
 
         const int max_node = std::max(a, b);
@@ -85,7 +86,8 @@ namespace kns {
             link.getBandwidthMbps(),
             link.getDelayMs(),
             link.getLossProb(),
-            link.getMode()
+            link.getMode(),
+            static_cast<int>(link.getQueueCapacity())
         );
     }
 
@@ -95,9 +97,10 @@ namespace kns {
         double bandwidth_mbps,
         double delay_ms,
         double loss_prob,
-        LinkMode mode
+        LinkMode mode,
+        int queue_capacity
     ) {
-        addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
+        addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
     }
 
 

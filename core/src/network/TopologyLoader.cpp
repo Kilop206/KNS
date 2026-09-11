@@ -6,6 +6,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <iostream>
+#include <limits>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -70,7 +71,16 @@ namespace kns {
                 }
             }
 
-            topology.addLink(Link(from, to, bandwidth, delay, loss, mode));
+            int queue_capacity = 32;
+            if (l.contains("queue_capacity")) {
+                const auto& value = l.at("queue_capacity");
+                if (!value.is_number_integer() || value <= 0 ||
+                    value > std::numeric_limits<int>::max()) {
+                    throw std::invalid_argument("Link queue_capacity must be a positive integer in " + filename);
+                }
+                queue_capacity = value.get<int>();
+            }
+            topology.addLink(from, to, bandwidth, delay, loss, mode, queue_capacity);
         }
 
         if (j.contains("name") && j["name"].is_string()) {

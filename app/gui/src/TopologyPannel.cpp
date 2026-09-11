@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <stdexcept>
 
 #include "imgui.h"
 
@@ -82,7 +83,7 @@ namespace gui {
 
         if (ImGui::BeginTable(
                 "TopologyLinksTable",
-                5,
+                6,
                 ImGuiTableFlags_RowBg |
                     ImGuiTableFlags_Borders |
                     ImGuiTableFlags_Resizable |
@@ -93,6 +94,7 @@ namespace gui {
             ImGui::TableSetupColumn("Delay (ms)");
             ImGui::TableSetupColumn("Loss");
             ImGui::TableSetupColumn("Up", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Queue capacity");
             ImGui::TableHeadersRow();
 
             for (const auto& link : links) {
@@ -136,6 +138,15 @@ namespace gui {
                 );
                 ImGui::TableSetColumnIndex(4);
                 const bool up_changed = ImGui::Checkbox("##up", &up);
+                ImGui::TableSetColumnIndex(5);
+                int capacity = static_cast<int>(link->getQueueCapacity());
+                if (ImGui::InputInt("##capacity", &capacity)) {
+                    try {
+                        link->setQueueCapacity(capacity);
+                    } catch (const std::invalid_argument& error) {
+                        ImGui::SetTooltip("%s", error.what());
+                    }
+                }
                 ImGui::PopID();
 
                 if (bandwidth_changed) {

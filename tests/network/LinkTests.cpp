@@ -28,6 +28,41 @@ TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][m
     }
 }
 
+TEST_CASE("Configurable link capacity bounds each transmission queue", "[network][link][queue]")
+{
+    for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX, LinkMode::SIMPLEX}) {
+        for (const int capacity : {1, 5}) {
+            CAPTURE(mode, capacity);
+            Link link(0, 1, 10.0, 1.0, 0.0, mode, capacity);
+            REQUIRE(link.getQueueCapacity() == static_cast<std::size_t>(capacity));
+            for (int i = 0; i < capacity; ++i) {
+                REQUIRE(link.canQueue(0, 1));
+                link.enqueueTransmission(0, 1, i, i + 1);
+            }
+            REQUIRE_FALSE(link.canQueue(0, 1));
+            link.enqueueTransmission(0, 1, 100.0, 101.0);
+            REQUIRE(link.getQueueSize() == static_cast<std::size_t>(capacity));
+            REQUIRE(link.canQueue(1, 0) == (mode == LinkMode::FULL_DUPLEX));
+            REQUIRE_THROWS_AS(link.setQueueCapacity(0), std::invalid_argument);
+            REQUIRE_THROWS_AS(link.setQueueCapacity(-1), std::invalid_argument);
+            if (capacity > 1) {
+                REQUIRE_THROWS_AS(link.setQueueCapacity(1), std::invalid_argument);
+            }
+            REQUIRE(link.getQueueCapacity() == static_cast<std::size_t>(capacity));
+            link.setQueueCapacity(capacity + 1);
+            REQUIRE(link.canQueue(0, 1));
+        }
+    }
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, -1), std::invalid_argument);
+    Link defaults(0, 1, 10.0, 1.0);
+    REQUIRE(defaults.getQueueCapacity() == 32);
+    defaults.setQueueCapacity(7);
+    Topology topology(2);
+    topology.addLink(defaults);
+    REQUIRE(topology.getLinks().front()->getQueueCapacity() == 7);
+}
+
 TEST_CASE("Link construction and basic attributes", "[network][link]")
 {
     Link link(1, 2, 100.0, 10.0, 0.05, LinkMode::FULL_DUPLEX);

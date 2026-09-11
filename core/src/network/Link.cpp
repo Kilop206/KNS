@@ -50,7 +50,8 @@ namespace kns {
         double bandwidth_mbps,
         double delay_ms,
         double loss_prob,
-        LinkMode mode
+        LinkMode mode,
+        int queue_capacity
     )
         : id_(next_id_++),
         a_(a),
@@ -62,6 +63,7 @@ namespace kns {
         up_(true),
         routing_revision_(std::make_shared<std::uint64_t>(0))
     {
+        setQueueCapacity(queue_capacity);
     }
 
     std::uint64_t Link::getId() const noexcept
@@ -411,6 +413,18 @@ namespace kns {
     std::size_t Link::getQueueCapacity() const noexcept
     {
         return queue_capacity_;
+    }
+
+    void Link::setQueueCapacity(int capacity)
+    {
+        if (capacity <= 0) {
+            throw std::invalid_argument("Link queue capacity must be positive");
+        }
+        const auto value = static_cast<std::size_t>(capacity);
+        if (value < std::max({queue_ab_.size(), queue_ba_.size(), queue_shared_.size()})) {
+            throw std::invalid_argument("Link queue capacity cannot be smaller than its occupancy");
+        }
+        queue_capacity_ = value;
     }
 
     bool Link::isUp() const noexcept
