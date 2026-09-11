@@ -136,7 +136,9 @@ namespace kns
                 engine.acceptOnListener(
                     packet.destination,
                     packet.source,
-                    packet.tcp.seq
+                    packet.tcp.seq,
+                    packet.tcp.source_port,
+                    packet.tcp.destination_port
                 );
 
             if (new_sid == TCPListener::INVALID_SESSION_ID) {

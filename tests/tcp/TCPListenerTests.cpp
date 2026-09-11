@@ -676,6 +676,38 @@ TEST_CASE(
     REQUIRE(engine.getTCPSessions().empty());
 }
 
+TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp][listener][port][integration]")
+{
+    Topology topology(2);
+    topology.addLink(0, 1, 10.0, 10.0);
+    SimulationEngine engine(topology);
+    auto& http = engine.startTCPListen(1, std::uint16_t{80}, 1);
+    auto& https = engine.startTCPListen(1, std::uint16_t{443}, 1);
+    ResponseObserver observer(1, 0);
+    observeResponses(engine, observer);
+
+    for (const auto port : {std::uint16_t{80}, std::uint16_t{443}}) {
+        Packet syn(0, 1, 0, engine.now(), 1000, TCPListener::INVALID_SESSION_ID);
+        syn.tcp.source_port = 49152;
+        syn.tcp.destination_port = port;
+        syn.tcp.seq = 1000;
+        syn.tcp.flags = TCPFlag::SYN;
+        REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
+        REQUIRE(engine.processEvent());
+        REQUIRE(observer.responses().back().packet_type == PacketType::SYN_ACK);
+        REQUIRE(observer.responses().back().tcp.source_port == port);
+        REQUIRE(observer.responses().back().tcp.destination_port == 49152);
+        const auto sid = observer.responses().back().session_id;
+        engine.getTCPSession(sid).markTrafficGenerated();
+        REQUIRE(engine.processEvent());
+        REQUIRE(engine.processEvent());
+        REQUIRE(engine.getTCPSession(sid).getState() == TCPState::ESTABLISHED);
+    }
+    REQUIRE(http.getActiveConnections() == 1);
+    REQUIRE(https.getActiveConnections() == 1);
+    REQUIRE(engine.getTCPSessions().size() == 2);
+}
+
 TEST_CASE(
     "TCPListener sends RST when backlog is full",
     "[tcp][listener][backlog][rst]"
