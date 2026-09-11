@@ -1,9 +1,44 @@
 #include "network/Link.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
+#include <stdexcept>
 
 #include "engine/core/Random.hpp"
+
+namespace {
+
+double validateBandwidthMbps(double value)
+{
+    if (!std::isfinite(value) || value <= 0.0) {
+        throw std::invalid_argument("Bandwidth must be finite and positive");
+    }
+
+    return value;
+}
+
+double validateDelayMs(double value)
+{
+    if (!std::isfinite(value) || value < 0.0) {
+        throw std::invalid_argument("Delay must be finite and non-negative");
+    }
+
+    return value;
+}
+
+double validateLossProbability(double value)
+{
+    if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
+        throw std::invalid_argument(
+            "Loss probability must be finite and between 0.0 and 1.0"
+        );
+    }
+
+    return value;
+}
+
+} // namespace
 
 namespace kns {
 
@@ -20,9 +55,9 @@ namespace kns {
         : id_(next_id_++),
         a_(a),
         b_(b),
-        bandwidth_mbps_(bandwidth_mbps),
-        delay_ms_(delay_ms),
-        loss_prob_(loss_prob),
+        bandwidth_mbps_(validateBandwidthMbps(bandwidth_mbps)),
+        delay_ms_(validateDelayMs(delay_ms)),
+        loss_prob_(validateLossProbability(loss_prob)),
         mode_(mode),
         up_(true)
     {
@@ -61,9 +96,9 @@ namespace kns {
         return bandwidth_mbps_;
     }
 
-    void Link::setBandwidthMbps(double value) noexcept
+    void Link::setBandwidthMbps(double value)
     {
-        bandwidth_mbps_ = value;
+        bandwidth_mbps_ = validateBandwidthMbps(value);
     }
 
     double Link::getDelayMs() const noexcept
@@ -71,9 +106,9 @@ namespace kns {
         return delay_ms_;
     }
 
-    void Link::setDelayMs(double value) noexcept
+    void Link::setDelayMs(double value)
     {
-        delay_ms_ = value;
+        delay_ms_ = validateDelayMs(value);
     }
 
     double Link::getLossProb() const noexcept
@@ -81,9 +116,9 @@ namespace kns {
         return loss_prob_;
     }
 
-    void Link::setLossProb(double value) noexcept
+    void Link::setLossProb(double value)
     {
-        loss_prob_ = value;
+        loss_prob_ = validateLossProbability(value);
     }
 
     LinkMode Link::getMode() const noexcept

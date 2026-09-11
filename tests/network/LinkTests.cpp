@@ -3,6 +3,7 @@
 #include "network/Topology.hpp"
 #include "enums/LinkMode.hpp"
 #include <limits>
+#include <stdexcept>
 
 using kns::Link;
 using kns::LinkMode;
@@ -34,6 +35,43 @@ TEST_CASE("Link construction and basic attributes", "[network][link]")
 
     link.setMode(LinkMode::HALF_DUPLEX);
     REQUIRE(link.getMode() == LinkMode::HALF_DUPLEX);
+}
+
+TEST_CASE("Link rejects invalid transmission parameters", "[network][link]")
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    REQUIRE_THROWS_AS(Link(1, 2, 0.0, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, -1.0, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, nan, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, infinity, 5.0), std::invalid_argument);
+
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, -1.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, infinity), std::invalid_argument);
+
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, -0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, 1.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, infinity), std::invalid_argument);
+
+    Link link(1, 2, 10.0, 5.0, 0.25);
+
+    REQUIRE_THROWS_AS(link.setBandwidthMbps(nan), std::invalid_argument);
+    REQUIRE(link.getBandwidthMbps() == 10.0);
+    REQUIRE_THROWS_AS(link.setBandwidthMbps(0.0), std::invalid_argument);
+    REQUIRE(link.getBandwidthMbps() == 10.0);
+
+    REQUIRE_THROWS_AS(link.setDelayMs(infinity), std::invalid_argument);
+    REQUIRE(link.getDelayMs() == 5.0);
+    REQUIRE_THROWS_AS(link.setDelayMs(-1.0), std::invalid_argument);
+    REQUIRE(link.getDelayMs() == 5.0);
+
+    REQUIRE_THROWS_AS(link.setLossProb(nan), std::invalid_argument);
+    REQUIRE(link.getLossProb() == 0.25);
+    REQUIRE_THROWS_AS(link.setLossProb(1.1), std::invalid_argument);
+    REQUIRE(link.getLossProb() == 0.25);
 }
 
 TEST_CASE("Link full-duplex transmission model", "[network][link]")
@@ -192,6 +230,17 @@ TEST_CASE("Topology programmatic API validation", "[network][topology]")
     // Reject invalid global loss probability
     REQUIRE_THROWS_AS(topo.setGlobalLossProb(-0.1), std::invalid_argument);
     REQUIRE_THROWS_AS(topo.setGlobalLossProb(1.1), std::invalid_argument);
+
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    // Reject non-finite link and global loss parameters.
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, nan, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, infinity), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 10.0, 5.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, 5.0, infinity), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(infinity), std::invalid_argument);
 
     // Valid parameters succeed
     REQUIRE_NOTHROW(topo.addLink(0, 1, 10.0, 5.0, 0.0));

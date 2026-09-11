@@ -1,6 +1,7 @@
 #include "network/Topology.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 namespace kns {
@@ -32,14 +33,16 @@ namespace kns {
         if (a == b) {
             throw std::invalid_argument("Self-loops are not supported");
         }
-        if (bandwidth_mbps <= 0.0) {
-            throw std::invalid_argument("Bandwidth must be positive");
+        if (!std::isfinite(bandwidth_mbps) || bandwidth_mbps <= 0.0) {
+            throw std::invalid_argument("Bandwidth must be finite and positive");
         }
-        if (delay_ms < 0.0) {
-            throw std::invalid_argument("Delay cannot be negative");
+        if (!std::isfinite(delay_ms) || delay_ms < 0.0) {
+            throw std::invalid_argument("Delay must be finite and non-negative");
         }
-        if (loss_prob < 0.0 || loss_prob > 1.0) {
-            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
+        if (!std::isfinite(loss_prob) || loss_prob < 0.0 || loss_prob > 1.0) {
+            throw std::invalid_argument(
+                "Loss probability must be finite and between 0.0 and 1.0"
+            );
         }
 
         auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
@@ -106,8 +109,10 @@ namespace kns {
     }
 
     void Topology::setGlobalLossProb(double value) {
-        if (value < 0.0 || value > 1.0) {
-            throw std::invalid_argument("Loss probability must be between 0.0 and 1.0");
+        if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
+            throw std::invalid_argument(
+                "Loss probability must be finite and between 0.0 and 1.0"
+            );
         }
         for (auto& link : links_) {
             link->setLossProb(value);

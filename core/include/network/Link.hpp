@@ -28,13 +28,13 @@ class Link {
         int getOtherNode(int node) const noexcept;
 
         double getBandwidthMbps() const noexcept;
-        void setBandwidthMbps(double value) noexcept;
+        void setBandwidthMbps(double value);
 
         double getDelayMs() const noexcept;
-        void setDelayMs(double value) noexcept;
+        void setDelayMs(double value);
 
         double getLossProb() const noexcept;
-        void setLossProb(double value) noexcept;
+        void setLossProb(double value);
 
         LinkMode getMode() const noexcept;
         void setMode(LinkMode mode) noexcept;
