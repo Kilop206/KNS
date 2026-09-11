@@ -92,16 +92,6 @@ Define and validate the behavior of already-scheduled events and in-flight packe
 
 Validate identifiers, references, and invalid operations exposed through the `Topology` API.
 
-### Issue #103 — Removed nodes cannot be reconnected implicitly
-
-**Classification:** Still valid at investigation.
-
-Topology preserves a removed node's index as an inactive slot, but link creation
-did not distinguish that slot from an active endpoint. Creating a link to a
-removed node must fail with `std::invalid_argument`, without mutating topology
-or routing state. New node IDs beyond the current topology size retain their
-existing automatic-creation behavior.
-
 ### Routing bounds and contracts
 
 Validate `getNextHop()` bounds and failure behavior.
@@ -167,6 +157,19 @@ finite-value checks at its public creation and global-loss entry points.
 Regression coverage is in `tests/network/LinkTests.cpp`. A full CMake build,
 225 passing CTest cases, and a headless `mesh4.json` simulation completed on
 2026-09-11.
+
+### Issue #103 — Removed nodes cannot be reconnected implicitly
+
+**Classification:** Still valid at investigation; resolved by commits
+`2071cda` and `9253789`.
+
+`Topology::addLinkPtr()` now rejects inactive existing endpoints with
+`std::invalid_argument`. This preserves removed-node identity without allowing
+implicit reactivation; IDs beyond topology size retain automatic creation.
+
+Regression coverage in `tests/network/DynamicTopologyTests.cpp` verifies that
+the link set and routing stay unchanged. A full build and 226 passing CTest
+cases completed on 2026-09-11.
 
 ---
 

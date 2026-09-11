@@ -96,3 +96,9 @@ Delivered commits `f34bbcc` and `69b6738` on branch `tcp`.
 
 Validation completed with a full CMake build, 225 passing CTest cases, and a
 headless run using `app/topologies/mesh4.json`.
+
+### 2026-09-11 — Issue #103 removed-node link integrity
+
+Delivered commits `2071cda` and `9253789` on branch `tcp`.
+
+Validation completed with a full CMake build and 226 passing CTest cases.
