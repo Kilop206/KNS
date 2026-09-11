@@ -140,9 +140,24 @@ namespace kns {
         return mode_;
     }
 
-    void Link::setMode(LinkMode mode) noexcept
+    void Link::setMode(LinkMode mode)
     {
+        if (mode == mode_) {
+            return;
+        }
+        if (mode != LinkMode::FULL_DUPLEX && mode != LinkMode::HALF_DUPLEX &&
+            mode != LinkMode::SIMPLEX) {
+            throw std::invalid_argument("Unknown link mode");
+        }
+        if (getQueueSize() != 0) {
+            throw std::logic_error("Cannot change link mode with pending transmissions");
+        }
+        const double reserved_until = std::max({
+            busy_until_ab_, busy_until_ba_, busy_until_shared_
+        });
+        busy_until_ab_ = busy_until_ba_ = busy_until_shared_ = reserved_until;
         mode_ = mode;
+        markRoutingChanged();
     }
 
     Link::DirectionSlot Link::getDirectionSlot(

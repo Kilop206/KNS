@@ -9,6 +9,25 @@ using kns::Link;
 using kns::LinkMode;
 using kns::Topology;
 
+TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][mode]")
+{
+    for (const auto initial : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
+        const auto next = initial == LinkMode::FULL_DUPLEX
+            ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
+        Link link(0, 1, 10.0, 1.0, 0.0, initial);
+        link.enqueueTransmission(0, 1, 0.0, 1.0);
+        link.enqueueTransmission(1, 0, 1.0, 2.0);
+        REQUIRE_NOTHROW(link.setMode(initial));
+        REQUIRE_THROWS_AS(link.setMode(next), std::logic_error);
+        REQUIRE(link.getMode() == initial);
+        REQUIRE(link.dequeueTransmission(0, 1, 0.0, 1.0));
+        REQUIRE(link.dequeueTransmission(1, 0, 1.0, 2.0));
+        REQUIRE(link.getQueueSize() == 0);
+        REQUIRE_NOTHROW(link.setMode(next));
+        REQUIRE(link.getMode() == next);
+    }
+}
+
 TEST_CASE("Link construction and basic attributes", "[network][link]")
 {
     Link link(1, 2, 100.0, 10.0, 0.05, LinkMode::FULL_DUPLEX);

@@ -34,6 +34,19 @@ TEST_CASE("Routing respects link direction for every metric", "[network][routing
     }
 }
 
+TEST_CASE("Changing link mode invalidates cached routes", "[network][routing][mode]")
+{
+    Topology topology(2);
+    auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
+    SimulationEngine engine(topology);
+    REQUIRE(engine.getNextHop(1, 0) == 0);
+    link->setMode(LinkMode::SIMPLEX);
+    REQUIRE(engine.getNextHop(1, 0) == -1);
+    REQUIRE(engine.getNextHop(0, 1) == 1);
+    link->setMode(LinkMode::HALF_DUPLEX);
+    REQUIRE(engine.getNextHop(1, 0) == 0);
+}
+
 TEST_CASE(
     "Routing metric names round-trip through configuration values",
     "[network][routing][metric][configuration]"

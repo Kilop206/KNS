@@ -42,7 +42,8 @@ class Link {
         void setLossProb(double value);
 
         LinkMode getMode() const noexcept;
-        void setMode(LinkMode mode) noexcept;
+        /// Throws logic_error if a mode change would affect pending transmissions.
+        void setMode(LinkMode mode);
 
         bool isBusy(int from, int to, double now) const noexcept;
 
