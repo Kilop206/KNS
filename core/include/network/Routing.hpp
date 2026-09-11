@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
 namespace kns {
@@ -17,6 +19,14 @@ namespace kns {
         /// Composite: delay / bandwidth_mbps — favours low-latency, high-bandwidth paths.
         DelayBandwidth,
     };
+
+    /// Returns the stable CLI/configuration name for a routing metric.
+    std::string_view routingMetricName(RoutingMetric metric) noexcept;
+
+    /// Parses a stable routing metric name, or std::nullopt when unsupported.
+    std::optional<RoutingMetric> parseRoutingMetric(
+        std::string_view name
+    ) noexcept;
 
     class Routing {
         public:

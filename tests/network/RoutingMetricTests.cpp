@@ -4,13 +4,38 @@
 #include "network/Routing.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "enums/LinkMode.hpp"
+#include <array>
 #include <limits>
+#include <utility>
 
 using kns::Topology;
 using kns::Routing;
 using kns::RoutingMetric;
 using kns::SimulationEngine;
 using kns::LinkMode;
+
+TEST_CASE(
+    "Routing metric names round-trip through configuration values",
+    "[network][routing][metric][configuration]"
+)
+{
+    const std::array expected_metrics{
+        std::pair{"delay", RoutingMetric::Delay},
+        std::pair{"bandwidth", RoutingMetric::Bandwidth},
+        std::pair{"hop-count", RoutingMetric::HopCount},
+        std::pair{"delay-bandwidth", RoutingMetric::DelayBandwidth},
+    };
+
+    for (const auto& [name, metric] : expected_metrics) {
+        CAPTURE(name);
+        REQUIRE(kns::parseRoutingMetric(name) == metric);
+        REQUIRE(kns::routingMetricName(metric) == name);
+    }
+
+    REQUIRE_FALSE(kns::parseRoutingMetric("latency"));
+    REQUIRE_FALSE(kns::parseRoutingMetric("Delay"));
+    REQUIRE_FALSE(kns::parseRoutingMetric(""));
+}
 
 TEST_CASE("Routing metric: Delay minimizes total propagation delay", "[network][routing][metric]")
 {

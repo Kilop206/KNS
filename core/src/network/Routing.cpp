@@ -1,4 +1,5 @@
 #include <limits>
+#include <array>
 #include <vector>
 #include <queue>
 #include <cassert>
@@ -10,6 +11,37 @@
 #include "network/Link.hpp"
 
 namespace kns {
+
+	namespace {
+		constexpr std::array routingMetrics{
+			std::pair{"delay", RoutingMetric::Delay},
+			std::pair{"bandwidth", RoutingMetric::Bandwidth},
+			std::pair{"hop-count", RoutingMetric::HopCount},
+			std::pair{"delay-bandwidth", RoutingMetric::DelayBandwidth},
+		};
+	} // namespace
+
+	std::string_view routingMetricName(RoutingMetric metric) noexcept {
+		for (const auto& [name, candidate] : routingMetrics) {
+			if (candidate == metric) {
+				return name;
+			}
+		}
+
+		return "unknown";
+	}
+
+	std::optional<RoutingMetric> parseRoutingMetric(
+		std::string_view name
+	) noexcept {
+		for (const auto& [candidate_name, metric] : routingMetrics) {
+			if (candidate_name == name) {
+				return metric;
+			}
+		}
+
+		return std::nullopt;
+	}
 
 	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
 	                                                 RoutingMetric metric) {
