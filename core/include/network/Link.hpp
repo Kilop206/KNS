@@ -4,10 +4,13 @@
 #include <limits>
 #include <deque>
 #include <cstddef>
+#include <memory>
 
 #include "enums/LinkMode.hpp"
 
 namespace kns {
+
+class Topology;
 
 class Link {
     public:
@@ -81,6 +84,12 @@ class Link {
         void setUp(bool up) noexcept;
 
     private:
+        friend class Topology;
+
+        void attachRoutingRevision(
+            const std::shared_ptr<std::uint64_t>& revision
+        ) noexcept;
+        void markRoutingChanged() noexcept;
         
         enum class DirectionSlot {
             AB,
@@ -128,6 +137,8 @@ class Link {
         std::size_t queue_capacity_ = 32;
 
         bool up_ = true;
+
+        std::shared_ptr<std::uint64_t> routing_revision_;
 
         DirectionSlot getQueueSlot(int from, int to) const noexcept;
     };

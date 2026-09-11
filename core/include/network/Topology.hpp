@@ -47,6 +47,12 @@ namespace kns {
         const std::vector<LinkPtr>& getLinks() const noexcept { return links_; }
 
         int size() const noexcept;
+
+        /// Monotonically increasing version of all routing-relevant state.
+        /// Copies share this counter, so Link mutations remain observable by
+        /// every engine that references the topology.
+        std::uint64_t getRoutingRevision() const noexcept;
+
         void setGlobalLossProb(double value);
 
         const std::string& getName() const noexcept;
@@ -112,6 +118,9 @@ namespace kns {
         std::vector<Node> nodes_;           ///< One Node per adjacency_list_ slot.
         std::vector<Interface> interfaces_; ///< Interface objects for every link endpoint.
         std::string name_;
+        std::shared_ptr<std::uint64_t> routing_revision_;
+
+        void markRoutingChanged() noexcept;
     };
 
 }

@@ -59,7 +59,8 @@ namespace kns {
         delay_ms_(validateDelayMs(delay_ms)),
         loss_prob_(validateLossProbability(loss_prob)),
         mode_(mode),
-        up_(true)
+        up_(true),
+        routing_revision_(std::make_shared<std::uint64_t>(0))
     {
     }
 
@@ -98,7 +99,11 @@ namespace kns {
 
     void Link::setBandwidthMbps(double value)
     {
-        bandwidth_mbps_ = validateBandwidthMbps(value);
+        const double validated_value = validateBandwidthMbps(value);
+        if (bandwidth_mbps_ != validated_value) {
+            bandwidth_mbps_ = validated_value;
+            markRoutingChanged();
+        }
     }
 
     double Link::getDelayMs() const noexcept
@@ -108,7 +113,11 @@ namespace kns {
 
     void Link::setDelayMs(double value)
     {
-        delay_ms_ = validateDelayMs(value);
+        const double validated_value = validateDelayMs(value);
+        if (delay_ms_ != validated_value) {
+            delay_ms_ = validated_value;
+            markRoutingChanged();
+        }
     }
 
     double Link::getLossProb() const noexcept
@@ -391,7 +400,24 @@ namespace kns {
 
     void Link::setUp(bool up) noexcept
     {
-        up_ = up;
+        if (up_ != up) {
+            up_ = up;
+            markRoutingChanged();
+        }
+    }
+
+    void Link::attachRoutingRevision(
+        const std::shared_ptr<std::uint64_t>& revision
+    ) noexcept
+    {
+        routing_revision_ = revision;
+    }
+
+    void Link::markRoutingChanged() noexcept
+    {
+        if (routing_revision_) {
+            ++(*routing_revision_);
+        }
     }
 
     std::deque<Link::LinkTransmission>&

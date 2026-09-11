@@ -65,6 +65,8 @@ namespace kns {
     }
 
     int SimulationEngine::getNextHop(int current, int destination) const {
+        refreshRoutingTablesIfNeeded();
+
         if (current < 0 || static_cast<std::size_t>(current) >= routing_tables_.size()) {
             return -1;
         }
@@ -76,7 +78,9 @@ namespace kns {
     }
 
     std::span<const Routing::RoutingEntry>
-    SimulationEngine::getRoutingTable(int source) const noexcept {
+    SimulationEngine::getRoutingTable(int source) const {
+        refreshRoutingTablesIfNeeded();
+
         if (source < 0 ||
             static_cast<std::size_t>(source) >= routing_tables_.size()) {
             return {};
@@ -599,6 +603,16 @@ namespace kns {
     }
 
     void SimulationEngine::rebuildRoutingTables() {
+        refreshRoutingTables();
+    }
+
+    void SimulationEngine::refreshRoutingTablesIfNeeded() const {
+        if (routing_revision_ != topology_.getRoutingRevision()) {
+            refreshRoutingTables();
+        }
+    }
+
+    void SimulationEngine::refreshRoutingTables() const {
         const int n = topology_.size();
         routing_tables_.clear();
         routing_tables_.resize(static_cast<std::size_t>(n));
@@ -607,6 +621,7 @@ namespace kns {
             routing_tables_[static_cast<std::size_t>(u)] =
                 routing.buildRoutingTable(topology_, u, routing_metric_);
         }
+        routing_revision_ = topology_.getRoutingRevision();
     }
 
     void SimulationEngine::setRoutingMetric(RoutingMetric metric) {

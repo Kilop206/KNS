@@ -57,7 +57,9 @@ namespace kns {
         Topology topology_;
 
         // Routing tables for each node.
-        std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
+        mutable std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
+
+        mutable std::uint64_t routing_revision_ = 0;
 
         // Statistics for the simulation
         Stats stats_;
@@ -90,6 +92,9 @@ namespace kns {
         /// Passive TCP listeners keyed by their (node id, TCP port).
         std::map<std::pair<int, std::uint16_t>, TCPListener> listeners_;
 
+        void refreshRoutingTables() const;
+        void refreshRoutingTablesIfNeeded() const;
+
     public:
         double random();
 
@@ -113,8 +118,11 @@ namespace kns {
 
         /// Returns the routing table currently used by source, or an empty view for an invalid node.
         /// The view is invalidated when the engine rebuilds its routing tables.
-        std::span<const Routing::RoutingEntry> getRoutingTable(int source) const noexcept;
+        std::span<const Routing::RoutingEntry> getRoutingTable(int source) const;
 
+        /// Returns the live topology. Routing-relevant mutations made through
+        /// this reference or its Link objects are detected automatically before
+        /// the next route lookup.
         Topology& getTopology();
 
         const Topology& getTopology() const;

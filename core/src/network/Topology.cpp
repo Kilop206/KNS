@@ -6,7 +6,9 @@
 
 namespace kns {
 
-    Topology::Topology(int nodes) {
+    Topology::Topology(int nodes)
+        : routing_revision_(std::make_shared<std::uint64_t>(0))
+    {
         if (nodes < 0) {
             throw std::invalid_argument("Node count cannot be negative");
         }
@@ -53,6 +55,7 @@ namespace kns {
         }
 
         auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode);
+        ptr->attachRoutingRevision(routing_revision_);
 
         const int max_node = std::max(a, b);
         if (max_node >= static_cast<int>(adjacency_list_.size())) {
@@ -69,6 +72,8 @@ namespace kns {
 
         interfaces_.emplace_back(a, ptr->getId());
         interfaces_.emplace_back(b, ptr->getId());
+
+        markRoutingChanged();
 
         return ptr;
     }
@@ -115,6 +120,10 @@ namespace kns {
         return static_cast<int>(adjacency_list_.size());
     }
 
+    std::uint64_t Topology::getRoutingRevision() const noexcept {
+        return routing_revision_ ? *routing_revision_ : 0;
+    }
+
     void Topology::setGlobalLossProb(double value) {
         if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
             throw std::invalid_argument(
@@ -138,6 +147,7 @@ namespace kns {
         const int id = static_cast<int>(adjacency_list_.size());
         adjacency_list_.push_back({});
         nodes_.emplace_back(id);
+        markRoutingChanged();
         return id;
     }
 
@@ -186,6 +196,7 @@ namespace kns {
         if (static_cast<std::size_t>(id) < nodes_.size()) {
             nodes_[static_cast<std::size_t>(id)].setActive(false);
         }
+        markRoutingChanged();
         return true;
     }
 
@@ -241,6 +252,7 @@ namespace kns {
         );
 
         links_.erase(it);
+        markRoutingChanged();
         return true;
     }
 
@@ -283,6 +295,12 @@ namespace kns {
     Node* Topology::getNode(int id) noexcept {
         if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size()) return nullptr;
         return &nodes_[static_cast<std::size_t>(id)];
+    }
+
+    void Topology::markRoutingChanged() noexcept {
+        if (routing_revision_) {
+            ++(*routing_revision_);
+        }
     }
 
 }

@@ -149,6 +149,55 @@ TEST_CASE(
     REQUIRE(engine.getRoutingTable(3).empty());
 }
 
+TEST_CASE(
+    "SimulationEngine refreshes routes after direct link mutations",
+    "[network][routing][metric][dynamic]"
+)
+{
+    SECTION("availability") {
+        Topology topology(3);
+        topology.addLink(0, 1, 50.0, 5.0);
+        topology.addLink(1, 2, 50.0, 5.0);
+        topology.addLink(0, 2, 50.0, 30.0);
+        SimulationEngine engine(topology);
+
+        REQUIRE(engine.getNextHop(0, 2) == 1);
+
+        engine.getTopology().getLinks().at(0)->setUp(false);
+
+        REQUIRE(engine.getNextHop(0, 2) == 2);
+    }
+
+    SECTION("bandwidth") {
+        Topology topology(3);
+        topology.addLink(0, 1, 50.0, 5.0);
+        topology.addLink(1, 2, 50.0, 5.0);
+        topology.addLink(0, 2, 100.0, 30.0);
+        SimulationEngine engine(topology);
+        engine.setRoutingMetric(RoutingMetric::Bandwidth);
+
+        REQUIRE(engine.getNextHop(0, 2) == 2);
+
+        engine.getTopology().getLinks().at(2)->setBandwidthMbps(10.0);
+
+        REQUIRE(engine.getNextHop(0, 2) == 1);
+    }
+
+    SECTION("delay") {
+        Topology topology(3);
+        topology.addLink(0, 1, 50.0, 5.0);
+        topology.addLink(1, 2, 50.0, 5.0);
+        topology.addLink(0, 2, 50.0, 30.0);
+        SimulationEngine engine(topology);
+
+        REQUIRE(engine.getNextHop(0, 2) == 1);
+
+        engine.getTopology().getLinks().at(2)->setDelayMs(2.0);
+
+        REQUIRE(engine.getNextHop(0, 2) == 2);
+    }
+}
+
 TEST_CASE("Routing metrics handle unreachable nodes consistently", "[network][routing][metric]")
 {
     // 0 <-> 1 and isolated node 2
