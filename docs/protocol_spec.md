@@ -75,16 +75,17 @@ It replies with:
 
 ```text
 flags = SYN | ACK
-seq   = server ISN
+seq   = server local sequence (0 for a newly accepted session)
 ack   = client ISN + 1
 ```
 
 ### Final ACK
 
 The client accepts the SYN-ACK only in `SYN_SENT` and only when its ACK equals
-`client ISN + 1`. It records `server ISN + 1`, enters `ESTABLISHED`, and sends a
-plain ACK. The server validates `server ISN + 1` in `SYN_RECEIVED` and enters
-`ESTABLISHED`. DATA generation begins only after both endpoints are established.
+`client ISN + 1`. It records the server sequence plus one, enters `ESTABLISHED`,
+and sends a plain ACK. The server validates its local sequence plus one in
+`SYN_RECEIVED` and enters `ESTABLISHED`. DATA generation begins only after both
+endpoints are established.
 
 ## Unavailable passive opens and RST
 

@@ -1,309 +1,268 @@
 # KNS — Kinetic Network Simulator
 
-KNS (Kinetic Network Simulator) is an event-driven deterministic network simulator with both an interactive graphical interface and a headless CLI execution mode. It models packet transmission, routing, TCP sessions, and link-level behavior in a way that is easy to inspect visually, experiment with, and extend over time.
+KNS is a deterministic, discrete-event network simulator written in C++20. It
+combines a reusable simulation library, a Dear ImGui desktop interface, and a
+headless command-line runner for repeatable experiments.
 
-The project is designed for experimentation, learning, and research in networking topics such as retransmissions, sliding windows, congestion control, dynamic routing, and custom link behaviors.
+The simulator models graph-based routing, bandwidth and propagation delay,
+duplex link queues, packet loss, dynamic topology changes, and a focused TCP
+subset with passive listeners, retransmission, delayed ACK, receive reordering,
+and congestion-control state.
 
----
+## Highlights
 
-## Contents
+- deterministic event ordering by simulation timestamp and event ID;
+- Dijkstra routing with delay, bandwidth, hop-count, and combined metrics;
+- full-duplex, half-duplex, and simplex links with bounded queues;
+- runtime link availability, delay, bandwidth, and topology changes;
+- TCP handshake, listeners by node/port, backlog, RST rejection, and close;
+- send/receive buffers, cumulative and delayed ACKs, RTT/RTO, Karn's rule,
+  timeout retransmission, and fast retransmit;
+- Tahoe, Reno, NewReno, and CUBIC congestion-control implementations;
+- interactive packet visualization and congestion/latency panels;
+- headless CSV export and Catch2 unit/integration tests.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Build Requirements](#build-requirements)
-- [Building](#building)
-- [Running](#running)
-  - [GUI Mode](#gui-mode)
-  - [Headless Mode](#headless-mode)
-- [Automated Experiments & Benchmarking](#automated-experiments--benchmarking)
-- [Running Tests](#running-tests)
-- [Topology Files](#topology-files)
-- [Project Structure](#project-structure)
-- [Documentation](#documentation)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author](#author)
+KNS is a simulation model rather than a production TCP/IP stack. See
+[TCP design](docs/tcp_design.md#current-limitations) for the exact boundary.
 
----
+## Requirements
 
-## Overview
+- CMake 3.20 or newer;
+- a C++20 compiler;
+- OpenGL development libraries;
+- Git and network access during the first configure, because dependencies are
+  resolved with CMake `FetchContent`.
 
-KNS combines a discrete-event simulation core with an interactive visual front-end and a headless CLI runner for batch experiments. Packets move through the simulated network according to routing decisions, link characteristics, and TCP session logic, while the GUI renders those packets in sync with simulation time.
+CMake fetches nlohmann/json, Catch2, GLFW, Dear ImGui, and ImGuiFileDialog.
 
-The current version includes:
-- **Deterministic Event-Driven Simulation**: Strict time ordering with incremental ID tie-breaking for 100% reproducible runs.
-- **TCP Protocol Simulation**: Three-way handshake (SYN, SYN-ACK, ACK), data transfer, connection termination (FIN, FIN-ACK), timeout handling, and SYN retransmission counters.
-- **Arbitrary Topologies & Routing**: Dijkstra-based shortest-path routing calculated over custom topologies with physical link constraints (bandwidth, latency, loss probability, duplex modes).
-- **Interactive GUI**: Real-time packet animations with color coding by packet type, node inspection, latency graphs, and event logs.
-- **Headless Mode & Python Automation**: Batch execution and parameter sweep scripts that output CSV reports and generate Matplotlib graphs.
-
----
-
-## Features
-
-- **Discrete-Event Simulation Core**: Millisecond-accurate logical ticks with strict FIFO tie-breaking for concurrent events.
-- **Visual Packet Animation**: Real-time rendering synchronized with simulation speed, supporting interactive TCP connection initiation by dragging between nodes.
-- **TCP Transport Layer**: Connection states (`CLOSED`, `LISTEN`, `SYN_SENT`, `SYN_RECEIVED`, `ESTABLISHED`, `CLOSE_WAIT`, `LAST_ACK`, `FIN_WAIT_1`, `FIN_WAIT_2`, `TIME_WAIT`), handshake logic, timeouts, and session management.
-- **Physical Link Modeling**:
-  - `full-duplex`
-  - `half-duplex`
-  - `simplex`
-  - Link queue capacity limits and configurable loss rates.
-- **Comprehensive Metrics & Stats**: Average latency, delivery rate, packet loss, throughput, and CSV export.
-- **Headless Execution**: Fast simulation without graphical overhead for benchmarks and CI pipelines.
-- **Extensive Test Suite**: Unit and integration tests powered by Catch2.
-
----
-
-## Architecture
-
-KNS is organized into distinct, decoupled layers:
-
-### Simulation Core (`core/include/engine/core/` and `events/`)
-Responsible for logical time progression (`SimulationClock`), priority event scheduling (`EventQueue`), global simulation state (`SimulationEngine`), metrics collection (`Stats`), and simulation events (`PacketGenerationEvent`, `PacketReceivedEvent`, `TCPHandshakeEvent`, etc.).
-
-### Network Layer (`core/include/network/`)
-Handles graph topologies (`Topology`), link constraints and duplex modes (`Link`), routing tables via Dijkstra (`Routing`), and JSON topology parsing (`TopologyLoader`).
-
-### Transport Layer (`core/include/network/transport/tcp/`)
-Implements TCP endpoints (`TCPConnection`), session tracking (`TCPSession`), state machine transitions (`TCPStateMachine`), and TCP segment encapsulation (`TCPSegment`).
-
-### GUI Layer (`app/` and `app/gui/`)
-Interactive Dear ImGui / GLFW / OpenGL interface providing live topology visualization, packet rendering (`PacketRenderer`), latency charts, node routing details, and event log inspection.
-
----
-
-## Build Requirements
-
-- **C++20** compatible compiler (GCC 11+, Clang 13+, or MSVC 2019+)
-- **CMake 3.20+**
-- **OpenGL** development libraries
-
-All other third-party dependencies (**GLFW**, **Dear ImGui**, **ImGuiFileDialog**, **nlohmann/json**, and **Catch2**) are downloaded and built automatically via CMake `FetchContent`.
-
-### Linux (Debian / Ubuntu) Dependencies
+On Debian or Ubuntu, the graphical build commonly needs:
 
 ```bash
-sudo apt-get update && sudo apt-get install -y \
-    build-essential cmake \
-    libgl1-mesa-dev \
-    xorg-dev \
-    libwayland-dev \
-    wayland-protocols \
-    libxkbcommon-dev \
-    extra-cmake-modules
+sudo apt-get update
+sudo apt-get install -y \
+  build-essential cmake git \
+  libgl1-mesa-dev xorg-dev \
+  libwayland-dev wayland-protocols \
+  libxkbcommon-dev extra-cmake-modules
 ```
 
----
+## Build
 
-## Building
+Configure and build the application and tests:
 
 ```bash
-# Configure the project
 cmake -S . -B build
-
-# Build all targets (simulator and tests)
 cmake --build build
 ```
 
----
+Useful configuration options:
 
-## Running
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `KNS_BUILD_APP` | `ON` | Build the GUI/headless executable. |
+| `KNS_BUILD_TESTS` | `ON` | Build and register the test suite. |
+| `KNS_ENABLE_WARNINGS` | `ON` | Enable the project's compiler warnings. |
 
-### GUI Mode
+For a multi-config generator such as Visual Studio, select the configuration
+explicitly when needed:
 
-Launch KNS with an optional topology JSON file (or pick one inside the GUI file dialog):
+```powershell
+cmake --build build --config Debug
+```
+
+## Run the GUI
+
+The GUI accepts an optional topology file:
+
+```powershell
+# Windows with the Visual Studio generator
+.\build\app\Debug\KNS.exe app\topologies\mesh4.json
+```
 
 ```bash
-# Windows
-.\build\app\KNS.exe app/topologies/mesh4.json
-
-# Linux / macOS
+# Linux/macOS with a single-config generator
 ./build/app/KNS app/topologies/mesh4.json
 ```
 
-### Headless Mode
+Without a positional topology, the application starts with an empty topology
+and can load a file from the interface.
 
-Run simulations directly from the command line without opening the GUI window, exporting results to a CSV file:
+## Run headless
 
-```bash
-# Windows
-.\build\app\KNS.exe --headless --topology app/topologies/mesh4.json --output results.csv
+Headless mode requires a topology and writes aggregate statistics to CSV:
 
-# Linux / macOS
-./build/app/KNS --headless --topology app/topologies/mesh4.json --output results.csv
+```powershell
+.\build\app\Debug\KNS.exe `
+  --headless `
+  --topology app\topologies\mesh4.json `
+  --routing-metric delay `
+  --output results\mesh4-delay.csv
 ```
 
-Choose the routing metric with `--routing-metric`. The option is applied before
-the simulator schedules any traffic, making batch comparisons deterministic:
-
 ```bash
-./build/app/KNS --headless \
+./build/app/KNS \
+  --headless \
   --topology app/topologies/mesh4.json \
-  --routing-metric delay-bandwidth \
-  --output results/delay-bandwidth.csv
+  --routing-metric delay \
+  --output results/mesh4-delay.csv
 ```
 
-Accepted values are:
+### CLI options
+
+```text
+KNS [topology.json]
+KNS --headless --topology <file> [--output <csv>]
+    [--routing-metric <metric>]
+```
+
+| Option | Description |
+| --- | --- |
+| `--headless` | Run without creating the graphical interface. |
+| `--topology <file>` | Load the specified topology JSON. Required headlessly. |
+| `--output <csv>` | Set the output file; defaults to `results/results.csv`. |
+| `--routing-metric <metric>` | Select the routing metric before traffic is scheduled. |
+| `-h`, `--help` | Print usage and exit. |
+
+Accepted routing metrics:
 
 | Value | Route selection |
 | --- | --- |
-| `delay` | Lowest total propagation delay (default) |
-| `bandwidth` | Highest bottleneck bandwidth |
-| `hop-count` | Fewest links |
-| `delay-bandwidth` | Lowest combined delay-to-bandwidth cost |
+| `delay` | Lowest total propagation delay (default). |
+| `bandwidth` | Highest bottleneck bandwidth. |
+| `hop-count` | Fewest links. |
+| `delay-bandwidth` | Lowest sum of link delay divided by bandwidth. |
 
-Run `KNS --help` to display the complete CLI syntax. Invalid metric values are
-reported before the topology is loaded or the simulation is started.
+An invalid metric is reported before the topology is loaded or the simulation
+starts. `KNS_AUTO_START=0` disables automatic workload generation; note that a
+headless run without traffic does not pass the engine's normal traffic
+validation and therefore exits non-zero.
 
----
+The exported CSV currently contains:
 
-## Automated Experiments & Benchmarking
-
-The project includes an automation runner script located in `scripts/run.py` (v1.2). It executes headless simulations, performs parameter sweeps (varying packet loss, packet size, bandwidth), and generates Matplotlib graphs and summary reports.
-
-```bash
-# Run automated benchmark suite
-python scripts/run.py
+```text
+packets_sent,packets_delivered,packets_lost,total_latency,
+avg_latency,packets_in_transit,total_sessions
 ```
 
-Generated plots and summary statistics are saved under the `results/` directory.
+## Topology files
 
----
-
-## Running Tests
-
-KNS has a comprehensive suite of unit and integration tests written in **Catch2**:
-
-```bash
-# Run tests using CTest
-ctest --test-dir build --output-on-failure
-
-# Or run the test executable directly
-# Windows:
-.\build\tests\kns_tests.exe
-
-# Linux / macOS:
-./build/tests/kns_tests
-```
-
-Test coverage includes:
-- `tests/core/`: Event queue ordering, FIFO tie-breaking, and simulation clock behavior.
-- `tests/network/`: Link duplex modes, transmission delays, queue capacities, and Dijkstra routing tables.
-- `tests/tcp/`: State machine transitions, handshake, active/passive close, SYN retry limits, and determinism.
-- `tests/integration/`: End-to-end full simulation validation.
-
----
-
-## Topology Files
-
-Topologies are declared as JSON files under `app/topologies/`:
+JSON topologies live in [`app/topologies/`](app/topologies/). A minimal example:
 
 ```json
 {
-  "nodes": 4,
-  "name": "mesh4",
+  "nodes": 3,
+  "name": "triangle",
   "links": [
     {
       "from": 0,
       "to": 1,
-      "delay": 5,
-      "bandwidth": 100,
-      "loss": 0.0,
+      "delay": 5.0,
+      "bandwidth": 100.0,
+      "loss": 0.01,
       "mode": "full_duplex"
     },
     {
       "from": 1,
       "to": 2,
-      "delay": 10,
-      "bandwidth": 100,
+      "delay": 10.0,
+      "bandwidth": 50.0,
       "loss": 0.0,
-      "mode": "full_duplex"
+      "mode": "half_duplex"
     }
   ]
 }
 ```
 
-Pre-configured topologies include:
-- `app/topologies/mesh4.json` (4-node mesh)
-- `app/topologies/mesh5.json` (5-node mesh)
-- `app/topologies/star.json` (Star topology)
+Fields use milliseconds for `delay`, megabits per second for `bandwidth`, and a
+probability from 0 to 1 for `loss`. Supported modes are `full_duplex`,
+`half_duplex`, and `simplex`. Node IDs are zero-based. Self-loops, invalid
+numeric values, and links to removed nodes are rejected.
 
----
+Included examples:
 
-## Project Structure
+- [`mesh4.json`](app/topologies/mesh4.json);
+- [`mesh5.json`](app/topologies/mesh5.json);
+- [`star.json`](app/topologies/star.json).
+
+## Test
+
+Run all registered tests after building:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+The suite covers:
+
+- `tests/core/`: event ordering and engine lifecycle;
+- `tests/network/`: links, queues, topology mutation, loading, and routing;
+- `tests/tcp/`: state transitions, listeners, buffering, reliability, close,
+  timers, and congestion control;
+- `tests/integration/`: end-to-end simulation behavior;
+- application CTest entries: accepted and rejected headless routing metrics.
+
+## Experiments
+
+[`scripts/run.py`](scripts/run.py) is the historical batch runner. It can launch
+headless simulations, but its report parser currently expects an older CSV
+schema than `SimulationEngine::exportStatsCSV()` emits. Use direct headless
+commands for authoritative runs until those schemas are aligned. Measurement
+definitions and earlier observations are documented in
+[`docs/experiments.md`](docs/experiments.md).
+
+## Architecture
 
 ```text
 KNS/
-├── app/                      # Application entry point and GUI
-│   ├── gui/                  # ImGui panels, packet rendering, and themes
-│   ├── topologies/           # Pre-defined topology JSON files
-│   └── main.cpp              # CLI parser, simulation loop, and GUI initialization
-├── core/                     # Core simulation engine (no GUI dependencies)
-│   ├── include/
-│   │   ├── engine/           # Event queue, clock, stats, and simulation events
-│   │   ├── enums/            # PacketType, TCPState, LinkMode enums
-│   │   └── network/          # Topology, Link, Routing, and TCP transport
-│   └── src/                  # Implementation files
-├── docs/                     # Architectural and design documentation
-│   ├── architecture.md       # High-level design decisions
-│   ├── protocol_spec.md      # TCP subset protocol specification
-│   ├── tcp_design.md         # TCP connection/session architecture
-│   └── experiments.md        # Research and experiment notes
-├── results/                  # Generated benchmark summaries and graphs
-├── scripts/                  # Python runner and benchmark scripts (run.py)
-├── tests/                    # Catch2 unit and integration tests
-│   ├── core/                 # Event engine tests
-│   ├── network/              # Link and routing tests
-│   ├── tcp/                  # TCP state machine, handshake, and determinism tests
-│   └── integration/          # End-to-end simulation tests
-├── CMakeLists.txt            # Root build configuration
-└── README.md
+├── app/                  GUI, CLI entry point, and bundled topologies
+│   ├── gui/              Dear ImGui panels and rendering
+│   └── main.cpp          Application setup and headless execution
+├── core/                 Reusable simulation library
+│   ├── include/          Public headers
+│   └── src/              Implementations
+├── docs/                 Maintainer-facing design documentation
+├── scripts/              Experiment automation
+├── tests/                Catch2 and integration tests
+└── CMakeLists.txt        Root build configuration
 ```
 
----
+The core has no dependency on the GUI. `SimulationEngine` owns the clock, event
+queue, topology snapshot, routing tables, sessions, listeners, statistics, and
+in-flight packet records. See [architecture](docs/architecture.md) and
+[event engine design](docs/event_engine_design.md) for the governing invariants.
 
 ## Documentation
 
-Detailed technical documentation is available in the [`docs/`](docs/) directory:
-- [Architecture & Design Decisions](docs/architecture.md)
-- [TCP Protocol Specification](docs/protocol_spec.md)
-- [TCP Architecture Design](docs/tcp_design.md)
-- [Experimentation Reports](docs/experiments.md)
+- [Architecture and design decisions](docs/architecture.md)
+- [Event engine design](docs/event_engine_design.md)
+- [TCP design](docs/tcp_design.md)
+- [TCP protocol specification](docs/protocol_spec.md)
+- [Experiments and measurement notes](docs/experiments.md)
 
----
+## Current development areas
 
-## Roadmap
+The main remaining integration and extension areas are:
 
-Planned future work includes:
-- [ ] Dynamic RTT estimation & adaptive Retransmission Timeout (RTO)
-- [ ] Sliding Window & flow control support
-- [ ] Congestion Control algorithms (Slow Start, Congestion Avoidance, Fast Retransmit / Fast Recovery)
-- [ ] Dynamic routing protocols (e.g. RIP / OSPF-like link state updates on link failure)
-- [ ] In-GUI Interactive Topology Editor (add/remove nodes and links visually)
-- [ ] Buffer management policies (e.g. RED - Random Early Detection)
-
----
+- feed the advertised peer receive window back into normal sender flow control;
+- gate packet generation with the selected congestion controller's `cwnd`;
+- expand simultaneous-open/close and general RST behavior;
+- add TCP options such as SACK and timestamps;
+- implement dynamic routing protocols rather than centralized table rebuilds;
+- add active queue-management policies such as RED;
+- align the Python experiment runner with the current CSV schema.
 
 ## Contributing
 
-Contributions are welcome! If you would like to contribute:
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/amazing-feature`).
-3. Ensure all tests pass (`ctest --test-dir build --output-on-failure`).
-4. Commit your changes following standard conventional commits.
-5. Open a Pull Request.
-
----
+1. Fork the repository and create a focused branch.
+2. Keep core code independent from GUI dependencies.
+3. Add or update tests for observable behavior.
+4. Run `cmake --build build` and
+   `ctest --test-dir build --output-on-failure`.
+5. Use an English [Conventional Commit](https://www.conventionalcommits.org/)
+   message and open a pull request explaining behavior and validation.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-## Author
-
-**Kilop / Guilherme Döge**
+KNS is source-available for personal, educational, research, and private
+modification under the terms in [`LICENSE`](LICENSE). Commercial use is
+prohibited unless separately authorized. This is not the MIT License.

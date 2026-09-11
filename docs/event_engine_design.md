@@ -1,79 +1,81 @@
 # Event Engine Design
 
-## 1. Purpose
+## Time model
 
-The Event Engine is the core of KNS.  
-It implements a discrete-event simulation model focused on determinism and reproducibility.
+KNS uses discrete-event simulation. `SimulationClock` stores a `double` value in
+simulated seconds. Time advances only when the engine removes an event from the
+queue and sets the clock to that event's timestamp. The core never sleeps or
+uses wall-clock time to decide protocol behavior.
 
----
+The GUI may pace rendering against real time, but that presentation concern does
+not change the logical schedule.
 
-## 2. Simulation Time Model
+## Event contract
 
-- Time type: int64_t
-- Unit: logical ticks
-- Time is logical and does not depend on the system clock.
-- Time advances only when an event is processed.
+Every event derives from `Event` and provides:
 
-**Rationale:**
+- a simulation timestamp;
+- a monotonic 64-bit ID assigned at construction;
+- `execute(SimulationEngine&)`;
+- an optional human-readable name for diagnostics.
 
-Using int64_t ensures a large time range suitable for long-running simulations.  
-The logical time model provides full control over time progression, eliminating external dependencies and ensuring determinism.
+Timestamps express when an event becomes eligible. IDs are the deterministic
+tie-breaker and do not represent protocol session IDs.
 
----
+## Queue ordering and ownership
 
-## 3. Event Definition
+`EventQueue` owns pending events as `std::unique_ptr<Event>` in a priority queue.
+Its comparator orders:
 
-An event is defined as:
+1. lower timestamp first;
+2. lower event ID first when timestamps are equal.
 
-- Timestamp (logical time)
-- Unique incremental identifier
-- Action to be executed
+Scheduling a null pointer throws `std::invalid_argument`. `next()` transfers
+ownership of the earliest event to the caller and returns `nullptr` for an empty
+queue. `peekTimestamp()` returns positive infinity when no event is pending.
 
-**Responsibility:**
+## Engine execution APIs
 
-An event represents a scheduled action to occur at a specific simulation time.
+`SimulationEngine::run()` repeatedly:
 
----
+1. removes the next event;
+2. moves the logical clock to its timestamp;
+3. executes it;
+4. continues until the queue is empty.
 
-## 4. Event Ordering Policy
+`processEvent()` performs one iteration and is used by the interactive
+application. `hasEvents()` and `peekNextEventTime()` support external control.
+Pausing and resuming are application states; the queue itself has no background
+worker and no pause primitive.
 
-Events are ordered according to the following rules:
+## Cancellation and stale events
 
-1. Lower timestamp first
-2. In case of ties, lower ID first (insertion order)
+The engine generally does not remove arbitrary events from the priority queue.
+Instead, events carry stable IDs such as a TCP session ID and validate current
+state when executed. Examples include:
 
-This policy guarantees absolute determinism.
+- timeout events returning after their segment was acknowledged;
+- delayed ACK events returning after a newer ACK superseded them;
+- TCP events returning after their session was cancelled;
+- link-arrival cleanup becoming a no-op after link removal.
 
----
+This approach avoids mutable priority-queue indexing and keeps invalidation
+local to the subsystem that understands the event.
 
-## 5. Execution Model
+## Determinism guarantee
 
-The engine operates as follows:
+On the same implementation, equal initial state, random seed, input data, and
+event insertion order produce the same dispatch order. A callback that reads
+wall-clock time, external mutable data, or an uncontrolled random source can
+break that guarantee and should not be introduced into core event execution.
 
-1. While the queue is not empty:
-    - Remove the next event
-    - Update the current simulation time
-    - Execute the associated action
+## Current constraints
 
-The engine can:
+- execution is single-threaded;
+- timestamps use floating-point seconds;
+- `run()` drains the queue rather than stopping at a supplied time boundary;
+- event IDs are process-wide and monotonic;
+- there is no general-purpose cancellation handle or queue search API.
 
-- Run until the queue is empty
-- Run until a time limit is reached
-- Be paused and resumed
-
----
-
-## 6. Determinism Guarantee
-
-Given the same initial set of events and the same insertion order:
-
-- Execution will always produce the same event order
-- The final state will always be identical
-
----
-
-## 7. Known Limitations (Initial)
-
-- Single-threaded execution
-- No parallelism in the core
-- No dependency on real time
+These constraints favor a small, predictable engine. Features such as bounded
+runs should be added as explicit engine APIs with ordering and ownership tests.
