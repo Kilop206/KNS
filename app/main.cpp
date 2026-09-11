@@ -7,6 +7,7 @@
 #include "ImGuiFileDialog.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 #include <chrono>
 #include <cstdlib>
@@ -17,6 +18,7 @@
 #include <numbers>
 #include <set>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -51,6 +53,55 @@ namespace fs = std::filesystem;
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 constexpr double kSimToVisualScale     = 20.0;
+
+namespace {
+
+    [[nodiscard]] bool isAutoStartEnabledValue(
+        std::string_view value
+    ) noexcept
+    {
+        return value != "0" &&
+            value != "false" &&
+            value != "False";
+    }
+
+    [[nodiscard]] bool autoStartFromEnvironment(
+        bool default_value
+    ) noexcept
+    {
+#ifdef _WIN32
+        char* raw_value = nullptr;
+        std::size_t value_size = 0;
+
+        const int result =
+            _dupenv_s(
+                &raw_value,
+                &value_size,
+                "KNS_AUTO_START"
+            );
+
+        if (result != 0 || raw_value == nullptr) {
+            std::free(raw_value);
+            return default_value;
+        }
+
+        const bool enabled =
+            isAutoStartEnabledValue(raw_value);
+
+        std::free(raw_value);
+
+        return enabled;
+#else
+        const char* raw_value =
+            std::getenv("KNS_AUTO_START");
+
+        return raw_value == nullptr
+            ? default_value
+            : isAutoStartEnabledValue(raw_value);
+#endif
+    }
+
+} // namespace
 
 struct PickedNodes {
     int origin = -1;
@@ -1547,18 +1598,8 @@ static void visualizeWindow(
     // Optional environment-based auto start
     // --------------------------------------------------
 
-    bool gui_auto_start = false;
-
-    if (const char* env =
-            std::getenv("KNS_AUTO_START"))
-    {
-        const std::string v(env);
-
-        gui_auto_start =
-            !(v == "0" ||
-              v == "false" ||
-              v == "False");
-    }
+    const bool gui_auto_start =
+        autoStartFromEnvironment(false);
 
     generatePackets(
         engine,
@@ -1788,18 +1829,8 @@ static void visualizeWindow(
                         engine
                     );
 
-                    bool loaded_auto_start = false;
-
-                    if (const char* env =
-                            std::getenv("KNS_AUTO_START"))
-                    {
-                        const std::string v(env);
-
-                        loaded_auto_start =
-                            !(v == "0" ||
-                              v == "false" ||
-                              v == "False");
-                    }
+                    const bool loaded_auto_start =
+                        autoStartFromEnvironment(false);
 
                     if (loaded_auto_start)
                     {
@@ -1992,19 +2023,10 @@ int main(int argc, char* argv[])
 
         runConfig.seed = 0;
 
-        bool headless_auto_start =
-            runConfig.auto_start;
-
-        if (const char* env =
-                std::getenv("KNS_AUTO_START"))
-        {
-            const std::string v(env);
-
-            headless_auto_start =
-                !(v == "0" ||
-                  v == "false" ||
-                  v == "False");
-        }
+        const bool headless_auto_start =
+            autoStartFromEnvironment(
+                runConfig.auto_start
+            );
 
         if (headless_auto_start)
         {
