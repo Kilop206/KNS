@@ -72,7 +72,7 @@ namespace kns {
 
         float globalLossProb = 0.0f;
 
-        int globalPacketSize = 0;
+        int globalPacketSize = 1500;
 
         std::function<void(double)> latencyObserver_;
 

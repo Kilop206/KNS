@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/core/RunConfig.hpp"
@@ -25,7 +26,7 @@ namespace kns {
         event_queue_(),
         packets_in_transit(),
         globalLossProb(0.0f),
-        globalPacketSize(0),
+        globalPacketSize(1500),
         latencyObserver_(nullptr),
         packetObserver(nullptr),
         sessions(),
@@ -155,6 +156,9 @@ namespace kns {
         const Link& link,
         double now
     ) {
+        if (pkt.packet_size_bytes <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
         const double transmission =
             (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
             (link.getBandwidthMbps() * 1e6);
@@ -170,6 +174,9 @@ namespace kns {
         double now
     )
     {
+        if (pkt.packet_size_bytes <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
         if (!link.isUp()) {
             return false;
         }
@@ -295,6 +302,9 @@ namespace kns {
     }
 
     void SimulationEngine::setGlobalPacketSize(int value) {
+        if (value <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
         globalPacketSize = value;
     }
 
