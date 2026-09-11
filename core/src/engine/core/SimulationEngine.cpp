@@ -313,6 +313,15 @@ namespace kns {
         int source,
         int destination
     ) {
+        return createTCPSession(source, destination, 0, 0);
+    }
+
+    TCPSession& SimulationEngine::createTCPSession(
+        int source,
+        int destination,
+        std::uint16_t source_port,
+        std::uint16_t destination_port
+    ) {
         const std::uint64_t id = next_session_id++;
 
         sessions.emplace(
@@ -321,7 +330,9 @@ namespace kns {
                 id,
                 source,
                 destination,
-                TCPState::CLOSED
+                TCPState::CLOSED,
+                source_port,
+                destination_port
             )
         );
 
@@ -374,18 +385,56 @@ namespace kns {
     }
 
     void SimulationEngine::startTCPConnection(int source, int dest) {
-        TCPSession& session = createTCPSession(source, dest);
+        startTCPConnection(source, dest, 0, 0);
+    }
+
+    void SimulationEngine::startTCPConnection(
+        int source,
+        int dest,
+        std::uint16_t source_port,
+        std::uint16_t destination_port
+    ) {
+        TCPSession& session = createTCPSession(
+            source,
+            dest,
+            source_port,
+            destination_port
+        );
         schedule(std::make_unique<TCPHandshakeEvent>(now() + handshake_offset_, source, dest, session.getSession_id()));
         handshake_offset_ += 0.05;
     }
 
     TCPListener& SimulationEngine::startTCPListen(int node_id, int backlog) {
-        auto [it, _] = listeners_.emplace(node_id, TCPListener(node_id, backlog));
+        return startTCPListen(node_id, 0, backlog);
+    }
+
+    TCPListener& SimulationEngine::startTCPListen(
+        int node_id,
+        std::uint16_t port,
+        int backlog
+    ) {
+        auto [it, _] = listeners_.emplace(
+            std::make_pair(node_id, port),
+            TCPListener(node_id, port, backlog)
+        );
         return it->second;
     }
 
     bool SimulationEngine::hasListener(int node_id) const noexcept {
-        const auto it = listeners_.find(node_id);
+        return std::any_of(
+            listeners_.begin(),
+            listeners_.end(),
+            [node_id](const auto& entry) {
+                return entry.first.first == node_id && entry.second.isListening();
+            }
+        );
+    }
+
+    bool SimulationEngine::hasListener(
+        int node_id,
+        std::uint16_t port
+    ) const noexcept {
+        const auto it = listeners_.find(std::make_pair(node_id, port));
         return it != listeners_.end() && it->second.isListening();
     }
 
@@ -394,7 +443,25 @@ namespace kns {
         int connecting_node,
         std::uint32_t connecting_seq
     ) {
-        auto it = listeners_.find(listening_node);
+        return acceptOnListener(
+            listening_node,
+            connecting_node,
+            connecting_seq,
+            0,
+            0
+        );
+    }
+
+    std::uint64_t SimulationEngine::acceptOnListener(
+        int listening_node,
+        int connecting_node,
+        std::uint32_t connecting_seq,
+        std::uint16_t connecting_port,
+        std::uint16_t listening_port
+    ) {
+        auto it = listeners_.find(
+            std::make_pair(listening_node, listening_port)
+        );
 
         if (it == listeners_.end()) {
             return TCPListener::INVALID_SESSION_ID;
@@ -402,9 +469,29 @@ namespace kns {
 
         return it->second.accept(
             connecting_node,
+            connecting_port,
             connecting_seq,
             *this
         );
+    }
+
+    void SimulationEngine::releaseTCPListenerSession(
+        std::uint64_t session_id
+    ) noexcept {
+        const auto session_it = sessions.find(session_id);
+
+        if (session_it == sessions.end()) {
+            return;
+        }
+
+        const auto& server = session_it->second.getServerConnection();
+        const auto listener_it = listeners_.find(
+            std::make_pair(server.getLocalNode(), server.getLocalPort())
+        );
+
+        if (listener_it != listeners_.end()) {
+            listener_it->second.untrackSession(session_id);
+        }
     }
 
     void SimulationEngine::generatePackets(

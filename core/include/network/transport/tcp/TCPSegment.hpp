@@ -40,6 +40,8 @@ namespace kns {
     }
 
     struct TCPSegment {
+        std::uint16_t source_port = 0;
+        std::uint16_t destination_port = 0;
         std::uint32_t seq = 0;
         std::uint32_t ack = 0;
         std::uint16_t window = 0;

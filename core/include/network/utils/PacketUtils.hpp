@@ -26,7 +26,9 @@ namespace kns {
             int from,
             int to,
             std::uint32_t remote_seq,
-            std::uint64_t correlation_id
+            std::uint64_t correlation_id,
+            std::uint16_t source_port = 0,
+            std::uint16_t destination_port = 0
         );
     };
 }

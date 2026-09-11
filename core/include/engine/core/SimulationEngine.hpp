@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <functional>
 #include <map>
+#include <utility>
 
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
@@ -85,8 +86,8 @@ namespace kns {
         /// Routing metric used by Dijkstra.
         RoutingMetric routing_metric_ = RoutingMetric::Delay;
 
-        /// Passive TCP listeners keyed by the listening node id.
-        std::map<int, TCPListener> listeners_;
+        /// Passive TCP listeners keyed by their (node id, TCP port).
+        std::map<std::pair<int, std::uint16_t>, TCPListener> listeners_;
 
     public:
         double random();
@@ -144,13 +145,29 @@ namespace kns {
         int getGlobalPacketSize() const;
 
         void startTCPConnection(int source, int dest);
+        void startTCPConnection(
+            int source,
+            int dest,
+            std::uint16_t source_port,
+            std::uint16_t destination_port
+        );
 
-        /// Make node_id passively listen for incoming TCP connections.
+        /// Make node_id passively listen on the default TCP port (0).
         /// Returns a reference to the created listener (backlog defaults to 128).
         TCPListener& startTCPListen(int node_id, int backlog = 128);
 
-        /// Returns true if node_id has an active listener registered.
+        /// Make node_id passively listen on a specific TCP port.
+        TCPListener& startTCPListen(
+            int node_id,
+            std::uint16_t port,
+            int backlog
+        );
+
+        /// Returns true if node_id has an active listener on any TCP port.
         bool hasListener(int node_id) const noexcept;
+
+        /// Returns true if node_id has an active listener on port.
+        bool hasListener(int node_id, std::uint16_t port) const noexcept;
 
         /// Accept an incoming SYN on a listening node. Returns the new
         /// session_id, or TCPListener::INVALID_SESSION_ID on failure.
@@ -159,6 +176,16 @@ namespace kns {
             int connecting_node,
             std::uint32_t connecting_seq
         );
+        std::uint64_t acceptOnListener(
+            int listening_node,
+            int connecting_node,
+            std::uint32_t connecting_seq,
+            std::uint16_t connecting_port,
+            std::uint16_t listening_port
+        );
+
+        /// Release a closed session from its server listener's backlog.
+        void releaseTCPListenerSession(std::uint64_t session_id) noexcept;
 
         void setPacketObserver(
             std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
@@ -169,6 +196,12 @@ namespace kns {
         void generatePackets(double startTime, TCPSession& session);
 
         TCPSession& createTCPSession(int source, int destination);
+        TCPSession& createTCPSession(
+            int source,
+            int destination,
+            std::uint16_t source_port,
+            std::uint16_t destination_port
+        );
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 

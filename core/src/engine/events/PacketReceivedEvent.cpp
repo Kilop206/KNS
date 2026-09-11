@@ -27,11 +27,22 @@ namespace kns
             const int source = session.getSource();
             const int destination = session.getDestination();
 
-            return
-                (packet.source == source &&
-                 packet.destination == destination) ||
-                (packet.source == destination &&
-                 packet.destination == source);
+            const auto& client = session.getClientConnection();
+            const auto& server = session.getServerConnection();
+
+            const bool client_to_server =
+                packet.source == source &&
+                packet.destination == destination &&
+                packet.tcp.source_port == client.getLocalPort() &&
+                packet.tcp.destination_port == client.getRemotePort();
+
+            const bool server_to_client =
+                packet.source == destination &&
+                packet.destination == source &&
+                packet.tcp.source_port == server.getLocalPort() &&
+                packet.tcp.destination_port == server.getRemotePort();
+
+            return client_to_server || server_to_client;
         }
     } // namespace
 
@@ -134,7 +145,9 @@ namespace kns
                     packet.destination,
                     packet.source,
                     packet.tcp.seq,
-                    packet.session_id
+                    packet.session_id,
+                    packet.tcp.destination_port,
+                    packet.tcp.source_port
                 );
 
                 return;
@@ -382,6 +395,12 @@ namespace kns
             }
 
             case PacketType::RST: {
+                receiver.failRetransmission();
+                refreshSessionState(session);
+
+                if (session.getState() == TCPState::CLOSED) {
+                    engine.releaseTCPListenerSession(session.getSession_id());
+                }
                 break;
             }
 
@@ -427,6 +446,10 @@ namespace kns
                 }
 
                 refreshSessionState(session);
+
+                if (session.getState() == TCPState::CLOSED) {
+                    engine.releaseTCPListenerSession(session.getSession_id());
+                }
                 break;
             }
 

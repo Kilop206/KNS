@@ -38,7 +38,9 @@ namespace kns {
             std::uint32_t congestion_mss =
                 DEFAULT_CONGESTION_MSS,
             std::uint32_t congestion_initial_ssthresh =
-                65535
+                65535,
+            std::uint16_t local_port = 0,
+            std::uint16_t remote_port = 0
         );
 
         TCPState getTcpState() const noexcept;
@@ -47,6 +49,8 @@ namespace kns {
 
         int getLocalNode() const noexcept;
         int getRemoteNode() const noexcept;
+        std::uint16_t getLocalPort() const noexcept;
+        std::uint16_t getRemotePort() const noexcept;
 
         std::uint32_t getSeqNum() const noexcept;
         void setSeqNum(std::uint32_t value) noexcept;
@@ -226,6 +230,8 @@ namespace kns {
 
         int local_node_;
         int remote_node_;
+        std::uint16_t local_port_;
+        std::uint16_t remote_port_;
 
         std::uint32_t syn_retries_ = 0;
 

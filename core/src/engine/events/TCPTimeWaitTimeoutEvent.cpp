@@ -17,6 +17,10 @@ namespace kns {
 
         if (client.expire_time_wait()) {
             session.setState(TCPState::CLOSED);
+
+            if (session.getState() == TCPState::CLOSED) {
+                engine.releaseTCPListenerSession(session_id_);
+            }
         }
     }
 }

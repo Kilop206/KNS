@@ -32,10 +32,15 @@ namespace kns {
         static constexpr std::uint64_t INVALID_SESSION_ID =
             std::numeric_limits<std::uint64_t>::max();
 
-        explicit TCPListener(int node_id, int backlog = 128) noexcept
-            : node_id_(node_id), backlog_(backlog) {}
+        explicit TCPListener(
+            int node_id,
+            std::uint16_t port = 0,
+            int backlog = 128
+        ) noexcept
+            : node_id_(node_id), port_(port), backlog_(backlog) {}
 
         int getNodeId() const noexcept { return node_id_; }
+        std::uint16_t getPort() const noexcept { return port_; }
         int getBacklog() const noexcept { return backlog_; }
         /// A non-positive backlog permits an unlimited number of connections.
         void setBacklog(int backlog) noexcept { backlog_ = backlog; }
@@ -54,6 +59,7 @@ namespace kns {
         /// is not active or the backlog is full.
         std::uint64_t accept(
             int source_node,
+            std::uint16_t source_port,
             std::uint32_t source_seq,
             SimulationEngine& engine
         );
@@ -80,6 +86,7 @@ namespace kns {
         }
 
         int node_id_;
+        std::uint16_t port_;
         int backlog_;
         bool listening_ = true;
         std::unordered_set<std::uint64_t> active_sessions_;

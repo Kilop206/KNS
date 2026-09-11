@@ -554,6 +554,129 @@ TEST_CASE(
 }
 
 TEST_CASE(
+    "TCPListener dispatches connections by node and port",
+    "[tcp][listener][port]"
+)
+{
+    Topology topology(2);
+
+    topology.addLink(
+        0,
+        1,
+        10.0,
+        10.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+
+    auto& http = engine.startTCPListen(
+        1,
+        static_cast<std::uint16_t>(80),
+        1
+    );
+    auto& https = engine.startTCPListen(
+        1,
+        static_cast<std::uint16_t>(443),
+        1
+    );
+
+    REQUIRE(engine.hasListener(1));
+    REQUIRE(engine.hasListener(1, 80));
+    REQUIRE(engine.hasListener(1, 443));
+    REQUIRE_FALSE(engine.hasListener(1, 22));
+    REQUIRE(http.getPort() == 80);
+    REQUIRE(https.getPort() == 443);
+
+    const auto http_session = engine.acceptOnListener(
+        1,
+        0,
+        1000,
+        49152,
+        80
+    );
+    const auto https_session = engine.acceptOnListener(
+        1,
+        0,
+        2000,
+        49153,
+        443
+    );
+
+    REQUIRE(http_session != TCPListener::INVALID_SESSION_ID);
+    REQUIRE(https_session != TCPListener::INVALID_SESSION_ID);
+    REQUIRE(http_session != https_session);
+    REQUIRE(http.getActiveConnections() == 1);
+    REQUIRE(https.getActiveConnections() == 1);
+
+    const auto& http_client =
+        engine.getTCPSession(http_session).getClientConnection();
+    const auto& https_server =
+        engine.getTCPSession(https_session).getServerConnection();
+
+    REQUIRE(http_client.getLocalPort() == 49152);
+    REQUIRE(http_client.getRemotePort() == 80);
+    REQUIRE(https_server.getLocalPort() == 443);
+    REQUIRE(https_server.getRemotePort() == 49153);
+
+    REQUIRE(
+        engine.acceptOnListener(1, 0, 3000, 49154, 22) ==
+        TCPListener::INVALID_SESSION_ID
+    );
+}
+
+TEST_CASE(
+    "TCPListener resets a SYN sent to an unopened port",
+    "[tcp][listener][port][rst]"
+)
+{
+    Topology topology(2);
+
+    topology.addLink(
+        0,
+        1,
+        10.0,
+        10.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+    engine.setGlobalPacketSize(1000);
+    engine.startTCPListen(1, static_cast<std::uint16_t>(443), 1);
+
+    ResponseObserver response_observer(1, 0);
+    observeResponses(engine, response_observer);
+
+    Packet syn(
+        0,
+        1,
+        0,
+        engine.now(),
+        engine.getGlobalPacketSize(),
+        99
+    );
+
+    syn.tcp.source_port = 49152;
+    syn.tcp.destination_port = 80;
+    syn.tcp.seq = 1000;
+    syn.tcp.flags = TCPFlag::SYN;
+    syn.packet_type = PacketType::SYN;
+
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
+    REQUIRE(engine.processEvent());
+
+    const auto& responses = response_observer.responses();
+
+    REQUIRE(responses.size() == 1);
+    REQUIRE(responses.front().packet_type == PacketType::RST);
+    REQUIRE(responses.front().tcp.source_port == 80);
+    REQUIRE(responses.front().tcp.destination_port == 49152);
+    REQUIRE(engine.getTCPSessions().empty());
+}
+
+TEST_CASE(
     "TCPListener sends RST when backlog is full",
     "[tcp][listener][backlog][rst]"
 )

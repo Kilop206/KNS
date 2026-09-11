@@ -83,7 +83,9 @@ namespace kns {
         int from,
         int to,
         std::uint32_t remote_seq,
-        std::uint64_t correlation_id
+        std::uint64_t correlation_id,
+        std::uint16_t source_port,
+        std::uint16_t destination_port
     ) {
         Packet rst(
             from,
@@ -94,6 +96,8 @@ namespace kns {
             correlation_id
         );
 
+        rst.tcp.source_port = source_port;
+        rst.tcp.destination_port = destination_port;
         rst.tcp.seq = 0;
         rst.tcp.ack = remote_seq + std::uint32_t{1};
         rst.tcp.window = 0;

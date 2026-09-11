@@ -62,6 +62,8 @@ namespace kns {
         );
 
         pkt.packet_type = PacketType::DATA;
+        pkt.tcp.source_port = client.getLocalPort();
+        pkt.tcp.destination_port = client.getRemotePort();
         pkt.tcp.seq = client.getSendNext();
         pkt.tcp.ack = client.getExpectedAckNum();
 

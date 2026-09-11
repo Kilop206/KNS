@@ -33,7 +33,9 @@ namespace kns
             TCPSession(std::uint64_t session_id,
                         int source,
                         int destination,
-                        TCPState state);
+                        TCPState state,
+                        std::uint16_t source_port = 0,
+                        std::uint16_t destination_port = 0);
 
             std::uint64_t getSession_id() const;
 

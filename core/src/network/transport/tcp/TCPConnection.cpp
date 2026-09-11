@@ -22,7 +22,9 @@ namespace kns {
         int remote_node,
         CongestionControlType congestion_control_type,
         std::uint32_t congestion_mss,
-        std::uint32_t congestion_initial_ssthresh
+        std::uint32_t congestion_initial_ssthresh,
+        std::uint16_t local_port,
+        std::uint16_t remote_port
     )
         : state_machine_(state),
         seq_num_(seq_num),
@@ -31,6 +33,8 @@ namespace kns {
         send_window_(DEFAULT_SEND_WINDOW),
         local_node_(local_node),
         remote_node_(remote_node),
+        local_port_(local_port),
+        remote_port_(remote_port),
         receive_buffer_(
             expected_ack_num,
             DEFAULT_RECEIVE_WINDOW
@@ -70,6 +74,16 @@ namespace kns {
     int TCPConnection::getRemoteNode() const noexcept
     {
         return remote_node_;
+    }
+
+    std::uint16_t TCPConnection::getLocalPort() const noexcept
+    {
+        return local_port_;
+    }
+
+    std::uint16_t TCPConnection::getRemotePort() const noexcept
+    {
+        return remote_port_;
     }
 
     std::uint32_t TCPConnection::getSeqNum() const noexcept
@@ -134,6 +148,8 @@ namespace kns {
     {
         TCPSegment seg;
 
+        seg.source_port = local_port_;
+        seg.destination_port = remote_port_;
         seg.seq = seq_num_;
         seg.ack = 0;
 
@@ -153,6 +169,8 @@ namespace kns {
     {
         TCPSegment seg;
 
+        seg.source_port = local_port_;
+        seg.destination_port = remote_port_;
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
 
@@ -172,6 +190,8 @@ namespace kns {
     {
         TCPSegment seg;
 
+        seg.source_port = local_port_;
+        seg.destination_port = remote_port_;
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
 
@@ -191,6 +211,8 @@ namespace kns {
     {
         TCPSegment seg;
 
+        seg.source_port = local_port_;
+        seg.destination_port = remote_port_;
         seg.seq = seq_num_;
         seg.ack = expected_ack_num_;
 
@@ -210,6 +232,8 @@ namespace kns {
     {
         TCPSegment seg;
 
+        seg.source_port = local_port_;
+        seg.destination_port = remote_port_;
         seg.seq = seq_num_;
         seg.ack = remote_seq + 1;
         seg.window = 0;
