@@ -1,404 +1,236 @@
 # KNS TCP Protocol Specification
 
-## 1. Scope
+## Scope
 
-This document specifies the TCP behavior currently modeled by KNS.
+This specification records the TCP subset implemented by KNS. It describes
+observable simulator behavior, not full RFC compatibility. Architectural
+ownership and implementation boundaries are described in
+[`tcp_design.md`](tcp_design.md).
 
-KNS does not attempt to implement every aspect of RFC-compliant TCP. It implements a deterministic simulation-oriented subset suitable for experimenting with packet transmission, sequencing, acknowledgements, and connection state transitions.
+## Segment and packet model
 
-## 2. Segment Model
+`TCPSegment` contains:
 
-A TCP segment in KNS contains, at minimum:
+- 16-bit source and destination ports;
+- 32-bit sequence and acknowledgement numbers;
+- a 16-bit advertised window;
+- SYN, ACK, FIN, RST, and PSH flags;
+- a byte payload.
 
-* sequence number (`seq`);
-* acknowledgement number (`ack`);
-* advertised window (`window`);
-* TCP flags;
-* payload.
+`Packet` adds the source, destination, current and previous node, simulation
+timestamps, packet size, hop count, session ID, last-link ID, and inferred
+`PacketType` used by the event dispatcher.
 
-The packet layer wraps the TCP segment in a `Packet`, which additionally carries:
-
-* source;
-* destination;
-* current node;
-* creation time;
-* departure time;
-* packet size;
-* hop count;
-* session ID;
-* inferred packet type.
-
-## 3. TCP Flags
-
-The protocol currently uses:
+Packet classification has this precedence:
 
 ```text
-SYN
-ACK
-FIN
-PSH
+RST         → RST
+SYN + ACK   → SYN_ACK
+FIN + ACK   → FIN
+SYN         → SYN
+FIN         → FIN
+PSH         → DATA
+ACK         → ACK
+otherwise   → DATA
 ```
 
-DATA segments are represented using:
+## Endpoint identity and dispatch
+
+A connection endpoint is identified by node and TCP port. A packet correlated
+to an existing session is dispatched only if its source/destination nodes and
+ports match one direction of that session. This prevents an unrelated packet
+from taking over a colliding numeric session ID.
+
+Passive listeners are keyed by `(node, port)`. A SYN with no matching session is
+accepted only when that listener exists, is active, and has backlog capacity.
+Successful acceptance creates a new zero-based session ID and server endpoint.
+
+## Connection establishment
+
+### Active open
+
+The client starts in `CLOSED`. `send_syn()` selects a deterministic random ISN,
+sets `SND.UNA`, and transitions to `SYN_SENT`.
 
 ```text
-ACK + PSH
+flags = SYN
+seq   = client ISN
+ack   = 0
 ```
 
-SYN-ACK uses:
+The SYN timeout is one simulated second. While the client remains in
+`SYN_SENT`, the same SYN may be retransmitted up to
+`TCPConnection::MAX_SYN_RETRIES` (5 retries).
+
+### Passive open
+
+The accepted server endpoint follows:
 
 ```text
-SYN + ACK
+LISTEN → SYN_RECEIVED
+RCV.NXT = client ISN + 1
 ```
 
-FIN segments use:
+It replies with:
 
 ```text
-FIN + ACK
+flags = SYN | ACK
+seq   = server ISN
+ack   = client ISN + 1
 ```
 
-## 4. Packet Types
+### Final ACK
 
-KNS derives the following logical packet types from TCP flags:
+The client accepts the SYN-ACK only in `SYN_SENT` and only when its ACK equals
+`client ISN + 1`. It records `server ISN + 1`, enters `ESTABLISHED`, and sends a
+plain ACK. The server validates `server ISN + 1` in `SYN_RECEIVED` and enters
+`ESTABLISHED`. DATA generation begins only after both endpoints are established.
+
+## Unavailable passive opens and RST
+
+If the destination has no listener on the requested port, the listener is not
+active, or its backlog is full, the receiver sends:
 
 ```text
-SYN
-SYN_ACK
-ACK
-DATA
-FIN
+flags = RST | ACK
+seq   = 0
+ack   = received SYN seq + 1
 ```
 
-Classification precedence is:
+The reset reverses the original node and port direction and preserves the
+incoming correlation ID. Rejection creates no session. An unmatched incoming
+RST is dropped without a reply, preventing RST loops. A matched RST closes the
+receiving endpoint through the retransmission-failure path.
+
+## DATA transmission
+
+Application DATA is represented as:
 
 ```text
-SYN + ACK   -> SYN_ACK
-FIN + ACK   -> FIN
-SYN         -> SYN
-FIN         -> FIN
-PSH         -> DATA
-ACK         -> ACK
-otherwise   -> DATA
+flags = ACK | PSH
+seq   = SND.NXT
+ack   = current RCV.NXT
 ```
 
-The classification is used by `PacketReceivedEvent` to decide which transport operation to execute.
+The payload length consumes the same number of sequence values. A successfully
+transmitted segment is stored in `TCPSendBuffer`, after which `SND.NXT` advances.
+The local send-window check prevents the outstanding byte range plus the new
+payload from exceeding the configured limit.
 
-## 5. Initial Sequence Numbers
+The first outstanding segment starts an RTO event. After cumulative ACK
+advancement removes it, the new oldest segment receives the next effective
+timeout. Timeout events for data that is no longer outstanding are ignored.
 
-An endpoint generates an initial sequence number when initiating a SYN.
+## Receive ordering, cumulative ACK, and window
 
-The current implementation obtains this value from the KNS deterministic random generator.
+The receive buffer accepts unique non-empty segments at or after `RCV.NXT`,
+subject to its byte capacity. Entries are kept in sequence order. Contiguous
+entries starting at `RCV.NXT` are consumed and advance the cumulative
+acknowledgement; later entries remain buffered until the gap arrives.
 
-The peer's sequence number is used to establish the initial expected acknowledgement number.
+ACK-bearing control segments advertise the receiver's available buffer space,
+clamped to the 16-bit TCP window field. The default receive capacity is 65,535
+bytes. The normal ACK path does not yet propagate the received window field into
+the sender's local limit; see the limitations in `tcp_design.md`.
 
-## 6. Three-Way Handshake
+## Delayed ACK
 
-### 6.1 Client sends SYN
+For the first in-order DATA segment, the receiver schedules an ACK for 0.2
+simulated seconds later. A second in-order segment while that ACK is pending
+sends an immediate cumulative ACK and clears the pending marker. Out-of-order
+DATA also produces an immediate ACK for the current `RCV.NXT`.
 
-Initial state:
+The delayed event is ignored when the session no longer exists, the endpoint is
+not established, no ACK is pending, or a newer acknowledgement made the event
+obsolete.
+
+## RTT estimation and RTO
+
+For an original transmission acknowledged at time `t_ack`:
 
 ```text
-CLOSED
+sample = t_ack - t_sent
 ```
 
-The client performs an active open:
+The first valid sample initializes:
 
 ```text
-CLOSED -> SYN_SENT
+SRTT   = sample
+RTTVAR = sample / 2
+RTO    = SRTT + 4 × RTTVAR
 ```
 
-The generated segment contains:
+Later samples use alpha 1/8 and beta 1/4. RTO is clamped to 0.2–60 simulated
+seconds and starts at 1.0 second before a sample exists. A timeout doubles the
+backoff, up to 64x. A valid acknowledgement sample resets that backoff.
+
+Karn's rule applies: retransmitted entries cannot supply an RTT sample, including
+when a cumulative ACK also removes them.
+
+## Retransmission and failure
+
+An RTO applies only to the oldest outstanding DATA segment. On expiry, the
+sender notifies congestion control of loss and schedules retransmission. A
+successful retransmission is marked in the send buffer and arms a new timeout
+using the backed-off RTO.
+
+Each segment permits at most five DATA retransmissions. Reaching the limit moves
+the endpoint to `CLOSED` and clears send/receive buffers, RTO state, duplicate
+ACK state, and any pending delayed ACK.
+
+## Duplicate ACK and fast retransmit
+
+An ACK equal to `SND.UNA` is a duplicate. An ACK below `SND.UNA` is stale and is
+ignored; an ACK above `SND.NXT` is invalid. ACK advancement resets the duplicate
+streak and cumulatively releases acknowledged send-buffer entries.
+
+After three duplicate ACKs, `TCPFastRetransmitEvent` retransmits the oldest
+outstanding segment immediately and schedules its timeout. The indication is
+consumed so one duplicate streak cannot schedule repeated fast-retransmit
+events.
+
+## Congestion-control state
+
+Every `TCPConnection` owns one of these controllers:
+
+- Tahoe;
+- Reno (default);
+- NewReno;
+- CUBIC.
+
+The controller receives byte-counted ACKs, timeout loss, duplicate ACKs, fast
+retransmit, and recovery ACKs as supported by the selected algorithm. It tracks
+`cwnd`, `ssthresh`, MSS, and fast-recovery state and records changed congestion
+samples for visualization. The current packet generator does not yet use
+controller `canSend()` as an additional transmission gate.
+
+## Connection termination
+
+The generated workload initiates close from the client:
 
 ```text
-SYN = 1
-SEQ  = client ISN
-ACK  = 0
+client: ESTABLISHED → FIN_WAIT_1 → FIN_WAIT_2 → TIME_WAIT → CLOSED
+server: ESTABLISHED → CLOSE_WAIT → LAST_ACK → CLOSED
 ```
 
-### 6.2 Server receives SYN
-
-The server records:
-
-```text
-expected ACK = received SEQ + 1
-```
-
-and changes state:
-
-```text
-CLOSED -> SYN_RECEIVED
-```
-
-It sends:
-
-```text
-SYN = 1
-ACK = 1
-```
-
-with:
-
-```text
-SEQ = server ISN
-ACK = client ISN + 1
-```
-
-### 6.3 Client receives SYN-ACK
-
-The client validates:
-
-```text
-received ACK == client ISN + 1
-```
-
-and records:
-
-```text
-expected ACK = server ISN + 1
-```
-
-The client then enters:
-
-```text
-SYN_SENT -> ESTABLISHED
-```
-
-and sends the final ACK:
-
-```text
-ACK = server ISN + 1
-```
-
-### 6.4 Server receives final ACK
-
-The server validates:
-
-```text
-received ACK == server ISN + 1
-```
-
-and changes:
-
-```text
-SYN_RECEIVED -> ESTABLISHED
-```
-
-When both endpoints are `ESTABLISHED`, the `TCPSession` is considered established and application DATA generation begins.
-
-## 7. DATA Segments
-
-A DATA segment is generated with:
-
-```text
-flags = ACK + PSH
-```
-
-The sender uses its current sequence number:
-
-```text
-SEQ = sender.seq_num
-```
-
-and current expected acknowledgement number:
-
-```text
-ACK = sender.expected_ack_num
-```
-
-The payload size is based on the configured packet size.
-
-After constructing the DATA segment:
-
-```text
-sender.seq_num += payload_size
-```
-
-This provides a sequence-number space suitable for later implementation of loss recovery and reordering.
-
-## 8. DATA Reception
-
-When DATA reaches the destination:
-
-```text
-new expected ACK =
-    received SEQ + payload length
-```
-
-The receiver then generates a cumulative ACK.
-
-The ACK segment contains:
-
-```text
-ACK = new expected ACK
-```
-
-This is currently an immediate ACK model.
-
-Delayed ACK is planned but not yet implemented.
-
-## 9. DATA Reliability Status
-
-The current implementation performs sequence tracking and cumulative acknowledgement, but does not yet provide full reliable TCP delivery.
-
-Not currently implemented:
-
-* retransmission timers;
-* RTO calculation;
-* retransmission after loss;
-* duplicate ACK counting;
-* fast retransmit;
-* sliding window;
-* receive reordering;
-* congestion control.
-
-Consequently, packet loss can currently prevent reliable completion of DATA transfer.
-
-## 10. Active Close
-
-When the client is `ESTABLISHED`, `TCPConnectionCloseEvent` initiates the active close.
-
-The endpoint transitions:
-
-```text
-ESTABLISHED -> FIN_WAIT_1
-```
-
-and sends:
-
-```text
-FIN + ACK
-```
-
-### ACK of FIN
-
-When the ACK reaches the client:
-
-```text
-FIN_WAIT_1 -> FIN_WAIT_2
-```
-
-### Peer FIN
-
-When the peer's FIN arrives:
-
-```text
-FIN_WAIT_2 -> TIME_WAIT
-```
-
-The acknowledgement number is updated to:
-
-```text
-peer FIN SEQ + 1
-```
-
-## 11. Passive Close
-
-When an `ESTABLISHED` endpoint receives a FIN:
-
-```text
-ESTABLISHED -> CLOSE_WAIT
-```
-
-It responds with an ACK and then sends its own FIN:
-
-```text
-CLOSE_WAIT -> LAST_ACK
-```
-
-After its FIN is acknowledged:
-
-```text
-LAST_ACK -> CLOSED
-```
-
-## 12. TIME_WAIT
-
-The current state machine supports `TIME_WAIT`.
-
-However, the current implementation does not yet schedule expiration of `TIME_WAIT`.
-
-Therefore the protocol currently has the state transition but not the full timer-driven lifecycle.
-
-## 13. Packet Transmission
-
-TCP itself does not choose the physical path.
-
-After constructing a segment, the protocol wraps it in a `Packet` and passes it to the network layer.
-
-The path is selected from the routing table maintained by `SimulationEngine`.
-
-The network then models:
-
-```text
-routing
-    +
-bandwidth
-    +
-propagation delay
-    +
-link mode
-    +
-packet loss
-```
-
-before scheduling delivery.
-
-## 14. Connection Model
-
-The current protocol model uses one `TCPSession` containing two known `TCPConnection` endpoints:
-
-```text
-TCPSession
-├── client TCPConnection
-└── server TCPConnection
-```
-
-This is intentionally simpler than a real TCP socket architecture.
-
-A future protocol model may introduce:
-
-* listening sockets;
-* local/remote ports;
-* connection acceptance;
-* multiple concurrent connections per node;
-* RST handling.
-
-## 15. Protocol Roadmap
-
-The intended protocol evolution is:
-
-```text
-Three-way handshake
-        ↓
-Sequence-aware DATA
-        ↓
-Cumulative ACK
-        ↓
-Sliding window
-        ↓
-RTO / retransmission
-        ↓
-Duplicate ACK detection
-        ↓
-Fast retransmit
-        ↓
-Congestion control
-```
-
-Each stage should preserve compatibility with the event-driven simulation architecture.
-
-## 16. Non-Goals of the Current Specification
-
-The current protocol does not attempt to model:
-
-* IP;
-* Ethernet;
-* ARP;
-* real socket APIs;
-* application protocols;
-* real-world TCP option negotiation;
-* checksum calculation;
-* packet fragmentation/reassembly;
-* full RFC conformance.
-
-Those may become separate layers or future extensions of KNS.
+FIN segments use `FIN|ACK` and consume one sequence number. A received FIN sets
+the acknowledgement edge to `peer FIN seq + 1`. The server ACKs the client FIN,
+sends its own FIN, and closes after its FIN is acknowledged.
+
+The active closer schedules `TCPTimeWaitTimeoutEvent` on entry to `TIME_WAIT`.
+The implemented hold time is 0.1 simulated seconds. Expiration transitions that
+endpoint to `CLOSED`; a fully closed accepted session releases its listener's
+backlog slot.
+
+## Supported and unsupported behavior
+
+Implemented behavior includes handshake retry, passive acceptance, per-port
+backlog, unavailable-open RST, ordered send/receive buffers, cumulative and
+delayed ACK, receive-window advertisement, RTT/RTO estimation, Karn's rule,
+timeout and fast retransmission, retransmission failure, four congestion-control
+algorithms, normal active/passive close, and `TIME_WAIT` expiration.
+
+KNS does not currently specify full RFC behavior for TCP options, SACK,
+timestamps, zero-window probing, keepalive, urgent data, checksum, arbitrary
+bidirectional application streams, simultaneous-open, every simultaneous-close
+transition, or every possible RST condition.
