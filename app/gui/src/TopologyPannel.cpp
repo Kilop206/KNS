@@ -1,5 +1,6 @@
 #include "gui/include/TopologyPannel.hpp"
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -21,6 +22,22 @@ namespace gui {
         {
             return std::isfinite(value) && value >= 0.0 ? value : fallback;
         }
+
+        int routingMetricIndex(kns::RoutingMetric metric) noexcept
+        {
+            switch (metric) {
+                case kns::RoutingMetric::Delay:
+                    return 0;
+                case kns::RoutingMetric::Bandwidth:
+                    return 1;
+                case kns::RoutingMetric::HopCount:
+                    return 2;
+                case kns::RoutingMetric::DelayBandwidth:
+                    return 3;
+            }
+
+            return 0;
+        }
     } // namespace
 
     void TopologyPanel::render(kns::SimulationEngine& engine)
@@ -29,6 +46,31 @@ namespace gui {
 
         auto& topology = engine.getTopology();
         const auto& links = topology.getLinks();
+
+        constexpr std::array<const char*, 4> metric_labels{
+            "Delay",
+            "Bandwidth",
+            "Hop count",
+            "Delay / bandwidth"
+        };
+        constexpr std::array<kns::RoutingMetric, 4> metrics{
+            kns::RoutingMetric::Delay,
+            kns::RoutingMetric::Bandwidth,
+            kns::RoutingMetric::HopCount,
+            kns::RoutingMetric::DelayBandwidth
+        };
+
+        int selected_metric = routingMetricIndex(engine.getRoutingMetric());
+        if (ImGui::Combo(
+                "Routing metric",
+                &selected_metric,
+                metric_labels.data(),
+                static_cast<int>(metric_labels.size())
+            )) {
+            engine.setRoutingMetric(
+                metrics[static_cast<std::size_t>(selected_metric)]
+            );
+        }
 
         if (links.empty()) {
             ImGui::TextDisabled("No links in the topology.");

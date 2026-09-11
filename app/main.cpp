@@ -17,6 +17,7 @@
 #include <memory>
 #include <numbers>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -799,7 +800,7 @@ static void drawNodes(
 static void renderSelectedNodePanel(
     const Topology& topo,
     int selected_node,
-    const std::vector<Routing::RoutingEntry>& routingTable
+    std::span<const Routing::RoutingEntry> routingTable
 )
 {
     ImGui::Begin("Node Details");
@@ -1577,11 +1578,6 @@ static void visualizeWindow(
 
     int selected_node = -1;
 
-    std::vector<Routing::RoutingEntry>
-        routingTable;
-
-    Routing routing;
-
     TcpConnectionPanel tcpConnectionPanel;
     TopologyPanel topologyPanel;
 
@@ -1778,18 +1774,12 @@ static void visualizeWindow(
         {
             selected_node =
                 clicked_node.origin;
-
-            routingTable =
-                routing.buildRoutingTable(
-                    topo,
-                    selected_node
-                );
         }
 
         renderSelectedNodePanel(
             topo,
             selected_node,
-            routingTable
+            engine->getRoutingTable(selected_node)
         );
 
         // --------------------------------------------------
@@ -1824,8 +1814,6 @@ static void visualizeWindow(
                     }
 
                     selected_node = -1;
-
-                    routingTable.clear();
 
                     state =
                         engine->hasEvents()
