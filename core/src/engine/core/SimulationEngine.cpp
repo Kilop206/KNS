@@ -351,6 +351,19 @@ namespace kns {
         return sessions.find(session_id) != sessions.end();
     }
 
+    bool SimulationEngine::cancelTCPSession(
+        std::uint64_t session_id
+    ) noexcept {
+        if (!hasTCPSession(session_id)) {
+            return false;
+        }
+
+        releaseTCPListenerSession(session_id);
+        sessions.erase(session_id);
+
+        return true;
+    }
+
     int SimulationEngine::getPacketsPerRoute() const {
         return static_cast<int>(kPacketsPerRoute);
     }

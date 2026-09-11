@@ -209,6 +209,10 @@ namespace kns {
 
         bool hasTCPSession(std::uint64_t session_id) const;
 
+        /// Cancel a TCP session and release any listener backlog slot it owns.
+        /// Already scheduled events for this session safely become no-ops.
+        bool cancelTCPSession(std::uint64_t session_id) noexcept;
+
         int getPacketsPerRoute() const;
 
         ValidationReport validateSimulation() const;
