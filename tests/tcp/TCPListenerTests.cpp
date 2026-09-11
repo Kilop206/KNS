@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+#include <vector>
+
 #include "engine/core/SimulationEngine.hpp"
 #include "network/Topology.hpp"
 #include "network/Packet.hpp"
@@ -17,6 +20,81 @@ using kns::TCPListener;
 using kns::TCPState;
 using kns::TCPSession;
 using kns::Topology;
+
+namespace {
+
+    class ResponseObserver {
+    public:
+        ResponseObserver(int source, int destination) noexcept
+            : source_(source), destination_(destination)
+        {
+        }
+
+        void observe(const Packet& packet)
+        {
+            if (packet.source == source_ &&
+                packet.destination == destination_)
+            {
+                responses_.push_back(packet);
+            }
+        }
+
+        const std::vector<Packet>& responses() const noexcept
+        {
+            return responses_;
+        }
+
+    private:
+        int source_;
+        int destination_;
+        std::vector<Packet> responses_;
+    };
+
+    void observeResponses(
+        SimulationEngine& engine,
+        ResponseObserver& observer
+    )
+    {
+        engine.setPacketObserver(
+            [&observer](
+                const Packet& packet,
+                std::uint64_t,
+                int,
+                int,
+                double,
+                double
+            )
+            {
+                observer.observe(packet);
+            }
+        );
+    }
+
+    void requireSingleReset(
+        const ResponseObserver& observer,
+        int expected_source,
+        int expected_destination,
+        std::uint64_t expected_session_id,
+        std::uint32_t expected_ack
+    )
+    {
+        const auto& responses = observer.responses();
+
+        REQUIRE(responses.size() == 1);
+
+        const Packet& rst = responses.front();
+
+        REQUIRE(rst.packet_type == PacketType::RST);
+        REQUIRE(rst.source == expected_source);
+        REQUIRE(rst.destination == expected_destination);
+        REQUIRE(rst.session_id == expected_session_id);
+        REQUIRE(rst.tcp.seq == 0);
+        REQUIRE(rst.tcp.ack == expected_ack);
+        REQUIRE(rst.tcp.window == 0);
+        REQUIRE(rst.tcp.flags == (TCPFlag::RST | TCPFlag::ACK));
+    }
+
+} // namespace
 
 TEST_CASE(
     "TCPListener accepts an incoming connection in LISTEN state",
@@ -426,32 +504,15 @@ TEST_CASE(
     REQUIRE(second_session == 1);
 
     REQUIRE(listener.getActiveConnections() == 2);
+    REQUIRE(engine.hasTCPSession(first_session));
+    REQUIRE(engine.hasTCPSession(second_session));
+    REQUIRE_FALSE(engine.hasTCPSession(2));
 
-    bool rst_seen = false;
-    int rst_source = -1;
-    int rst_destination = -1;
-    std::uint32_t rst_seq = 1;
-    std::uint32_t rst_ack = 0;
-    TCPFlag rst_flags = TCPFlag::None;
+    constexpr std::uint64_t unknown_session_id = 999;
+    constexpr std::uint32_t syn_sequence = 3000;
 
-    engine.setPacketObserver(
-        [&](const Packet& packet,
-            std::uint64_t,
-            int,
-            int,
-            double,
-            double)
-        {
-            if (packet.packet_type == PacketType::RST) {
-                rst_seen = true;
-                rst_source = packet.source;
-                rst_destination = packet.destination;
-                rst_seq = packet.tcp.seq;
-                rst_ack = packet.tcp.ack;
-                rst_flags = packet.tcp.flags;
-            }
-        }
-    );
+    ResponseObserver response_observer(3, 2);
+    observeResponses(engine, response_observer);
 
     Packet syn(
         2,
@@ -459,10 +520,10 @@ TEST_CASE(
         2,
         engine.now(),
         engine.getGlobalPacketSize(),
-        999
+        unknown_session_id
     );
 
-    syn.tcp.seq = 3000;
+    syn.tcp.seq = syn_sequence;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
@@ -475,15 +536,33 @@ TEST_CASE(
 
     REQUIRE(engine.processEvent());
 
-    REQUIRE(rst_seen);
-    REQUIRE(rst_source == 3);
-    REQUIRE(rst_destination == 2);
-    REQUIRE(rst_seq == 0);
-    REQUIRE(rst_ack == 3001);
-    REQUIRE(rst_flags == (TCPFlag::RST | TCPFlag::ACK));
+    requireSingleReset(
+        response_observer,
+        3,
+        2,
+        unknown_session_id,
+        syn_sequence + 1
+    );
 
     REQUIRE(listener.getActiveConnections() == 2);
     REQUIRE(engine.getTCPSessions().size() == 2);
+
+    REQUIRE(engine.processEvent());
+    REQUIRE_FALSE(engine.hasEvents());
+    REQUIRE(engine.getPacketsInTransit().empty());
+
+    requireSingleReset(
+        response_observer,
+        3,
+        2,
+        unknown_session_id,
+        syn_sequence + 1
+    );
+
+    REQUIRE(listener.getActiveConnections() == 2);
+    REQUIRE(engine.hasTCPSession(first_session));
+    REQUIRE(engine.hasTCPSession(second_session));
+    REQUIRE_FALSE(engine.hasTCPSession(2));
 }
 
 TEST_CASE(
@@ -506,31 +585,14 @@ TEST_CASE(
 
     engine.setGlobalPacketSize(1000);
 
-    bool rst_seen = false;
-    int rst_source = -1;
-    int rst_destination = -1;
-    std::uint32_t rst_seq = 1;
-    std::uint32_t rst_ack = 0;
-    TCPFlag rst_flags = TCPFlag::None;
+    constexpr std::uint64_t unknown_session_id = 999;
+    constexpr std::uint32_t syn_sequence = 1000;
 
-    engine.setPacketObserver(
-        [&](const Packet& packet,
-            std::uint64_t,
-            int,
-            int,
-            double,
-            double)
-        {
-            if (packet.packet_type == PacketType::RST) {
-                rst_seen = true;
-                rst_source = packet.source;
-                rst_destination = packet.destination;
-                rst_seq = packet.tcp.seq;
-                rst_ack = packet.tcp.ack;
-                rst_flags = packet.tcp.flags;
-            }
-        }
-    );
+    REQUIRE_FALSE(engine.hasListener(1));
+    REQUIRE(engine.getTCPSessions().empty());
+
+    ResponseObserver response_observer(1, 0);
+    observeResponses(engine, response_observer);
 
     Packet syn(
         0,
@@ -538,10 +600,10 @@ TEST_CASE(
         0,
         engine.now(),
         engine.getGlobalPacketSize(),
-        999
+        unknown_session_id
     );
 
-    syn.tcp.seq = 1000;
+    syn.tcp.seq = syn_sequence;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
@@ -554,12 +616,26 @@ TEST_CASE(
 
     REQUIRE(engine.processEvent());
 
-    REQUIRE(rst_seen);
-    REQUIRE(rst_source == 1);
-    REQUIRE(rst_destination == 0);
-    REQUIRE(rst_seq == 0);
-    REQUIRE(rst_ack == 1001);
-    REQUIRE(rst_flags == (TCPFlag::RST | TCPFlag::ACK));
+    requireSingleReset(
+        response_observer,
+        1,
+        0,
+        unknown_session_id,
+        syn_sequence + 1
+    );
 
+    REQUIRE(engine.getTCPSessions().empty());
+
+    REQUIRE(engine.processEvent());
+    REQUIRE_FALSE(engine.hasEvents());
+    REQUIRE(engine.getPacketsInTransit().empty());
+
+    requireSingleReset(
+        response_observer,
+        1,
+        0,
+        unknown_session_id,
+        syn_sequence + 1
+    );
     REQUIRE(engine.getTCPSessions().empty());
 }

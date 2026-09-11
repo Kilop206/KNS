@@ -1,11 +1,8 @@
 #include "engine/events/PacketReceivedEvent.hpp"
 
 #include <cassert>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <utility>
 #include <memory>
+#include <utility>
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
@@ -87,42 +84,36 @@ namespace kns
         }
 
         if (!engine.hasTCPSession(packet.session_id)) {
-            if (packet.packet_type == PacketType::SYN) {
-                if (engine.hasListener(packet.destination)) {
-                    const std::uint64_t new_sid =
-                        engine.acceptOnListener(
-                            packet.destination,
-                            packet.source,
-                            packet.tcp.seq
-                        );
-
-                    if (new_sid != TCPListener::INVALID_SESSION_ID) {
-                        packet.session_id = new_sid;
-                    } else {
-                        PacketUtils::sendReset(
-                            engine,
-                            packet.destination,
-                            packet.source,
-                            packet.tcp.seq
-                        );
-
-                        return;
-                    }
-                } else {
-                    PacketUtils::sendReset(
-                        engine,
-                        packet.destination,
-                        packet.source,
-                        packet.tcp.seq
-                    );
-
-                    return;
-                }
-            } else if (packet.packet_type == PacketType::RST) {
-                return;
-            } else {
+            if (packet.packet_type == PacketType::RST) {
                 return;
             }
+
+            if (packet.packet_type != PacketType::SYN) {
+                return;
+            }
+
+            // acceptOnListener returns INVALID_SESSION_ID for both an absent
+            // listener and a listener that cannot accept another connection.
+            const std::uint64_t new_sid =
+                engine.acceptOnListener(
+                    packet.destination,
+                    packet.source,
+                    packet.tcp.seq
+                );
+
+            if (new_sid == TCPListener::INVALID_SESSION_ID) {
+                PacketUtils::sendReset(
+                    engine,
+                    packet.destination,
+                    packet.source,
+                    packet.tcp.seq,
+                    packet.session_id
+                );
+
+                return;
+            }
+
+            packet.session_id = new_sid;
         }
 
         auto& session = engine.getTCPSession(packet.session_id);
