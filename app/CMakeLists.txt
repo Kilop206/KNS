@@ -35,6 +35,13 @@ if(KNS_ENABLE_WARNINGS)
 endif()
 
 if(KNS_BUILD_TESTS)
+    add_test(NAME headless_run_configuration
+        COMMAND ${CMAKE_COMMAND}
+        -DKNS_EXECUTABLE=$<TARGET_FILE:KNS>
+        -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+        -DKNS_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/configuration-tests
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessConfiguration.cmake
+    )
     foreach(metric delay bandwidth hop-count delay-bandwidth)
         add_test(
             headless_routing_metric_${metric}

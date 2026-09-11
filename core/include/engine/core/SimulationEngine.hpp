@@ -103,6 +103,9 @@ namespace kns {
 
         explicit SimulationEngine(const Topology& topology);
 
+        /// Apply reproducible configuration before creating sessions or events.
+        void configureRun(const RunConfig& config);
+
         void schedule(std::unique_ptr<Event> event);
 
         void run();

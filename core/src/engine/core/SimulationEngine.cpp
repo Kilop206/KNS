@@ -37,6 +37,14 @@ namespace kns {
         rebuildRoutingTables();
     }
 
+    void SimulationEngine::configureRun(const RunConfig& config) {
+        if (hasEvents() || !sessions.empty() || now() != 0.0) {
+            throw std::logic_error("Run configuration must be applied before scheduling work");
+        }
+        setGlobalPacketSize(config.packet_size);
+        Random::seed(config.seed);
+    }
+
     double SimulationEngine::now() const {
         return clock_.now();
     }

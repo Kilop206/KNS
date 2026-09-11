@@ -7,6 +7,7 @@
 #include "ImGuiFileDialog.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cmath>
 #include <chrono>
@@ -72,6 +73,8 @@ namespace {
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
+            << "  --seed <integer>           Random seed (default: 42)\n"
+            << "  --packet-size <bytes>      Positive packet size (default: 1500)\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
             << "  delay (default), bandwidth, hop-count, delay-bandwidth\n";
@@ -1490,7 +1493,8 @@ static void visualizeWindow(
     SimulationState& state,
     GLFWwindow* window,
     CircularBuffer& buffer,
-    int& packetSize
+    int& packetSize,
+    const RunConfig& runConfig
 )
 {
     if (!engine)
@@ -1511,9 +1515,9 @@ static void visualizeWindow(
     auto configureEngine =
         [&](std::unique_ptr<SimulationEngine>& eng)
     {
-        eng->setGlobalPacketSize(
-            packetSize
-        );
+        RunConfig config = runConfig;
+        config.packet_size = packetSize;
+        eng->configureRun(config);
 
         eng->setGlobalLossProb(
             lossProb
@@ -1902,6 +1906,7 @@ int main(int argc, char* argv[])
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
     std::optional<RoutingMetric> routingMetric;
+    RunConfig runConfig;
 
     Topology topo;
 
@@ -1953,6 +1958,27 @@ int main(int argc, char* argv[])
             }
 
             outputPathIndex = ++i;
+            continue;
+        }
+
+        if (arg == "--seed" || arg == "--packet-size") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for " << arg << '\n';
+                return 1;
+            }
+            const std::string_view value = argv[++i];
+            std::uint64_t parsed = 0;
+            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            if (error != std::errc{} || end != value.data() + value.size() ||
+                (arg == "--packet-size" && (parsed == 0 || parsed > std::numeric_limits<int>::max()))) {
+                std::cerr << "Invalid value for " << arg << ": " << value << '\n';
+                return 1;
+            }
+            if (arg == "--seed") {
+                runConfig.seed = parsed;
+            } else {
+                runConfig.packet_size = static_cast<int>(parsed);
+            }
             continue;
         }
 
@@ -2047,9 +2073,7 @@ int main(int argc, char* argv[])
             routingMetric.value_or(RoutingMetric::Delay)
         );
 
-        RunConfig runConfig;
-
-        runConfig.seed = 0;
+        engine->configureRun(runConfig);
 
         const bool headless_auto_start =
             autoStartFromEnvironment(
@@ -2137,7 +2161,7 @@ int main(int argc, char* argv[])
 
     CircularBuffer buffer;
 
-    int packetSize = 1000;
+    int packetSize = runConfig.packet_size;
 
     Window windowMethods;
 
@@ -2161,7 +2185,8 @@ int main(int argc, char* argv[])
         state,
         window,
         buffer,
-        packetSize
+        packetSize,
+        runConfig
     );
 
     shutdownWindow(

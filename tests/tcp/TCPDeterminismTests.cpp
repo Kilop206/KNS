@@ -64,7 +64,9 @@ TEST_CASE("EventQueue guarantees absolute determinism for concurrent events", "[
 TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][determinism]")
 {
     auto run_simulation = [](unsigned int seed) {
-        std::srand(seed);
+        RunConfig config;
+        config.seed = seed;
+        config.packet_size = 512;
         Topology topo(4);
         topo.addLink(0, 1, 100.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
         topo.addLink(1, 2, 100.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -72,10 +74,12 @@ TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][dete
         topo.addLink(3, 0, 100.0, 6.0, 0.0, LinkMode::FULL_DUPLEX);
 
         SimulationEngine engine(topo);
+        engine.configureRun(config);
         std::vector<std::string> event_trace;
 
-        engine.setPacketObserver([&](const Packet&, uint64_t, int from, int to, double dep, double arr) {
-            event_trace.push_back(std::to_string(dep) + ":" + std::to_string(arr) + ":" + std::to_string(from) + "->" + std::to_string(to));
+        engine.setPacketObserver([&](const Packet& packet, uint64_t, int from, int to, double dep, double arr) {
+            REQUIRE(packet.packet_size_bytes == config.packet_size);
+            event_trace.push_back(std::to_string(packet.tcp.seq) + ":" + std::to_string(dep) + ":" + std::to_string(arr) + ":" + std::to_string(from) + "->" + std::to_string(to));
         });
 
         engine.startTCPConnection(0, 2);
@@ -90,4 +94,7 @@ TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][dete
     REQUIRE(packets1 > 0);
     REQUIRE(packets1 == packets2);
     REQUIRE(trace1 == trace2);
+    const auto [different_trace, different_packets] = run_simulation(54321);
+    REQUIRE(different_packets > 0);
+    REQUIRE(trace1 != different_trace);
 }
