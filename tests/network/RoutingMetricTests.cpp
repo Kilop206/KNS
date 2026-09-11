@@ -14,6 +14,26 @@ using kns::RoutingMetric;
 using kns::SimulationEngine;
 using kns::LinkMode;
 
+TEST_CASE("Routing respects link direction for every metric", "[network][routing][simplex]")
+{
+    for (const auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth,
+                             RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
+        for (const auto mode : {LinkMode::SIMPLEX, LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
+            for (const int nodes : {2, 3}) {
+                CAPTURE(metric, mode, nodes);
+                Topology topology(nodes);
+                for (int node = 0; node + 1 < nodes; ++node) {
+                    topology.addLink(node, node + 1, 10.0, 1.0, 0.0, mode);
+                }
+                Routing routing;
+                REQUIRE(routing.buildRoutingTable(topology, 0, metric)[nodes - 1].next_hop == 1);
+                REQUIRE(routing.buildRoutingTable(topology, nodes - 1, metric)[0].next_hop ==
+                        (mode == LinkMode::SIMPLEX ? -1 : nodes - 2));
+            }
+        }
+    }
+}
+
 TEST_CASE(
     "Routing metric names round-trip through configuration values",
     "[network][routing][metric][configuration]"

@@ -29,6 +29,8 @@ class Link {
         int getA() const noexcept;
         int getB() const noexcept;
         int getOtherNode(int node) const noexcept;
+        /// Whether the mode permits transmission between these endpoints.
+        bool allowsTransmission(int from, int to) const noexcept;
 
         double getBandwidthMbps() const noexcept;
         void setBandwidthMbps(double value);

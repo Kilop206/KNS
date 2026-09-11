@@ -120,6 +120,9 @@ namespace kns {
 				}
 
 				int v = link->getOtherNode(u);
+				if (!link->allowsTransmission(u, v)) {
+					continue;
+				}
 				double newDist = combine(dist[u], linkCost(*link));
 
 				if (better(newDist, dist[v])) {

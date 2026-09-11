@@ -92,6 +92,11 @@ namespace kns {
         return -1;
     }
 
+    bool Link::allowsTransmission(int from, int to) const noexcept
+    {
+        return getQueueSlot(from, to) != DirectionSlot::Invalid;
+    }
+
     double Link::getBandwidthMbps() const noexcept
     {
         return bandwidth_mbps_;
