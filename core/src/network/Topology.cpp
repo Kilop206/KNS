@@ -33,6 +33,13 @@ namespace kns {
         if (a == b) {
             throw std::invalid_argument("Self-loops are not supported");
         }
+        const auto isInactiveNode = [this](int node) {
+            return static_cast<std::size_t>(node) < nodes_.size()
+                && !nodes_[static_cast<std::size_t>(node)].isActive();
+        };
+        if (isInactiveNode(a) || isInactiveNode(b)) {
+            throw std::invalid_argument("Cannot link to an inactive node");
+        }
         if (!std::isfinite(bandwidth_mbps) || bandwidth_mbps <= 0.0) {
             throw std::invalid_argument("Bandwidth must be finite and positive");
         }

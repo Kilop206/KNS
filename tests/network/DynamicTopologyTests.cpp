@@ -176,3 +176,24 @@ TEST_CASE(
     REQUIRE(removed_node != nullptr);
     REQUIRE_FALSE(removed_node->isActive());
 }
+
+TEST_CASE(
+    "Dynamic topology: removed nodes cannot be reconnected implicitly",
+    "[network][topology][dynamic]"
+)
+{
+    Topology initial_topology(3);
+    SimulationEngine engine(initial_topology);
+    engine.createLink(0, 1, 10.0, 5.0);
+    auto& topology = engine.getTopology();
+
+    REQUIRE(engine.deleteNode(1));
+    REQUIRE(topology.getLinks().empty());
+    REQUIRE_THROWS_AS(
+        topology.addLink(0, 1, 10.0, 5.0),
+        std::invalid_argument
+    );
+
+    REQUIRE(topology.getLinks().empty());
+    REQUIRE(engine.getNextHop(0, 1) == -1);
+}
