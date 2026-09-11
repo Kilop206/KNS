@@ -48,6 +48,10 @@ Nodes represent network endpoints or intermediate network entities.
 
 Links represent connectivity between nodes.
 
+A removed node retains its numeric ID as an inactive slot. It cannot become an
+endpoint of a new link unless an explicit node-reactivation operation is added
+to the topology contract.
+
 ---
 
 ## 4. Node

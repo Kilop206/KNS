@@ -92,6 +92,16 @@ Define and validate the behavior of already-scheduled events and in-flight packe
 
 Validate identifiers, references, and invalid operations exposed through the `Topology` API.
 
+### Issue #103 — Removed nodes cannot be reconnected implicitly
+
+**Classification:** Still valid at investigation.
+
+Topology preserves a removed node's index as an inactive slot, but link creation
+did not distinguish that slot from an active endpoint. Creating a link to a
+removed node must fail with `std::invalid_argument`, without mutating topology
+or routing state. New node IDs beyond the current topology size retain their
+existing automatic-creation behavior.
+
 ### Routing bounds and contracts
 
 Validate `getNextHop()` bounds and failure behavior.
