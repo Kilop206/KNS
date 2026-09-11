@@ -11,11 +11,29 @@
 #include "engine/events/TCPTimeoutEvent.hpp"
 #include "engine/events/TCPTimeWaitTimeoutEvent.hpp"
 #include "network/Packet.hpp"
+#include "network/transport/tcp/TCPListener.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/utils/PacketUtils.hpp"
 
 namespace kns
 {
+    namespace
+    {
+        bool packetMatchesSessionEndpoints(
+            const Packet& packet,
+            const TCPSession& session
+        )
+        {
+            const int source = session.getSource();
+            const int destination = session.getDestination();
+
+            return
+                (packet.source == source &&
+                 packet.destination == destination) ||
+                (packet.source == destination &&
+                 packet.destination == source);
+        }
+    } // namespace
 
     PacketReceivedEvent::PacketReceivedEvent(double timestamp, Packet packet)
         : Event(timestamp),
@@ -83,7 +101,16 @@ namespace kns
             engine.notifyLatencyDelivered(latency);
         }
 
-        if (!engine.hasTCPSession(packet.session_id)) {
+        // A packet must match both its correlation ID and the session's
+        // endpoint pair before it can be dispatched to that session.
+        const bool has_matching_session =
+            engine.hasTCPSession(packet.session_id) &&
+            packetMatchesSessionEndpoints(
+                packet,
+                engine.getTCPSession(packet.session_id)
+            );
+
+        if (!has_matching_session) {
             if (packet.packet_type == PacketType::RST) {
                 return;
             }

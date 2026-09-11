@@ -15,7 +15,7 @@ namespace kns {
             return INVALID_SESSION_ID;
         }
 
-        if (backlog_ > 0 && getActiveConnections() >= backlog_) {
+        if (isBacklogFull()) {
             return INVALID_SESSION_ID;
         }
 

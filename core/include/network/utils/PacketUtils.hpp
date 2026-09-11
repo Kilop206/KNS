@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
-#include "engine/core/SimulationEngine.hpp"
-#include "network/Packet.hpp"
-
 namespace kns {
+
+    class SimulationEngine;
+    struct Packet;
 
     class PacketUtils {
     public:
@@ -20,13 +20,13 @@ namespace kns {
         );
 
         /// Send a TCP RST from `from` to `to`, acknowledging `remote_seq`.
-        /// The caller provides the packet/session correlation ID to preserve.
+        /// The caller provides the packet correlation ID to preserve.
         static bool sendReset(
             SimulationEngine& engine,
             int from,
             int to,
             std::uint32_t remote_seq,
-            std::uint64_t session_id
+            std::uint64_t correlation_id
         );
     };
 }

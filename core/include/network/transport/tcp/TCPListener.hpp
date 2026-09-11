@@ -1,10 +1,11 @@
 #pragma once
 
-#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
-#include <vector>
+#include <unordered_set>
+#include <utility>
 
 namespace kns {
 
@@ -30,21 +31,21 @@ namespace kns {
 
         static constexpr std::uint64_t INVALID_SESSION_ID =
             std::numeric_limits<std::uint64_t>::max();
-            
+
         explicit TCPListener(int node_id, int backlog = 128) noexcept
             : node_id_(node_id), backlog_(backlog) {}
 
         int getNodeId() const noexcept { return node_id_; }
         int getBacklog() const noexcept { return backlog_; }
+        /// A non-positive backlog permits an unlimited number of connections.
         void setBacklog(int backlog) noexcept { backlog_ = backlog; }
 
         bool isListening() const noexcept { return listening_; }
         void setListening(bool v) noexcept { listening_ = v; }
 
-        /// Number of currently open (not yet CLOSED) sessions accepted by
-        /// this listener. Informational — not enforced unless you check it.
-        int getActiveConnections() const noexcept {
-            return static_cast<int>(active_sessions_.size());
+        /// Number of sessions currently tracked by this listener.
+        std::size_t getActiveConnections() const noexcept {
+            return active_sessions_.size();
         }
 
         /// Accept an incoming SYN from source_node: create a new TCPSession
@@ -58,25 +59,30 @@ namespace kns {
         );
 
         /// Track an accepted session so the listener can report active count.
+        /// Repeated tracking of the same ID has no effect.
         void trackSession(std::uint64_t session_id) {
-            active_sessions_.push_back(session_id);
+            active_sessions_.insert(session_id);
         }
 
-        /// Remove a session from the active list (called when CLOSED).
+        /// Remove a session from the active registry (called when CLOSED).
         void untrackSession(std::uint64_t session_id) {
-            active_sessions_.erase(
-                std::remove(active_sessions_.begin(), active_sessions_.end(), session_id),
-                active_sessions_.end());
+            active_sessions_.erase(session_id);
         }
 
         /// Optional callback invoked after each accepted connection.
         void setOnAccept(ConnectionCallback cb) { on_accept_ = std::move(cb); }
 
     private:
+        bool isBacklogFull() const noexcept {
+            return backlog_ > 0 &&
+                active_sessions_.size() >=
+                    static_cast<std::size_t>(backlog_);
+        }
+
         int node_id_;
         int backlog_;
         bool listening_ = true;
-        std::vector<std::uint64_t> active_sessions_;
+        std::unordered_set<std::uint64_t> active_sessions_;
         ConnectionCallback on_accept_;
     };
 

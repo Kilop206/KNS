@@ -1,5 +1,9 @@
 #include "network/utils/PacketUtils.hpp"
 
+#include "engine/core/SimulationEngine.hpp"
+#include "network/Link.hpp"
+#include "network/Packet.hpp"
+
 namespace kns {
 
     bool PacketUtils::sendPacketThroughTopology(
@@ -79,7 +83,7 @@ namespace kns {
         int from,
         int to,
         std::uint32_t remote_seq,
-        std::uint64_t session_id
+        std::uint64_t correlation_id
     ) {
         Packet rst(
             from,
@@ -87,11 +91,11 @@ namespace kns {
             from,
             engine.now(),
             engine.getGlobalPacketSize(),
-            session_id
+            correlation_id
         );
 
         rst.tcp.seq = 0;
-        rst.tcp.ack = remote_seq + 1;
+        rst.tcp.ack = remote_seq + std::uint32_t{1};
         rst.tcp.window = 0;
         rst.tcp.flags = TCPFlag::RST | TCPFlag::ACK;
         rst.packet_type = inferPacketType(rst.tcp);

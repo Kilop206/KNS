@@ -1,5 +1,6 @@
 #include "engine/events/PacketGenerationEvent.hpp"
 
+#include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/utils/PacketUtils.hpp"

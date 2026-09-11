@@ -1,5 +1,6 @@
 #include "engine/events/TCPHandshakeEvent.hpp"
 
+#include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPHandshakeTimeoutEvent.hpp"
 #include "network/Packet.hpp"
 #include "network/transport/tcp/TCPConnection.hpp"

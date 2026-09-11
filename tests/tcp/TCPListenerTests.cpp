@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "engine/core/SimulationEngine.hpp"
@@ -95,6 +96,23 @@ namespace {
     }
 
 } // namespace
+
+TEST_CASE(
+    "TCPListener tracks each accepted session only once",
+    "[tcp][listener][bookkeeping]"
+)
+{
+    TCPListener listener(1);
+
+    listener.trackSession(42);
+    listener.trackSession(42);
+
+    REQUIRE(listener.getActiveConnections() == 1);
+
+    listener.untrackSession(42);
+
+    REQUIRE(listener.getActiveConnections() == 0);
+}
 
 TEST_CASE(
     "TCPListener accepts an incoming connection in LISTEN state",
@@ -234,6 +252,88 @@ TEST_CASE(
     REQUIRE(
         session.getServerConnection().getTcpState() ==
         TCPState::SYN_RECEIVED
+    );
+}
+
+TEST_CASE(
+    "TCPListener ignores a colliding unrelated session ID",
+    "[tcp][listener][passive-open][session-id]"
+)
+{
+    Topology topology(4);
+
+    topology.addLink(
+        2,
+        3,
+        10.0,
+        10.0,
+        0.0,
+        LinkMode::FULL_DUPLEX
+    );
+
+    SimulationEngine engine(topology);
+
+    engine.setGlobalPacketSize(1000);
+
+    auto& unrelated_session =
+        engine.createTCPSession(0, 1);
+
+    REQUIRE(unrelated_session.getSession_id() == 0);
+
+    auto& listener =
+        engine.startTCPListen(3);
+
+    constexpr std::uint32_t syn_sequence = 4000;
+
+    ResponseObserver response_observer(3, 2);
+    observeResponses(engine, response_observer);
+
+    Packet syn(
+        2,
+        3,
+        2,
+        engine.now(),
+        engine.getGlobalPacketSize(),
+        unrelated_session.getSession_id()
+    );
+
+    syn.tcp.seq = syn_sequence;
+    syn.tcp.flags = TCPFlag::SYN;
+    syn.packet_type = PacketType::SYN;
+
+    REQUIRE(
+        PacketUtils::sendPacketThroughTopology(
+            engine,
+            syn
+        )
+    );
+
+    REQUIRE(engine.processEvent());
+
+    REQUIRE(listener.getActiveConnections() == 1);
+    REQUIRE(engine.getTCPSessions().size() == 2);
+    REQUIRE(engine.hasTCPSession(1));
+
+    const auto& responses = response_observer.responses();
+
+    REQUIRE(responses.size() == 1);
+
+    const Packet& syn_ack = responses.front();
+
+    REQUIRE(syn_ack.packet_type == PacketType::SYN_ACK);
+    REQUIRE(syn_ack.source == 3);
+    REQUIRE(syn_ack.destination == 2);
+    REQUIRE(syn_ack.session_id == 1);
+    REQUIRE(syn_ack.tcp.ack == syn_sequence + 1);
+
+    REQUIRE(
+        unrelated_session.getClientConnection().getTcpState() ==
+        TCPState::CLOSED
+    );
+
+    REQUIRE(
+        unrelated_session.getServerConnection().getTcpState() ==
+        TCPState::CLOSED
     );
 }
 
@@ -586,7 +686,9 @@ TEST_CASE(
     engine.setGlobalPacketSize(1000);
 
     constexpr std::uint64_t unknown_session_id = 999;
-    constexpr std::uint32_t syn_sequence = 1000;
+    constexpr std::uint32_t syn_sequence =
+        std::numeric_limits<std::uint32_t>::max();
+    constexpr std::uint32_t expected_ack = std::uint32_t{0};
 
     REQUIRE_FALSE(engine.hasListener(1));
     REQUIRE(engine.getTCPSessions().empty());
@@ -621,7 +723,7 @@ TEST_CASE(
         1,
         0,
         unknown_session_id,
-        syn_sequence + 1
+        expected_ack
     );
 
     REQUIRE(engine.getTCPSessions().empty());
@@ -635,7 +737,7 @@ TEST_CASE(
         1,
         0,
         unknown_session_id,
-        syn_sequence + 1
+        expected_ack
     );
     REQUIRE(engine.getTCPSessions().empty());
 }

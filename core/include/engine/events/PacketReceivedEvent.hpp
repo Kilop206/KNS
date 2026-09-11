@@ -4,9 +4,10 @@
 
 #include "engine/core/Event.hpp"
 #include "network/Packet.hpp"
-#include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns {
+
+    class TCPSession;
 
     class PacketReceivedEvent : public Event {
         public:
