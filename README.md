@@ -136,6 +136,28 @@ Run simulations directly from the command line without opening the GUI window, e
 ./build/app/KNS --headless --topology app/topologies/mesh4.json --output results.csv
 ```
 
+Choose the routing metric with `--routing-metric`. The option is applied before
+the simulator schedules any traffic, making batch comparisons deterministic:
+
+```bash
+./build/app/KNS --headless \
+  --topology app/topologies/mesh4.json \
+  --routing-metric delay-bandwidth \
+  --output results/delay-bandwidth.csv
+```
+
+Accepted values are:
+
+| Value | Route selection |
+| --- | --- |
+| `delay` | Lowest total propagation delay (default) |
+| `bandwidth` | Highest bottleneck bandwidth |
+| `hop-count` | Fewest links |
+| `delay-bandwidth` | Lowest combined delay-to-bandwidth cost |
+
+Run `KNS --help` to display the complete CLI syntax. Invalid metric values are
+reported before the topology is loaded or the simulation is started.
+
 ---
 
 ## Automated Experiments & Benchmarking

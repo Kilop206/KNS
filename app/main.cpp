@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <numbers>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -58,6 +59,23 @@ constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
 constexpr double kSimToVisualScale     = 20.0;
 
 namespace {
+
+    void printUsage(std::ostream& output)
+    {
+        output
+            << "Usage:\n"
+            << "  KNS [topology.json]\n"
+            << "  KNS --headless --topology <file> [--output <csv>] "
+            << "[--routing-metric <metric>]\n\n"
+            << "Options:\n"
+            << "  --headless                 Run without the graphical interface\n"
+            << "  --topology <file>          Load a topology JSON file\n"
+            << "  --output <csv>             Write headless statistics to a CSV file\n"
+            << "  --routing-metric <metric>  Select the headless routing metric\n"
+            << "  -h, --help                 Show this help message\n\n"
+            << "Headless routing metrics:\n"
+            << "  delay (default), bandwidth, hop-count, delay-bandwidth\n";
+    }
 
     [[nodiscard]] bool isAutoStartEnabledValue(
         std::string_view value
@@ -1883,6 +1901,7 @@ int main(int argc, char* argv[])
 
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
+    std::optional<RoutingMetric> routingMetric;
 
     Topology topo;
 
@@ -1901,16 +1920,19 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (arg == "--help" || arg == "-h")
+        {
+            printUsage(std::cout);
+            return 0;
+        }
+
         if (arg == "--topology")
         {
             if (i + 1 >= argc)
             {
                 std::cerr
-                    << "Missing value for --topology\n"
-                    << "Usage: KNS [topology.json]\n"
-                    << "       KNS --headless "
-                    << "--topology <file> "
-                    << "[--output <csv>]\n";
+                    << "Missing value for --topology\n";
+                printUsage(std::cerr);
 
                 return 1;
             }
@@ -1924,15 +1946,38 @@ int main(int argc, char* argv[])
             if (i + 1 >= argc)
             {
                 std::cerr
-                    << "Missing value for --output\n"
-                    << "Usage: KNS --headless "
-                    << "--topology <file> "
-                    << "[--output <csv>]\n";
+                    << "Missing value for --output\n";
+                printUsage(std::cerr);
 
                 return 1;
             }
 
             outputPathIndex = ++i;
+            continue;
+        }
+
+        if (arg == "--routing-metric")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr
+                    << "Missing value for --routing-metric\n";
+                printUsage(std::cerr);
+                return 1;
+            }
+
+            const std::string_view value = argv[++i];
+            routingMetric = parseRoutingMetric(value);
+            if (!routingMetric)
+            {
+                std::cerr
+                    << "Invalid value for --routing-metric: "
+                    << value
+                    << '\n';
+                printUsage(std::cerr);
+                return 1;
+            }
+
             continue;
         }
 
@@ -1947,7 +1992,16 @@ int main(int argc, char* argv[])
             << "Unknown argument: "
             << arg
             << '\n';
+        printUsage(std::cerr);
 
+        return 1;
+    }
+
+    if (routingMetric && !headless)
+    {
+        std::cerr
+            << "--routing-metric is only valid with --headless\n";
+        printUsage(std::cerr);
         return 1;
     }
 
@@ -1961,9 +2015,8 @@ int main(int argc, char* argv[])
             topologyPathIndex >= argc)
         {
             std::cerr
-                << "Usage: KNS --headless "
-                << "--topology <file> "
-                << "[--output <csv>]\n";
+                << "Missing required --topology for headless mode\n";
+            printUsage(std::cerr);
 
             return 1;
         }
@@ -1989,6 +2042,10 @@ int main(int argc, char* argv[])
             std::make_unique<SimulationEngine>(
                 topo
             );
+
+        engine->setRoutingMetric(
+            routingMetric.value_or(RoutingMetric::Delay)
+        );
 
         RunConfig runConfig;
 

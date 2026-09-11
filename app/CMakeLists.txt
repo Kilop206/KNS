@@ -34,6 +34,32 @@ if(KNS_ENABLE_WARNINGS)
     kns_enable_warnings(KNS)
 endif()
 
+if(KNS_BUILD_TESTS)
+    foreach(metric delay bandwidth hop-count delay-bandwidth)
+        add_test(
+            headless_routing_metric_${metric}
+            ${CMAKE_COMMAND}
+            -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+            -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+            -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+            -DKNS_METRIC=${metric}
+            -DKNS_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/headless-tests/${metric}.csv
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessRoutingMetric.cmake
+        )
+    endforeach()
+
+    add_test(
+        headless_routing_metric_rejects_invalid_value
+        ${CMAKE_COMMAND}
+        -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+        -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+        -DKNS_METRIC=invalid
+        -DKNS_EXPECT_FAILURE=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessRoutingMetric.cmake
+    )
+endif()
+
 # ============================================
 # Assets
 # ============================================
