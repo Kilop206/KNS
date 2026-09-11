@@ -71,36 +71,12 @@ namespace {
         bool default_value
     ) noexcept
     {
-#ifdef _WIN32
-        char* raw_value = nullptr;
-        std::size_t value_size = 0;
-
-        const int result =
-            _dupenv_s(
-                &raw_value,
-                &value_size,
-                "KNS_AUTO_START"
-            );
-
-        if (result != 0 || raw_value == nullptr) {
-            std::free(raw_value);
-            return default_value;
-        }
-
-        const bool enabled =
-            isAutoStartEnabledValue(raw_value);
-
-        std::free(raw_value);
-
-        return enabled;
-#else
         const char* raw_value =
             std::getenv("KNS_AUTO_START");
 
         return raw_value == nullptr
             ? default_value
             : isAutoStartEnabledValue(raw_value);
-#endif
     }
 
 } // namespace
