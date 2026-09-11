@@ -52,38 +52,6 @@ namespace kns
     {
     }
 
-    void PacketReceivedEvent::refreshSessionState(kns::TCPSession &session)
-    {
-        const auto clientState = session.getClientConnection().getTcpState();
-        const auto serverState = session.getServerConnection().getTcpState();
-
-        if (clientState == kns::TCPState::ESTABLISHED &&
-            serverState == kns::TCPState::ESTABLISHED)
-        {
-            session.setState(kns::TCPState::ESTABLISHED);
-        }
-        else if (clientState == kns::TCPState::CLOSE_WAIT ||
-                 serverState == kns::TCPState::CLOSE_WAIT)
-        {
-            session.setState(kns::TCPState::CLOSE_WAIT);
-        }
-        else if (clientState == kns::TCPState::LAST_ACK ||
-                 serverState == kns::TCPState::LAST_ACK)
-        {
-            session.setState(kns::TCPState::LAST_ACK);
-        }
-        else if (clientState == kns::TCPState::TIME_WAIT ||
-                 serverState == kns::TCPState::TIME_WAIT)
-        {
-            session.setState(kns::TCPState::TIME_WAIT);
-        }
-        else if (clientState == kns::TCPState::CLOSED &&
-                 serverState == kns::TCPState::CLOSED)
-        {
-            session.setState(kns::TCPState::CLOSED);
-        }
-    }
-
     void PacketReceivedEvent::execute(SimulationEngine& engine)
     {
         // Release the slot in the previous link (if any) as the packet has left the link
@@ -258,15 +226,11 @@ namespace kns
                     receiver.resetLossDetection();
                 }
 
-                refreshSessionState(session);
-
                 if (
                     client.getTcpState() == TCPState::ESTABLISHED &&
                     server.getTcpState() == TCPState::ESTABLISHED &&
                     !session.hasGeneratedTraffic()
                 ) {
-                    session.setState(TCPState::ESTABLISHED);
-
                     engine.generatePackets(engine.now(), session);
                 }
 
@@ -398,7 +362,6 @@ namespace kns
 
             case PacketType::RST: {
                 receiver.failRetransmission();
-                refreshSessionState(session);
 
                 if (session.getState() == TCPState::CLOSED) {
                     engine.releaseTCPListenerSession(session.getSession_id());
@@ -446,8 +409,6 @@ namespace kns
                         PacketUtils::sendPacketThroughTopology(engine, fin);
                     }
                 }
-
-                refreshSessionState(session);
 
                 if (session.getState() == TCPState::CLOSED) {
                     engine.releaseTCPListenerSession(session.getSession_id());

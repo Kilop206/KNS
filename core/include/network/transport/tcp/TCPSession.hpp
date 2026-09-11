@@ -14,12 +14,6 @@ namespace kns
             std::uint64_t session_id;
             int source;
             int destination;
-            /// @deprecated Kept for legacy callers (e.g. TCPTimeWaitTimeoutEvent).
-            /// getState() no longer reads this field — it derives state from the
-            /// two TCPConnection objects. setState() still writes it for callers
-            /// that rely on the side-effect, but should be removed once all
-            /// callers are migrated to inspect the connections directly.
-            TCPState state;
             int total_packets = 0;
             int packets_sent = 0;
             TCPConnection client_connection;
@@ -67,8 +61,5 @@ namespace kns
             
             void markTrafficGenerated() noexcept;
 
-            /// @deprecated setState() no longer affects getState(). Kept for
-            /// transition compatibility while callers are migrated.
-            void setState(TCPState state);
     };
 }

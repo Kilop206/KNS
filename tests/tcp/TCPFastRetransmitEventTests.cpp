@@ -91,10 +91,6 @@ namespace
             TCPState::ESTABLISHED
         );
 
-        session.setState(
-            TCPState::ESTABLISHED
-        );
-
         session.markTrafficGenerated();
     }
 

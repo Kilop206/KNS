@@ -10,9 +10,8 @@ namespace kns {
                             : session_id(session_id),
                             source(source),
                             destination(destination),
-                            state(state),
                             client_connection(
-                                TCPState::CLOSED, 0, 0, source, destination,
+                                state, 0, 0, source, destination,
                                 CongestionControlType::RENO,
                                 TCPConnection::DEFAULT_CONGESTION_MSS,
                                 65535,
@@ -20,7 +19,7 @@ namespace kns {
                                 destination_port
                             ),
                             server_connection(
-                                TCPState::CLOSED, 0, 0, destination, source,
+                                state, 0, 0, destination, source,
                                 CongestionControlType::RENO,
                                 TCPConnection::DEFAULT_CONGESTION_MSS,
                                 65535,
@@ -129,11 +128,6 @@ namespace kns {
     void TCPSession::markTrafficGenerated() noexcept
     {
         traffic_generated_ = true;
-    }
-
-    void TCPSession::setState(TCPState state)
-    {
-        this->state = state;
     }
 
     TCPConnection& TCPSession::getClientConnection() {

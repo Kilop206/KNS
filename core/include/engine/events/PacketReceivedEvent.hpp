@@ -13,8 +13,6 @@ namespace kns {
         public:
             explicit PacketReceivedEvent(double timestamp, Packet packet);
 
-            static void refreshSessionState(kns::TCPSession& session);
-
             void execute(SimulationEngine& engine) override;
             const char* getName() const noexcept override { return "PacketReceivedEvent"; }
 

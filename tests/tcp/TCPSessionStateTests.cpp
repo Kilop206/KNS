@@ -8,6 +8,18 @@ using kns::TCPSession;
 using kns::TCPConnection;
 using kns::TCPState;
 
+TEST_CASE("TCPSession initial state belongs to its endpoints", "[tcp][session][state]")
+{
+    TCPSession session(1, 0, 1, TCPState::ESTABLISHED);
+    REQUIRE(session.getClientConnection().getTcpState() == TCPState::ESTABLISHED);
+    REQUIRE(session.getServerConnection().getTcpState() == TCPState::ESTABLISHED);
+    REQUIRE(session.getState() == TCPState::ESTABLISHED);
+    REQUIRE(session.getClientConnection().failRetransmission());
+    REQUIRE(session.getState() != TCPState::ESTABLISHED);
+    REQUIRE(session.getServerConnection().failRetransmission());
+    REQUIRE(session.getState() == TCPState::CLOSED);
+}
+
 TEST_CASE("TCPSession aggregate state tracks 3-way handshake lifecycle", "[tcp][session][state]")
 {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
