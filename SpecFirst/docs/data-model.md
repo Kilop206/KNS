@@ -67,6 +67,17 @@ Nodes may participate in:
 
 A link connects two nodes.
 
+Its transmission parameters are finite real values with the following
+admission contract:
+
+* bandwidth is strictly positive, in Mbps;
+* delay is non-negative, in milliseconds;
+* loss probability is within the inclusive interval `[0, 1]`.
+
+The `Link` constructor and parameter setters enforce this contract. Invalid
+values fail with `std::invalid_argument`; a failed setter preserves the link's
+previous parameter value.
+
 A link has an operational state:
 
 ```text

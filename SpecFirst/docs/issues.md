@@ -92,6 +92,25 @@ Define and validate the behavior of already-scheduled events and in-flight packe
 
 Validate identifiers, references, and invalid operations exposed through the `Topology` API.
 
+### Issue #102 — Link parameter validation
+
+**Classification:** Still valid at investigation.
+
+`Link` accepted zero, negative, out-of-range, and non-finite transmission
+parameters directly through its constructor and setters. That bypassed the
+topology-facing validation even though transmission scheduling divides by link
+bandwidth.
+
+**Required behavior:**
+
+* the `Link` constructor and setters reject non-finite values with
+  `std::invalid_argument`;
+* bandwidth is strictly positive, delay is non-negative, and loss probability
+  is in `[0, 1]`;
+* rejected setters leave the existing link state unchanged;
+* topology entry points reject the same non-finite values;
+* regression tests cover zero, negative, `NaN`, and infinity inputs.
+
 ### Routing bounds and contracts
 
 Validate `getNextHop()` bounds and failure behavior.

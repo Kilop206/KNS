@@ -54,6 +54,8 @@ Link tests should verify:
 * queue capacity;
 * transmission behavior;
 * invalid operations.
+* rejection of non-finite transmission parameters;
+* preservation of parameter state after a rejected setter call.
 
 The existence of a queue must not be treated as proof that all FIFO semantics are already validated.
 
