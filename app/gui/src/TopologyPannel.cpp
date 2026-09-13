@@ -9,6 +9,7 @@
 #include "imgui.h"
 
 #include "engine/core/SimulationEngine.hpp"
+#include "gui/include/TranslationService.hpp"
 #include "network/Link.hpp"
 #include "network/Topology.hpp"
 
@@ -41,18 +42,29 @@ namespace gui {
         }
     } // namespace
 
-    void TopologyPanel::render(kns::SimulationEngine& engine)
+    void TopologyPanel::render(
+        kns::SimulationEngine& engine,
+        TranslationService& translations
+    )
     {
-        ImGui::Begin("Topology");
+        const std::string window_label =
+            translations.label("Topology", "topology-window");
+        ImGui::Begin(window_label.c_str());
 
         auto& topology = engine.getTopology();
         const auto& links = topology.getLinks();
 
-        constexpr std::array<const char*, 4> metric_labels{
-            "Delay",
-            "Bandwidth",
-            "Hop count",
-            "Delay / bandwidth"
+        const std::array<std::string, 4> metric_labels{
+            translations.translate("Delay"),
+            translations.translate("Bandwidth"),
+            translations.translate("Hop count"),
+            translations.translate("Delay / bandwidth")
+        };
+        const std::array<const char*, 4> metric_label_pointers{
+            metric_labels[0].c_str(),
+            metric_labels[1].c_str(),
+            metric_labels[2].c_str(),
+            metric_labels[3].c_str()
         };
         constexpr std::array<kns::RoutingMetric, 4> metrics{
             kns::RoutingMetric::Delay,
@@ -62,11 +74,13 @@ namespace gui {
         };
 
         int selected_metric = routingMetricIndex(engine.getRoutingMetric());
+        const std::string routing_metric_label =
+            translations.label("Routing metric", "routing-metric");
         if (ImGui::Combo(
-                "Routing metric",
+                routing_metric_label.c_str(),
                 &selected_metric,
-                metric_labels.data(),
-                static_cast<int>(metric_labels.size())
+                metric_label_pointers.data(),
+                static_cast<int>(metric_label_pointers.size())
             )) {
             engine.setRoutingMetric(
                 metrics[static_cast<std::size_t>(selected_metric)]
@@ -74,7 +88,10 @@ namespace gui {
         }
 
         if (links.empty()) {
-            ImGui::TextDisabled("No links in the topology.");
+            ImGui::TextDisabled(
+                "%s",
+                translations.translate("No links in the topology.").c_str()
+            );
             ImGui::End();
             return;
         }
@@ -89,12 +106,15 @@ namespace gui {
                     ImGuiTableFlags_Resizable |
                     ImGuiTableFlags_SizingStretchProp))
         {
-            ImGui::TableSetupColumn("Link");
-            ImGui::TableSetupColumn("Bandwidth (Mbps)");
-            ImGui::TableSetupColumn("Delay (ms)");
-            ImGui::TableSetupColumn("Loss");
-            ImGui::TableSetupColumn("Up", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Queue capacity");
+            ImGui::TableSetupColumn(translations.translate("Link").c_str());
+            ImGui::TableSetupColumn(translations.translate("Bandwidth (Mbps)").c_str());
+            ImGui::TableSetupColumn(translations.translate("Delay (ms)").c_str());
+            ImGui::TableSetupColumn(translations.translate("Loss").c_str());
+            ImGui::TableSetupColumn(
+                translations.translate("Up").c_str(),
+                ImGuiTableColumnFlags_WidthFixed
+            );
+            ImGui::TableSetupColumn(translations.translate("Queue capacity").c_str());
             ImGui::TableHeadersRow();
 
             for (const auto& link : links) {

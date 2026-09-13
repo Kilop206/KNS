@@ -328,6 +328,17 @@ std::string TranslationService::translate(std::string_view english_text)
     return impl_->translate(english_text);
 }
 
+std::string TranslationService::label(
+    std::string_view english_text,
+    std::string_view stable_id
+)
+{
+    std::string result = translate(english_text);
+    result += "###";
+    result += stable_id;
+    return result;
+}
+
 bool TranslationService::isTranslating() const noexcept
 {
     return impl_->isTranslating();

@@ -14,13 +14,16 @@ namespace kns {
 
 namespace gui {
 
+    class TranslationService;
+
     class PacketRenderer {
         public:
             void render(
                 ImDrawList* draw_list,
                 const std::vector<std::pair<float, float>>& positions,
                 const std::vector<VisualPacket>& packets,
-                double visual_time
+                double visual_time,
+                TranslationService& translations
             ) const;
 
             static const char* packetTypeToString(kns::PacketType type);

@@ -207,10 +207,13 @@ static ImU32 tcpStateColor(kns::TCPState state)
 }
 
 static void renderTCPSessionsWindow(
-    const kns::SimulationEngine& engine
+    const kns::SimulationEngine& engine,
+    TranslationService& translations
 )
 {
-    ImGui::Begin("TCP Sessions");
+    const std::string window_label =
+        translations.label("TCP Sessions", "tcp-sessions-window");
+    ImGui::Begin(window_label.c_str());
 
     const auto& sessions = engine.getTCPSessions();
 
@@ -221,10 +224,10 @@ static void renderTCPSessionsWindow(
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_Resizable))
     {
-        ImGui::TableSetupColumn("Session");
-        ImGui::TableSetupColumn("Source");
-        ImGui::TableSetupColumn("Destination");
-        ImGui::TableSetupColumn("State");
+        ImGui::TableSetupColumn(translations.translate("Session").c_str());
+        ImGui::TableSetupColumn(translations.translate("Source").c_str());
+        ImGui::TableSetupColumn(translations.translate("Destination").c_str());
+        ImGui::TableSetupColumn(translations.translate("State").c_str());
         ImGui::TableHeadersRow();
 
         for (const auto& [id, session] : sessions)
@@ -252,7 +255,9 @@ static void renderTCPSessionsWindow(
 
             ImGui::TableSetColumnIndex(3);
             ImGui::TextUnformatted(
-                tcpStateToString(session.getState())
+                translations.translate(
+                    tcpStateToString(session.getState())
+                ).c_str()
             );
         }
 
@@ -262,9 +267,14 @@ static void renderTCPSessionsWindow(
     ImGui::End();
 }
 
-static void renderEventLogWindow(const EventLog& log)
+static void renderEventLogWindow(
+    const EventLog& log,
+    TranslationService& translations
+)
 {
-    ImGui::Begin("Event Log");
+    const std::string window_label =
+        translations.label("Event Log", "event-log-window");
+    ImGui::Begin(window_label.c_str());
 
     if (ImGui::BeginTable(
         "EventLogTable",
@@ -275,12 +285,12 @@ static void renderEventLogWindow(const EventLog& log)
         ImGuiTableFlags_ScrollY,
         ImVec2(0.0f, 0.0f)))
     {
-        ImGui::TableSetupColumn("Time");
-        ImGui::TableSetupColumn("Type");
-        ImGui::TableSetupColumn("From");
-        ImGui::TableSetupColumn("To");
-        ImGui::TableSetupColumn("Session");
-        ImGui::TableSetupColumn("Details");
+        ImGui::TableSetupColumn(translations.translate("Time").c_str());
+        ImGui::TableSetupColumn(translations.translate("Type").c_str());
+        ImGui::TableSetupColumn(translations.translate("From").c_str());
+        ImGui::TableSetupColumn(translations.translate("To").c_str());
+        ImGui::TableSetupColumn(translations.translate("Session").c_str());
+        ImGui::TableSetupColumn(translations.translate("Details").c_str());
         ImGui::TableHeadersRow();
 
         for (const auto& entry : log.lines)
@@ -503,7 +513,7 @@ static void renderStatsWindow(
         std::string_view english,
         std::string_view stable_id
     ) {
-        return translations.translate(english) + "###" + std::string(stable_id);
+        return translations.label(english, stable_id);
     };
 
     ImGui::Begin(label("Stats", "stats-window").c_str());
@@ -706,7 +716,7 @@ static void renderStatsWindow(
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         MetricsPannel panel;
-        panel.render(stats, buffer);
+        panel.render(stats, buffer, translations);
     }
 
     // ------------------------------------------------------
@@ -718,7 +728,7 @@ static void renderStatsWindow(
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         TcpCongestionPanel panel;
-        panel.render(engine);
+        panel.render(engine, translations);
     }
 
     // ------------------------------------------------------
@@ -892,20 +902,26 @@ static void drawNodes(
 static void renderSelectedNodePanel(
     const Topology& topo,
     int selected_node,
-    std::span<const Routing::RoutingEntry> routingTable
+    std::span<const Routing::RoutingEntry> routingTable,
+    TranslationService& translations
 )
 {
-    ImGui::Begin("Node Details");
+    const std::string window_label =
+        translations.label("Node Details", "node-details-window");
+    ImGui::Begin(window_label.c_str());
 
     if (selected_node < 0)
     {
-        ImGui::Text("No node selected.");
+        ImGui::TextUnformatted(
+            translations.translate("No node selected.").c_str()
+        );
         ImGui::End();
         return;
     }
 
     ImGui::Text(
-        "Selected node: %d",
+        "%s: %d",
+        translations.translate("Selected node").c_str(),
         selected_node
     );
 
@@ -913,12 +929,12 @@ static void renderSelectedNodePanel(
 
     if (selected_node >= topo.size())
     {
-        ImGui::Text("Invalid node.");
+        ImGui::TextUnformatted(translations.translate("Invalid node.").c_str());
         ImGui::End();
         return;
     }
 
-    ImGui::Text("Neighbors:");
+    ImGui::Text("%s:", translations.translate("Neighbors").c_str());
 
     const auto& links =
         topo.getLinksFromNode(selected_node);
@@ -947,17 +963,19 @@ static void renderSelectedNodePanel(
     if (!hasNeighbors)
     {
         ImGui::TextDisabled(
-            "No neighbors."
+            "%s",
+            translations.translate("No neighbors.").c_str()
         );
     }
 
     ImGui::Separator();
-    ImGui::Text("Routing table:");
+    ImGui::Text("%s:", translations.translate("Routing table").c_str());
 
     if (routingTable.empty())
     {
         ImGui::TextDisabled(
-            "Routing table is empty."
+            "%s",
+            translations.translate("Routing table is empty.").c_str()
         );
     }
     else
@@ -968,16 +986,22 @@ static void renderSelectedNodePanel(
                 std::numeric_limits<double>::infinity())
             {
                 ImGui::Text(
-                    "Dest: %d | Next: - | Dist: inf",
-                    entry.destination
+                    "%s: %d | %s: - | %s: inf",
+                    translations.translate("Destination").c_str(),
+                    entry.destination,
+                    translations.translate("Next hop").c_str(),
+                    translations.translate("Distance").c_str()
                 );
             }
             else
             {
                 ImGui::Text(
-                    "Dest: %d | Next: %d | Dist: %.2f",
+                    "%s: %d | %s: %d | %s: %.2f",
+                    translations.translate("Destination").c_str(),
                     entry.destination,
+                    translations.translate("Next hop").c_str(),
                     entry.next_hop,
+                    translations.translate("Distance").c_str(),
                     entry.distance
                 );
             }
@@ -1027,22 +1051,22 @@ static void SetupDockingLayout()
     );
 
     ImGui::DockBuilderDockWindow(
-        "Stats",
+        "stats-window",
         dock_left
     );
 
     ImGui::DockBuilderDockWindow(
-        "Settings",
+        "settings-window",
         dock_right
     );
 
     ImGui::DockBuilderDockWindow(
-        "Node Details",
+        "node-details-window",
         dock_right
     );
 
     ImGui::DockBuilderDockWindow(
-        "Network",
+        "network-window",
         dock_main
     );
 
@@ -1123,12 +1147,15 @@ static PickedNodes renderNetworkPanel(
     int selected_node,
     const std::vector<VisualPacket>& visualPackets,
     double visualTime,
-    const SimulationEngine* /*engine*/
+    const SimulationEngine* /*engine*/,
+    TranslationService& translations
 )
 {
     static int drag_source_node = -1;
 
-    ImGui::Begin("Network");
+    const std::string window_label =
+        translations.label("Network", "network-window");
+    ImGui::Begin(window_label.c_str());
 
     ImVec2 canvas_p0 =
         ImGui::GetCursorScreenPos();
@@ -1188,7 +1215,8 @@ static PickedNodes renderNetworkPanel(
         ImGui::BeginTooltip();
 
         ImGui::Text(
-            "Node %d",
+            "%s %d",
+            translations.translate("Node").c_str(),
             hovered_node
         );
 
@@ -1215,12 +1243,13 @@ static PickedNodes renderNetworkPanel(
             }
 
             ImGui::Text(
-                "Neighbors: %d",
+                "%s: %d",
+                translations.translate("Neighbors").c_str(),
                 neighbors
             );
 
-            ImGui::Text(
-                "Click to inspect"
+            ImGui::TextUnformatted(
+                translations.translate("Click to inspect").c_str()
             );
         }
 
@@ -1269,7 +1298,8 @@ static PickedNodes renderNetworkPanel(
             draw_list,
             positions,
             visualPackets,
-            visualTime
+            visualTime,
+            translations
         );
     }
 
@@ -1393,11 +1423,11 @@ static PickedNodes renderNetworkPanel(
         1.0f
     );
 
-    const char* title =
-        "Packet Subtitle";
+    const std::string title =
+        translations.translate("Packet legend");
 
     const ImVec2 title_sz =
-        ImGui::CalcTextSize(title);
+        ImGui::CalcTextSize(title.c_str());
 
     const float title_y =
         legend_p0.y +
@@ -1410,7 +1440,7 @@ static PickedNodes renderNetworkPanel(
             title_y
         ),
         IM_COL32(255, 255, 255, 255),
-        title
+        title.c_str()
     );
 
     const float rows_y =
@@ -1528,7 +1558,7 @@ static void renderConfigWindow(
     bool autoClick = false;
 
     const std::string window_label =
-        translations.translate("Settings") + "###settings-window";
+        translations.label("Settings", "settings-window");
     ImGui::Begin(window_label.c_str());
 
     if (firstFrame && !topologySelected)
@@ -1545,7 +1575,7 @@ static void renderConfigWindow(
     ImGui::Separator();
 
     const std::string load_label =
-        translations.translate("Load Topology") + "###load-topology";
+        translations.label("Load Topology", "load-topology");
     if (ImGui::Button(load_label.c_str()) ||
         autoClick)
     {
@@ -1555,7 +1585,7 @@ static void renderConfigWindow(
             ImGuiFileDialog::Instance()
                 ->OpenDialog(
                     "TopologyKey",
-                    "Select File",
+                    translations.translate("Select file").c_str(),
                     ".json"
                 );
         }
@@ -1769,7 +1799,9 @@ static void visualizeWindow(
             ImGuiFileDialog::Instance()
                 ->OpenDialog(
                     "TopologyKey",
-                    "Select Initial Topology",
+                    translations.translate(
+                        "Select initial topology"
+                    ).c_str(),
                     ".json"
                 );
 
@@ -1830,9 +1862,12 @@ static void visualizeWindow(
             state
         );
 
-        topologyPanel.render(*engine);
+        topologyPanel.render(*engine, translations);
 
-        if (const auto action = tcpConnectionPanel.render(*engine);
+        if (const auto action = tcpConnectionPanel.render(
+                *engine,
+                translations
+            );
             action.has_value())
         {
             if (action->type == TcpConnectionActionType::Open) {
@@ -1859,7 +1894,8 @@ static void visualizeWindow(
                 selected_node,
                 visualManager.getActivePackets(),
                 visualTime,
-                engine.get()
+                engine.get(),
+                translations
             );
 
         if (clicked_node.tcp)
@@ -1881,7 +1917,8 @@ static void visualizeWindow(
         renderSelectedNodePanel(
             topo,
             selected_node,
-            engine->getRoutingTable(selected_node)
+            engine->getRoutingTable(selected_node),
+            translations
         );
 
         // --------------------------------------------------
@@ -1936,11 +1973,13 @@ static void visualizeWindow(
         }
 
         renderEventLogWindow(
-            eventLog
+            eventLog,
+            translations
         );
 
         renderTCPSessionsWindow(
-            *engine
+            *engine,
+            translations
         );
 
         ImGui::Render();

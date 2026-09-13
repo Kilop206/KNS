@@ -5,6 +5,7 @@
 #include "imgui.h"
 
 #include "engine/core/SimulationEngine.hpp"
+#include "gui/include/TranslationService.hpp"
 #include "network/transport/tcp/TCPSession.hpp"
 
 namespace gui {
@@ -33,17 +34,23 @@ namespace gui {
     } // namespace
 
     std::optional<TcpConnectionAction> TcpConnectionPanel::render(
-        const kns::SimulationEngine& engine
+        const kns::SimulationEngine& engine,
+        TranslationService& translations
     )
     {
         std::optional<TcpConnectionAction> action;
 
-        ImGui::Begin("TCP Connections");
+        const std::string window_label =
+            translations.label("TCP Connections", "tcp-connections-window");
+        ImGui::Begin(window_label.c_str());
 
         const int node_count = engine.getTopology().size();
 
         if (node_count < 2) {
-            ImGui::TextDisabled("At least two nodes are required.");
+            ImGui::TextDisabled(
+                "%s",
+                translations.translate("At least two nodes are required.").c_str()
+            );
         } else {
             source_node_ = std::clamp(source_node_, 0, node_count - 1);
             destination_node_ = std::clamp(destination_node_, 0, node_count - 1);
@@ -54,10 +61,19 @@ namespace gui {
                 kMaximumPort
             );
 
-            ImGui::InputInt("Source node", &source_node_);
-            ImGui::InputInt("Destination node", &destination_node_);
-            ImGui::InputInt("Source port", &source_port_);
-            ImGui::InputInt("Destination port", &destination_port_);
+            const std::string source_node_label =
+                translations.label("Source node", "tcp-source-node");
+            const std::string destination_node_label =
+                translations.label("Destination node", "tcp-destination-node");
+            const std::string source_port_label =
+                translations.label("Source port", "tcp-source-port");
+            const std::string destination_port_label =
+                translations.label("Destination port", "tcp-destination-port");
+
+            ImGui::InputInt(source_node_label.c_str(), &source_node_);
+            ImGui::InputInt(destination_node_label.c_str(), &destination_node_);
+            ImGui::InputInt(source_port_label.c_str(), &source_port_);
+            ImGui::InputInt(destination_port_label.c_str(), &destination_port_);
 
             source_node_ = std::clamp(source_node_, 0, node_count - 1);
             destination_node_ = std::clamp(destination_node_, 0, node_count - 1);
@@ -72,7 +88,9 @@ namespace gui {
 
             ImGui::BeginDisabled(!valid_nodes);
 
-            if (ImGui::Button("Open TCP Session")) {
+            const std::string open_label =
+                translations.label("Open TCP Session", "open-tcp-session");
+            if (ImGui::Button(open_label.c_str())) {
                 action = TcpConnectionAction{
                     TcpConnectionActionType::Open,
                     source_node_,
@@ -86,7 +104,12 @@ namespace gui {
             ImGui::EndDisabled();
 
             if (!valid_nodes) {
-                ImGui::TextDisabled("Source and destination must differ.");
+                ImGui::TextDisabled(
+                    "%s",
+                    translations.translate(
+                        "Source and destination must differ."
+                    ).c_str()
+                );
             }
         }
 
@@ -100,11 +123,14 @@ namespace gui {
                     ImGuiTableFlags_Resizable |
                     ImGuiTableFlags_SizingStretchProp))
         {
-            ImGui::TableSetupColumn("Session");
-            ImGui::TableSetupColumn("Source");
-            ImGui::TableSetupColumn("Destination");
-            ImGui::TableSetupColumn("State");
-            ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn(translations.translate("Session").c_str());
+            ImGui::TableSetupColumn(translations.translate("Source").c_str());
+            ImGui::TableSetupColumn(translations.translate("Destination").c_str());
+            ImGui::TableSetupColumn(translations.translate("State").c_str());
+            ImGui::TableSetupColumn(
+                translations.translate("Action").c_str(),
+                ImGuiTableColumnFlags_WidthFixed
+            );
             ImGui::TableHeadersRow();
 
             for (const auto& [session_id, session] : engine.getTCPSessions()) {
@@ -112,16 +138,30 @@ namespace gui {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("%llu", static_cast<unsigned long long>(session_id));
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%d:%u", session.getSource(), session.getClientConnection().getLocalPort());
+                ImGui::Text(
+                    "%d:%u",
+                    session.getSource(),
+                    session.getClientConnection().getLocalPort()
+                );
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%d:%u", session.getDestination(), session.getClientConnection().getRemotePort());
+                ImGui::Text(
+                    "%d:%u",
+                    session.getDestination(),
+                    session.getClientConnection().getRemotePort()
+                );
                 ImGui::TableSetColumnIndex(3);
-                ImGui::TextUnformatted(stateLabel(session.getState()));
+                ImGui::TextUnformatted(
+                    translations.translate(
+                        stateLabel(session.getState())
+                    ).c_str()
+                );
                 ImGui::TableSetColumnIndex(4);
 
                 ImGui::PushID(static_cast<int>(session_id));
 
-                if (ImGui::SmallButton("Cancel")) {
+                const std::string cancel_label =
+                    translations.label("Cancel", "cancel-tcp-session");
+                if (ImGui::SmallButton(cancel_label.c_str())) {
                     action = TcpConnectionAction{
                         TcpConnectionActionType::Cancel,
                         0,

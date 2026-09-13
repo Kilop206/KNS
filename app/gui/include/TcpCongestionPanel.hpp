@@ -9,10 +9,13 @@
 
 namespace gui {
 
+    class TranslationService;
+
     class TcpCongestionPanel {
     public:
         void render(
-            const kns::SimulationEngine& engine
+            const kns::SimulationEngine& engine,
+            TranslationService& translations
         );
     };
 

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cstdint>
 
+#include "../include/TranslationService.hpp"
+
 namespace gui {
     ImU32 PacketRenderer::packetColorByType(kns::PacketType type) {
         switch (type) {
@@ -52,7 +54,8 @@ namespace gui {
         ImDrawList* draw_list,
         const std::vector<std::pair<float, float>>& positions,
         const std::vector<VisualPacket>& packets,
-        double visual_time
+        double visual_time,
+        TranslationService& translations
     ) const
     {
         const VisualPacket* hovered_packet = nullptr;
@@ -96,7 +99,13 @@ namespace gui {
                 (positions[packet.to].second - positions[packet.from].second) * t
             );
 
-            const float pulse = static_cast<float>(0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0));
+            const float pulse = static_cast<float>(
+                0.5 +
+                0.5 * std::sin(
+                    visual_time * 10.0 +
+                    packet.visual_start_time * 7.0
+                )
+            );
 
             const ImU32 fill_color = packetColorByType(packet.type);
             const ImU32 border_color = packetBorderColor(packet.type);
@@ -126,21 +135,37 @@ namespace gui {
 
             ImGui::BeginTooltip();
 
-            ImGui::Text("Type: %s",
+            ImGui::Text("%s: %s",
+                translations.translate("Type").c_str(),
                 packetTypeToString(hovered_packet->type));
 
-            ImGui::Text("Session: %llu",
+            ImGui::Text("%s: %llu",
+                translations.translate("Session").c_str(),
                 static_cast<unsigned long long>(hovered_packet->session_id));
 
-            ImGui::Text("From: %d", hovered_packet->from);
-            ImGui::Text("To: %d", hovered_packet->to);
+            ImGui::Text(
+                "%s: %d",
+                translations.translate("From").c_str(),
+                hovered_packet->from
+            );
+            ImGui::Text(
+                "%s: %d",
+                translations.translate("To").c_str(),
+                hovered_packet->to
+            );
 
-            ImGui::Text("Progress: %.0f%%", progress);
+            ImGui::Text(
+                "%s: %.0f%%",
+                translations.translate("Progress").c_str(),
+                progress
+            );
 
-            ImGui::Text("Departure: %.3f",
+            ImGui::Text("%s: %.3f",
+                translations.translate("Departure").c_str(),
                 hovered_packet->sim_departure_time);
 
-            ImGui::Text("Arrival: %.3f",
+            ImGui::Text("%s: %.3f",
+                translations.translate("Arrival").c_str(),
                 hovered_packet->sim_arrival_time);
 
             ImGui::EndTooltip();

@@ -40,6 +40,13 @@ public:
     /// sent to the configured translation service.
     [[nodiscard]] std::string translate(std::string_view english_text);
 
+    /// Returns a translated ImGui label while keeping its internal ID stable
+    /// across languages.
+    [[nodiscard]] std::string label(
+        std::string_view english_text,
+        std::string_view stable_id
+    );
+
     [[nodiscard]] bool isTranslating() const noexcept;
     [[nodiscard]] std::string getLastError() const;
     void retry();

@@ -6,9 +6,14 @@ namespace kns {
 
 namespace gui {
 
+    class TranslationService;
+
     class TopologyPanel {
     public:
-        void render(kns::SimulationEngine& engine);
+        void render(
+            kns::SimulationEngine& engine,
+            TranslationService& translations
+        );
     };
 
 } // namespace gui

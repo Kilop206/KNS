@@ -13,6 +13,7 @@
 #include "../../../core/include/network/transport/tcp/congestion/NewRenoCongestionControl.hpp"
 #include "../../../core/include/network/transport/tcp/congestion/TahoeCongestionControl.hpp"
 #include "../../../core/include/network/transport/tcp/congestion/CubicCongestionControl.hpp"
+#include "../include/TranslationService.hpp"
 
 namespace gui {
 
@@ -71,7 +72,8 @@ namespace gui {
         }
 
         void renderCongestionChart(
-            const kns::TCPConnection& connection
+            const kns::TCPConnection& connection,
+            TranslationService& translations
         )
         {
             const auto& history =
@@ -79,7 +81,10 @@ namespace gui {
 
             if (history.empty()) {
                 ImGui::TextDisabled(
-                    "No congestion history available."
+                    "%s",
+                    translations.translate(
+                        "No congestion history available."
+                    ).c_str()
                 );
 
                 return;
@@ -126,8 +131,10 @@ namespace gui {
 
             ImGui::Separator();
 
-            ImGui::Text(
-                "Congestion Window History"
+            ImGui::TextUnformatted(
+                translations.translate(
+                    "Congestion Window History"
+                ).c_str()
             );
 
             ImGui::PlotLines(
@@ -165,19 +172,22 @@ namespace gui {
                 history.back();
 
             ImGui::Text(
-                "Samples: %u",
+                "%s: %u",
+                translations.translate("Samples").c_str(),
                 static_cast<unsigned>(
                     history.size()
                 )
             );
 
             ImGui::Text(
-                "First sample: t=%.3f s",
+                "%s: t=%.3f s",
+                translations.translate("First sample").c_str(),
                 first.timestamp
             );
 
             ImGui::Text(
-                "Last sample: t=%.3f s",
+                "%s: t=%.3f s",
+                translations.translate("Last sample").c_str(),
                 last.timestamp
             );
         }
@@ -185,19 +195,23 @@ namespace gui {
     }
 
     void TcpCongestionPanel::render(
-        const kns::SimulationEngine& engine
+        const kns::SimulationEngine& engine,
+        TranslationService& translations
     )
     {
-        ImGui::Begin(
-            "TCP Congestion Control"
+        const std::string window_label = translations.label(
+            "TCP Congestion Control",
+            "tcp-congestion-window"
         );
+        ImGui::Begin(window_label.c_str());
 
         const auto& sessions =
             engine.getTCPSessions();
 
         if (sessions.empty()) {
             ImGui::TextDisabled(
-                "No TCP sessions available."
+                "%s",
+                translations.translate("No TCP sessions available.").c_str()
             );
 
             ImGui::End();
@@ -220,7 +234,10 @@ namespace gui {
 
         if (selected == sessions.end()) {
             ImGui::TextDisabled(
-                "Selected TCP session is unavailable."
+                "%s",
+                translations.translate(
+                    "Selected TCP session is unavailable."
+                ).c_str()
             );
 
             ImGui::End();
@@ -231,7 +248,8 @@ namespace gui {
             selected->first;
 
         ImGui::Text(
-            "Session: %llu",
+            "%s: %llu",
+            translations.translate("Session").c_str(),
             static_cast<unsigned long long>(
                 session_id
             )
@@ -283,34 +301,40 @@ namespace gui {
         ImGui::Separator();
 
         ImGui::Text(
-            "Algorithm: %s",
+            "%s: %s",
+            translations.translate("Algorithm").c_str(),
             congestionControlTypeToString(
                 connection.getCongestionControlType()
             )
         );
 
         ImGui::Text(
-            "MSS: %u bytes",
-            congestion.getMss()
+            "MSS: %u %s",
+            congestion.getMss(),
+            translations.translate("bytes").c_str()
         );
 
         ImGui::Text(
-            "cwnd: %u bytes",
-            congestion.getCwnd()
+            "cwnd: %u %s",
+            congestion.getCwnd(),
+            translations.translate("bytes").c_str()
         );
 
         ImGui::Text(
-            "ssthresh: %u bytes",
-            congestion.getSsthresh()
+            "ssthresh: %u %s",
+            congestion.getSsthresh(),
+            translations.translate("bytes").c_str()
         );
 
         ImGui::Text(
-            "Send Unacknowledged: %u",
+            "%s: %u",
+            translations.translate("Send unacknowledged").c_str(),
             connection.getSendUnacknowledged()
         );
 
         ImGui::Text(
-            "Send Next: %u",
+            "%s: %u",
+            translations.translate("Send next").c_str(),
             connection.getSendNext()
         );
 
@@ -319,26 +343,30 @@ namespace gui {
             connection.getSendUnacknowledged();
 
         ImGui::Text(
-            "Bytes in flight: %u",
+            "%s: %u",
+            translations.translate("Bytes in flight").c_str(),
             bytes_in_flight
         );
 
         ImGui::Text(
-            "Duplicate ACKs: %u",
+            "%s: %u",
+            translations.translate("Duplicate ACKs").c_str(),
             connection.getDuplicateAckCount()
         );
 
         ImGui::Text(
-            "State: %s",
+            "%s: %s",
+            translations.translate("State").c_str(),
             congestionControlInFastRecovery(
                 congestion
             )
-                ? "Fast Recovery"
-                : "Normal"
+                ? translations.translate("Fast Recovery").c_str()
+                : translations.translate("Normal").c_str()
         );
 
         renderCongestionChart(
-            connection
+            connection,
+            translations
         );
 
         ImGui::End();

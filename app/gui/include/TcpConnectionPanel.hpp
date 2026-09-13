@@ -9,6 +9,8 @@ namespace kns {
 
 namespace gui {
 
+    class TranslationService;
+
     enum class TcpConnectionActionType {
         Open,
         Cancel
@@ -26,7 +28,8 @@ namespace gui {
     class TcpConnectionPanel {
     public:
         [[nodiscard]] std::optional<TcpConnectionAction> render(
-            const kns::SimulationEngine& engine
+            const kns::SimulationEngine& engine,
+            TranslationService& translations
         );
 
     private:

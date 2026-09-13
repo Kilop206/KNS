@@ -9,7 +9,8 @@ service API from its native C++ desktop process instead.
 
 - English is local and never makes a translation request.
 - Selecting Portuguese, Spanish, French, German, Japanese, or Simplified
-  Chinese queues the visible static labels from the Stats and Settings windows.
+  Chinese queues visible static labels from every KNS panel, including network,
+  topology, TCP, metrics, event-log, node-details, and settings views.
 - Requests run on a worker thread and are batched to avoid blocking Dear ImGui.
 - Successful translations are cached in memory for the selected language.
 - Network errors leave the original English label visible. Failed batches retry
@@ -52,8 +53,8 @@ transport privacy or service availability is required.
 
 ## Extending coverage
 
-Pass a `TranslationService` owned by the application to another panel and use
-`translate()` for visible text. Keep Dear ImGui widget IDs stable by appending a
-non-translated `###identifier`, as the Stats and Settings windows do. Avoid
-sending dynamic or user-controlled content unless that behavior is explicit in
-the feature and its privacy contract.
+Pass the application-owned `TranslationService` explicitly to UI components and
+use `translate()` for visible static text. Use `label()` for windows and widgets
+so their Dear ImGui IDs remain stable across languages. Avoid sending dynamic or
+user-controlled content unless that behavior is explicit in the feature and its
+privacy contract.

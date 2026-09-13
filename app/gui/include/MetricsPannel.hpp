@@ -9,8 +9,14 @@
 #include "LatencyChart.hpp"
 
 namespace gui {
+    class TranslationService;
+
     class MetricsPannel {
     public:
-        void render(const kns::Stats& stats, const CircularBuffer& buffer);
+        void render(
+            const kns::Stats& stats,
+            const CircularBuffer& buffer,
+            TranslationService& translations
+        );
     };
 }
