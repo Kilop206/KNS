@@ -1,6 +1,7 @@
 #include "gui/include/TranslationService.hpp"
 #include "include/Environment.hpp"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <condition_variable>
@@ -22,12 +23,14 @@ namespace {
 
 using namespace std::chrono_literals;
 
-constexpr std::array<UiLanguageOption, 5> kLanguages{{
+constexpr std::array<UiLanguageOption, 7> kLanguages{{
     {UiLanguage::English, "English"},
     {UiLanguage::Portuguese, "Português"},
     {UiLanguage::Spanish, "Español"},
     {UiLanguage::French, "Français"},
     {UiLanguage::German, "Deutsch"},
+    {UiLanguage::Japanese, "日本語"},
+    {UiLanguage::ChineseSimplified, "简体中文"},
 }};
 
 std::string_view apiLanguage(UiLanguage language)
@@ -38,6 +41,8 @@ std::string_view apiLanguage(UiLanguage language)
         case UiLanguage::Spanish: return "spanish";
         case UiLanguage::French: return "french";
         case UiLanguage::German: return "german";
+        case UiLanguage::Japanese: return "japanese";
+        case UiLanguage::ChineseSimplified: return "chinese_simplified";
     }
 
     return "english";
@@ -130,6 +135,7 @@ public:
         pending_.clear();
         last_error_.clear();
         retry_after_ = {};
+        failure_count_ = 0;
         condition_.notify_all();
     }
 
@@ -155,8 +161,8 @@ public:
             return cached->second;
         }
 
-        if (std::chrono::steady_clock::now() >= retry_after_) {
-            pending_.insert(source);
+        const bool inserted = pending_.insert(source).second;
+        if (inserted) {
             condition_.notify_one();
         }
 
@@ -179,7 +185,7 @@ public:
     {
         std::scoped_lock lock(mutex_);
         last_error_.clear();
-        retry_after_ = {};
+        retry_after_ = std::chrono::steady_clock::now();
         condition_.notify_one();
     }
 
@@ -201,8 +207,45 @@ private:
                     return;
                 }
 
-                // Let one UI frame collect labels so the API receives a batch.
-                condition_.wait_for(lock, 25ms);
+                const std::size_t observed_generation = generation_;
+                if (std::chrono::steady_clock::now() < retry_after_) {
+                    condition_.wait_until(
+                        lock,
+                        retry_after_,
+                        [&] {
+                            return stop_token.stop_requested() ||
+                                generation_ != observed_generation;
+                        }
+                    );
+                    if (stop_token.stop_requested()) {
+                        return;
+                    }
+                    if (generation_ != observed_generation) {
+                        continue;
+                    }
+                }
+
+                // Collect all labels produced by one UI frame. Notifications
+                // for additional labels do not shorten this batching window.
+                const auto batch_deadline =
+                    std::chrono::steady_clock::now() + 25ms;
+                condition_.wait_until(
+                    lock,
+                    batch_deadline,
+                    [&] {
+                        return stop_token.stop_requested() ||
+                            generation_ != observed_generation ||
+                            language_ == UiLanguage::English;
+                    }
+                );
+                if (stop_token.stop_requested()) {
+                    return;
+                }
+                if (generation_ != observed_generation ||
+                    language_ == UiLanguage::English) {
+                    continue;
+                }
+
                 source.assign(pending_.begin(), pending_.end());
                 pending_.clear();
                 language = language_;
@@ -218,12 +261,27 @@ private:
                         cache_.insert_or_assign(source[i], std::move(translated[i]));
                     }
                     last_error_.clear();
+                    failure_count_ = 0;
+                    retry_after_ = {};
                 }
             } catch (const std::exception& error) {
                 std::scoped_lock lock(mutex_);
                 if (generation == generation_) {
                     last_error_ = error.what();
-                    retry_after_ = std::chrono::steady_clock::now() + 30s;
+                    pending_.insert(source.begin(), source.end());
+                    ++failure_count_;
+
+                    const auto exponent = std::min<std::size_t>(
+                        failure_count_ - 1,
+                        5
+                    );
+                    const auto retry_delay = std::min(
+                        std::chrono::seconds{1 << exponent},
+                        30s
+                    );
+                    retry_after_ =
+                        std::chrono::steady_clock::now() + retry_delay;
+                    condition_.notify_one();
                 }
             }
 
@@ -243,6 +301,7 @@ private:
     std::set<std::string> pending_;
     std::string last_error_;
     std::chrono::steady_clock::time_point retry_after_{};
+    std::size_t failure_count_ = 0;
     bool request_in_flight_ = false;
     std::jthread worker_;
 };

@@ -89,11 +89,11 @@ Without a positional topology, the application starts with an empty topology
 and can load a file from the interface.
 
 The Stats window includes a language selector for English, Portuguese, Spanish,
-French, and German. Non-English labels are translated asynchronously through
-the xnx3 text translation API and cached for the current run. The GUI remains
-responsive and falls back to the original English text if the service is
-unavailable. See [GUI translation](docs/translation.md) for configuration and
-privacy details.
+French, German, Japanese, and Simplified Chinese. Non-English labels are
+translated asynchronously through the xnx3 text translation API and cached for
+the current run. The GUI remains responsive, retries transient failures, and
+falls back to the original English text if the service is unavailable. See
+[GUI translation](docs/translation.md) for configuration and privacy details.
 
 ## Run headless
 

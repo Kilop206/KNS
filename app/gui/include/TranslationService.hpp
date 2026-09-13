@@ -12,7 +12,9 @@ enum class UiLanguage {
     Portuguese,
     Spanish,
     French,
-    German
+    German,
+    Japanese,
+    ChineseSimplified
 };
 
 struct UiLanguageOption {

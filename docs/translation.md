@@ -8,13 +8,17 @@ service API from its native C++ desktop process instead.
 ## Behavior
 
 - English is local and never makes a translation request.
-- Selecting Portuguese, Spanish, French, or German queues the visible static
-  labels from the Stats and Settings windows.
+- Selecting Portuguese, Spanish, French, German, Japanese, or Simplified
+  Chinese queues the visible static labels from the Stats and Settings windows.
 - Requests run on a worker thread and are batched to avoid blocking Dear ImGui.
 - Successful translations are cached in memory for the selected language.
-- Network errors leave the original English label visible. The UI shows the
-  error and provides a retry action.
+- Network errors leave the original English label visible. Failed batches retry
+  automatically with exponential backoff up to 30 seconds; the UI also exposes
+  an immediate retry action.
 - Changing language invalidates translations from an older in-flight request.
+- Japanese and Simplified Chinese glyphs are merged from common system fonts
+  when one is installed. Windows uses the standard Yu Gothic/MS Gothic and
+  Microsoft YaHei families; macOS and Linux probe their usual CJK font paths.
 
 Only strings explicitly passed to `TranslationService::translate()` are sent.
 The current integration passes static interface labels; topology contents,

@@ -30,6 +30,10 @@ target_link_libraries(KNS
 
 target_compile_features(KNS PRIVATE cxx_std_20)
 
+if(MSVC)
+    target_compile_options(KNS PRIVATE /utf-8)
+endif()
+
 if(KNS_ENABLE_WARNINGS)
     kns_enable_warnings(KNS)
 endif()
