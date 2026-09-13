@@ -1,3 +1,20 @@
+set(candidates
+    "${KNS_APP_DIR}/KNS${KNS_EXECUTABLE_SUFFIX}"
+    "${KNS_APP_DIR}/Debug/KNS${KNS_EXECUTABLE_SUFFIX}"
+    "${KNS_APP_DIR}/Release/KNS${KNS_EXECUTABLE_SUFFIX}"
+    "${KNS_APP_DIR}/RelWithDebInfo/KNS${KNS_EXECUTABLE_SUFFIX}"
+    "${KNS_APP_DIR}/MinSizeRel/KNS${KNS_EXECUTABLE_SUFFIX}"
+)
+foreach(candidate IN LISTS candidates)
+    if(EXISTS "${candidate}")
+        set(KNS_EXECUTABLE "${candidate}")
+        break()
+    endif()
+endforeach()
+if(NOT DEFINED KNS_EXECUTABLE)
+    message(FATAL_ERROR "KNS executable was not found under ${KNS_APP_DIR}")
+endif()
+
 file(MAKE_DIRECTORY "${KNS_OUTPUT_DIR}")
 foreach(run RANGE 1 2)
     execute_process(

@@ -9,8 +9,6 @@ target_sources(KNS PRIVATE
     gui/src/PacketRenderer.cpp
     gui/src/GUIFormat.cpp
     gui/src/ThemeManager.cpp
-
-    # Painéis adicionais que não estavam sendo compilados antes (fix issue #29)
     gui/src/TcpCongestionPanel.cpp
     gui/src/TcpConnectionPanel.cpp
     gui/src/TcpTimelinePanel.cpp
@@ -35,9 +33,11 @@ if(KNS_ENABLE_WARNINGS)
 endif()
 
 if(KNS_BUILD_TESTS)
-    add_test(NAME headless_run_configuration
-        COMMAND ${CMAKE_COMMAND}
-        -DKNS_EXECUTABLE=$<TARGET_FILE:KNS>
+    add_test(
+        headless_run_configuration
+        ${CMAKE_COMMAND}
+        -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
         -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
         -DKNS_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/configuration-tests
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessConfiguration.cmake
