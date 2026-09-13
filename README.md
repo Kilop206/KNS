@@ -113,6 +113,7 @@ Headless mode requires a topology and writes aggregate statistics to CSV:
 KNS [topology.json]
 KNS --headless --topology <file> [--output <csv>]
     [--routing-metric <metric>]
+    [--seed <integer>] [--packet-size <bytes>]
 ```
 
 | Option | Description |
@@ -121,6 +122,8 @@ KNS --headless --topology <file> [--output <csv>]
 | `--topology <file>` | Load the specified topology JSON. Required headlessly. |
 | `--output <csv>` | Set the output file; defaults to `results/results.csv`. |
 | `--routing-metric <metric>` | Select the routing metric before traffic is scheduled. |
+| `--seed <integer>` | Set the unsigned 64-bit random seed (default: `42`). |
+| `--packet-size <bytes>` | Set a positive packet size (default: `1500`). |
 | `-h`, `--help` | Print usage and exit. |
 
 Accepted routing metrics:
@@ -177,6 +180,17 @@ Fields use milliseconds for `delay`, megabits per second for `bandwidth`, and a
 probability from 0 to 1 for `loss`. Supported modes are `full_duplex`,
 `half_duplex`, and `simplex`. Node IDs are zero-based. Self-loops, invalid
 numeric values, and links to removed nodes are rejected.
+
+Each link may also specify `"queue_capacity": 32`. Capacity must be a positive
+integer; full-duplex links apply it independently to each direction, while
+half-duplex links share it. The topology panel can edit this value. Reducing it
+below current occupancy is rejected. SIMPLEX routes only from `from` to `to`.
+Changing a link's mode requires its pending transmissions to finish first.
+
+Run configuration is applied before scheduling traffic, including after a GUI
+restart. The same seed, topology, configuration, and build reproduce sequential
+runs. Packet loss alone does not invalidate a run: validation checks completed
+sessions, pending work, queue cleanup, and accounting consistency.
 
 Included examples:
 

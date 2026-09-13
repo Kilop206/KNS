@@ -77,6 +77,12 @@ Topology changes use these invariants:
 4. Removing a node leaves an inactive slot, preserving existing node IDs.
 5. TCP sessions are not automatically deleted merely because a route becomes
    unavailable; their protocol timers determine subsequent behavior.
+6. Changing link mode while its queues contain transmissions throws
+   `std::logic_error`; the old mode and queued arrivals remain intact. Once
+   drained, mode changes invalidate routing just like availability changes.
+7. Queue capacity defaults to 32, is positive and configurable, and cannot be
+   reduced below occupancy. FULL_DUPLEX capacity is per direction; HALF_DUPLEX
+   capacity is shared. SIMPLEX permits only A-to-B routes and transmissions.
 
 The stable link ID stored in `PacketTravelInfo` lets arrival release the exact
 parallel link that carried the packet.
@@ -104,6 +110,23 @@ state machine. See [`tcp_design.md`](tcp_design.md) and
   failures, or failed simulation validation.
 
 These contracts make failure visible without relying on debug logging.
+
+TCP creation and listening APIs reject nonexistent or inactive nodes before
+allocating session IDs, inserting listeners, or scheduling handshakes. Packet
+sizes must be positive, including packets passed directly to transmission APIs.
+
+`configureRun()` applies `RunConfig::packet_size` and reseeds the random source
+before sessions or events exist. The CLI exposes both packet size and seed;
+GUI restarts apply the configuration again. The random source is currently
+process-global, so deterministic runs must execute sequentially rather than
+interleave independently configured engines.
+
+Simulation validation separates the descriptive `loss_free` metric from
+integrity. Successful validation requires completed TCP workloads with both
+endpoints closed and buffers empty, no scheduled work, no packets in transit,
+and empty link queues. Delivered packets cannot exceed sent packets, and
+undelivered sends must be accounted for by losses. Losses may exceed that gap
+because rejected sends also increment the loss counter.
 
 ## Intentional constraints
 

@@ -80,6 +80,12 @@ constant and preserve the raw rows for every packet-size condition.
 
 ## Reproducibility checklist
 
+Use `--seed 42 --packet-size 1500` to make those parameters explicit. Repeat the
+same command and topology with the same build when comparing results; a new
+run reseeds the generator. Configure `queue_capacity` in each JSON link when
+studying buffer size. A recovered loss is valid if the TCP workload completes
+and no pending events, packets, buffers, or link queue entries remain.
+
 - record the Git commit and build type;
 - keep the topology JSON with the results;
 - record the exact CLI and environment variables;
