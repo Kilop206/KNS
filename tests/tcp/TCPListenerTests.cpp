@@ -699,6 +699,7 @@ TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp
         REQUIRE(observer.responses().back().tcp.destination_port == 49152);
         const auto sid = observer.responses().back().session_id;
         engine.getTCPSession(sid).markTrafficGenerated();
+        engine.getTCPSession(sid).setTotalPackets(1);
         REQUIRE(engine.processEvent());
         REQUIRE(engine.processEvent());
         REQUIRE(engine.getTCPSession(sid).getState() == TCPState::ESTABLISHED);
