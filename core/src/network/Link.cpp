@@ -9,6 +9,17 @@
 
 namespace {
 
+kns::LinkMode validateMode(kns::LinkMode mode)
+{
+    switch (mode) {
+        case kns::LinkMode::FULL_DUPLEX:
+        case kns::LinkMode::HALF_DUPLEX:
+        case kns::LinkMode::SIMPLEX:
+            return mode;
+    }
+    throw std::invalid_argument("Unknown link mode");
+}
+
 double validateBandwidthMbps(double value)
 {
     if (!std::isfinite(value) || value <= 0.0) {
@@ -59,7 +70,7 @@ namespace kns {
         bandwidth_mbps_(validateBandwidthMbps(bandwidth_mbps)),
         delay_ms_(validateDelayMs(delay_ms)),
         loss_prob_(validateLossProbability(loss_prob)),
-        mode_(mode),
+        mode_(validateMode(mode)),
         up_(true),
         routing_revision_(std::make_shared<std::uint64_t>(0))
     {
@@ -144,12 +155,9 @@ namespace kns {
 
     void Link::setMode(LinkMode mode)
     {
+        validateMode(mode);
         if (mode == mode_) {
             return;
-        }
-        if (mode != LinkMode::FULL_DUPLEX && mode != LinkMode::HALF_DUPLEX &&
-            mode != LinkMode::SIMPLEX) {
-            throw std::invalid_argument("Unknown link mode");
         }
         if (getQueueSize() != 0) {
             throw std::logic_error("Cannot change link mode with pending transmissions");

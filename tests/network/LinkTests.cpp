@@ -9,6 +9,23 @@ using kns::Link;
 using kns::LinkMode;
 using kns::Topology;
 
+TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]")
+{
+    const auto invalid = static_cast<LinkMode>(999);
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    Link link(0, 1, 10.0, 1.0);
+    REQUIRE_THROWS_AS(link.setMode(invalid), std::invalid_argument);
+    REQUIRE(link.getMode() == LinkMode::FULL_DUPLEX);
+    Topology topology(2);
+    const auto revision = topology.getRoutingRevision();
+    REQUIRE_THROWS_AS(topology.addLinkPtr(0, 8, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    REQUIRE_THROWS_AS(topology.addLink(0, 8, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    REQUIRE(topology.size() == 2);
+    REQUIRE(topology.getLinks().empty());
+    REQUIRE(topology.getLinksFromNode(0).empty());
+    REQUIRE(topology.getRoutingRevision() == revision);
+}
+
 TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][mode]")
 {
     for (const auto initial : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
