@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <stdexcept>
 #include "network/Topology.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "network/Packet.hpp"
@@ -6,6 +7,36 @@
 #include "enums/LinkMode.hpp"
 
 using namespace kns;
+
+TEST_CASE("Configured queues reject overflow and drain through arrival events", "[network][link][queue][integration]")
+{
+    for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
+        for (const int capacity : {1, 3}) {
+            CAPTURE(mode, capacity);
+            Topology topology(2);
+            auto link = topology.addLinkPtr(0, 1, 10.0, 1.0, 0.0, mode, capacity);
+            SimulationEngine engine(topology);
+            Packet packet(0, 1, 0, 0.0, 100, 999);
+            for (int i = 0; i < capacity; ++i) {
+                REQUIRE(engine.sendPacket(packet, *link, 0.0));
+            }
+            REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
+            REQUIRE(engine.getStats().packets_lost == 1);
+            const auto next_mode = mode == LinkMode::FULL_DUPLEX
+                ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
+            REQUIRE_THROWS_AS(link->setMode(next_mode), std::logic_error);
+            Packet reverse(1, 0, 1, 0.0, 100, 999);
+            REQUIRE(engine.sendPacket(reverse, *link, 0.0) == (mode == LinkMode::FULL_DUPLEX));
+            engine.run();
+            REQUIRE(link->getQueueSize() == 0);
+            REQUIRE(engine.getPacketsInTransit().empty());
+            REQUIRE_NOTHROW(link->setMode(next_mode));
+            REQUIRE(engine.sendPacket(packet, *link, engine.now()));
+            engine.run();
+            REQUIRE(link->getQueueSize() == 0);
+        }
+    }
+}
 
 TEST_CASE("Link queue produces expected serialization of transmissions", "[network][link][queue]") {
     Topology topo(2);
