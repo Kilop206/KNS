@@ -78,16 +78,6 @@ namespace kns {
         pkt.tcp.payload.assign(payload_size, 0x41);
         pkt.departure_time = engine.now();
 
-        const bool accepted =
-            PacketUtils::sendPacketThroughTopology(
-                engine,
-                pkt
-            );
-
-        if (!accepted) {
-            return;
-        }
-
         const bool hadOutstandingData =
             client.getSendBufferSize() != 0;
 
@@ -110,6 +100,9 @@ namespace kns {
         }
 
         session.incrementPacketsSent();
+
+        // TCP owns the bytes and their recovery timer before network delivery.
+        PacketUtils::sendPacketThroughTopology(engine, pkt);
 
         if (!session.isComplete()) {
             engine.schedule(

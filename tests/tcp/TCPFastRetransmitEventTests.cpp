@@ -6,6 +6,7 @@
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/TCPFastRetransmitEvent.hpp"
 #include "engine/events/TCPRetransmissionEvent.hpp"
+#include "engine/events/PacketGenerationEvent.hpp"
 #include "network/Link.hpp"
 #include "network/Packet.hpp"
 #include "network/Topology.hpp"
@@ -146,6 +147,36 @@ namespace
 
         return packet;
     }
+}
+
+TEST_CASE("Rejected initial DATA remains owned by TCP", "[tcp][generation][loss]")
+{
+    Topology topology(2);
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 1);
+    SimulationEngine engine(topology);
+    engine.setGlobalPacketSize(100);
+    auto& session = engine.createTCPSession(0, 1);
+    establishSession(session);
+    session.setTotalPackets(1);
+    auto& client = session.getClientConnection();
+    const auto sequence = client.getSendNext();
+    SECTION("Random loss") { link->setLossProb(1.0); }
+    SECTION("Full transmission queue") { link->enqueueTransmission(0, 1, 0.0, 1.0); }
+    kns::PacketGenerationEvent event(0.0, 0, 1, session.getSession_id());
+    event.execute(engine);
+    REQUIRE(session.isComplete());
+    REQUIRE(client.hasOutstandingSegment(sequence));
+    REQUIRE(engine.hasEvents());
+    link->setLossProb(0.0);
+    link->dequeueTransmission(0, 1, 0.0, 1.0);
+    int events = 0;
+    while (client.hasOutstandingSegment(sequence) && engine.hasEvents() && events < 100) {
+        engine.processEvent();
+        ++events;
+    }
+    REQUIRE(events < 100);
+    REQUIRE(client.getSendUnacknowledged() == sequence + 100);
+    REQUIRE(session.getServerConnection().getExpectedAckNum() == sequence + 100);
 }
 
 TEST_CASE("Dropped retransmissions keep a bounded recovery timer", "[tcp][retransmission][loss]")
