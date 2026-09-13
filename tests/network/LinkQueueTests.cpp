@@ -8,6 +8,26 @@
 
 using namespace kns;
 
+TEST_CASE("Sending rejects foreign and removed links without side effects", "[network][link][ownership]")
+{
+    Topology topology(2);
+    auto owned = topology.addLinkPtr(0, 1, 10.0, 1.0);
+    SimulationEngine engine(topology);
+    Link foreign(0, 1, 10.0, 1.0);
+    Link copied = *owned;
+    REQUIRE(engine.getTopology().removeLinkById(owned->getId()));
+    Packet packet(0, 1, 0, 0.0, 100, 999);
+    for (auto* link : {&foreign, &copied, owned.get()}) {
+        REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
+        REQUIRE(link->getQueueSize() == 0);
+        REQUIRE(link->getNextAvailableTime(0, 1, 0.0) == 0.0);
+        REQUIRE(engine.getStats().packets_sent == 0);
+        REQUIRE(engine.getStats().packets_lost == 0);
+        REQUIRE(engine.getPacketsInTransit().empty());
+        REQUIRE_FALSE(engine.hasEvents());
+    }
+}
+
 TEST_CASE("Configured queues reject overflow and drain through arrival events", "[network][link][queue][integration]")
 {
     for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {

@@ -185,6 +185,11 @@ namespace kns {
         if (pkt.packet_size_bytes <= 0) {
             throw std::invalid_argument("Packet size must be positive");
         }
+        const auto& owned_links = topology_.getLinks();
+        if (std::none_of(owned_links.begin(), owned_links.end(),
+                [&link](const auto& owned) { return owned.get() == &link; })) {
+            return false;
+        }
         if (!link.isUp()) {
             return false;
         }
