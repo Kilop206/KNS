@@ -53,6 +53,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ==================================================
+# HTTP client used by the optional desktop translation service
+# ==================================================
+if(KNS_BUILD_APP)
+    set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
+    set(HTTPLIB_TEST OFF CACHE BOOL "" FORCE)
+    set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "" FORCE)
+    set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        cpp_httplib
+        GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+        GIT_TAG v0.51.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(cpp_httplib)
+endif()
+
+# ==================================================
 # Catch2
 # ==================================================
 if(KNS_BUILD_TESTS)

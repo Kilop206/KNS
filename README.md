@@ -20,6 +20,7 @@ and congestion-control state.
   timeout retransmission, and fast retransmit;
 - Tahoe, Reno, NewReno, and CUBIC congestion-control implementations;
 - interactive packet visualization and congestion/latency panels;
+- optional asynchronous translation of the main GUI controls;
 - headless CSV export and Catch2 unit/integration tests.
 
 KNS is a simulation model rather than a production TCP/IP stack. See
@@ -86,6 +87,13 @@ The GUI accepts an optional topology file:
 
 Without a positional topology, the application starts with an empty topology
 and can load a file from the interface.
+
+The Stats window includes a language selector for English, Portuguese, Spanish,
+French, and German. Non-English labels are translated asynchronously through
+the xnx3 text translation API and cached for the current run. The GUI remains
+responsive and falls back to the original English text if the service is
+unavailable. See [GUI translation](docs/translation.md) for configuration and
+privacy details.
 
 ## Run headless
 

@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include "ImGuiFileDialog.h"
+#include "include/Environment.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -45,6 +46,7 @@
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
 #include "gui/include/ThemeManager.hpp"
+#include "gui/include/TranslationService.hpp"
 #include "network/Packet.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
@@ -93,12 +95,12 @@ namespace {
         bool default_value
     ) noexcept
     {
-        const char* raw_value =
-            std::getenv("KNS_AUTO_START");
+        const auto raw_value =
+            kns::app::readEnvironmentVariable("KNS_AUTO_START");
 
-        return raw_value == nullptr
+        return !raw_value.has_value()
             ? default_value
-            : isAutoStartEnabledValue(raw_value);
+            : isAutoStartEnabledValue(*raw_value);
     }
 
 } // namespace
@@ -485,6 +487,7 @@ static int pickNodeAtMouse(
 
 static void renderStatsWindow(
     SimulationEngine& engine,
+    TranslationService& translations,
     SimulationState& state,
     const Stats& stats,
     CircularBuffer& buffer,
@@ -496,10 +499,64 @@ static void renderStatsWindow(
     bool& restartRequested
 )
 {
-    ImGui::Begin("Stats");
+    const auto label = [&translations](
+        std::string_view english,
+        std::string_view stable_id
+    ) {
+        return translations.translate(english) + "###" + std::string(stable_id);
+    };
+
+    ImGui::Begin(label("Stats", "stats-window").c_str());
+
+    const std::span<const UiLanguageOption> language_options =
+        TranslationService::languageOptions();
+    std::size_t selected_language = 0;
+    for (std::size_t i = 0; i < language_options.size(); ++i) {
+        if (language_options[i].language == translations.getLanguage()) {
+            selected_language = i;
+            break;
+        }
+    }
+
+    if (ImGui::BeginCombo(
+            label("Language", "interface-language").c_str(),
+            language_options[selected_language].display_name.data()
+        )) {
+        for (std::size_t i = 0; i < language_options.size(); ++i) {
+            const bool selected = i == selected_language;
+            if (ImGui::Selectable(
+                    language_options[i].display_name.data(),
+                    selected
+                )) {
+                translations.setLanguage(language_options[i].language);
+            }
+            if (selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (translations.isTranslating()) {
+        ImGui::TextDisabled(
+            "%s",
+            translations.translate("Translating interface...").c_str()
+        );
+    }
+
+    if (const std::string error = translations.getLastError(); !error.empty()) {
+        ImGui::TextWrapped(
+            "%s: %s",
+            translations.translate("Translation unavailable").c_str(),
+            error.c_str()
+        );
+        if (ImGui::SmallButton(label("Retry", "retry-translation").c_str())) {
+            translations.retry();
+        }
+    }
 
     if (ImGui::CollapsingHeader(
-        "Simulation",
+        label("Simulation", "simulation-section").c_str(),
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         // --------------------------------------------------
@@ -508,11 +565,14 @@ static void renderStatsWindow(
 
         if (state == SimulationState::Ready)
         {
-            ImGui::TextDisabled("Simulation ready.");
+            ImGui::TextDisabled(
+                "%s",
+                translations.translate("Simulation ready.").c_str()
+            );
 
             ImGui::BeginDisabled(!engineHasEvents);
 
-            if (ImGui::Button("Start")) {
+            if (ImGui::Button(label("Start", "start-simulation").c_str())) {
                 state = SimulationState::Running;
             }
 
@@ -525,7 +585,7 @@ static void renderStatsWindow(
 
         else if (state == SimulationState::Running)
         {
-            if (ImGui::Button("Pause"))
+            if (ImGui::Button(label("Pause", "pause-simulation").c_str()))
             {
                 state =
                     SimulationState::Paused;
@@ -538,7 +598,7 @@ static void renderStatsWindow(
 
         else if (state == SimulationState::Paused)
         {
-            if (ImGui::Button("Resume"))
+            if (ImGui::Button(label("Resume", "resume-simulation").c_str()))
             {
                 if (engineHasEvents)
                 {
@@ -551,7 +611,7 @@ static void renderStatsWindow(
             {
                 ImGui::SameLine();
 
-                if (ImGui::Button("Step"))
+                if (ImGui::Button(label("Step", "step-simulation").c_str()))
                 {
                     stepRequested = true;
                 }
@@ -564,15 +624,18 @@ static void renderStatsWindow(
 
         else if (state == SimulationState::Finished)
         {
-            ImGui::TextDisabled("Simulation finished.");
+            ImGui::TextDisabled(
+                "%s",
+                translations.translate("Simulation finished.").c_str()
+            );
         }
 
-        if (ImGui::Button("Restart")) {
+        if (ImGui::Button(label("Restart", "restart-simulation").c_str())) {
             restartRequested = true;
         }
 
         ImGui::SliderFloat(
-            "Simulation speed",
+            label("Simulation speed", "simulation-speed").c_str(),
             &speedMultiplier,
             0.25f,
             4.0f,
@@ -583,7 +646,8 @@ static void renderStatsWindow(
             !engineHasEvents)
         {
             ImGui::TextDisabled(
-                "No traffic scheduled."
+                "%s",
+                translations.translate("No traffic scheduled.").c_str()
             );
         }
     }
@@ -593,14 +657,14 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        "Traffic",
+        label("Traffic", "traffic-section").c_str(),
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         float lossPercent =
             lossProb * 100.0f;
 
         if (ImGui::SliderFloat(
-            "Loss probability",
+            label("Loss probability", "loss-probability").c_str(),
             &lossPercent,
             0.0f,
             100.0f,
@@ -615,7 +679,7 @@ static void renderStatsWindow(
         }
 
         if (ImGui::SliderInt(
-            "Packet size (bytes)",
+            label("Packet size (bytes)", "packet-size").c_str(),
             &packetSize,
             64,
             65535,
@@ -627,7 +691,8 @@ static void renderStatsWindow(
         }
 
         ImGui::Text(
-            "Current size: %s",
+            "%s: %s",
+            translations.translate("Current size").c_str(),
             formatBytes(packetSize).c_str()
         );
     }
@@ -637,7 +702,7 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        "Statistics",
+        label("Statistics", "statistics-section").c_str(),
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         MetricsPannel panel;
@@ -649,7 +714,7 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        "TCP Congestion Control",
+        label("TCP Congestion Control", "tcp-congestion-section").c_str(),
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         TcpCongestionPanel panel;
@@ -661,15 +726,18 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        "Network Configuration"))
+        label("Network Configuration", "network-configuration-section").c_str()))
     {
         ImGui::Text(
-            "Base rate: %.0f packets/min at 1.0x",
-            kBasePacketsPerMinute
+            "%s: %.0f %s",
+            translations.translate("Base rate").c_str(),
+            kBasePacketsPerMinute,
+            translations.translate("packets/min at 1.0x").c_str()
         );
 
         ImGui::Text(
-            "Packets per route: %d",
+            "%s: %d",
+            translations.translate("Packets per route").c_str(),
             engine.getPacketsPerRoute()
         );
     }
@@ -679,20 +747,23 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        "Validation"))
+        label("Validation", "validation-section").c_str()))
     {
         ImGui::Text(
-            "Packets sent: %d",
+            "%s: %d",
+            translations.translate("Packets sent").c_str(),
             stats.packets_sent
         );
 
         ImGui::Text(
-            "Packets delivered: %d",
+            "%s: %d",
+            translations.translate("Packets delivered").c_str(),
             stats.packets_delivered
         );
 
         ImGui::Text(
-            "Packets lost: %d",
+            "%s: %d",
+            translations.translate("Packets lost").c_str(),
             stats.packets_lost
         );
     }
@@ -1446,6 +1517,7 @@ static PickedNodes renderNetworkPanel(
 }
 
 static void renderConfigWindow(
+    TranslationService& translations,
     bool& firstFrame,
     bool topologySelected,
     std::unique_ptr<SimulationEngine>& /* engine */,
@@ -1455,7 +1527,9 @@ static void renderConfigWindow(
 {
     bool autoClick = false;
 
-    ImGui::Begin("Settings");
+    const std::string window_label =
+        translations.translate("Settings") + "###settings-window";
+    ImGui::Begin(window_label.c_str());
 
     if (firstFrame && !topologySelected)
     {
@@ -1464,12 +1538,15 @@ static void renderConfigWindow(
     }
 
     ImGui::Text(
-        "Load a JSON Topology."
+        "%s",
+        translations.translate("Load a JSON Topology.").c_str()
     );
 
     ImGui::Separator();
 
-    if (ImGui::Button("Load Topology") ||
+    const std::string load_label =
+        translations.translate("Load Topology") + "###load-topology";
+    if (ImGui::Button(load_label.c_str()) ||
         autoClick)
     {
         if (!ImGuiFileDialog::Instance()
@@ -1506,6 +1583,7 @@ static void visualizeWindow(
     }
 
     VisualPacketManager visualManager;
+    TranslationService translations;
 
     float lossProb = 0.0f;
     float speedMultiplier = 1.0f;
@@ -1707,6 +1785,7 @@ static void visualizeWindow(
 
         renderStatsWindow(
             *engine,
+            translations,
             state,
             engine->getStats(),
             buffer,
@@ -1743,6 +1822,7 @@ static void visualizeWindow(
         // --------------------------------------------------
 
         renderConfigWindow(
+            translations,
             firstFrame,
             topo.size() > 0,
             engine,

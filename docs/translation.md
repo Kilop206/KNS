@@ -1,0 +1,55 @@
+# GUI translation
+
+KNS integrates with the text translation API documented by the
+[xnx3/translate](https://github.com/xnx3/translate) project. The JavaScript
+library itself is browser-only because it scans an HTML DOM; KNS calls the
+service API from its native C++ desktop process instead.
+
+## Behavior
+
+- English is local and never makes a translation request.
+- Selecting Portuguese, Spanish, French, or German queues the visible static
+  labels from the Stats and Settings windows.
+- Requests run on a worker thread and are batched to avoid blocking Dear ImGui.
+- Successful translations are cached in memory for the selected language.
+- Network errors leave the original English label visible. The UI shows the
+  error and provides a retry action.
+- Changing language invalidates translations from an older in-flight request.
+
+Only strings explicitly passed to `TranslationService::translate()` are sent.
+The current integration passes static interface labels; topology contents,
+filenames, packet data, and simulation results are not translated or uploaded.
+
+## Service endpoint
+
+The default service is:
+
+```text
+http://api.translate.zvo.cn/translate.json
+```
+
+The request is an `application/x-www-form-urlencoded` POST containing `to` and
+`text`. The latter is a JSON array, which lets KNS translate labels in batches.
+
+Set `KNS_TRANSLATION_API_BASE_URL` before starting KNS to use a compatible
+private deployment. Supply the base URL without `/translate.json`; a trailing
+slash is accepted and removed.
+
+PowerShell example:
+
+```powershell
+$env:KNS_TRANSLATION_API_BASE_URL = "http://127.0.0.1:8080"
+.\build\app\Debug\KNS.exe
+```
+
+The public endpoint documented by the provider uses unencrypted HTTP. KNS sends
+only the static labels described above. Use a trusted private deployment when
+transport privacy or service availability is required.
+
+## Extending coverage
+
+Pass a `TranslationService` owned by the application to another panel and use
+`translate()` for visible text. Keep Dear ImGui widget IDs stable by appending a
+non-translated `###identifier`, as the Stats and Settings windows do. Avoid
+sending dynamic or user-controlled content unless that behavior is explicit in
+the feature and its privacy contract.

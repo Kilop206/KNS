@@ -8,6 +8,7 @@ target_sources(KNS PRIVATE
     gui/src/VisualPacketManager.cpp
     gui/src/PacketRenderer.cpp
     gui/src/GUIFormat.cpp
+    gui/src/TranslationService.cpp
     gui/src/ThemeManager.cpp
     gui/src/TcpCongestionPanel.cpp
     gui/src/TcpConnectionPanel.cpp
@@ -24,6 +25,7 @@ target_link_libraries(KNS
     PRIVATE
         kns
         imgui_lib
+        httplib::httplib
 )
 
 target_compile_features(KNS PRIVATE cxx_std_20)
