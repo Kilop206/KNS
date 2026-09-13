@@ -57,7 +57,8 @@ namespace kns {
         syn.packet_type = inferPacketType(syn.tcp);
         syn.departure_time = engine.now();
 
-        if (PacketUtils::sendPacketThroughTopology(engine, syn))
+        // The timer tracks the handshake, even when the network drops the SYN.
+        PacketUtils::sendPacketThroughTopology(engine, syn);
         {
             engine.schedule(
                 std::make_unique<TCPHandshakeTimeoutEvent>(
