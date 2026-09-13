@@ -274,8 +274,7 @@ namespace kns {
     void SimulationEngine::exportStatsCSV(const RunConfig& runConfig) {
         std::ofstream file(runConfig.filename, std::ios::out);
         if (!file.is_open()) {
-            std::cerr << "SimulationEngine::exportStatsCSV: failed to open file " << runConfig.filename << std::endl;
-            return;
+            throw std::runtime_error("Failed to open CSV output: " + runConfig.filename);
         }
 
         // Header
@@ -299,6 +298,9 @@ namespace kns {
              << total_sessions << '\n';
 
         file.close();
+        if (!file) {
+            throw std::runtime_error("Failed to write CSV output: " + runConfig.filename);
+        }
     }
 
     void SimulationEngine::advanceTime(double time) {

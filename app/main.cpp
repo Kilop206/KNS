@@ -2224,18 +2224,17 @@ int main(int argc, char* argv[])
                 "results/results.csv";
         }
 
-        if (auto dir =
-                fs::path(
-                    runConfig.filename
-                ).parent_path();
-            !dir.empty())
-        {
-            fs::create_directories(dir);
+        try {
+            const auto dir = fs::path(runConfig.filename).parent_path();
+            if (!dir.empty()) {
+                fs::create_directories(dir);
+            }
+            engine->exportStatsCSV(runConfig);
+        } catch (const std::exception& error) {
+            std::cerr << "CSV export failed for " << runConfig.filename
+                      << ": " << error.what() << '\n';
+            return 1;
         }
-
-        engine->exportStatsCSV(
-            runConfig
-        );
 
         const ValidationReport report =
             engine->validateSimulation();

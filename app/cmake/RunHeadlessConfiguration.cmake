@@ -16,6 +16,14 @@ if(NOT DEFINED KNS_EXECUTABLE)
 endif()
 
 file(MAKE_DIRECTORY "${KNS_OUTPUT_DIR}")
+execute_process(
+    COMMAND "${KNS_EXECUTABLE}" --headless --topology "${KNS_TOPOLOGY}"
+        --output "${KNS_OUTPUT_DIR}"
+    RESULT_VARIABLE export_result OUTPUT_VARIABLE export_stdout ERROR_VARIABLE export_stderr
+)
+if(export_result EQUAL 0 OR NOT export_stderr MATCHES "CSV export failed")
+    message(FATAL_ERROR "Directory output did not report an export failure: ${export_stdout}${export_stderr}")
+endif()
 foreach(run RANGE 1 2)
     execute_process(
         COMMAND "${CMAKE_COMMAND}" -E env KNS_AUTO_START=1
