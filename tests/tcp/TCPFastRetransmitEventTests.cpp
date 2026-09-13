@@ -147,6 +147,36 @@ namespace
     }
 }
 
+TEST_CASE("ACK dispatch updates congestion only for genuine duplicates", "[tcp][ack][integration]")
+{
+    Topology topology(2);
+    SimulationEngine engine(topology);
+    auto& session = engine.createTCPSession(0, 1);
+    establishSession(session);
+    auto& client = session.getClientConnection();
+    const auto sequence = client.getSendNext();
+    REQUIRE(client.queueSentSegment(makeOutstandingSegment(sequence), 0.0));
+    client.onFastRetransmit(100, 0.0);
+    auto& control = client.getCongestionControl();
+    const auto initial_window = control.getCwnd();
+
+    SECTION("Duplicate ACK inflates the recovery window exactly once") {
+        PacketReceivedEvent event(0.0, makeDuplicateAck(session.getSession_id(), sequence));
+        event.execute(engine);
+        REQUIRE(control.getCwnd() == initial_window + control.getMss());
+    }
+    SECTION("Stale ACK leaves the recovery window unchanged") {
+        PacketReceivedEvent event(0.0, makeDuplicateAck(session.getSession_id(), sequence - 1));
+        event.execute(engine);
+        REQUIRE(control.getCwnd() == initial_window);
+    }
+    SECTION("Future ACK leaves the recovery window unchanged") {
+        PacketReceivedEvent event(0.0, makeDuplicateAck(session.getSession_id(), sequence + 101));
+        event.execute(engine);
+        REQUIRE(control.getCwnd() == initial_window);
+    }
+}
+
 TEST_CASE(
     "TCP duplicate ACK threshold schedules fast retransmit",
     "[tcp][fast-retransmit][integration]"

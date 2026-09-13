@@ -186,8 +186,6 @@ namespace kns
                         engine.now()
                     );
 
-                receiver.getCongestionControl().onDuplicateAck();
-
                 if (acknowledged) {
                     const auto oldest =
                         receiver.getOldestOutstandingSequence();
