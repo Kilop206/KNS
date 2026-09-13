@@ -5,6 +5,7 @@
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 #include "engine/events/TCPFastRetransmitEvent.hpp"
+#include "engine/events/TCPRetransmissionEvent.hpp"
 #include "network/Link.hpp"
 #include "network/Packet.hpp"
 #include "network/Topology.hpp"
@@ -144,6 +145,43 @@ namespace
             acknowledgement;
 
         return packet;
+    }
+}
+
+TEST_CASE("Dropped retransmissions keep a bounded recovery timer", "[tcp][retransmission][loss]")
+{
+    Topology topology(2);
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 1.0);
+    SimulationEngine engine(topology);
+    auto& session = engine.createTCPSession(0, 1);
+    establishSession(session);
+    auto& client = session.getClientConnection();
+    const auto sequence = client.getSendNext();
+    REQUIRE(client.queueSentSegment(makeOutstandingSegment(sequence), 0.0));
+    kns::TCPRetransmissionEvent event(0.0, session.getSession_id(), sequence);
+    event.execute(engine);
+    REQUIRE(client.hasOutstandingSegment(sequence));
+    REQUIRE(engine.hasEvents());
+    SECTION("Temporary loss recovers the outstanding segment") {
+        link->setLossProb(0.0);
+        int events = 0;
+        while (client.hasOutstandingSegment(sequence) && engine.hasEvents() && events < 100) {
+            engine.processEvent();
+            ++events;
+        }
+        REQUIRE(events < 100);
+        REQUIRE_FALSE(client.hasOutstandingSegment(sequence));
+        REQUIRE(client.getSendUnacknowledged() == sequence + 100);
+    }
+    SECTION("Permanent loss reaches the retry limit") {
+        int events = 0;
+        while (engine.hasEvents() && events < 100) {
+            engine.processEvent();
+            ++events;
+        }
+        REQUIRE(events < 100);
+        REQUIRE_FALSE(engine.hasEvents());
+        REQUIRE(client.isClosed());
     }
 }
 

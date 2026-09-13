@@ -111,15 +111,8 @@ namespace kns {
             << '\n'
         );
 
-        const bool accepted =
-            PacketUtils::sendPacketThroughTopology(
-                engine,
-                retransmission
-            );
-
-        if (!accepted) {
-            return;
-        }
+        // Outstanding data keeps its recovery timer even if this attempt drops.
+        PacketUtils::sendPacketThroughTopology(engine, retransmission);
 
         if (!client.hasOutstandingSegment(sequence_)) {
             return;
