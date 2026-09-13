@@ -221,7 +221,7 @@ namespace kns {
         link.reserveTransmission(
             pkt.current_node,
             next_node,
-            arrival_time
+            actual_departure_time + transmission_time
         );
 
         Packet new_pkt = pkt;

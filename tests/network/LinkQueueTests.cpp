@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include <stdexcept>
 #include "network/Topology.hpp"
 #include "engine/core/SimulationEngine.hpp"
@@ -7,6 +8,33 @@
 #include "enums/LinkMode.hpp"
 
 using namespace kns;
+
+TEST_CASE("Propagation does not reserve the transmitter", "[network][link][timing]")
+{
+    for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX, LinkMode::SIMPLEX}) {
+        Topology topology(2);
+        auto link = topology.addLinkPtr(0, 1, 1.0, 1000.0, 0.0, mode, 2);
+        SimulationEngine engine(topology);
+        Packet packet(0, 1, 0, 0.0, 125, 999);
+        REQUIRE(engine.sendPacket(packet, *link, 0.0));
+        REQUIRE(engine.sendPacket(packet, *link, 0.0));
+        const auto& travel = engine.getPacketsInTransit();
+        REQUIRE(travel.size() == 2);
+        REQUIRE(link->getNextAvailableTime(0, 1, 0.0) == Catch::Approx(0.002));
+        REQUIRE_FALSE(link->canQueue(0, 1));
+        if (mode == LinkMode::FULL_DUPLEX) {
+            REQUIRE(link->getNextAvailableTime(1, 0, 0.0) == 0.0);
+        } else if (mode == LinkMode::HALF_DUPLEX) {
+            REQUIRE(link->getNextAvailableTime(1, 0, 0.0) == Catch::Approx(0.002));
+        } else {
+            REQUIRE_FALSE(link->allowsTransmission(1, 0));
+        }
+        REQUIRE(engine.peekNextEventTime() == Catch::Approx(1.001));
+        engine.run();
+        REQUIRE(engine.now() == Catch::Approx(1.002));
+        REQUIRE(link->getQueueSize() == 0);
+    }
+}
 
 TEST_CASE("Sending rejects foreign and removed links without side effects", "[network][link][ownership]")
 {
