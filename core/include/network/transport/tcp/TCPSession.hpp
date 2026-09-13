@@ -51,7 +51,7 @@ namespace kns
 
             void setTotalPackets(int total);
 
-            bool isComplete();
+            bool isComplete() const noexcept;
 
             bool isCloseRequest();
 

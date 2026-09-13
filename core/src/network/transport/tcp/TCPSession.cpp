@@ -105,7 +105,7 @@ namespace kns {
         total_packets = total;
     }
 
-    bool TCPSession::isComplete()
+    bool TCPSession::isComplete() const noexcept
     {
         return packets_sent == total_packets;
     }

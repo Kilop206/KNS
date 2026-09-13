@@ -847,6 +847,13 @@ namespace kns {
         return true;
     }
 
+    void TCPConnection::discardBufferedData() noexcept
+    {
+        send_buffer_.clear();
+        receive_buffer_.clear();
+        resetLossDetection();
+    }
+
     std::uint32_t TCPConnection::getDuplicateAckCount()
     const noexcept
     {

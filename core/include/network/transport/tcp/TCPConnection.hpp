@@ -172,6 +172,9 @@ namespace kns {
 
         bool failRetransmission() noexcept;
 
+        /// Discard transport buffers after the endpoint has permanently closed.
+        void discardBufferedData() noexcept;
+
         /*
          * Duplicate ACK / fast retransmit detection.
          */

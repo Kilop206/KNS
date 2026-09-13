@@ -415,12 +415,18 @@ namespace kns {
         r.packets_sent = stats_.packets_sent;
         r.packets_delivered = stats_.packets_delivered;
         r.packets_lost = stats_.packets_lost;
+        r.loss_free = r.packets_lost == 0;
         r.completed_sessions = 0;
 
         for (const auto& pair : sessions) {
-            const auto state = pair.second.getState();
-
-            if (state == TCPState::CLOSED) {
+            const auto& session = pair.second;
+            const auto& client = session.getClientConnection();
+            const auto& server = session.getServerConnection();
+            if (client.getTcpState() == TCPState::CLOSED &&
+                server.getTcpState() == TCPState::CLOSED &&
+                session.hasGeneratedTraffic() && session.isComplete() &&
+                client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
+                client.getReceiveBufferSize() == 0 && server.getReceiveBufferSize() == 0) {
                 r.completed_sessions++;
             }
         }
@@ -431,9 +437,14 @@ namespace kns {
 
         r.traffic_ok =
             (r.packets_sent > 0) &&
-            (r.packets_delivered == r.packets_sent) &&
-            (r.packets_lost == 0) &&
-            packets_in_transit.empty();
+            (r.packets_delivered >= 0) &&
+            (r.packets_delivered <= r.packets_sent) &&
+            (r.packets_lost >= 0) &&
+            // Rejected sends also count as losses without incrementing sent.
+            (r.packets_sent - r.packets_delivered <= r.packets_lost) &&
+            !hasEvents() && packets_in_transit.empty() &&
+            std::all_of(topology_.getLinks().begin(), topology_.getLinks().end(),
+                [](const auto& link) { return !link || link->getQueueSize() == 0; });
 
         return r;
     }
@@ -539,13 +550,16 @@ namespace kns {
     void SimulationEngine::releaseTCPListenerSession(
         std::uint64_t session_id
     ) noexcept {
-        const auto session_it = sessions.find(session_id);
+        auto session_it = sessions.find(session_id);
 
         if (session_it == sessions.end()) {
             return;
         }
 
-        const auto& server = session_it->second.getServerConnection();
+        auto& session = session_it->second;
+        session.getClientConnection().discardBufferedData();
+        session.getServerConnection().discardBufferedData();
+        const auto& server = session.getServerConnection();
         const auto listener_it = listeners_.find(
             std::make_pair(server.getLocalNode(), server.getLocalPort())
         );

@@ -39,6 +39,8 @@ namespace kns {
         int packets_lost = 0;
         bool sessions_ok = false;
         bool traffic_ok = false;
+        /// Descriptive metric only: packet loss does not imply invalid execution.
+        bool loss_free = false;
 
         bool passed() const noexcept {
             return sessions_ok && traffic_ok;
