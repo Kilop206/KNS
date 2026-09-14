@@ -609,7 +609,7 @@ namespace kns {
         double startTime,
         TCPSession& session
     ) {
-        if (session.hasGeneratedTraffic()) {
+        if (session.hasPendingGeneration()) {
             return;
         }
 
@@ -617,8 +617,15 @@ namespace kns {
             return;
         }
 
-        session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
-        session.markTrafficGenerated();
+        const auto payload_size = static_cast<std::size_t>(getGlobalPacketSize());
+        const auto& client = session.getClientConnection();
+        if (payload_size > client.getSendWindow()) {
+            throw std::invalid_argument("Packet payload exceeds the configured send window");
+        }
+        if ((session.hasGeneratedTraffic() && session.isComplete()) ||
+            !client.canSend(payload_size)) {
+            return;
+        }
 
         schedule(
             std::make_unique<PacketGenerationEvent>(
@@ -628,6 +635,11 @@ namespace kns {
                 session.getSession_id()
             )
         );
+        if (!session.hasGeneratedTraffic()) {
+            session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
+            session.markTrafficGenerated();
+        }
+        session.setGenerationPending(true);
     }
 
     int SimulationEngine::createNode() {

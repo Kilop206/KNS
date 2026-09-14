@@ -27,6 +27,7 @@ namespace kns
             TCPConnection server_connection;
             bool close_requested = false;
             bool traffic_generated_ = false;
+            bool generation_pending_ = false;
 
         public:
             FailureReason getFailureReason() const noexcept { return failure_reason_; }
@@ -69,6 +70,8 @@ namespace kns
             void setCloseRequest(bool closeRequest);
 
             bool hasGeneratedTraffic() const noexcept;
+            bool hasPendingGeneration() const noexcept { return generation_pending_; }
+            void setGenerationPending(bool pending) noexcept { generation_pending_ = pending; }
             
             void markTrafficGenerated() noexcept;
 

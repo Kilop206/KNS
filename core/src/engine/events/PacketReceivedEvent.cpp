@@ -223,8 +223,7 @@ namespace kns
 
                 if (
                     client.getTcpState() == TCPState::ESTABLISHED &&
-                    server.getTcpState() == TCPState::ESTABLISHED &&
-                    !session.hasGeneratedTraffic()
+                    server.getTcpState() == TCPState::ESTABLISHED
                 ) {
                     engine.generatePackets(engine.now(), session);
                 }
