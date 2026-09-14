@@ -34,7 +34,9 @@ namespace kns {
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
 
-        if (!client.send_syn()) {
+        const auto initial_seq = client.getTcpState() == TCPState::SYN_SENT
+            ? client.getSeqNum() : engine.randomSequence();
+        if (!client.send_syn(initial_seq)) {
             KNS_DEBUG_LOG(
                 "[TCP][SESSION "
                 << session_id_

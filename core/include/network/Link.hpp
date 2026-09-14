@@ -7,12 +7,14 @@
 #include <memory>
 
 #include "enums/LinkMode.hpp"
+#include "engine/core/Random.hpp"
 
 namespace kns {
 
 class Topology;
 
 class Link {
+    mutable Random random_;
     public:
         Link(
             int a,

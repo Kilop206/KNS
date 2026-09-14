@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "enums/TCPState.hpp"
+#include "engine/core/Random.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
 #include "network/transport/tcp/TCPStateMachine.hpp"
 #include "network/transport/tcp/buffer/TCPReceiveBuffer.hpp"
@@ -20,6 +21,7 @@
 namespace kns {
 
     class TCPConnection {
+        Random random_;
     public:
         static constexpr std::uint32_t MAX_SYN_RETRIES = 5;
         static constexpr std::uint32_t DEFAULT_SEND_WINDOW = 65535;
@@ -86,7 +88,7 @@ namespace kns {
 
         bool receive_fin(std::uint32_t remote_seq);
 
-        bool send_syn();
+        bool send_syn(std::optional<std::uint32_t> initial_seq = std::nullopt);
 
         bool markSynSent() noexcept;
 
@@ -214,7 +216,6 @@ namespace kns {
         ) noexcept;
 
     private:
-        static std::uint32_t generateInitialSeq();
 
         void updateSendUnacknowledged(
             std::uint32_t ack_number

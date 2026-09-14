@@ -17,6 +17,7 @@
 #include "network/transport/tcp/TCPListener.hpp"
 #include "engine/core/Event.hpp"
 #include "engine/core/Stats.hpp"
+#include "engine/core/Random.hpp"
 #include "engine/core/EventQueue.hpp"
 #include "engine/core/SimulationClock.hpp"
 #include "network/Packet.hpp"
@@ -49,6 +50,7 @@ namespace kns {
 
     class SimulationEngine {
     private:
+        Random random_;
         void untrackTCPListenerSession(const TCPSession& session) noexcept;
 
         double loss_prob = 0.01;
@@ -101,6 +103,7 @@ namespace kns {
 
     public:
         double random();
+        std::uint32_t randomSequence() { return random_.nextUint32(); }
 
         double get_loss_prob() const;
 

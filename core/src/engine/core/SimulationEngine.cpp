@@ -43,7 +43,7 @@ namespace kns {
             throw std::logic_error("Run configuration must be applied before scheduling work");
         }
         setGlobalPacketSize(config.packet_size);
-        Random::seed(config.seed);
+        random_.seed(config.seed);
     }
 
     double SimulationEngine::now() const {
@@ -51,7 +51,7 @@ namespace kns {
     }
 
     double SimulationEngine::random() {
-        return Random::uniform01();
+        return random_.uniform01();
     }
 
     double SimulationEngine::get_loss_prob() const {
@@ -245,7 +245,7 @@ namespace kns {
             stats_.packets_sent++;
         }
 
-        if (link.should_drop()) {
+        if (link.getLossProb() > 0.0 && random() < link.getLossProb()) {
             stats_.packets_lost++;
             return false;
         }

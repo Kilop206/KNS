@@ -1,19 +1,20 @@
 #pragma once
 
 #include <cstdint>
+#include <random>
 
 namespace kns {
 
-    // Global deterministic random source for the simulation.
-    // Seed it once (e.g. from RunConfig::seed) to make runs reproducible.
+    // Value-owned deterministic stream; separate owners never share state.
     class Random {
+        std::mt19937_64 engine_{42};
         public:
-            static void seed(std::uint64_t seed);
+            void seed(std::uint64_t seed);
 
             // Uniform double in [0, 1).
-            static double uniform01();
+            double uniform01();
 
-            static std::uint32_t nextUint32();
+            std::uint32_t nextUint32();
     };
 
 }
