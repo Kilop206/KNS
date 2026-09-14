@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Issues #131 and #123 remain valid on `82b004d`; see
+[TCP duplicate recovery](tcp-duplicate-recovery.md) for requirements and tests.
+
 Issues #132 and #127 were still valid on `30471bf` and are resolved locally by
 `9388a61` and `587d335`; see the acceptance criteria and validation in
 [Simulation time and DATA latency](time-and-latency.md).
