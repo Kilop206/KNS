@@ -49,6 +49,7 @@ namespace kns {
 
     class SimulationEngine {
     private:
+        void untrackTCPListenerSession(const TCPSession& session) noexcept;
 
         double loss_prob = 0.01;
 
@@ -204,7 +205,8 @@ namespace kns {
         );
 
         /// Release a closed session from its server listener's backlog.
-        void releaseTCPListenerSession(std::uint64_t session_id) noexcept;
+        /// Returns false without mutation unless both endpoints are CLOSED.
+        bool releaseTCPListenerSession(std::uint64_t session_id) noexcept;
 
         void setPacketObserver(
             std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer

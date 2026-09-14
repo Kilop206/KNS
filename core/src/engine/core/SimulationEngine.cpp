@@ -406,7 +406,7 @@ namespace kns {
             return false;
         }
 
-        releaseTCPListenerSession(session_id);
+        untrackTCPListenerSession(sessions.at(session_id));
         sessions.erase(session_id);
 
         return true;
@@ -554,25 +554,36 @@ namespace kns {
         );
     }
 
-    void SimulationEngine::releaseTCPListenerSession(
+    bool SimulationEngine::releaseTCPListenerSession(
         std::uint64_t session_id
     ) noexcept {
         auto session_it = sessions.find(session_id);
 
         if (session_it == sessions.end()) {
-            return;
+            return false;
         }
 
         auto& session = session_it->second;
+        if (session.getClientConnection().getTcpState() != TCPState::CLOSED ||
+            session.getServerConnection().getTcpState() != TCPState::CLOSED) {
+            return false;
+        }
         session.getClientConnection().discardBufferedData();
         session.getServerConnection().discardBufferedData();
+        untrackTCPListenerSession(session);
+        return true;
+    }
+
+    void SimulationEngine::untrackTCPListenerSession(
+        const TCPSession& session
+    ) noexcept {
         const auto& server = session.getServerConnection();
         const auto listener_it = listeners_.find(
             std::make_pair(server.getLocalNode(), server.getLocalPort())
         );
 
         if (listener_it != listeners_.end()) {
-            listener_it->second.untrackSession(session_id);
+            listener_it->second.untrackSession(session.getSession_id());
         }
     }
 
