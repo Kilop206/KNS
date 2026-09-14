@@ -237,7 +237,7 @@ namespace kns
                     client.getTcpState() == TCPState::ESTABLISHED &&
                     server.getTcpState() == TCPState::ESTABLISHED &&
                     session.hasGeneratedTraffic() &&
-                    session.isComplete() &&
+                    session.isDataAcknowledged() &&
                     !session.isCloseRequest()
                 ) {
                     session.setCloseRequest(true);

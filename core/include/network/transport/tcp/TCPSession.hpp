@@ -61,6 +61,8 @@ namespace kns
             void setTotalPackets(int total);
 
             bool isComplete() const noexcept;
+            /// Generation is complete and neither endpoint has outstanding DATA.
+            bool isDataAcknowledged() const noexcept;
 
             bool isCloseRequest();
 

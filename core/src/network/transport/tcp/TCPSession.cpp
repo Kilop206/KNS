@@ -122,6 +122,13 @@ namespace kns {
         return packets_sent == total_packets;
     }
 
+    bool TCPSession::isDataAcknowledged() const noexcept
+    {
+        return hasGeneratedTraffic() && isComplete() &&
+            client_connection.getSendBufferSize() == 0 &&
+            server_connection.getSendBufferSize() == 0;
+    }
+
     bool TCPSession::isCloseRequest()
     {
         return close_requested;
