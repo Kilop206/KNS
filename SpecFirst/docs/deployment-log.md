@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Routing link identity #130 (`fbd518b`): full MinGW/Ninja build, 275 passing CTest
+cases and mesh4 headless validation. See `routing-link-selection.md`.
+
 Topology read views #147 (`10bcade`): full MinGW/Ninja build, 273 passing CTest
 cases and mesh4 headless validation. See `topology-read-views.md`.
 
