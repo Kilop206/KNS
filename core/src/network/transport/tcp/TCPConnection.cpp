@@ -246,6 +246,9 @@ namespace kns {
         std::uint32_t remote_seq
     )
     {
+        if (getTcpState() == TCPState::SYN_RECEIVED) {
+            return remote_seq + 1 == expected_ack_num_;
+        }
         if (!state_machine_.onSynReceived()) {
             return false;
         }
