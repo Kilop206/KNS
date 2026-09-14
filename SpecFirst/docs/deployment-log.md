@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Topology read views #147 (`10bcade`): full MinGW/Ninja build, 273 passing CTest
+cases and mesh4 headless validation. See `topology-read-views.md`.
+
 Resumable generation #121 (`844bff0`): MinGW/Ninja build, 271 passing CTest cases
 and mesh4 headless validation using `build/validation-bin`.
 See `tcp-generation-resume.md` for the contract and evidence.

@@ -2,7 +2,8 @@
 
 ## 1. Purpose
 
-Issue #147 remains valid on `7dcc851`; see [Topology read views](topology-read-views.md).
+Issue #147 was valid on `7dcc851` and is resolved locally by `10bcade`;
+see [Topology read views](topology-read-views.md).
 
 Issue #121 was valid on `4562f03` and is resolved locally by `844bff0`; see
 [Resumable TCP generation](tcp-generation-resume.md).
