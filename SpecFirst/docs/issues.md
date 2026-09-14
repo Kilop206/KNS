@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Issues #133-#136 are valid on `0f3e20a`; implementation follows
+[Runner results](runner-results.md).
+
 Issue #130 was valid at `e8e24a7` and is resolved locally by `fbd518b`;
 see [Routing link selection](routing-link-selection.md).
 
