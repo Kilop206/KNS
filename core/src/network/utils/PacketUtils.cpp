@@ -13,10 +13,12 @@ namespace kns {
         const int next = engine.getNextHop(pkt.current_node, pkt.destination);
 
         if (next == -1) {
+            engine.getStats().packets_lost++;
             return false;
         }
 
         if (pkt.current_node < 0 || pkt.current_node >= engine.getTopology().size()) {
+            engine.getStats().packets_lost++;
             return false;
         }
 
@@ -33,6 +35,7 @@ namespace kns {
         }
 
         if (!selected_link) {
+            engine.getStats().packets_lost++;
             return false;
         }
 

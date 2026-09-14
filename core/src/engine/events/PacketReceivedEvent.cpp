@@ -62,11 +62,7 @@ namespace kns
         assert(packet.current_node >= 0);
 
         if (packet.current_node != packet.destination) {
-            auto& stats = engine.getStats();
-
-            if (!PacketUtils::sendPacketThroughTopology(engine, packet)) {
-                stats.packets_lost++;
-            }
+            PacketUtils::sendPacketThroughTopology(engine, packet);
 
             return;
         }
