@@ -2,6 +2,10 @@
 
 ## 1. Purpose
 
+2026-09-14: local `tcp` fixes #142 (`ebee95c`) and #118 (`5fded04`) built with
+the existing MinGW/Ninja toolchain. All 257 CTest cases and the `mesh4.json`
+headless smoke run passed. See `tcp-terminal-cleanup.md` for the contract.
+
 This document records relevant build and deployment environment decisions.
 
 KNS is primarily a development and simulation application rather than a conventional server deployment.

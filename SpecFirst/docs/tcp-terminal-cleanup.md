@@ -2,11 +2,11 @@
 
 ## Investigation and Required Contract
 
-Both issues remain valid on local `tcp` at `445920b`.
-SYN retry exhaustion currently returns without a terminal transition. Public
-listener cleanup currently destroys buffers regardless of connection state.
+Both issues were still valid on local `tcp` at `445920b`.
+SYN retry exhaustion returned without a terminal transition. Public
+listener cleanup destroyed buffers regardless of connection state.
 
-Required observable behavior:
+Implemented observable behavior:
 
 * `releaseTCPListenerSession` returns false for missing sessions or when either
   endpoint is not CLOSED, without changing buffers or listener occupancy.
@@ -25,3 +25,17 @@ Required observable behavior:
    connection failure operation; test exhaustion directly and under permanent loss.
 3. Build, run focused regressions and the full CTest suite, then a headless smoke
    run. Commit each implementation step independently and record actual results.
+
+## Completion Record - 2026-09-14
+
+Specification: `80e5fa2`. Terminal cleanup: `ebee95c` (#142).
+Handshake exhaustion: `5fded04` (#118).
+
+Validated with the existing MinGW/Ninja C++20 build, 10 focused CTest cases,
+and the complete 257-case suite (all passed). The headless `mesh4.json` smoke
+run exited successfully and exported 148 sent/delivered packets, zero loss,
+zero packets in transit, and four sessions.
+
+The failure reason is available from `TCPSession::getFailureReason()`; it is
+not a new CSV field. Failed sessions remain inspectable and are not counted as
+successfully completed traffic by simulation validation.
