@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import platform
 import subprocess
@@ -127,30 +128,30 @@ def parse_csv_if_exists(csv_file: Path) -> list[dict] | None:
     return rows if rows else None
 
 
-def parse_stats(csv_file: Path) -> dict | None:
-    """Read the aggregate stats CSV exported by the engine and convert types.
-
-    Expected header:
-    Packets Sent,Packets Delivered,Packets Lost,Delivery Rate,Loss Rate,Average Latency,Seed
-    """
+def parse_stats(csv_file: Path) -> dict:
+    """Read version 1 of the engine's aggregate CSV; reject invalid output."""
     rows = parse_csv_if_exists(csv_file)
-    if not rows:
-        return None
+    if not rows or len(rows) != 1:
+        raise ValueError(f"Expected one stats row in {csv_file}")
 
     raw = rows[0]
     try:
-        return {
-            "packets_sent": int(raw["Packets Sent"]),
-            "packets_delivered": int(raw["Packets Delivered"]),
-            "packets_lost": int(raw["Packets Lost"]),
-            "delivery_rate": float(raw["Delivery Rate"]),
-            "loss_rate": float(raw["Loss Rate"]),
-            "avg_latency_s": float(raw["Average Latency"]),
-            "seed": int(raw["Seed"]),
-        }
-    except (KeyError, ValueError) as exc:
-        print(f"[WARNING] Unexpected stats CSV format in {csv_file}: {exc}", file=sys.stderr)
-        return None
+        if int(raw["schema_version"]) != 1:
+            raise ValueError("Unsupported schema_version")
+        result = {key: int(raw[key]) for key in (
+            "packets_sent", "packets_delivered", "packets_lost",
+            "packets_in_transit", "total_sessions", "data_packets_delivered", "seed")}
+        result.update({key: float(raw[key]) for key in (
+            "total_latency", "avg_latency", "simulation_duration_s")})
+        if any(not math.isfinite(value) or value < 0 for value in result.values()):
+            raise ValueError("Metrics must be finite and nonnegative")
+        sent = result["packets_sent"]
+        result["delivery_rate"] = result["packets_delivered"] / sent if sent else 0.0
+        result["loss_rate"] = result["packets_lost"] / sent if sent else 0.0
+        result["avg_latency_s"] = result.pop("avg_latency")
+        return result
+    except (KeyError, ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid stats CSV {csv_file}: {exc}") from exc
 
 
 # ==============================================================
@@ -286,10 +287,11 @@ def compute_stats(stats: dict | None, duration_s: float) -> dict:
         "loss_rate": stats["loss_rate"] if stats else None,
         "latency_mean_s": stats["avg_latency_s"] if stats else None,
         "seed": stats["seed"] if stats else None,
-        "duration_seconds": duration_s,
+        "wall_clock_duration_s": duration_s,
+        "simulation_duration_s": stats["simulation_duration_s"] if stats else None,
         "throughput_pps": (
-            stats["packets_delivered"] / duration_s
-            if stats and duration_s > 0
+            stats["packets_delivered"] / stats["simulation_duration_s"]
+            if stats and stats["simulation_duration_s"] > 0
             else None
         ),
     }
@@ -334,7 +336,8 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
     out = test_dir / "metrics.csv"
     fieldnames = [
         "topology",
-        "duration_s",
+        "wall_clock_duration_s",
+        "simulation_duration_s",
         "packets_sent",
         "packets_delivered",
         "packets_lost",
@@ -354,7 +357,8 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
             stats = compute_stats(r["stats"], r["duration_s"])
             row = {
                 "topology": r["topo"].name,
-                "duration_s": f"{r['duration_s']:.4f}",
+                "wall_clock_duration_s": f"{r['duration_s']:.4f}",
+                "simulation_duration_s": stats["simulation_duration_s"],
                 "packets_sent": stats["packets_sent"] if stats["packets_sent"] is not None else "",
                 "packets_delivered": stats["packets_delivered"] if stats["packets_delivered"] is not None else "",
                 "packets_lost": stats["packets_lost"] if stats["packets_lost"] is not None else "",

@@ -287,7 +287,7 @@ namespace kns {
         }
 
         // Header
-        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered\n";
+        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,schema_version,simulation_duration_s,seed\n";
 
         // Values
         const int sent = stats_.packets_sent;
@@ -307,7 +307,7 @@ namespace kns {
              << avg_latency << ','
              << in_transit << ','
              << total_sessions << ','
-             << data_delivered << '\n';
+             << data_delivered << ",1," << now() << ',' << runConfig.seed << '\n';
 
         file.close();
         if (!file) {
