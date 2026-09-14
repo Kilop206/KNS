@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include "engine/events/PacketReceivedEvent.hpp"
@@ -182,6 +183,9 @@ namespace kns {
         double now
     )
     {
+        if (!std::isfinite(now) || now < this->now()) {
+            throw std::invalid_argument("Packet time must be finite and not in the past");
+        }
         if (pkt.packet_size_bytes <= 0) {
             throw std::invalid_argument("Packet size must be positive");
         }
@@ -217,6 +221,11 @@ namespace kns {
 
         const double arrival_time =
             actual_departure_time + transmission_time + propagation_time;
+
+        if (!std::isfinite(actual_departure_time) ||
+            !std::isfinite(arrival_time) || arrival_time < this->now()) {
+            throw std::invalid_argument("Packet arrival time must be finite and not in the past");
+        }
 
         link.reserveTransmission(
             pkt.current_node,
@@ -264,7 +273,7 @@ namespace kns {
             arrival_time
         );
 
-        event_queue_.schedule(
+        schedule(
             std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
         );
 
@@ -304,10 +313,16 @@ namespace kns {
     }
 
     void SimulationEngine::advanceTime(double time) {
+        if (event_queue_.hasEvents() && time > event_queue_.peekTimestamp()) {
+            throw std::invalid_argument("Cannot advance past a pending event");
+        }
         clock_.setTime(time);
     }
 
     void SimulationEngine::schedule(std::unique_ptr<Event> event) {
+        if (!event || event->getTimestamp() < now()) {
+            throw std::invalid_argument("Event must exist and not be scheduled in the past");
+        }
         event_queue_.schedule(std::move(event));
     }
 
