@@ -149,6 +149,42 @@ namespace
     }
 }
 
+TEST_CASE("Automatic close waits for acknowledgement of the lost tail", "[tcp][close][loss]")
+{
+    Topology topology(2);
+    topology.addLinkPtr(0, 1, 100.0, 1.0);
+    SimulationEngine engine(topology);
+    auto& session = engine.createTCPSession(0, 1);
+    establishSession(session);
+    session.setTotalPackets(2);
+    auto& client = session.getClientConnection();
+    auto& server = session.getServerConnection();
+    const auto sequence = client.getSendNext();
+    const auto first = makeOutstandingSegment(sequence);
+    const auto tail = makeOutstandingSegment(sequence + 100);
+    REQUIRE(client.queueSentSegment(first, 0.0));
+    REQUIRE(client.queueSentSegment(tail, 0.0));
+    session.incrementPacketsSent();
+    session.incrementPacketsSent();
+    REQUIRE(session.isComplete());
+    REQUIRE(server.receive_data(first.seq, first.payload, 0.0));
+    PacketReceivedEvent ack(0.0, makeDuplicateAck(session.getSession_id(), sequence + 100));
+    ack.execute(engine);
+    REQUIRE_FALSE(session.isCloseRequest());
+    REQUIRE(client.isEstablished());
+    REQUIRE(client.hasOutstandingSegment(tail.seq));
+    int events = 0;
+    while (!session.isCloseRequest() && engine.hasEvents() && events < 100) {
+        engine.processEvent();
+        ++events;
+    }
+    REQUIRE(events < 100);
+    REQUIRE(session.isCloseRequest());
+    REQUIRE(client.getSendUnacknowledged() == sequence + 200);
+    REQUIRE(server.getExpectedAckNum() == sequence + 200);
+    REQUIRE(client.getSendBufferSize() == 0);
+}
+
 TEST_CASE("Rejected initial DATA remains owned by TCP", "[tcp][generation][loss]")
 {
     Topology topology(2);
