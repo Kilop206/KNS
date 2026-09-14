@@ -2,6 +2,10 @@
 
 ## 1. Purpose
 
+Time/latency fixes #132 and #127: full MinGW/Ninja build and 262 passing tests.
+The local runtime output directory is `build/validation-bin` because the previous
+`build/app/KNS.exe` was not writable by the linker. See `time-and-latency.md`.
+
 2026-09-14: local `tcp` fixes #142 (`ebee95c`) and #118 (`5fded04`) built with
 the existing MinGW/Ninja toolchain. All 257 CTest cases and the `mesh4.json`
 headless smoke run passed. See `tcp-terminal-cleanup.md` for the contract.

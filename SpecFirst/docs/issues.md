@@ -2,7 +2,8 @@
 
 ## 1. Purpose
 
-Issues #132 and #127 are still valid on `30471bf`; see the acceptance criteria in
+Issues #132 and #127 were still valid on `30471bf` and are resolved locally by
+`9388a61` and `587d335`; see the acceptance criteria and validation in
 [Simulation time and DATA latency](time-and-latency.md).
 
 Issues #118 and #142 were still valid at investigation on `445920b` and are
