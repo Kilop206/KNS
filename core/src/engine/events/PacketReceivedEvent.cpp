@@ -258,8 +258,14 @@ namespace kns
                 const auto expected_before =
                     receiver.getExpectedAckNum();
 
+                const bool already_received =
+                    receiver.getTcpState() == TCPState::ESTABLISHED &&
+                    !packet.tcp.payload.empty() &&
+                    packet.tcp.seq < expected_before &&
+                    packet.tcp.payload.size() <= expected_before - packet.tcp.seq;
+
                 if (
-                    !receiver.receive_data(
+                    !already_received && !receiver.receive_data(
                         packet.tcp.seq,
                         packet.tcp.payload,
                         engine.now()
