@@ -25,4 +25,6 @@ reports for failed batches and return nonzero if any run failed.
    hung children, completed later children and mixed results with simulator stubs.
 3. Build and run CTest, Python tests and a real headless CSV integration test.
 
-Status: specified, implementation pending.
+Status: implemented by `b1428b9` and `e8720a1`. Build and all 275 CTest cases
+passed; seven Python tests passed including a real engine CSV, launch timeout,
+later-child completion, invalid output and a mixed batch with saved reports.

@@ -2,6 +2,8 @@
 
 ## 1. Purpose
 
+Issue #148 is valid; see [Independent RNG](run-random-stream.md).
+
 Issues #133-#136 are valid on `0f3e20a`; implementation follows
 [Runner results](runner-results.md).
 
