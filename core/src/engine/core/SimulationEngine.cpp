@@ -178,11 +178,13 @@ namespace kns {
     }
 
     bool SimulationEngine::sendPacket(
-        const Packet& pkt,
+        const Packet& packet,
         Link& link,
         double now
     )
     {
+        Packet pkt = packet;
+        pkt.packet_size_bytes = packet.serializedSize();
         if (!std::isfinite(now) || now < this->now()) {
             throw std::invalid_argument("Packet time must be finite and not in the past");
         }

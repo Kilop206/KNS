@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 
 #include "enums/PacketType.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
@@ -34,6 +36,19 @@ namespace kns {
     }
 
     struct Packet {
+        static constexpr int TCP_IPV4_HEADER_BYTES = 40;
+
+        int serializedSize() const {
+            if (tcp.flags == TCPFlag::None && tcp.payload.empty()) {
+                return packet_size_bytes;
+            }
+            if (tcp.payload.size() > static_cast<std::size_t>(
+                    std::numeric_limits<int>::max() - TCP_IPV4_HEADER_BYTES)) {
+                throw std::invalid_argument("TCP wire size exceeds supported range");
+            }
+            return TCP_IPV4_HEADER_BYTES + static_cast<int>(tcp.payload.size());
+        }
+
         int source = 0;
         int destination = 0;
         int current_node = 0;
