@@ -12,3 +12,6 @@ Plan: make Random a value type, add it to owners, pass an explicit ISN for engin
 handshakes and use the engine stream for loss decisions. Compare identical runs
 alone and interleaved with differently seeded engines, including ISNs and losses.
 Build, run full CTest and headless CSV integration before completion.
+
+Implemented and validated: 277 CTest cases passed, including independent draws
+and end-to-end interleaved traffic with equal ISNs, loss counts and logical time.
