@@ -2,6 +2,10 @@
 
 ## 1. Purpose
 
+TCP duplicate recovery #131/#123: MinGW/Ninja build, 266 passing CTest cases
+and mesh4 headless validation completed using `build/validation-bin`.
+See `tcp-duplicate-recovery.md` for commits and regression evidence.
+
 Time/latency fixes #132 and #127: full MinGW/Ninja build and 262 passing tests.
 The local runtime output directory is `build/validation-bin` because the previous
 `build/app/KNS.exe` was not writable by the linker. See `time-and-latency.md`.

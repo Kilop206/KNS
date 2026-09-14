@@ -1,6 +1,7 @@
 # TCP Duplicate Recovery
 
-Issues #131 and #123 remain valid on `tcp` at `82b004d`.
+Issues #131 and #123 were still valid on `tcp` at `82b004d`.
+The contracts below are now implemented locally.
 
 ## Required Behavior
 
@@ -24,3 +25,16 @@ Issues #131 and #123 remain valid on `tcp` at `82b004d`.
    sender buffer acknowledgement, and invalid/empty/overlapping input.
 3. Commit each fix independently; run focused tests, full CTest, build and a
    headless smoke scenario. Record results before marking local completion.
+
+## Completion Record
+
+Specification: `ceee572`. Duplicate SYN: `04545e0` (#131).
+Duplicate DATA ACK: `dfd69e8` (#123).
+
+The full MinGW/Ninja C++20 build succeeded in `build/validation-bin`.
+All 266 CTest cases passed, including four new regression cases. The mesh4
+headless run exited successfully with 148 sent/delivered packets, 80 DATA,
+zero losses and zero packets in transit. The targeted tests separately force
+SYN-ACK and ACK loss and assert recovery through scheduled events.
+
+Commits remain local; GitHub issues remain open pending publication.

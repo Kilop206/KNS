@@ -2,7 +2,8 @@
 
 ## 1. Purpose
 
-Issues #131 and #123 remain valid on `82b004d`; see
+Issues #131 and #123 were valid on `82b004d` and are resolved locally by
+`04545e0` and `dfd69e8`; see
 [TCP duplicate recovery](tcp-duplicate-recovery.md) for requirements and tests.
 
 Issues #132 and #127 were still valid on `30471bf` and are resolved locally by
