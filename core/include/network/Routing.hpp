@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <cstdint>
 #include <string_view>
 #include <vector>
 
@@ -33,12 +34,14 @@ namespace kns {
             struct DijkstraResult {
                 std::vector<double> dist;
                 std::vector<int> parent;
+                std::vector<std::optional<std::uint64_t>> parent_link;
             };
 
             struct RoutingEntry {
                 int destination = -1;
                 int next_hop = -1;
                 double distance = 0.0;
+                std::optional<std::uint64_t> link_id;
             };
 
             DijkstraResult buildDijkstra(const Topology& topology, int src,
