@@ -67,6 +67,9 @@ if(KNS_BUILD_APP)
         GIT_TAG v0.51.0
         GIT_SHALLOW TRUE
     )
+
+    set(HTTPLIB_USE_NON_BLOCKING_GETADDRINFO OFF CACHE BOOL "" FORCE)
+
     FetchContent_MakeAvailable(cpp_httplib)
 endif()
 
