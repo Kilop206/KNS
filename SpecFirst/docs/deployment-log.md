@@ -2,6 +2,10 @@
 
 ## 1. Purpose
 
+Acknowledged close #122 (`822adb4`) and packet-loss accounting #128 (`7737120`)
+validated with MinGW/Ninja, 269 passing CTest cases and mesh4 headless execution.
+See `tcp-acknowledged-close.md` and `packet-loss-accounting.md`.
+
 TCP duplicate recovery #131/#123: MinGW/Ninja build, 266 passing CTest cases
 and mesh4 headless validation completed using `build/validation-bin`.
 See `tcp-duplicate-recovery.md` for commits and regression evidence.

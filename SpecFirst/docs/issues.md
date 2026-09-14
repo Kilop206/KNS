@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Issue #128 is still valid at `aa8865c`; see
+Issue #128 was valid at `aa8865c` and is resolved locally by `7737120`; see
 [Packet loss accounting](packet-loss-accounting.md).
 
 Issue #122 was valid on `3b61999` and is resolved locally by `822adb4`; its contract and test plan are in
