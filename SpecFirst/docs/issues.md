@@ -2,6 +2,8 @@
 
 ## 1. Purpose
 
+Issue #130 remains valid at `e8e24a7`; see [Routing link selection](routing-link-selection.md).
+
 Issue #147 was valid on `7dcc851` and is resolved locally by `10bcade`;
 see [Topology read views](topology-read-views.md).
 
