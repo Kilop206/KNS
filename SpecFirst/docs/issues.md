@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Issue #122 remains valid on `3b61999`; its contract and test plan are in
+[Acknowledged TCP workload completion](tcp-acknowledged-close.md).
+
 Issues #131 and #123 were valid on `82b004d` and are resolved locally by
 `04545e0` and `dfd69e8`; see
 [TCP duplicate recovery](tcp-duplicate-recovery.md) for requirements and tests.
