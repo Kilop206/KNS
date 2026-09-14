@@ -10,7 +10,14 @@ namespace kns
 
     class TCPSession
     {
+        public:
+            enum class FailureReason {
+                None,
+                SynRetriesExhausted
+            };
+
         private:
+            FailureReason failure_reason_ = FailureReason::None;
             std::uint64_t session_id;
             int source;
             int destination;
@@ -22,6 +29,8 @@ namespace kns
             bool traffic_generated_ = false;
 
         public:
+            FailureReason getFailureReason() const noexcept { return failure_reason_; }
+            bool failHandshake() noexcept;
             TCPSession();
 
             TCPSession(std::uint64_t session_id,
