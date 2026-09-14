@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Issues #132 and #127 are still valid on `30471bf`; see the acceptance criteria in
+[Simulation time and DATA latency](time-and-latency.md).
+
 Issues #118 and #142 were still valid at investigation on `445920b` and are
 resolved locally by `5fded04` and `ebee95c`. Their acceptance criteria and
 validation record are in [TCP terminal cleanup](tcp-terminal-cleanup.md).
