@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Issue #122 remains valid on `3b61999`; its contract and test plan are in
+Issue #122 was valid on `3b61999` and is resolved locally by `822adb4`; its contract and test plan are in
 [Acknowledged TCP workload completion](tcp-acknowledged-close.md).
 
 Issues #131 and #123 were valid on `82b004d` and are resolved locally by

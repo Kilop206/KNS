@@ -2,7 +2,7 @@
 
 ## Investigation
 
-Still valid on `tcp` at `3b61999`: generation completion alone triggers automatic
+Still valid at investigation on `tcp` at `3b61999`: generation completion alone triggered automatic
 FIN on any ACK, even when application data remains in the send buffer.
 
 ## Required Contract
@@ -22,3 +22,11 @@ RTO recovery, and assert the receiver's cumulative byte progress covers the full
 workload before FIN. Cover generation completion and acknowledgement separately.
 Build, run focused and full tests, and execute a headless smoke run. Commit the
 specification, code/tests and final validation record separately.
+
+## Completion
+
+Implemented by `822adb4`, following specification `a74f7b0`. Both focused tests
+and all 268 CTest cases passed. The full MinGW/Ninja build and mesh4 headless
+run succeeded using `build/validation-bin`; 148 packets delivered, 80 DATA,
+zero losses and zero in transit. The tail-loss regression checks 200 received
+bytes before FIN is executed. Commits remain local, pending publication.
