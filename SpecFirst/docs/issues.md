@@ -2,6 +2,9 @@
 
 ## 1. Purpose
 
+Issues #118 and #142 are still valid at investigation on `445920b`; their
+acceptance criteria and implementation plan are in [TCP terminal cleanup](tcp-terminal-cleanup.md).
+
 This document defines how KNS issues are investigated, classified, implemented, and closed.
 
 ---
