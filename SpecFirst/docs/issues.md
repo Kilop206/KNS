@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Issue #121 is still valid on `4562f03`; see
+Issue #121 was valid on `4562f03` and is resolved locally by `844bff0`; see
 [Resumable TCP generation](tcp-generation-resume.md).
 
 Issue #128 was valid at `aa8865c` and is resolved locally by `7737120`; see

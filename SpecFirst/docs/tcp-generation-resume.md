@@ -1,7 +1,7 @@
 # Resumable TCP Generation - Issue #121
 
-Still valid on `tcp` at `4562f03`: generation stops on a full send window and
-ACK handling cannot restart a workload already marked as generated.
+Still valid at investigation on `tcp` at `4562f03`: generation stopped on a full
+send window and ACK handling could not restart an already started workload.
 
 ## Required Contract
 
@@ -24,3 +24,15 @@ workload larger than the window, repeated scheduling requests, no events while
 window-blocked, and invalid oversized payload without partial state. Verify exact
 received byte progress and normal close. Build and run focused/full CTest and
 headless validation. Commit specification, code/tests, and evidence separately.
+
+## Completion Record
+
+Specification `54b23cd`; implementation `844bff0`. MinGW/Ninja build succeeded;
+all 271 CTest cases passed. Two new tests cover complete delivery through a
+one-packet window, pending-event deduplication, and oversized payload rejection.
+The listener-port regression now asserts completed handshakes and response ports
+without using the started-workload flag to suppress generation.
+
+The mesh4 headless run from `build/validation-bin` delivered 148 packets (80 DATA)
+with zero loss and zero packets in transit. The changes are committed locally;
+the GitHub issue remains open pending publication.

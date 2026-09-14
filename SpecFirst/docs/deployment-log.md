@@ -2,6 +2,10 @@
 
 ## 1. Purpose
 
+Resumable generation #121 (`844bff0`): MinGW/Ninja build, 271 passing CTest cases
+and mesh4 headless validation using `build/validation-bin`.
+See `tcp-generation-resume.md` for the contract and evidence.
+
 Acknowledged close #122 (`822adb4`) and packet-loss accounting #128 (`7737120`)
 validated with MinGW/Ninja, 269 passing CTest cases and mesh4 headless execution.
 See `tcp-acknowledged-close.md` and `packet-loss-accounting.md`.
