@@ -75,6 +75,7 @@ namespace kns
         stats.packets_delivered++;
 
         if (packet.packet_type == PacketType::DATA) {
+            stats.data_packets_delivered++;
             const double latency = engine.now() - packet.creation_time;
             stats.total_latency += latency;
             engine.notifyLatencyDelivered(latency);

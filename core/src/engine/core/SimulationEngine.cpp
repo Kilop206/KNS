@@ -287,14 +287,16 @@ namespace kns {
         }
 
         // Header
-        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions\n";
+        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered\n";
 
         // Values
         const int sent = stats_.packets_sent;
         const int delivered = stats_.packets_delivered;
         const int lost = stats_.packets_lost;
         const double total_latency = stats_.total_latency;
-        const double avg_latency = (delivered > 0) ? (total_latency / static_cast<double>(delivered)) : 0.0;
+        const int data_delivered = stats_.data_packets_delivered;
+        const double avg_latency = (data_delivered > 0)
+            ? total_latency / static_cast<double>(data_delivered) : 0.0;
         const std::size_t in_transit = packets_in_transit.size();
         const std::size_t total_sessions = sessions.size();
 
@@ -304,7 +306,8 @@ namespace kns {
              << total_latency << ','
              << avg_latency << ','
              << in_transit << ','
-             << total_sessions << '\n';
+             << total_sessions << ','
+             << data_delivered << '\n';
 
         file.close();
         if (!file) {
