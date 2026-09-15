@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "intelligence/IntelligenceRequestBuilder.hpp"
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 

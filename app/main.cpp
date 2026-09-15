@@ -34,6 +34,7 @@
 #include "analysis/AIContextBuilder.hpp"
 #include "analysis/AnalysisJsonSerializer.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
+#include "intelligence/IntelligenceRequestBuilder.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -1610,103 +1611,102 @@ static void exportNetworkAnalysis(
     const kns::Topology& topology
 )
 {
-    std::cout
-        << "[ANALYSIS] exportNetworkAnalysis called\n";
-
-    std::cout
-        << "[ANALYSIS] Nodes: "
-        << topology.size()
-        << '\n';
-
-    std::cout
-        << "[ANALYSIS] Current directory: "
-        << std::filesystem::current_path()
-        << '\n';
-
     if (topology.size() <= 0) {
-        std::cout
-            << "[ANALYSIS] Empty topology, skipping\n";
-
         return;
     }
 
     try {
         const kns::analysis::NetworkAnalyzer analyzer;
 
-        std::cout
-            << "[ANALYSIS] Running analyzer...\n";
-
         const auto analysis =
             analyzer.analyze(topology);
 
-        std::cout
-            << "[ANALYSIS] Serializing JSON...\n";
+        const auto outputDirectory =
+            std::filesystem::current_path() /
+            "results";
 
-        const auto json =
+        std::filesystem::create_directories(
+            outputDirectory
+        );
+
+        // ============================================
+        // Full deterministic analysis
+        // ============================================
+
+        const auto analysisJson =
             kns::analysis::AnalysisJsonSerializer::toJson(
                 analysis
             );
 
-        const std::filesystem::path outputDirectory =
-            std::filesystem::current_path() /
-            "results";
+        {
+            std::ofstream output(
+                outputDirectory /
+                "network_analysis.json"
+            );
 
-        std::error_code error;
-
-        std::filesystem::create_directories(
-            outputDirectory,
-            error
-        );
-
-        if (error) {
-            std::cerr
-                << "[ANALYSIS] Failed to create directory: "
-                << error.message()
-                << '\n';
-
-            return;
+            if (output.is_open()) {
+                output
+                    << analysisJson.dump(4);
+            }
         }
 
-        const std::filesystem::path outputPath =
-            outputDirectory /
-            "analysis_context.json";
-
-        std::cout
-            << "[ANALYSIS] Output path: "
-            << outputPath
-            << '\n';
-
-        std::ofstream output(outputPath);
-
-        if (!output.is_open()) {
-            std::cerr
-                << "[ANALYSIS] Failed to open output file\n";
-
-            return;
-        }
-
-        output << json.dump(4);
-        output.close();
-
-        std::cout
-            << "[ANALYSIS] Analysis exported successfully\n";
+        // ============================================
+        // Compact AI context
+        // ============================================
 
         const auto aiContext =
             kns::analysis::AIContextBuilder::build(
                 analysis
             );
 
-        std::ofstream aiOutput(
-            outputDirectory / "ai_context.json"
-        );
+        {
+            std::ofstream output(
+                outputDirectory /
+                "ai_context.json"
+            );
 
-        if (aiOutput.is_open()) {
-            aiOutput << aiContext.dump(4);
+            if (output.is_open()) {
+                output
+                    << aiContext.dump(4);
+            }
         }
+
+        // ============================================
+        // Future backend request
+        // ============================================
+
+        const auto intelligenceRequest =
+            kns::intelligence::
+                IntelligenceRequestBuilder::build(
+                    analysis,
+                    kns::intelligence::
+                        AnalysisMode::Detailed
+                );
+
+        const auto requestJson =
+            kns::intelligence::
+                IntelligenceRequestBuilder::toJson(
+                    intelligenceRequest
+                );
+
+        {
+            std::ofstream output(
+                outputDirectory /
+                "intelligence_request.json"
+            );
+
+            if (output.is_open()) {
+                output
+                    << requestJson.dump(4);
+            }
+        }
+
+        std::cout
+            << "[ANALYSIS] Export completed\n";
     }
     catch (const std::exception& e) {
         std::cerr
-            << "[ANALYSIS] ERROR: "
+            << "[ANALYSIS] Export failed: "
             << e.what()
             << '\n';
     }
