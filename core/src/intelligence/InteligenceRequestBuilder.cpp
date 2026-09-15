@@ -7,6 +7,7 @@
 #include <string>
 
 #include "analysis/AIContextBuilder.hpp"
+#include "analysis/NetworkScoreCalculator.hpp"
 
 namespace kns::intelligence {
 
@@ -129,6 +130,11 @@ IntelligenceRequestBuilder::build(
             contextOptions
         );
 
+    request.score =
+        analysis::NetworkScoreCalculator::calculate(
+            analysis
+        );
+
     return request;
 }
 
@@ -138,6 +144,31 @@ IntelligenceRequestBuilder::toJson(
 )
 {
     return {
+        {
+        "score",
+            {
+                {
+                    "overall",
+                    request.score.overall_score
+                },
+                {
+                    "resilience",
+                    request.score.resilience_score
+                },
+                {
+                    "routing",
+                    request.score.routing_score
+                },
+                {
+                    "performance",
+                    request.score.performance_score
+                },
+                {
+                    "risk",
+                    request.score.risk_score
+                }
+            }
+        },
         {
             "schema_version",
             "1.0"

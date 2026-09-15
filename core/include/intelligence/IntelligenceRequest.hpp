@@ -4,6 +4,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "analysis/NetworkScore.hpp"
+
 namespace kns::intelligence {
 
 enum class AnalysisMode {
@@ -19,6 +21,8 @@ struct IntelligenceRequest {
         AnalysisMode::Detailed;
 
     nlohmann::json context;
+
+    analysis::NetworkScore score;
 
     std::string client_name = "KNS";
     std::string client_version = "1.0.0";
