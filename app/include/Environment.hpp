@@ -11,7 +11,11 @@ namespace kns::app {
     const char* name
 )
 {
-#ifdef _WIN32
+    if (name == nullptr) {
+        return std::nullopt;
+    }
+
+#ifdef _MSC_VER
     char* raw_value = nullptr;
     std::size_t value_size = 0;
     if (_dupenv_s(&raw_value, &value_size, name) != 0) {
@@ -22,10 +26,10 @@ namespace kns::app {
         raw_value,
         &std::free
     );
+
     if (value == nullptr || value_size <= 1) {
         return std::nullopt;
     }
-
     return std::string(value.get());
 #else
     const char* value = std::getenv(name);

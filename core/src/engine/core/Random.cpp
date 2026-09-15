@@ -4,26 +4,17 @@
 
 namespace kns {
 
-    namespace {
-        constexpr std::uint64_t kDefaultSeed = 42;
-
-        std::mt19937_64& engine() {
-            static std::mt19937_64 rng(kDefaultSeed);
-            return rng;
-        }
-    }
-
     void Random::seed(std::uint64_t seed) {
-        engine().seed(seed);
+        engine_.seed(seed);
     }
 
     double Random::uniform01() {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
-        return dist(engine());
+        return dist(engine_);
     }
 
     std::uint32_t Random::nextUint32() {
-        return static_cast<std::uint32_t>(engine()());
+        return static_cast<std::uint32_t>(engine_());
     }
 
 }

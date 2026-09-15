@@ -278,7 +278,7 @@ namespace kns {
             return false;
         }
 
-        const double r = Random::uniform01();
+        const double r = random_.uniform01();
         return r < loss_prob_;
     }
 

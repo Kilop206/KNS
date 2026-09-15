@@ -1,6 +1,18 @@
 #include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns {
+    bool TCPSession::failHandshake() noexcept
+    {
+        if (client_connection.getTcpState() != TCPState::SYN_SENT ||
+            client_connection.canRetrySyn()) {
+            return false;
+        }
+        failure_reason_ = FailureReason::SynRetriesExhausted;
+        client_connection.failRetransmission();
+        server_connection.failRetransmission();
+        return true;
+    }
+
     TCPSession::TCPSession(std::uint64_t session_id,
                             int source,
                             int destination,
@@ -108,6 +120,13 @@ namespace kns {
     bool TCPSession::isComplete() const noexcept
     {
         return packets_sent == total_packets;
+    }
+
+    bool TCPSession::isDataAcknowledged() const noexcept
+    {
+        return hasGeneratedTraffic() && isComplete() &&
+            client_connection.getSendBufferSize() == 0 &&
+            server_connection.getSendBufferSize() == 0;
     }
 
     bool TCPSession::isCloseRequest()

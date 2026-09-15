@@ -2,6 +2,32 @@
 
 ## 1. Purpose
 
+Routing link identity #130 (`fbd518b`): full MinGW/Ninja build, 275 passing CTest
+cases and mesh4 headless validation. See `routing-link-selection.md`.
+
+Topology read views #147 (`10bcade`): full MinGW/Ninja build, 273 passing CTest
+cases and mesh4 headless validation. See `topology-read-views.md`.
+
+Resumable generation #121 (`844bff0`): MinGW/Ninja build, 271 passing CTest cases
+and mesh4 headless validation using `build/validation-bin`.
+See `tcp-generation-resume.md` for the contract and evidence.
+
+Acknowledged close #122 (`822adb4`) and packet-loss accounting #128 (`7737120`)
+validated with MinGW/Ninja, 269 passing CTest cases and mesh4 headless execution.
+See `tcp-acknowledged-close.md` and `packet-loss-accounting.md`.
+
+TCP duplicate recovery #131/#123: MinGW/Ninja build, 266 passing CTest cases
+and mesh4 headless validation completed using `build/validation-bin`.
+See `tcp-duplicate-recovery.md` for commits and regression evidence.
+
+Time/latency fixes #132 and #127: full MinGW/Ninja build and 262 passing tests.
+The local runtime output directory is `build/validation-bin` because the previous
+`build/app/KNS.exe` was not writable by the linker. See `time-and-latency.md`.
+
+2026-09-14: local `tcp` fixes #142 (`ebee95c`) and #118 (`5fded04`) built with
+the existing MinGW/Ninja toolchain. All 257 CTest cases and the `mesh4.json`
+headless smoke run passed. See `tcp-terminal-cleanup.md` for the contract.
+
 This document records relevant build and deployment environment decisions.
 
 KNS is primarily a development and simulation application rather than a conventional server deployment.

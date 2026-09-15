@@ -62,11 +62,7 @@ namespace kns
         assert(packet.current_node >= 0);
 
         if (packet.current_node != packet.destination) {
-            auto& stats = engine.getStats();
-
-            if (!PacketUtils::sendPacketThroughTopology(engine, packet)) {
-                stats.packets_lost++;
-            }
+            PacketUtils::sendPacketThroughTopology(engine, packet);
 
             return;
         }
@@ -75,6 +71,7 @@ namespace kns
         stats.packets_delivered++;
 
         if (packet.packet_type == PacketType::DATA) {
+            stats.data_packets_delivered++;
             const double latency = engine.now() - packet.creation_time;
             stats.total_latency += latency;
             engine.notifyLatencyDelivered(latency);
@@ -226,8 +223,7 @@ namespace kns
 
                 if (
                     client.getTcpState() == TCPState::ESTABLISHED &&
-                    server.getTcpState() == TCPState::ESTABLISHED &&
-                    !session.hasGeneratedTraffic()
+                    server.getTcpState() == TCPState::ESTABLISHED
                 ) {
                     engine.generatePackets(engine.now(), session);
                 }
@@ -236,9 +232,7 @@ namespace kns
                     client.getTcpState() == TCPState::ESTABLISHED &&
                     server.getTcpState() == TCPState::ESTABLISHED &&
                     session.hasGeneratedTraffic() &&
-                    session.isComplete() &&
-                    client.getSendBufferSize() == 0 &&
-                    server.getSendBufferSize() == 0 &&
+                    session.isDataAcknowledged() &&
                     !session.isCloseRequest()
                 ) {
                     session.setCloseRequest(true);
@@ -259,8 +253,14 @@ namespace kns
                 const auto expected_before =
                     receiver.getExpectedAckNum();
 
+                const bool already_received =
+                    receiver.getTcpState() == TCPState::ESTABLISHED &&
+                    !packet.tcp.payload.empty() &&
+                    packet.tcp.seq < expected_before &&
+                    packet.tcp.payload.size() <= expected_before - packet.tcp.seq;
+
                 if (
-                    !receiver.receive_data(
+                    !already_received && !receiver.receive_data(
                         packet.tcp.seq,
                         packet.tcp.payload,
                         engine.now()

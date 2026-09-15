@@ -486,3 +486,61 @@ TEST_CASE(
         server.hasDelayedAckPending()
     );
 }
+
+TEST_CASE("Duplicate DATA recovers a lost ACK without consuming bytes again", "[tcp][delayed-ack][loss]")
+{
+    Topology topology(2);
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0);
+    SimulationEngine engine(topology);
+    auto& session = engine.createTCPSession(0, 1);
+    auto& client = session.getClientConnection();
+    auto& server = session.getServerConnection();
+    client = kns::TCPConnection(TCPState::ESTABLISHED, 1000, 500, 0, 1);
+    server = kns::TCPConnection(TCPState::ESTABLISHED, 500, 1000, 1, 0);
+    session.markTrafficGenerated();
+    session.setTotalPackets(10);
+    Packet data(0, 1, 1, 0.0, 100, session.getSession_id());
+    data.tcp.seq = 1000;
+    data.tcp.flags = kns::TCPFlag::PSH | kns::TCPFlag::ACK;
+    data.tcp.payload = {1, 2, 3};
+    REQUIRE(client.queueSentSegment(data.tcp, 0.0));
+    engine.schedule(std::make_unique<PacketReceivedEvent>(0.0, data));
+    REQUIRE(engine.processEvent());
+    REQUIRE(server.getExpectedAckNum() == 1003);
+    link->setLossProb(1.0);
+    REQUIRE(engine.processEvent());
+    REQUIRE(engine.getStats().packets_lost == 1);
+    REQUIRE(client.getSendBufferSize() == 1);
+    link->setLossProb(0.0);
+    engine.schedule(std::make_unique<PacketReceivedEvent>(engine.now(), data));
+    REQUIRE(engine.processEvent());
+    REQUIRE(server.getExpectedAckNum() == 1003);
+    REQUIRE(server.getReceiveBufferedBytes() == 0);
+    REQUIRE(engine.hasEvents());
+    REQUIRE(engine.processEvent());
+    REQUIRE(client.getSendBufferSize() == 0);
+    REQUIRE(client.getSendUnacknowledged() == 1003);
+}
+
+TEST_CASE("Rejected DATA does not receive the duplicate recovery ACK", "[tcp][delayed-ack][loss]")
+{
+    SimulationEngine engine(Topology(2));
+    engine.createLink(0, 1, 100.0, 1.0);
+    auto& session = engine.createTCPSession(0, 1);
+    auto& server = session.getServerConnection();
+    server = kns::TCPConnection(TCPState::ESTABLISHED, 500, 1003, 1, 0);
+    Packet data(0, 1, 1, 0.0, 100, session.getSession_id());
+    data.tcp.seq = 1000;
+    data.tcp.flags = kns::TCPFlag::PSH;
+    SECTION("Empty payload") {}
+    SECTION("Partially overlapping payload") { data.tcp.payload = {1, 2, 3, 4}; }
+    SECTION("Closed receiver") {
+        data.tcp.payload = {1, 2, 3};
+        REQUIRE(server.failRetransmission());
+    }
+    engine.schedule(std::make_unique<PacketReceivedEvent>(0.0, data));
+    REQUIRE(engine.processEvent());
+    REQUIRE_FALSE(engine.hasEvents());
+    REQUIRE(server.getExpectedAckNum() == 1003);
+    REQUIRE(server.getReceiveBufferedBytes() == 0);
+}

@@ -57,6 +57,7 @@ namespace kns {
 
 		std::vector<double> dist(n, maximise ? 0.0 : inf);
 		std::vector<int> parent(n, -1);
+		std::vector<std::optional<std::uint64_t>> parent_link(n);
 
 		using QueueEntry = std::pair<double, int>;
 		std::priority_queue<
@@ -128,12 +129,13 @@ namespace kns {
 				if (better(newDist, dist[v])) {
 					dist[v] = newDist;
 					parent[v] = u;
+					parent_link[v] = link->getId();
 					pq.push({encode(newDist), v});
 				}
 			}
 		}
 
-		return {dist, parent};
+		return {dist, parent, parent_link};
 	}
 
 	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src,
@@ -183,6 +185,7 @@ namespace kns {
 			}
 
 			entry.next_hop = current;
+			entry.link_id = result.parent_link[current];
 			table.push_back(entry);
 
 		next_destination:

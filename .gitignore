@@ -35,3 +35,8 @@ imgui.ini
 .devin/
 .cursor/
 .codex/
+
+# Python
+**/__pycache__/
+*.pyc
+.venv/

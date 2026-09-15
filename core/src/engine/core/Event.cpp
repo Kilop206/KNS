@@ -1,5 +1,7 @@
 #include "engine/core/Event.hpp"
 #include "engine/core/SimulationEngine.hpp"
+#include <cmath>
+#include <stdexcept>
 
 namespace kns {
 
@@ -15,6 +17,9 @@ namespace kns {
 		: timestamp_(timestamp)
 		, id_(nextId_++)
 	{
+		if (!std::isfinite(timestamp) || timestamp < 0.0) {
+			throw std::invalid_argument("Event timestamp must be finite and non-negative");
+		}
 	}
 
 	// Getter method for the timestamp of the event.

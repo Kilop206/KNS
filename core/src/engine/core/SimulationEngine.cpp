@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include "engine/events/PacketReceivedEvent.hpp"
@@ -42,7 +43,7 @@ namespace kns {
             throw std::logic_error("Run configuration must be applied before scheduling work");
         }
         setGlobalPacketSize(config.packet_size);
-        Random::seed(config.seed);
+        random_.seed(config.seed);
     }
 
     double SimulationEngine::now() const {
@@ -50,7 +51,7 @@ namespace kns {
     }
 
     double SimulationEngine::random() {
-        return Random::uniform01();
+        return random_.uniform01();
     }
 
     double SimulationEngine::get_loss_prob() const {
@@ -177,11 +178,16 @@ namespace kns {
     }
 
     bool SimulationEngine::sendPacket(
-        const Packet& pkt,
+        const Packet& packet,
         Link& link,
         double now
     )
     {
+        Packet pkt = packet;
+        pkt.packet_size_bytes = packet.serializedSize();
+        if (!std::isfinite(now) || now < this->now()) {
+            throw std::invalid_argument("Packet time must be finite and not in the past");
+        }
         if (pkt.packet_size_bytes <= 0) {
             throw std::invalid_argument("Packet size must be positive");
         }
@@ -218,6 +224,11 @@ namespace kns {
         const double arrival_time =
             actual_departure_time + transmission_time + propagation_time;
 
+        if (!std::isfinite(actual_departure_time) ||
+            !std::isfinite(arrival_time) || arrival_time < this->now()) {
+            throw std::invalid_argument("Packet arrival time must be finite and not in the past");
+        }
+
         link.reserveTransmission(
             pkt.current_node,
             next_node,
@@ -236,7 +247,7 @@ namespace kns {
             stats_.packets_sent++;
         }
 
-        if (link.should_drop()) {
+        if (link.getLossProb() > 0.0 && random() < link.getLossProb()) {
             stats_.packets_lost++;
             return false;
         }
@@ -264,7 +275,7 @@ namespace kns {
             arrival_time
         );
 
-        event_queue_.schedule(
+        schedule(
             std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
         );
 
@@ -278,14 +289,16 @@ namespace kns {
         }
 
         // Header
-        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions\n";
+        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,schema_version,simulation_duration_s,seed\n";
 
         // Values
         const int sent = stats_.packets_sent;
         const int delivered = stats_.packets_delivered;
         const int lost = stats_.packets_lost;
         const double total_latency = stats_.total_latency;
-        const double avg_latency = (delivered > 0) ? (total_latency / static_cast<double>(delivered)) : 0.0;
+        const int data_delivered = stats_.data_packets_delivered;
+        const double avg_latency = (data_delivered > 0)
+            ? total_latency / static_cast<double>(data_delivered) : 0.0;
         const std::size_t in_transit = packets_in_transit.size();
         const std::size_t total_sessions = sessions.size();
 
@@ -295,7 +308,8 @@ namespace kns {
              << total_latency << ','
              << avg_latency << ','
              << in_transit << ','
-             << total_sessions << '\n';
+             << total_sessions << ','
+             << data_delivered << ",1," << now() << ',' << runConfig.seed << '\n';
 
         file.close();
         if (!file) {
@@ -304,10 +318,16 @@ namespace kns {
     }
 
     void SimulationEngine::advanceTime(double time) {
+        if (event_queue_.hasEvents() && time > event_queue_.peekTimestamp()) {
+            throw std::invalid_argument("Cannot advance past a pending event");
+        }
         clock_.setTime(time);
     }
 
     void SimulationEngine::schedule(std::unique_ptr<Event> event) {
+        if (!event || event->getTimestamp() < now()) {
+            throw std::invalid_argument("Event must exist and not be scheduled in the past");
+        }
         event_queue_.schedule(std::move(event));
     }
 
@@ -406,7 +426,7 @@ namespace kns {
             return false;
         }
 
-        releaseTCPListenerSession(session_id);
+        untrackTCPListenerSession(sessions.at(session_id));
         sessions.erase(session_id);
 
         return true;
@@ -554,25 +574,36 @@ namespace kns {
         );
     }
 
-    void SimulationEngine::releaseTCPListenerSession(
+    bool SimulationEngine::releaseTCPListenerSession(
         std::uint64_t session_id
     ) noexcept {
         auto session_it = sessions.find(session_id);
 
         if (session_it == sessions.end()) {
-            return;
+            return false;
         }
 
         auto& session = session_it->second;
+        if (session.getClientConnection().getTcpState() != TCPState::CLOSED ||
+            session.getServerConnection().getTcpState() != TCPState::CLOSED) {
+            return false;
+        }
         session.getClientConnection().discardBufferedData();
         session.getServerConnection().discardBufferedData();
+        untrackTCPListenerSession(session);
+        return true;
+    }
+
+    void SimulationEngine::untrackTCPListenerSession(
+        const TCPSession& session
+    ) noexcept {
         const auto& server = session.getServerConnection();
         const auto listener_it = listeners_.find(
             std::make_pair(server.getLocalNode(), server.getLocalPort())
         );
 
         if (listener_it != listeners_.end()) {
-            listener_it->second.untrackSession(session_id);
+            listener_it->second.untrackSession(session.getSession_id());
         }
     }
 
@@ -580,7 +611,7 @@ namespace kns {
         double startTime,
         TCPSession& session
     ) {
-        if (session.hasGeneratedTraffic()) {
+        if (session.hasPendingGeneration()) {
             return;
         }
 
@@ -588,8 +619,15 @@ namespace kns {
             return;
         }
 
-        session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
-        session.markTrafficGenerated();
+        const auto payload_size = static_cast<std::size_t>(getGlobalPacketSize());
+        const auto& client = session.getClientConnection();
+        if (payload_size > client.getSendWindow()) {
+            throw std::invalid_argument("Packet payload exceeds the configured send window");
+        }
+        if ((session.hasGeneratedTraffic() && session.isComplete()) ||
+            !client.canSend(payload_size)) {
+            return;
+        }
 
         schedule(
             std::make_unique<PacketGenerationEvent>(
@@ -599,6 +637,11 @@ namespace kns {
                 session.getSession_id()
             )
         );
+        if (!session.hasGeneratedTraffic()) {
+            session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
+            session.markTrafficGenerated();
+        }
+        session.setGenerationPending(true);
     }
 
     int SimulationEngine::createNode() {

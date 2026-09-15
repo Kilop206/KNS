@@ -10,22 +10,24 @@ namespace kns {
         SimulationEngine& engine,
         const Packet& pkt
     ) {
-        const int next = engine.getNextHop(pkt.current_node, pkt.destination);
-
-        if (next == -1) {
+        const auto table = engine.getRoutingTable(pkt.current_node);
+        if (pkt.destination < 0 || static_cast<std::size_t>(pkt.destination) >= table.size()) {
+            engine.getStats().packets_lost++;
             return false;
         }
-
-        if (pkt.current_node < 0 || pkt.current_node >= engine.getTopology().size()) {
+        const auto& route = table[static_cast<std::size_t>(pkt.destination)];
+        if (!route.link_id.has_value() || route.next_hop == -1) {
+            engine.getStats().packets_lost++;
             return false;
         }
+        const int next = route.next_hop;
 
         const auto& links = engine.getTopology().getLinksFromNode(pkt.current_node);
 
         Link* selected_link = nullptr;
 
         for (const auto& link_ptr : links) {
-            if (link_ptr && link_ptr->isUp() &&
+            if (link_ptr && link_ptr->getId() == *route.link_id && link_ptr->isUp() &&
                 link_ptr->allowsTransmission(pkt.current_node, next)) {
                 selected_link = link_ptr.get();
                 break;
@@ -33,6 +35,7 @@ namespace kns {
         }
 
         if (!selected_link) {
+            engine.getStats().packets_lost++;
             return false;
         }
 

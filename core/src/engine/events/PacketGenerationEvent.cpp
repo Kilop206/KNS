@@ -31,6 +31,7 @@ namespace kns {
         }
 
         auto& session = engine.getTCPSession(session_id_);
+        session.setGenerationPending(false);
         auto& client = session.getClientConnection();
 
         if (session.getState() != TCPState::ESTABLISHED) {
@@ -105,14 +106,7 @@ namespace kns {
         PacketUtils::sendPacketThroughTopology(engine, pkt);
 
         if (!session.isComplete()) {
-            engine.schedule(
-                std::make_unique<PacketGenerationEvent>(
-                    engine.now(),
-                    source_,
-                    destination_,
-                    session_id_
-                )
-            );
+            engine.generatePackets(engine.now(), session);
         }
     }
 

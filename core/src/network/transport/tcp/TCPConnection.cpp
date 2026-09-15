@@ -9,11 +9,6 @@
 
 namespace kns {
 
-    std::uint32_t TCPConnection::generateInitialSeq()
-    {
-        return Random::nextUint32();
-    }
-
     TCPConnection::TCPConnection(
         TCPState state,
         std::uint32_t seq_num,
@@ -246,6 +241,9 @@ namespace kns {
         std::uint32_t remote_seq
     )
     {
+        if (getTcpState() == TCPState::SYN_RECEIVED) {
+            return remote_seq + 1 == expected_ack_num_;
+        }
         if (!state_machine_.onSynReceived()) {
             return false;
         }
@@ -451,7 +449,7 @@ namespace kns {
         return true;
     }
 
-    bool TCPConnection::send_syn()
+    bool TCPConnection::send_syn(std::optional<std::uint32_t> initial_seq)
     {
         if (getTcpState() == TCPState::SYN_SENT) {
             /*
@@ -464,7 +462,7 @@ namespace kns {
             return false;
         }
 
-        seq_num_ = generateInitialSeq();
+        seq_num_ = initial_seq ? *initial_seq : random_.nextUint32();
         send_unacknowledged_ = seq_num_;
 
         resetLossDetection();

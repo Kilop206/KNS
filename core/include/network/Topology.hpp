@@ -38,10 +38,6 @@ namespace kns {
             int queue_capacity = 32
         );
 
-        /// Returns a reference to the list of links connected to the given node.
-        /// Throws std::out_of_range if node < 0 or node >= size().
-        std::vector<LinkPtr>& getLinksFromNode(int node);
-
         /// Returns a const reference to the list of links connected to the given node.
         /// Throws std::out_of_range if node < 0 or node >= size().
         const std::vector<LinkPtr>& getLinksFromNode(int node) const;
@@ -111,7 +107,8 @@ namespace kns {
 
         /// Access the Node object for a given id. Returns nullptr if out of range.
         const Node* getNode(int id) const noexcept;
-        Node* getNode(int id) noexcept;
+        /// Changes an active node's label. Returns false for missing/inactive nodes.
+        bool setNodeLabel(int id, std::string label);
 
         /// All interface objects (one per link endpoint on a node).
         const std::vector<Interface>& getInterfaces() const noexcept { return interfaces_; }

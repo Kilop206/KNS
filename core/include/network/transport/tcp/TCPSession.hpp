@@ -10,7 +10,14 @@ namespace kns
 
     class TCPSession
     {
+        public:
+            enum class FailureReason {
+                None,
+                SynRetriesExhausted
+            };
+
         private:
+            FailureReason failure_reason_ = FailureReason::None;
             std::uint64_t session_id;
             int source;
             int destination;
@@ -20,8 +27,11 @@ namespace kns
             TCPConnection server_connection;
             bool close_requested = false;
             bool traffic_generated_ = false;
+            bool generation_pending_ = false;
 
         public:
+            FailureReason getFailureReason() const noexcept { return failure_reason_; }
+            bool failHandshake() noexcept;
             TCPSession();
 
             TCPSession(std::uint64_t session_id,
@@ -52,12 +62,16 @@ namespace kns
             void setTotalPackets(int total);
 
             bool isComplete() const noexcept;
+            /// Generation is complete and neither endpoint has outstanding DATA.
+            bool isDataAcknowledged() const noexcept;
 
             bool isCloseRequest();
 
             void setCloseRequest(bool closeRequest);
 
             bool hasGeneratedTraffic() const noexcept;
+            bool hasPendingGeneration() const noexcept { return generation_pending_; }
+            void setGenerationPending(bool pending) noexcept { generation_pending_ = pending; }
             
             void markTrafficGenerated() noexcept;
 

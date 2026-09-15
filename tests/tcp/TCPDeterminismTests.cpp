@@ -78,7 +78,13 @@ TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][dete
         std::vector<std::string> event_trace;
 
         engine.setPacketObserver([&](const Packet& packet, uint64_t, int from, int to, double dep, double arr) {
-            REQUIRE(packet.packet_size_bytes == config.packet_size);
+            if (packet.packet_type == PacketType::DATA) {
+                REQUIRE(packet.tcp.payload.size() == static_cast<std::size_t>(config.packet_size));
+                REQUIRE(packet.packet_size_bytes == config.packet_size + Packet::TCP_IPV4_HEADER_BYTES);
+            } else {
+                REQUIRE(packet.tcp.payload.empty());
+                REQUIRE(packet.packet_size_bytes == Packet::TCP_IPV4_HEADER_BYTES);
+            }
             event_trace.push_back(std::to_string(packet.tcp.seq) + ":" + std::to_string(dep) + ":" + std::to_string(arr) + ":" + std::to_string(from) + "->" + std::to_string(to));
         });
 

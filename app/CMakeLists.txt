@@ -1,5 +1,14 @@
 add_executable(KNS)
 
+if(WIN32)
+    target_compile_definitions(KNS PRIVATE
+        _WIN32_WINNT=0x0A00
+        WINVER=0x0A00
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+    )
+endif()
+
 target_sources(KNS PRIVATE
     main.cpp
     gui/src/Window.cpp

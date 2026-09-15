@@ -693,17 +693,26 @@ TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp
         syn.tcp.seq = 1000;
         syn.tcp.flags = TCPFlag::SYN;
         REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
-        REQUIRE(engine.processEvent());
-        REQUIRE(observer.responses().back().packet_type == PacketType::SYN_ACK);
-        REQUIRE(observer.responses().back().tcp.source_port == port);
-        REQUIRE(observer.responses().back().tcp.destination_port == 49152);
-        const auto sid = observer.responses().back().session_id;
-        engine.getTCPSession(sid).markTrafficGenerated();
-        engine.getTCPSession(sid).setTotalPackets(1);
-        REQUIRE(engine.processEvent());
-        REQUIRE(engine.processEvent());
-        REQUIRE(engine.getTCPSession(sid).getState() == TCPState::ESTABLISHED);
     }
+    const auto established = [&] {
+        if (engine.getTCPSessions().size() != 2) return false;
+        for (const auto& [id, session] : engine.getTCPSessions()) {
+            if (session.getState() != TCPState::ESTABLISHED) return false;
+        }
+        return true;
+    };
+    for (int i = 0; i < 100 && !established(); ++i) {
+        REQUIRE(engine.processEvent());
+    }
+    REQUIRE(established());
+    std::vector<std::uint16_t> response_ports;
+    for (const auto& response : observer.responses()) {
+        if (response.packet_type == PacketType::SYN_ACK) {
+            response_ports.push_back(response.tcp.source_port);
+            REQUIRE(response.tcp.destination_port == 49152);
+        }
+    }
+    REQUIRE(response_ports == std::vector<std::uint16_t>{80, 443});
     REQUIRE(http.getActiveConnections() == 1);
     REQUIRE(https.getActiveConnections() == 1);
     REQUIRE(engine.getTCPSessions().size() == 2);

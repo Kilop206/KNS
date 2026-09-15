@@ -27,7 +27,7 @@ namespace kns {
         Event(double timestamp);
 
         // The timestamp of the event, which indicates when the event should be executed in the simulation.
-        double timestamp_;
+        const double timestamp_;
 
     private:
 

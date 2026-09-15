@@ -2,6 +2,40 @@
 
 ## 1. Purpose
 
+Issue #143 is valid; see [TCP wire size](tcp-wire-size.md).
+
+Issue #148 is valid; see [Independent RNG](run-random-stream.md).
+
+Issues #133-#136 are valid on `0f3e20a`; implementation follows
+[Runner results](runner-results.md).
+
+Issue #130 was valid at `e8e24a7` and is resolved locally by `fbd518b`;
+see [Routing link selection](routing-link-selection.md).
+
+Issue #147 was valid on `7dcc851` and is resolved locally by `10bcade`;
+see [Topology read views](topology-read-views.md).
+
+Issue #121 was valid on `4562f03` and is resolved locally by `844bff0`; see
+[Resumable TCP generation](tcp-generation-resume.md).
+
+Issue #128 was valid at `aa8865c` and is resolved locally by `7737120`; see
+[Packet loss accounting](packet-loss-accounting.md).
+
+Issue #122 was valid on `3b61999` and is resolved locally by `822adb4`; its contract and test plan are in
+[Acknowledged TCP workload completion](tcp-acknowledged-close.md).
+
+Issues #131 and #123 were valid on `82b004d` and are resolved locally by
+`04545e0` and `dfd69e8`; see
+[TCP duplicate recovery](tcp-duplicate-recovery.md) for requirements and tests.
+
+Issues #132 and #127 were still valid on `30471bf` and are resolved locally by
+`9388a61` and `587d335`; see the acceptance criteria and validation in
+[Simulation time and DATA latency](time-and-latency.md).
+
+Issues #118 and #142 were still valid at investigation on `445920b` and are
+resolved locally by `5fded04` and `ebee95c`. Their acceptance criteria and
+validation record are in [TCP terminal cleanup](tcp-terminal-cleanup.md).
+
 This document defines how KNS issues are investigated, classified, implemented, and closed.
 
 ---

@@ -35,6 +35,9 @@ namespace kns {
         }
 
         if (!client.canRetrySyn()) {
+            if (session.failHandshake()) {
+                engine.releaseTCPListenerSession(session_id_);
+            }
             KNS_DEBUG_LOG(
                 "[TCP][SESSION "
                 << session_id_

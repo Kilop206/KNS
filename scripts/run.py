@@ -13,8 +13,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import platform
+import signal
 import subprocess
 import sys
 import time
@@ -22,12 +24,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 # ==============================================================
@@ -86,7 +82,6 @@ def run_silent(
     topo: Path,
     log_file: Path,
     csv_out: Path,
-    timeout: float | None = None,
 ) -> tuple[subprocess.Popen, float, TextIO]:
     cmd = build_command(exe, topo, csv_out)
 
@@ -106,8 +101,13 @@ def run_silent(
     else:
         kwargs["start_new_session"] = True
 
-    proc = subprocess.Popen(cmd, **kwargs)
-    return proc, time.perf_counter(), log_handle
+    started = time.perf_counter()
+    try:
+        proc = subprocess.Popen(cmd, **kwargs)
+    except BaseException:
+        log_handle.close()
+        raise
+    return proc, started, log_handle
 
 
 # ==============================================================
@@ -122,42 +122,43 @@ def parse_csv_if_exists(csv_file: Path) -> list[dict] | None:
     with open(csv_file, encoding="utf-8", errors="replace", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append({k: v.strip() for k, v in row.items() if k is not None})
+            if None in row or any(v is None for v in row.values()):
+                raise ValueError("Malformed stats CSV row")
+            rows.append({k: v.strip() for k, v in row.items()})
 
     return rows if rows else None
 
 
-def parse_stats(csv_file: Path) -> dict | None:
-    """Read the aggregate stats CSV exported by the engine and convert types.
-
-    Expected header:
-    Packets Sent,Packets Delivered,Packets Lost,Delivery Rate,Loss Rate,Average Latency,Seed
-    """
+def parse_stats(csv_file: Path) -> dict:
+    """Read version 1 of the engine's aggregate CSV; reject invalid output."""
     rows = parse_csv_if_exists(csv_file)
-    if not rows:
-        return None
+    if not rows or len(rows) != 1:
+        raise ValueError(f"Expected one stats row in {csv_file}")
 
     raw = rows[0]
     try:
-        return {
-            "packets_sent": int(raw["Packets Sent"]),
-            "packets_delivered": int(raw["Packets Delivered"]),
-            "packets_lost": int(raw["Packets Lost"]),
-            "delivery_rate": float(raw["Delivery Rate"]),
-            "loss_rate": float(raw["Loss Rate"]),
-            "avg_latency_s": float(raw["Average Latency"]),
-            "seed": int(raw["Seed"]),
-        }
-    except (KeyError, ValueError) as exc:
-        print(f"[WARNING] Unexpected stats CSV format in {csv_file}: {exc}", file=sys.stderr)
-        return None
+        if int(raw["schema_version"]) != 1:
+            raise ValueError("Unsupported schema_version")
+        result = {key: int(raw[key]) for key in (
+            "packets_sent", "packets_delivered", "packets_lost",
+            "packets_in_transit", "total_sessions", "data_packets_delivered", "seed")}
+        result.update({key: float(raw[key]) for key in (
+            "total_latency", "avg_latency", "simulation_duration_s")})
+        if any(not math.isfinite(value) or value < 0 for value in result.values()):
+            raise ValueError("Metrics must be finite and nonnegative")
+        sent = result["packets_sent"]
+        result["delivery_rate"] = result["packets_delivered"] / sent if sent else 0.0
+        result["loss_rate"] = result["packets_lost"] / sent if sent else 0.0
+        result["avg_latency_s"] = result.pop("avg_latency")
+        return result
+    except (KeyError, ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid stats CSV {csv_file}: {exc}") from exc
 
 
 # ==============================================================
 # Graph generation
 # ==============================================================
 
-COLORS = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
 
 def _label(topo: Path) -> str:
@@ -165,6 +166,12 @@ def _label(topo: Path) -> str:
 
 
 def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.gridspec as gridspec
+    import matplotlib.pyplot as plt
+    import numpy as np
+    COLORS = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     labels = [_label(r["topo"]) for r in runs]
     n = len(labels)
     loss_rates: list[float] = []
@@ -286,10 +293,11 @@ def compute_stats(stats: dict | None, duration_s: float) -> dict:
         "loss_rate": stats["loss_rate"] if stats else None,
         "latency_mean_s": stats["avg_latency_s"] if stats else None,
         "seed": stats["seed"] if stats else None,
-        "duration_seconds": duration_s,
+        "wall_clock_duration_s": duration_s,
+        "simulation_duration_s": stats["simulation_duration_s"] if stats else None,
         "throughput_pps": (
-            stats["packets_delivered"] / duration_s
-            if stats and duration_s > 0
+            stats["packets_delivered"] / stats["simulation_duration_s"]
+            if stats and stats["simulation_duration_s"] > 0
             else None
         ),
     }
@@ -310,6 +318,8 @@ def write_summary_json(
                 "log": str(r["log"]),
                 "csv": str(r.get("csv")) if r.get("csv") else None,
                 "returncode": r["returncode"],
+                "status": r.get("status", "unknown"),
+                "error": r.get("error"),
                 "stats": compute_stats(r["stats"], r["duration_s"]),
             }
         )
@@ -334,7 +344,8 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
     out = test_dir / "metrics.csv"
     fieldnames = [
         "topology",
-        "duration_s",
+        "wall_clock_duration_s",
+        "simulation_duration_s",
         "packets_sent",
         "packets_delivered",
         "packets_lost",
@@ -344,6 +355,7 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
         "latency_mean_s",
         "seed",
         "returncode",
+        "status",
     ]
 
     with open(out, "w", newline="", encoding="utf-8") as f:
@@ -354,7 +366,8 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
             stats = compute_stats(r["stats"], r["duration_s"])
             row = {
                 "topology": r["topo"].name,
-                "duration_s": f"{r['duration_s']:.4f}",
+                "wall_clock_duration_s": f"{r['duration_s']:.4f}",
+                "simulation_duration_s": stats["simulation_duration_s"],
                 "packets_sent": stats["packets_sent"] if stats["packets_sent"] is not None else "",
                 "packets_delivered": stats["packets_delivered"] if stats["packets_delivered"] is not None else "",
                 "packets_lost": stats["packets_lost"] if stats["packets_lost"] is not None else "",
@@ -376,6 +389,7 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
                 "latency_mean_s": stats["latency_mean_s"] if stats["latency_mean_s"] is not None else "",
                 "seed": stats["seed"] if stats["seed"] is not None else "",
                 "returncode": r["returncode"],
+                "status": r.get("status", "unknown"),
             }
             writer.writerow(row)
 
@@ -409,6 +423,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Timeout in seconds per execution (default: no limit)",
     )
     args = parser.parse_args(argv)
+
+    if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
+        parser.error("--timeout must be finite and positive")
 
     if args.max_procs < 1:
         print("[ERROR] --max-procs must be at least 1.", file=sys.stderr)
@@ -450,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"[RUN {i}] {topo.name}")
         try:
-            proc, t0, log_handle = run_silent(exe, topo, log_file, csv_file, args.timeout)
+            proc, t0, log_handle = run_silent(exe, topo, log_file, csv_file)
             pending.append((proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
             print(f"[ERROR] Failed to start {topo.name}: {exc}", file=sys.stderr)
@@ -462,6 +479,8 @@ def main(argv: list[str] | None = None) -> int:
                     "returncode": -1,
                     "duration_s": 0.0,
                     "stats": None,
+                    "status": "startup_error",
+                    "error": str(exc),
                 }
             )
 
@@ -507,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Graphs:     {len(graphs)} file(s)")
     print("=" * 50)
 
-    return 0
+    return 1 if err else 0
 
 
 def _flush_one(
@@ -516,23 +535,29 @@ def _flush_one(
     timeout: float | None,
     wait: bool = False,
 ) -> None:
-    """Check or wait for the first pending process, then record its result."""
+    """Poll every child against its launch deadline, without head-of-line blocking."""
     if not pending:
         return
 
-    proc, t0, topo, log_file, csv_file, log_handle = pending[0]
+    index = None
+    timed_out = False
+    for i, item in enumerate(pending):
+        proc, t0, *_ = item
+        if proc.poll() is not None:
+            index = i
+            break
+        if timeout is not None and time.perf_counter() - t0 >= timeout:
+            index = i
+            timed_out = True
+            _terminate_tree(proc)
+            break
+    if index is None:
+        remaining = [max(0, t0 + timeout - time.perf_counter())
+                     for _, t0, *_ in pending] if timeout is not None else [0.05]
+        time.sleep(min(0.05, min(remaining)))
+        return
 
-    if wait:
-        try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-    else:
-        try:
-            proc.wait(timeout=0.05)
-        except subprocess.TimeoutExpired:
-            return
+    proc, t0, topo, log_file, csv_file, log_handle = pending[index]
 
     duration = time.perf_counter() - t0
     rc = proc.returncode if proc.returncode is not None else -1
@@ -540,7 +565,16 @@ def _flush_one(
     if not log_handle.closed:
         log_handle.close()
 
-    stats = parse_stats(csv_file)
+    stats = None
+    error = None
+    outcome = "timeout" if timed_out else ("success" if rc == 0 else "process_error")
+    if timed_out:
+        rc = 124
+    elif rc == 0:
+        try:
+            stats = parse_stats(csv_file)
+        except (ValueError, OSError) as exc:
+            outcome, rc, error = "stats_error", 1, str(exc)
 
     status = "OK" if rc == 0 else f"ERROR (code {rc})"
     lost = stats["packets_lost"] if stats else "?"
@@ -558,9 +592,26 @@ def _flush_one(
             "returncode": rc,
             "duration_s": duration,
             "stats": stats,
+            "status": outcome,
+            "error": error,
         }
     )
-    pending.pop(0)
+    pending.pop(index)
+
+
+def _terminate_tree(proc: subprocess.Popen) -> None:
+    if is_windows():
+        result = subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+        if result.returncode != 0 and proc.poll() is None:
+            raise RuntimeError(f"Could not terminate process tree {proc.pid}")
+    else:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    proc.wait()
 
 
 if __name__ == "__main__":

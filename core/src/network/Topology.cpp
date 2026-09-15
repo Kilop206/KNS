@@ -105,13 +105,6 @@ namespace kns {
 
 
 
-    std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) {
-        if (node < 0 || static_cast<std::size_t>(node) >= adjacency_list_.size()) {
-            throw std::out_of_range("Node index out of bounds");
-        }
-        return adjacency_list_[node];
-    }
-    
     const std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) const {
         if (node < 0 || static_cast<std::size_t>(node) >= adjacency_list_.size()) {
             throw std::out_of_range("Node index out of bounds");
@@ -295,9 +288,11 @@ namespace kns {
         return &nodes_[static_cast<std::size_t>(id)];
     }
 
-    Node* Topology::getNode(int id) noexcept {
-        if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size()) return nullptr;
-        return &nodes_[static_cast<std::size_t>(id)];
+    bool Topology::setNodeLabel(int id, std::string label) {
+        const auto* node = getNode(id);
+        if (!node || !node->isActive()) return false;
+        nodes_[static_cast<std::size_t>(id)].setLabel(std::move(label));
+        return true;
     }
 
     void Topology::markRoutingChanged() noexcept {
