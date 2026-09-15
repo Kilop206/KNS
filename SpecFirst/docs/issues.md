@@ -2,6 +2,8 @@
 
 ## 1. Purpose
 
+Issues #139 and #141 are valid; see [Run topology isolation](run-topology-isolation.md).
+
 Issue #143 is valid; see [TCP wire size](tcp-wire-size.md).
 
 Issue #148 is valid; see [Independent RNG](run-random-stream.md).
