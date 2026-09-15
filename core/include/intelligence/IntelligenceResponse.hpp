@@ -14,30 +14,52 @@ enum class FindingSeverity {
     Critical
 };
 
+enum class IntelligenceStatus {
+    Completed,
+    Failed,
+    Partial
+};
+
+struct IntelligenceAffectedLink {
+    int from = -1;
+    int to = -1;
+};
+
 struct IntelligenceFinding {
-    std::string title;
-    std::string description;
+    std::string id;
 
     FindingSeverity severity =
         FindingSeverity::Info;
 
+    std::string category;
+
+    std::string title;
+    std::string description;
+
     std::vector<int> affected_nodes;
 
-    std::vector<std::pair<int, int>>
+    std::vector<IntelligenceAffectedLink>
         affected_links;
 };
 
 struct IntelligenceRecommendation {
-    std::string title;
-    std::string description;
+    std::string id;
 
     std::string priority;
+
+    std::string title;
+    std::string description;
 };
 
 struct IntelligenceResponse {
+    std::string schema_version;
+
     std::string analysis_id;
 
-    int network_score = 0;
+    IntelligenceStatus status =
+        IntelligenceStatus::Completed;
+
+    double network_score = 0.0;
 
     std::string summary;
 
