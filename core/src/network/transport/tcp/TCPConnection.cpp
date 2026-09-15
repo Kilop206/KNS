@@ -558,7 +558,8 @@ namespace kns {
             return false;
         }
 
-        return true;
+        return congestion_control_->canSend(
+            in_flight, static_cast<std::uint32_t>(payload_size));
     }
 
     bool TCPConnection::queueSentSegment(

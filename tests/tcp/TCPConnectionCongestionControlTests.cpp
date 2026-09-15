@@ -8,6 +8,28 @@
 
 using namespace kns;
 
+TEST_CASE("New DATA respects congestion limits before and after timeout", "[tcp][congestion][window]")
+{
+    for (const auto type : {CongestionControlType::TAHOE, CongestionControlType::RENO,
+            CongestionControlType::NEW_RENO, CongestionControlType::CUBIC}) {
+        TCPConnection connection(TCPState::ESTABLISHED, 1000, 0, 0, 1, type, 100);
+        connection.setSendWindow(10000);
+        TCPSegment segment;
+        segment.seq = connection.getSendNext();
+        segment.payload.assign(100, 0x41);
+        REQUIRE(connection.queueSentSegment(segment, 0.0));
+        REQUIRE_FALSE(connection.canSend(1));
+        REQUIRE(connection.receive_ack(1100, 0.1));
+        REQUIRE(connection.canSend(100));
+        segment.seq = connection.getSendNext();
+        REQUIRE(connection.queueSentSegment(segment, 0.2));
+        connection.onSendTimeout(1.0);
+        const auto window = connection.getCongestionControl().getCwnd();
+        const auto available = window > 100 ? window - 100 : 0;
+        REQUIRE_FALSE(connection.canSend(available + 1));
+    }
+}
+
 TEST_CASE(
     "TCPConnection creates Reno congestion control by default",
     "[tcp][congestion][connection]"
