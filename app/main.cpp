@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -30,6 +31,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "analysis/AnalysisJsonSerializer.hpp"
+#include "analysis/NetworkAnalyzer.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -1602,6 +1605,99 @@ static void renderConfigWindow(
     ImGui::End();
 }
 
+static void exportNetworkAnalysis(
+    const kns::Topology& topology
+)
+{
+    std::cout
+        << "[ANALYSIS] exportNetworkAnalysis called\n";
+
+    std::cout
+        << "[ANALYSIS] Nodes: "
+        << topology.size()
+        << '\n';
+
+    std::cout
+        << "[ANALYSIS] Current directory: "
+        << std::filesystem::current_path()
+        << '\n';
+
+    if (topology.size() <= 0) {
+        std::cout
+            << "[ANALYSIS] Empty topology, skipping\n";
+
+        return;
+    }
+
+    try {
+        const kns::analysis::NetworkAnalyzer analyzer;
+
+        std::cout
+            << "[ANALYSIS] Running analyzer...\n";
+
+        const auto analysis =
+            analyzer.analyze(topology);
+
+        std::cout
+            << "[ANALYSIS] Serializing JSON...\n";
+
+        const auto json =
+            kns::analysis::AnalysisJsonSerializer::toJson(
+                analysis
+            );
+
+        const std::filesystem::path outputDirectory =
+            std::filesystem::current_path() /
+            "results";
+
+        std::error_code error;
+
+        std::filesystem::create_directories(
+            outputDirectory,
+            error
+        );
+
+        if (error) {
+            std::cerr
+                << "[ANALYSIS] Failed to create directory: "
+                << error.message()
+                << '\n';
+
+            return;
+        }
+
+        const std::filesystem::path outputPath =
+            outputDirectory /
+            "analysis_context.json";
+
+        std::cout
+            << "[ANALYSIS] Output path: "
+            << outputPath
+            << '\n';
+
+        std::ofstream output(outputPath);
+
+        if (!output.is_open()) {
+            std::cerr
+                << "[ANALYSIS] Failed to open output file\n";
+
+            return;
+        }
+
+        output << json.dump(4);
+        output.close();
+
+        std::cout
+            << "[ANALYSIS] Analysis exported successfully\n";
+    }
+    catch (const std::exception& e) {
+        std::cerr
+            << "[ANALYSIS] ERROR: "
+            << e.what()
+            << '\n';
+    }
+}
+
 static void visualizeWindow(
     std::unique_ptr<SimulationEngine>& engine,
     Topology& topo,
@@ -1944,11 +2040,23 @@ static void visualizeWindow(
             {
                 try
                 {
-                    topo =
-                        TopologyLoader::load_topology(
-                            ImGuiFileDialog::Instance()
-                                ->GetFilePathName()
+                    topo = TopologyLoader::load_topology(
+                        ImGuiFileDialog::Instance()
+                            ->GetFilePathName()
+                    );
+
+                    exportNetworkAnalysis(topo);
+
+                    visualTime = 0.0;
+                    lastRealTime = glfwGetTime();
+                    visualManager.clear();
+
+                    engine =
+                        std::make_unique<SimulationEngine>(
+                            topo
                         );
+
+                    configureEngine(engine);
 
                     restartSimulation();
 
@@ -2180,6 +2288,8 @@ int main(int argc, char* argv[])
                 TopologyLoader::load_topology(
                     argv[topologyPathIndex]
                 );
+            
+            exportNetworkAnalysis(topo);
         }
         catch (const std::exception& e)
         {
@@ -2257,25 +2367,24 @@ int main(int argc, char* argv[])
     // --------------------------------------------------
 
     if (topologyPathIndex >= 0 &&
-        topologyPathIndex < argc)
-    {
-        try
+            topologyPathIndex < argc)
         {
-            topo =
-                TopologyLoader::load_topology(
+            try {
+                topo = TopologyLoader::load_topology(
                     argv[topologyPathIndex]
                 );
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr
-                << "Topology load error: "
-                << e.what()
-                << '\n';
 
-            return 1;
+                exportNetworkAnalysis(topo);
+            }
+            catch (const std::exception& e) {
+                std::cerr
+                    << "Topology load error: "
+                    << e.what()
+                    << '\n';
+
+                return 1;
+            }
         }
-    }
 
     SimulationState state =
         SimulationState::Ready;

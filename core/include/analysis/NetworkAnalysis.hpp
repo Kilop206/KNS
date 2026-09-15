@@ -44,14 +44,13 @@ struct LinkMetrics {
     bool bridge = false;
 
     std::size_t routes_using_link = 0;
-
     double route_usage_ratio = 0.0;
 
     double risk_score = 0.0;
 
-    std::vector<std::string> risk_reasons;
-
     RiskLevel risk_level = RiskLevel::None;
+
+    std::vector<std::string> risk_reasons;
 };
 
 struct NodeMetrics {
@@ -63,10 +62,11 @@ struct NodeMetrics {
     bool articulation_point = false;
 
     std::size_t routes_using_node = 0;
-
     double route_usage_ratio = 0.0;
 
     double criticality_score = 0.0;
+
+    RiskLevel risk_level = RiskLevel::None;
 
     std::vector<std::string> risk_reasons;
 };

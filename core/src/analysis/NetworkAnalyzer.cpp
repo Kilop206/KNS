@@ -810,9 +810,18 @@ void calculateNodeCriticality(
     NetworkAnalysis& analysis
 )
 {
+    std::size_t minimum_degree =
+        std::numeric_limits<std::size_t>::max();
+
     std::size_t maximum_degree = 0;
 
     for (const auto& node : analysis.nodes) {
+        minimum_degree =
+            std::min(
+                minimum_degree,
+                node.degree
+            );
+
         maximum_degree =
             std::max(
                 maximum_degree,
@@ -834,14 +843,13 @@ void calculateNodeCriticality(
 
         double degree_score = 0.0;
 
-        if (maximum_degree > 0) {
-
+        if (maximum_degree > minimum_degree) {
             degree_score =
                 static_cast<double>(
-                    node.degree
+                    node.degree - minimum_degree
                 ) /
                 static_cast<double>(
-                    maximum_degree
+                    maximum_degree - minimum_degree
                 );
         }
 
@@ -1320,16 +1328,13 @@ NetworkAnalysis NetworkAnalyzer::analyze(
         analysis
     );
 
-    countNodeRouteUsage(analysis);
-    countLinkRouteUsage(analysis);
+    calculateNodeCriticality(
+        analysis
+    );
 
-    calculateRouteUsageRatios(analysis);
-
-    calculateRoutePhysicalMetrics(analysis);
-    calculateGlobalPathMetrics(analysis);
-
-    calculateNodeCriticality(analysis);
-    calculateLinkRisk(analysis);
+    calculateLinkRisk(
+        analysis
+    );
 
     return analysis;
 }
