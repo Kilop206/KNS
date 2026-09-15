@@ -1,6 +1,11 @@
 #include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns {
+    void TCPSession::failClose() noexcept {
+        failure_reason_ = FailureReason::CloseRetriesExhausted;
+        client_connection.failRetransmission();
+        server_connection.failRetransmission();
+    }
     bool TCPSession::failHandshake() noexcept
     {
         if (client_connection.getTcpState() != TCPState::SYN_SENT ||

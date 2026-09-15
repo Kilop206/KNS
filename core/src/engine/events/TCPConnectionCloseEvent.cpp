@@ -1,5 +1,6 @@
 #include "engine/core/Log.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/events/TCPFinRetryEvent.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "network/utils/PacketUtils.hpp"
 
@@ -60,5 +61,7 @@ namespace kns {
                 << session_id_
                 << '\n');
         }
+        engine.schedule(std::make_unique<TCPFinRetryEvent>(
+            engine.now() + TCPFinRetryEvent::INTERVAL, session_id_, client.getLocalNode()));
     }
 }

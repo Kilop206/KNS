@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "engine/core/SimulationEngine.hpp"
+#include "engine/events/TCPFinRetryEvent.hpp"
 #include "engine/events/TCPConnectionCloseEvent.hpp"
 #include "engine/events/TCPDelayedAckEvent.hpp"
 #include "engine/events/TCPFastRetransmitEvent.hpp"
@@ -189,6 +190,13 @@ namespace kns
 
                 if (window_update || (handshake_ack && acknowledged)) {
                     receiver.setPeerWindow(packet.tcp.window);
+                }
+                if (acknowledged && receiver.getTcpState() == TCPState::TIME_WAIT) {
+                    engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(
+                        engine.now() + TCPFinRetryEvent::TIME_WAIT_DURATION, session.getSession_id()));
+                }
+                if (session.getState() == TCPState::CLOSED) {
+                    engine.releaseTCPListenerSession(session.getSession_id());
                 }
 
                 if (acknowledged) {
@@ -380,12 +388,14 @@ namespace kns
             }
 
             case PacketType::FIN: {
+                if (packet.tcp.ackFlag()) receiver.receive_ack(packet.tcp.ack, engine.now());
                 if (!receiver.receive_fin(packet.tcp.seq)) {
                     break;
                 }
 
-                if (client.getTcpState() == TCPState::TIME_WAIT) {
-                    engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(engine.now() + 0.1, session.getSession_id()));
+                if (receiver.getTcpState() == TCPState::TIME_WAIT) {
+                    engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(
+                        engine.now() + TCPFinRetryEvent::TIME_WAIT_DURATION, session.getSession_id()));
                 }
 
                 Packet ack(
@@ -417,6 +427,9 @@ namespace kns
                         fin.packet_type = inferPacketType(fin.tcp);
 
                         PacketUtils::sendPacketThroughTopology(engine, fin);
+                        engine.schedule(std::make_unique<TCPFinRetryEvent>(
+                            engine.now() + TCPFinRetryEvent::INTERVAL,
+                            session.getSession_id(), receiver.getLocalNode()));
                     }
                 }
 

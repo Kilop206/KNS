@@ -357,7 +357,7 @@ namespace kns {
         }
 
         if (
-            getTcpState() == TCPState::FIN_WAIT_1 &&
+            (getTcpState() == TCPState::FIN_WAIT_1 || getTcpState() == TCPState::CLOSING) &&
             remote_ack == seq_num_ + 1
         ) {
             return state_machine_.onFinAcked();
@@ -437,6 +437,10 @@ namespace kns {
         std::uint32_t remote_seq
     )
     {
+        const auto state = getTcpState();
+        if ((state == TCPState::CLOSE_WAIT || state == TCPState::LAST_ACK ||
+             state == TCPState::CLOSING || state == TCPState::TIME_WAIT) &&
+            remote_seq + 1 == expected_ack_num_) return true;
         if (!state_machine_.onPeerFin()) {
             return false;
         }

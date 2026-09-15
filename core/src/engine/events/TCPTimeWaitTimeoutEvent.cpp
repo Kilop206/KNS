@@ -18,11 +18,10 @@ namespace kns {
 
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
-
-        if (client.expire_time_wait()) {
-            if (session.getState() == TCPState::CLOSED) {
-                engine.releaseTCPListenerSession(session_id_);
-            }
+        client.expire_time_wait();
+        session.getServerConnection().expire_time_wait();
+        if (session.getState() == TCPState::CLOSED) {
+            engine.releaseTCPListenerSession(session_id_);
         }
     }
 }

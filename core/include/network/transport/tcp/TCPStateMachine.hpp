@@ -67,6 +67,10 @@ namespace kns {
             }
 
             bool onFinAcked() noexcept {
+                if (state_ == TCPState::CLOSING) {
+                    state_ = TCPState::TIME_WAIT;
+                    return true;
+                }
                 if (state_ == TCPState::FIN_WAIT_1) {
                     state_ = TCPState::FIN_WAIT_2;
                     return true;
