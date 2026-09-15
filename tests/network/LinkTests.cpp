@@ -9,6 +9,9 @@ using kns::Link;
 using kns::LinkMode;
 using kns::Topology;
 
+static_assert(!noexcept(std::declval<Link&>().enqueueTransmission(0, 1, 0.0, 1.0)),
+    "Queue allocation errors must propagate instead of terminating the process");
+
 TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]")
 {
     const auto invalid = static_cast<LinkMode>(999);

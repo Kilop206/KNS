@@ -365,7 +365,7 @@ namespace kns {
         int to,
         double departure_time,
         double arrival_time
-    ) noexcept
+    )
     {
         const DirectionSlot slot = getQueueSlot(from, to);
 

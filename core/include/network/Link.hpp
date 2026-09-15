@@ -59,14 +59,14 @@ class Link {
 
         bool canQueue(int from, int to) const noexcept;
 
-        /// Record a transmission in the FIFO queue. Does NOT check capacity —
-        /// caller must call canQueue() first. Supersedes the bare enqueuePacket().
+        /// Record a transmission if capacity is available. Allocation failures
+        /// propagate without changing queue contents.
         void enqueueTransmission(
             int from,
             int to,
             double departure_time,
             double arrival_time
-        ) noexcept;
+        );
 
         /// Remove the oldest matching transmission from the FIFO queue.
         /// Returns true if a matching entry was found and removed.

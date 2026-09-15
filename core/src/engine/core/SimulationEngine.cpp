@@ -229,12 +229,6 @@ namespace kns {
             throw std::invalid_argument("Packet arrival time must be finite and not in the past");
         }
 
-        link.reserveTransmission(
-            pkt.current_node,
-            next_node,
-            actual_departure_time + transmission_time
-        );
-
         Packet new_pkt = pkt;
         new_pkt.current_node = next_node;
         new_pkt.previous_node = pkt.current_node;
@@ -243,11 +237,12 @@ namespace kns {
         new_pkt.departure_time = actual_departure_time;
         new_pkt.arrival_time = arrival_time;
 
-        if (pkt.hop_count == 0) {
-            stats_.packets_sent++;
-        }
-
         if (link.getLossProb() > 0.0 && random() < link.getLossProb()) {
+            link.reserveTransmission(pkt.current_node, next_node,
+                actual_departure_time + transmission_time);
+            if (pkt.hop_count == 0) {
+                stats_.packets_sent++;
+            }
             stats_.packets_lost++;
             return false;
         }
@@ -258,14 +253,28 @@ namespace kns {
             actual_departure_time, arrival_time
         );
 
-        packets_in_transit.push_back(PacketTravelInfo{
+        const auto previous_transit_size = packets_in_transit.size();
+        try {
+            packets_in_transit.push_back(PacketTravelInfo{
             actual_departure_time,
             arrival_time,
             pkt.current_node,
             next_node,
             pkt.packet_type,
             link.getId()
-        });
+            });
+            schedule(std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt));
+        } catch (...) {
+            packets_in_transit.resize(previous_transit_size);
+            link.dequeueTransmission(pkt.current_node, next_node,
+                actual_departure_time, arrival_time);
+            throw;
+        }
+        link.reserveTransmission(pkt.current_node, next_node,
+            actual_departure_time + transmission_time);
+        if (pkt.hop_count == 0) {
+            stats_.packets_sent++;
+        }
 
         emitPacketEvent(
             pkt,
@@ -273,10 +282,6 @@ namespace kns {
             next_node,
             actual_departure_time,
             arrival_time
-        );
-
-        schedule(
-            std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt)
         );
 
         return true;
