@@ -22,6 +22,7 @@ namespace kns {
 
     class TCPConnection {
         Random random_;
+        std::uint16_t peer_window_ = 65535;
     public:
         static constexpr std::uint32_t MAX_SYN_RETRIES = 5;
         static constexpr std::uint32_t DEFAULT_SEND_WINDOW = 65535;
@@ -103,6 +104,10 @@ namespace kns {
         std::uint32_t getSendUnacknowledged() const noexcept;
         std::uint32_t getSendNext() const noexcept;
         std::uint32_t getSendWindow() const noexcept;
+        std::uint16_t getPeerWindow() const noexcept { return peer_window_; }
+        void setPeerWindow(std::uint16_t window) noexcept { peer_window_ = window; }
+        bool acceptsWindowUpdate(const TCPSegment& segment) const noexcept;
+        void setReceiveWindow(std::uint16_t window) { receive_buffer_.setCapacity(window); }
 
         void setSendWindow(
             std::uint32_t window

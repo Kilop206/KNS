@@ -136,6 +136,7 @@ namespace kns
                 if (!receiver.receive_syn(packet.tcp.seq)) {
                     break;
                 }
+                receiver.setPeerWindow(packet.tcp.window);
 
                 Packet synAck(
                     receiver.getLocalNode(),
@@ -158,6 +159,7 @@ namespace kns
                 if (!client.receive_syn_ack(packet.tcp.seq, packet.tcp.ack)) {
                     break;
                 }
+                client.setPeerWindow(packet.tcp.window);
 
                 Packet ack(
                     client.getLocalNode(),
@@ -177,11 +179,17 @@ namespace kns
 
             case PacketType::ACK:
             {
+                const bool window_update = receiver.acceptsWindowUpdate(packet.tcp);
+                const bool handshake_ack = receiver.getTcpState() == TCPState::SYN_RECEIVED;
                 const bool acknowledged =
                     receiver.receive_ack(
                         packet.tcp.ack,
                         engine.now()
                     );
+
+                if (window_update || (handshake_ack && acknowledged)) {
+                    receiver.setPeerWindow(packet.tcp.window);
+                }
 
                 if (acknowledged) {
                     const auto oldest =
@@ -250,6 +258,7 @@ namespace kns
 
             case PacketType::DATA:
             {
+                const bool window_update = receiver.acceptsWindowUpdate(packet.tcp);
                 const auto expected_before =
                     receiver.getExpectedAckNum();
 
@@ -271,6 +280,7 @@ namespace kns
 
                 const auto expected_after =
                     receiver.getExpectedAckNum();
+                if (window_update) receiver.setPeerWindow(packet.tcp.window);
 
                 /*
                 * Out-of-order data must be ACKed immediately.

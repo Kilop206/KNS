@@ -107,7 +107,7 @@ namespace kns {
         retransmission.tcp.window =
             static_cast<std::uint16_t>(
                 std::min<std::uint32_t>(
-                    client.getSendWindow(),
+                    client.getReceiveWindow(),
                     65535U
                 )
             );

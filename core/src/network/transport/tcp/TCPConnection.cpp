@@ -538,23 +538,32 @@ namespace kns {
         return send_buffer_.size();
     }
 
+    bool TCPConnection::acceptsWindowUpdate(const TCPSegment& segment) const noexcept
+    {
+        return isEstablished() && segment.ackFlag() &&
+            segment.seq == expected_ack_num_ &&
+            tcp_sequence::distance(send_unacknowledged_, segment.ack) <=
+                tcp_sequence::distance(send_unacknowledged_, seq_num_);
+    }
+
     bool TCPConnection::canSend(
         std::size_t payload_size
     ) const noexcept
     {
         const std::uint32_t in_flight =
             seq_num_ - send_unacknowledged_;
+        const auto flow_window = std::min<std::uint32_t>(send_window_, peer_window_);
 
         if (
             payload_size >
-            static_cast<std::size_t>(send_window_)
+            static_cast<std::size_t>(flow_window)
         ) {
             return false;
         }
 
         if (
             in_flight >
-            send_window_ -
+            flow_window -
                 static_cast<std::uint32_t>(
                     payload_size
                 )
@@ -637,7 +646,7 @@ namespace kns {
         double received_at
     )
     {
-        if (payload.empty()) {
+        if (payload.empty() || payload.size() > getReceiveWindow()) {
             return false;
         }
 
