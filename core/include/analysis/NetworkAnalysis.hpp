@@ -1,10 +1,19 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace kns::analysis {
+
+enum class RiskLevel {
+    None,
+    Low,
+    Medium,
+    High,
+    Critical
+};
 
 struct RouteMetrics {
     int source = -1;
@@ -21,6 +30,8 @@ struct RouteMetrics {
     double total_delay_ms = 0.0;
 
     double bottleneck_bandwidth_mbps = 0.0;
+
+    RiskLevel risk_level = RiskLevel::None;
 };
 
 struct LinkMetrics {
@@ -35,6 +46,12 @@ struct LinkMetrics {
     std::size_t routes_using_link = 0;
 
     double route_usage_ratio = 0.0;
+
+    double risk_score = 0.0;
+
+    std::vector<std::string> risk_reasons;
+
+    RiskLevel risk_level = RiskLevel::None;
 };
 
 struct NodeMetrics {
@@ -48,6 +65,10 @@ struct NodeMetrics {
     std::size_t routes_using_node = 0;
 
     double route_usage_ratio = 0.0;
+
+    double criticality_score = 0.0;
+
+    std::vector<std::string> risk_reasons;
 };
 
 struct NetworkAnalysis {

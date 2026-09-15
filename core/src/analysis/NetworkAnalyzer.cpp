@@ -774,6 +774,232 @@ void calculateGlobalPathMetrics(
     }
 }
 
+
+
+double clamp01(double value)
+{
+    return std::clamp(
+        value,
+        0.0,
+        1.0
+    );
+}
+
+RiskLevel classifyRisk(double score)
+{
+    if (score >= 0.80) {
+        return RiskLevel::Critical;
+    }
+
+    if (score >= 0.60) {
+        return RiskLevel::High;
+    }
+
+    if (score >= 0.35) {
+        return RiskLevel::Medium;
+    }
+
+    if (score > 0.0) {
+        return RiskLevel::Low;
+    }
+
+    return RiskLevel::None;
+}
+
+void calculateNodeCriticality(
+    NetworkAnalysis& analysis
+)
+{
+    std::size_t maximum_degree = 0;
+
+    for (const auto& node : analysis.nodes) {
+        maximum_degree =
+            std::max(
+                maximum_degree,
+                node.degree
+            );
+    }
+
+    for (auto& node : analysis.nodes) {
+
+        const double usage_score =
+            clamp01(
+                node.route_usage_ratio
+            );
+
+        const double articulation_score =
+            node.articulation_point
+                ? 1.0
+                : 0.0;
+
+        double degree_score = 0.0;
+
+        if (maximum_degree > 0) {
+
+            degree_score =
+                static_cast<double>(
+                    node.degree
+                ) /
+                static_cast<double>(
+                    maximum_degree
+                );
+        }
+
+        const double isolation_score =
+            node.isolated
+                ? 1.0
+                : 0.0;
+
+        node.criticality_score =
+            usage_score * 0.35 +
+            articulation_score * 0.35 +
+            degree_score * 0.20 +
+            isolation_score * 0.10;
+
+        node.criticality_score =
+            clamp01(
+                node.criticality_score
+            );
+
+        node.risk_level =
+            classifyRisk(
+                node.criticality_score
+            );
+
+        if (node.articulation_point) {
+
+            node.risk_reasons.emplace_back(
+                "Node is an articulation point"
+            );
+        }
+
+        if (node.route_usage_ratio >= 0.50) {
+
+            node.risk_reasons.emplace_back(
+                "Node carries at least 50% of reachable routes"
+            );
+        }
+
+        if (degree_score >= 0.75) {
+
+            node.risk_reasons.emplace_back(
+                "Node has high relative connectivity"
+            );
+        }
+
+        if (node.isolated) {
+
+            node.risk_reasons.emplace_back(
+                "Node is isolated from the network"
+            );
+        }
+    }
+}
+
+void calculateLinkRisk(
+    NetworkAnalysis& analysis
+)
+{
+    double maximum_delay = 0.0;
+    double maximum_bandwidth = 0.0;
+
+    for (const auto& link :
+         analysis.links)
+    {
+        maximum_delay =
+            std::max(
+                maximum_delay,
+                link.delay_ms
+            );
+
+        maximum_bandwidth =
+            std::max(
+                maximum_bandwidth,
+                link.bandwidth_mbps
+            );
+    }
+
+    for (auto& link :
+         analysis.links)
+    {
+        const double usage_score =
+            clamp01(
+                link.route_usage_ratio
+            );
+
+        const double bridge_score =
+            link.bridge
+                ? 1.0
+                : 0.0;
+
+        double delay_score = 0.0;
+
+        if (maximum_delay > 0.0) {
+
+            delay_score =
+                link.delay_ms /
+                maximum_delay;
+        }
+
+        double bandwidth_risk = 0.0;
+
+        if (maximum_bandwidth > 0.0) {
+
+            const double normalized =
+                link.bandwidth_mbps /
+                maximum_bandwidth;
+
+            bandwidth_risk =
+                1.0 -
+                clamp01(normalized);
+        }
+
+        link.risk_score =
+            usage_score * 0.45 +
+            bridge_score * 0.35 +
+            bandwidth_risk * 0.10 +
+            delay_score * 0.10;
+
+        link.risk_score =
+            clamp01(
+                link.risk_score
+            );
+
+        link.risk_level =
+            classifyRisk(
+                link.risk_score
+            );
+
+        if (link.bridge) {
+
+            link.risk_reasons.emplace_back(
+                "Link is a bridge and its failure can partition the network"
+            );
+        }
+
+        if (link.route_usage_ratio >= 0.50) {
+
+            link.risk_reasons.emplace_back(
+                "Link carries at least 50% of reachable routes"
+            );
+        }
+
+        if (bandwidth_risk >= 0.75) {
+
+            link.risk_reasons.emplace_back(
+                "Link bandwidth is low relative to the topology"
+            );
+        }
+
+        if (delay_score >= 0.75) {
+
+            link.risk_reasons.emplace_back(
+                "Link delay is high relative to the topology"
+            );
+        }
+    }
+}
+
 NetworkAnalysis NetworkAnalyzer::analyze(
     const Topology& topology
 ) const
@@ -1093,6 +1319,17 @@ NetworkAnalysis NetworkAnalyzer::analyze(
     calculateGlobalPathMetrics(
         analysis
     );
+
+    countNodeRouteUsage(analysis);
+    countLinkRouteUsage(analysis);
+
+    calculateRouteUsageRatios(analysis);
+
+    calculateRoutePhysicalMetrics(analysis);
+    calculateGlobalPathMetrics(analysis);
+
+    calculateNodeCriticality(analysis);
+    calculateLinkRisk(analysis);
 
     return analysis;
 }
