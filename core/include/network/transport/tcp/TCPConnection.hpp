@@ -106,7 +106,7 @@ namespace kns {
 
         void setSendWindow(
             std::uint32_t window
-        ) noexcept;
+        );
 
         std::size_t getSendBufferSize() const noexcept;
 

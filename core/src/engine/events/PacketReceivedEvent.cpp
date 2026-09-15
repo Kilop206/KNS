@@ -256,7 +256,7 @@ namespace kns
                 const bool already_received =
                     receiver.getTcpState() == TCPState::ESTABLISHED &&
                     !packet.tcp.payload.empty() &&
-                    packet.tcp.seq < expected_before &&
+                    tcp_sequence::before(packet.tcp.seq, expected_before) &&
                     packet.tcp.payload.size() <= expected_before - packet.tcp.seq;
 
                 if (

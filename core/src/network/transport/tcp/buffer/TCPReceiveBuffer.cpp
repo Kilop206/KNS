@@ -11,7 +11,9 @@ namespace kns {
             return false;
         }
 
-        if (entry.segment.seq < next_sequence_) {
+        const auto offset = tcp_sequence::distance(next_sequence_, entry.segment.seq);
+        if (entry.payload_size() >= tcp_sequence::half_space ||
+            offset >= tcp_sequence::half_space - entry.payload_size()) {
             return false;
         }
 
@@ -25,8 +27,10 @@ namespace kns {
         const auto duplicate = std::find_if(
             entries_.begin(),
             entries_.end(),
-            [&entry](const TCPReceiveEntry& existing) {
-                return existing.segment.seq == entry.segment.seq;
+            [this, offset, &entry](const TCPReceiveEntry& existing) {
+                const auto start = tcp_sequence::distance(next_sequence_, existing.segment.seq);
+                return offset < start + existing.payload_size() &&
+                    start < offset + entry.payload_size();
             }
         );
 
@@ -38,18 +42,19 @@ namespace kns {
             entries_.begin(),
             entries_.end(),
             entry.segment.seq,
-            [](const TCPReceiveEntry& existing,
+            [this](const TCPReceiveEntry& existing,
                std::uint32_t seq) {
-                return existing.segment.seq < seq;
+                return tcp_sequence::distance(next_sequence_, existing.segment.seq) <
+                    tcp_sequence::distance(next_sequence_, seq);
             }
         );
 
-        buffered_bytes_ += entry.payload_size();
-
+        const auto bytes = entry.payload_size();
         entries_.insert(
             position,
             std::move(entry)
         );
+        buffered_bytes_ += bytes;
 
         return true;
     }

@@ -376,7 +376,8 @@ namespace kns {
 
         /** ACKs beyond SND.NXT are invalid.
         */
-        if (remote_ack > seq_num_) {
+        if (tcp_sequence::distance(send_unacknowledged_, remote_ack) >
+            tcp_sequence::distance(send_unacknowledged_, seq_num_)) {
             return false;
         }
 
@@ -387,7 +388,7 @@ namespace kns {
          * purposes and therefore must not affect the loss
          * detector.
          */
-        if (remote_ack < send_unacknowledged_) {
+        if (tcp_sequence::before(remote_ack, send_unacknowledged_)) {
             return false;
         }
 
@@ -523,8 +524,11 @@ namespace kns {
 
     void TCPConnection::setSendWindow(
         std::uint32_t window
-    ) noexcept
+    )
     {
+        if (window >= tcp_sequence::half_space) {
+            throw std::invalid_argument("Send window exceeds TCP serial range");
+        }
         send_window_ = window;
     }
 
@@ -620,7 +624,9 @@ namespace kns {
         std::uint32_t ack_number
     ) noexcept
     {
-        if (ack_number > send_unacknowledged_) {
+        if (tcp_sequence::before(send_unacknowledged_, ack_number) &&
+            tcp_sequence::distance(send_unacknowledged_, ack_number) <=
+                tcp_sequence::distance(send_unacknowledged_, seq_num_)) {
             send_unacknowledged_ = ack_number;
         }
     }

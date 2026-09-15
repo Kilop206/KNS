@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "network/transport/tcp/TCPSegment.hpp"
+#include "network/transport/tcp/TCPSequence.hpp"
 
 namespace kns {
 
@@ -35,7 +36,7 @@ namespace kns {
         bool isAcknowledged(
             std::uint32_t ack_number
         ) const noexcept {
-            return ack_number >= sequence_end();
+            return tcp_sequence::beforeOrEqual(sequence_end(), ack_number);
         }
 
         bool canMeasureRtt() const noexcept {

@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <stdexcept>
+#include "network/transport/tcp/TCPSequence.hpp"
 
 #include "network/transport/tcp/buffer/TCPReceiveEntry.hpp"
 
@@ -13,11 +15,12 @@ namespace kns {
         explicit TCPReceiveBuffer(
             std::uint32_t next_sequence = 0,
             std::size_t capacity_bytes = 0
-        ) noexcept
+        )
             : next_sequence_(next_sequence),
               capacity_bytes_(capacity_bytes),
               buffered_bytes_(0)
         {
+            setCapacity(capacity_bytes);
         }
 
         bool push(TCPReceiveEntry entry);
@@ -52,8 +55,11 @@ namespace kns {
 
         void setCapacity(
             std::size_t capacity_bytes
-        ) noexcept
+        )
         {
+            if (capacity_bytes >= tcp_sequence::half_space) {
+                throw std::invalid_argument("Receive window exceeds TCP serial range");
+            }
             capacity_bytes_ = capacity_bytes;
         }
 
