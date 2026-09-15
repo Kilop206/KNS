@@ -34,6 +34,7 @@
 #include "analysis/AIContextBuilder.hpp"
 #include "analysis/AnalysisJsonSerializer.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
+#include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
@@ -1621,6 +1622,64 @@ static void exportNetworkAnalysis(
         const auto analysis =
             analyzer.analyze(topology);
 
+        // ============================================
+        // Build intelligence request
+        // ============================================
+
+        const auto intelligenceRequest =
+            kns::intelligence::
+                IntelligenceRequestBuilder::build(
+                    analysis,
+                    kns::intelligence::
+                        AnalysisMode::Detailed
+                );
+
+        // ============================================
+        // Temporary HTTP test - V10
+        // ============================================
+
+        try {
+            kns::app::intelligence::
+                IntelligenceClient client({
+                    .base_url =
+                        "http://127.0.0.1:8080"
+                });
+
+            const auto response =
+                client.analyze(
+                    intelligenceRequest
+                );
+
+            std::cout
+                << "\n===== KNS INTELLIGENCE =====\n"
+                << "Analysis ID: "
+                << response.analysis_id
+                << '\n'
+                << "Score: "
+                << response.network_score
+                << '\n'
+                << "Summary: "
+                << response.summary
+                << '\n'
+                << "Findings: "
+                << response.findings.size()
+                << '\n'
+                << "Recommendations: "
+                << response.recommendations.size()
+                << '\n'
+                << "============================\n";
+        }
+        catch (const std::exception& e) {
+            std::cerr
+                << "[INTELLIGENCE] "
+                << e.what()
+                << '\n';
+        }
+
+        // ============================================
+        // Output directory
+        // ============================================
+
         const auto outputDirectory =
             std::filesystem::current_path() /
             "results";
@@ -1634,9 +1693,10 @@ static void exportNetworkAnalysis(
         // ============================================
 
         const auto analysisJson =
-            kns::analysis::AnalysisJsonSerializer::toJson(
-                analysis
-            );
+            kns::analysis::
+                AnalysisJsonSerializer::toJson(
+                    analysis
+                );
 
         {
             std::ofstream output(
@@ -1655,9 +1715,10 @@ static void exportNetworkAnalysis(
         // ============================================
 
         const auto aiContext =
-            kns::analysis::AIContextBuilder::build(
-                analysis
-            );
+            kns::analysis::
+                AIContextBuilder::build(
+                    analysis
+                );
 
         {
             std::ofstream output(
@@ -1672,16 +1733,8 @@ static void exportNetworkAnalysis(
         }
 
         // ============================================
-        // Future backend request
+        // Intelligence request
         // ============================================
-
-        const auto intelligenceRequest =
-            kns::intelligence::
-                IntelligenceRequestBuilder::build(
-                    analysis,
-                    kns::intelligence::
-                        AnalysisMode::Detailed
-                );
 
         const auto requestJson =
             kns::intelligence::

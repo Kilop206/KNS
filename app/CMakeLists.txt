@@ -11,6 +11,7 @@ endif()
 
 target_sources(KNS PRIVATE
     main.cpp
+    intelligence/IntelligenceClient.cpp
     gui/src/Window.cpp
     gui/src/MetricsPannel.cpp
     gui/src/LatencyChart.cpp
