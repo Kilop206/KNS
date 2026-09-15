@@ -208,6 +208,8 @@ TEST_CASE(
     auto second = topo.addLinkPtr(0, 1, 20.0, 5.0);
 
     SimulationEngine engine(topo);
+    first = engine.getTopology().getLinks()[0];
+    second = engine.getTopology().getLinks()[1];
 
     // Endpoint-based mutations reject this ambiguous pair.
     REQUIRE_FALSE(engine.toggleLinkUp(0, 1, false));

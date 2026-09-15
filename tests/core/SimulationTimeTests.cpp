@@ -68,6 +68,7 @@ TEST_CASE("Invalid packet times do not reserve links or change statistics", "[co
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     kns::SimulationEngine engine(topology);
     engine.advanceTime(10.0);
+    link = engine.getTopology().getLinks()[0];
     kns::Packet packet(0, 1, 0, 10.0, 100, 0);
     for (double time : {5.0, std::numeric_limits<double>::quiet_NaN(),
             std::numeric_limits<double>::infinity()}) {

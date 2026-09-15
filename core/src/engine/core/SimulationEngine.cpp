@@ -21,7 +21,7 @@ namespace kns {
     SimulationEngine::SimulationEngine(const Topology& topology)
         : loss_prob(0.01),
         clock_(),
-        topology_(topology),
+        topology_(topology.cloneForRun()),
         routing_tables_(),
         stats_(),
         event_queue_(),

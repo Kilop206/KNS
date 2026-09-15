@@ -988,6 +988,7 @@ TEST_CASE(
     REQUIRE(link != nullptr);
 
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
 
     auto& session =
         engine.createTCPSession(0, 1);

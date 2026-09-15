@@ -31,6 +31,7 @@ TEST_CASE("Automatic FIN waits for lost tail DATA to be recovered and acknowledg
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     engine.setGlobalPacketSize(100);
     auto& session = engine.createTCPSession(0, 1);
     const auto id = session.getSession_id();

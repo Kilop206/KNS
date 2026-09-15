@@ -6,6 +6,30 @@
 
 namespace kns {
 
+    Topology Topology::cloneForRun() const {
+        Topology result;
+        result.nodes_ = nodes_;
+        result.interfaces_ = interfaces_;
+        result.name_ = name_;
+        result.adjacency_list_.resize(adjacency_list_.size());
+        for (const auto& link : links_) {
+            auto copy = std::make_shared<Link>(*link);
+            copy->queue_ab_.clear();
+            copy->queue_ba_.clear();
+            copy->queue_shared_.clear();
+            copy->busy_until_ = 0.0;
+            copy->busy_until_ab_ = 0.0;
+            copy->busy_until_ba_ = 0.0;
+            copy->busy_until_shared_ = 0.0;
+            copy->random_ = Random{};
+            copy->attachRoutingRevision(result.routing_revision_);
+            result.links_.push_back(copy);
+            result.adjacency_list_[static_cast<std::size_t>(copy->getA())].push_back(copy);
+            result.adjacency_list_[static_cast<std::size_t>(copy->getB())].push_back(copy);
+        }
+        return result;
+    }
+
     Topology::Topology(int nodes)
         : routing_revision_(std::make_shared<std::uint64_t>(0))
     {

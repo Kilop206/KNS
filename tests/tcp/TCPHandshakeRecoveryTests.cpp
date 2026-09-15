@@ -25,6 +25,7 @@ TEST_CASE("Lost SYN-ACK recovers through a duplicate SYN without another listene
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     auto& listener = engine.startTCPListen(1, 1);
     const auto id = engine.acceptOnListener(1, 0, 1000);
     REQUIRE(id != TCPListener::INVALID_SESSION_ID);
@@ -54,6 +55,7 @@ TEST_CASE("SYN loss preserves bounded handshake retries", "[tcp][handshake][loss
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     engine.startTCPConnection(0, 1);
     const auto id = engine.getTCPSessions().begin()->first;
     REQUIRE(engine.processEvent());

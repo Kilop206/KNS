@@ -13,6 +13,7 @@ TEST_CASE("Topology rejection counts one loss at source and intermediate hops", 
             topology.addLinkPtr(0, 1, 100.0, 1.0);
             auto target = topology.addLinkPtr(1, 2, 100.0, 1000.0, 0.0, LinkMode::FULL_DUPLEX, 1);
             SimulationEngine engine(topology);
+            target = engine.getTopology().getLinks()[1];
             Packet packet(intermediate ? 0 : 1, 2, intermediate ? 0 : 1, 0.0, 100, 999);
             if (intermediate) {
                 REQUIRE(PacketUtils::sendPacketThroughTopology(engine, packet));

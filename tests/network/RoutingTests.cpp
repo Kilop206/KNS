@@ -215,6 +215,8 @@ TEST_CASE("Link UP and DOWN with parallel links selects available UP link", "[ne
     auto l2 = topo.addLinkPtr(0, 1, 20.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topo);
+    l1 = engine.getTopology().getLinks()[0];
+    l2 = engine.getTopology().getLinks()[1];
     auto& session = engine.createTCPSession(0, 1);
 
     // Turn link 1 DOWN, link 2 remains UP

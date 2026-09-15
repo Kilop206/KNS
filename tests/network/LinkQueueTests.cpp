@@ -15,6 +15,7 @@ TEST_CASE("Propagation does not reserve the transmitter", "[network][link][timin
         Topology topology(2);
         auto link = topology.addLinkPtr(0, 1, 1.0, 1000.0, 0.0, mode, 2);
         SimulationEngine engine(topology);
+        link = engine.getTopology().getLinks()[0];
         Packet packet(0, 1, 0, 0.0, 125, 999);
         REQUIRE(engine.sendPacket(packet, *link, 0.0));
         REQUIRE(engine.sendPacket(packet, *link, 0.0));
@@ -64,6 +65,7 @@ TEST_CASE("Configured queues reject overflow and drain through arrival events", 
             Topology topology(2);
             auto link = topology.addLinkPtr(0, 1, 10.0, 1.0, 0.0, mode, capacity);
             SimulationEngine engine(topology);
+            link = engine.getTopology().getLinks()[0];
             Packet packet(0, 1, 0, 0.0, 100, 999);
             for (int i = 0; i < capacity; ++i) {
                 REQUIRE(engine.sendPacket(packet, *link, 0.0));

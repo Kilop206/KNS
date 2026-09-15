@@ -23,6 +23,7 @@ TEST_CASE("Packet sizes are validated before transmission side effects", "[core]
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     REQUIRE(engine.getGlobalPacketSize() > 0);
     engine.setGlobalPacketSize(1000);
     for (const int size : {0, -1, -1500}) {

@@ -17,6 +17,8 @@ TEST_CASE("Forwarding uses the Dijkstra first edge for every metric and insertio
             if (!best_first) best = topology.addLinkPtr(0, 1, 100.0, 10.0);
             topology.addLink(1, 2, 1000.0, 1.0);
             SimulationEngine engine(topology);
+            best = engine.getTopology().getLinks()[best_first ? 0 : 1];
+            other = engine.getTopology().getLinks()[best_first ? 1 : 0];
             engine.setRoutingMetric(metric);
             const auto chosen = metric == RoutingMetric::HopCount && !best_first ? other : best;
             REQUIRE(engine.getRoutingTable(0)[2].link_id == chosen->getId());

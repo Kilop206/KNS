@@ -39,6 +39,7 @@ TEST_CASE("Changing link mode invalidates cached routes", "[network][routing][mo
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     REQUIRE(engine.getNextHop(1, 0) == 0);
     link->setMode(LinkMode::SIMPLEX);
     REQUIRE(engine.getNextHop(1, 0) == -1);

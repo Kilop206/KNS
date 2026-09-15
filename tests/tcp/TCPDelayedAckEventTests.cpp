@@ -492,6 +492,7 @@ TEST_CASE("Duplicate DATA recovers a lost ACK without consuming bytes again", "[
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     auto& session = engine.createTCPSession(0, 1);
     auto& client = session.getClientConnection();
     auto& server = session.getServerConnection();

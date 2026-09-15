@@ -16,6 +16,8 @@ namespace kns {
         using LinkPtr = std::shared_ptr<Link>;
 
         explicit Topology(int nodes = 0);
+        /// Independent configuration snapshot with empty per-run transmission state.
+        Topology cloneForRun() const;
 
         void addLink(const Link& link);
         LinkPtr addLinkPtr(

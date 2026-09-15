@@ -12,6 +12,7 @@ TEST_CASE("Validation accepts TCP data recovered after network loss", "[core][va
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     auto& session = engine.createTCPSession(0, 1);
     auto& client = session.getClientConnection();
     client = TCPConnection(TCPState::ESTABLISHED, 100, 500, 0, 1);
@@ -45,6 +46,7 @@ TEST_CASE("Validation rejects incomplete or inconsistent simulations", "[core][v
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks()[0];
     engine.startTCPConnection(0, 1);
     engine.run();
     const auto baseline = engine.validateSimulation();
