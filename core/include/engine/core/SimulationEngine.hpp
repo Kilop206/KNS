@@ -76,6 +76,7 @@ namespace kns {
         std::vector<PacketTravelInfo> packets_in_transit;
 
         float globalLossProb = 0.0f;
+        bool loss_override_enabled_ = false;
 
         int globalPacketSize = 1500;
 
@@ -158,6 +159,8 @@ namespace kns {
         );
 
         void setGlobalLossProb(float value);
+        void clearGlobalLossOverride() noexcept { loss_override_enabled_ = false; }
+        bool hasGlobalLossOverride() const noexcept { return loss_override_enabled_; }
 
         void setGlobalPacketSize(int value);
 

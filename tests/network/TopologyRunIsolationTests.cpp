@@ -3,6 +3,31 @@
 
 using namespace kns;
 
+TEST_CASE("Loss override is explicit reversible and preserves topology configuration", "[loss][configuration]")
+{
+    Topology source(2);
+    source.addLink(0, 1, 100.0, 1.0, 1.0);
+    source.addLink(0, 1, 100.0, 1.0, 0.2);
+    for (int run = 0; run < 2; ++run) {
+        SimulationEngine engine(source);
+        auto link = engine.getTopology().getLinks()[0];
+        Packet packet(0, 1, 0, 0.0, 100, 999);
+        REQUIRE_FALSE(engine.hasGlobalLossOverride());
+        REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
+        engine.setGlobalLossProb(0.0f);
+        REQUIRE(engine.hasGlobalLossOverride());
+        REQUIRE(engine.sendPacket(packet, *link, 0.0));
+        engine.run();
+        REQUIRE(link->getLossProb() == 1.0);
+        REQUIRE(engine.getTopology().getLinks()[1]->getLossProb() == 0.2);
+        engine.clearGlobalLossOverride();
+        REQUIRE_FALSE(engine.sendPacket(packet, *link, engine.now()));
+        REQUIRE_THROWS_AS(engine.setGlobalLossProb(-1.0f), std::invalid_argument);
+        REQUIRE_FALSE(engine.hasGlobalLossOverride());
+        REQUIRE(source.getLinks()[0]->getLossProb() == 1.0);
+    }
+}
+
 TEST_CASE("New runs preserve configuration but never inherit link runtime", "[topology][restart]")
 {
     Topology source(3);

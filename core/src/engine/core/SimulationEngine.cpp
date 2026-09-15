@@ -237,7 +237,8 @@ namespace kns {
         new_pkt.departure_time = actual_departure_time;
         new_pkt.arrival_time = arrival_time;
 
-        if (link.getLossProb() > 0.0 && random() < link.getLossProb()) {
+        const double loss = loss_override_enabled_ ? globalLossProb : link.getLossProb();
+        if (loss > 0.0 && random() < loss) {
             link.reserveTransmission(pkt.current_node, next_node,
                 actual_departure_time + transmission_time);
             if (pkt.hop_count == 0) {
@@ -337,8 +338,11 @@ namespace kns {
     }
 
     void SimulationEngine::setGlobalLossProb(float value) {
+        if (!std::isfinite(value) || value < 0.0f || value > 1.0f) {
+            throw std::invalid_argument("Loss override must be finite and in [0, 1]");
+        }
         globalLossProb = value;
-        topology_.setGlobalLossProb(static_cast<double>(value));
+        loss_override_enabled_ = true;
     }
 
     void SimulationEngine::setGlobalPacketSize(int value) {

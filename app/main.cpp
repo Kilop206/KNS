@@ -503,6 +503,7 @@ static void renderStatsWindow(
     CircularBuffer& buffer,
     int& packetSize,
     float& lossProb,
+    bool& lossOverride,
     float& speedMultiplier,
     bool& stepRequested,
     bool engineHasEvents,
@@ -670,6 +671,11 @@ static void renderStatsWindow(
         label("Traffic", "traffic-section").c_str(),
         ImGuiTreeNodeFlags_DefaultOpen))
     {
+        if (ImGui::Checkbox(label("Override link loss", "loss-override").c_str(), &lossOverride)) {
+            if (lossOverride) engine.setGlobalLossProb(lossProb);
+            else engine.clearGlobalLossOverride();
+        }
+        ImGui::BeginDisabled(!lossOverride);
         float lossPercent =
             lossProb * 100.0f;
 
@@ -687,6 +693,8 @@ static void renderStatsWindow(
                 lossProb
             );
         }
+
+        ImGui::EndDisabled();
 
         if (ImGui::SliderInt(
             label("Packet size (bytes)", "packet-size").c_str(),
@@ -1616,6 +1624,7 @@ static void visualizeWindow(
     TranslationService translations;
 
     float lossProb = 0.0f;
+    bool lossOverride = false;
     float speedMultiplier = 1.0f;
 
     EventLog eventLog;
@@ -1627,9 +1636,7 @@ static void visualizeWindow(
         config.packet_size = packetSize;
         eng->configureRun(config);
 
-        eng->setGlobalLossProb(
-            lossProb
-        );
+        if (lossOverride) eng->setGlobalLossProb(lossProb);
 
         eng->setLatencyObserver(
             [&buffer](double lat)
@@ -1823,6 +1830,7 @@ static void visualizeWindow(
             buffer,
             packetSize,
             lossProb,
+            lossOverride,
             speedMultiplier,
             stepRequested,
             engine->hasEvents(),
