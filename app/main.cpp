@@ -31,6 +31,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "analysis/AIContextBuilder.hpp"
 #include "analysis/AnalysisJsonSerializer.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
 #include "engine/core/Random.hpp"
@@ -1689,6 +1690,19 @@ static void exportNetworkAnalysis(
 
         std::cout
             << "[ANALYSIS] Analysis exported successfully\n";
+
+        const auto aiContext =
+            kns::analysis::AIContextBuilder::build(
+                analysis
+            );
+
+        std::ofstream aiOutput(
+            outputDirectory / "ai_context.json"
+        );
+
+        if (aiOutput.is_open()) {
+            aiOutput << aiContext.dump(4);
+        }
     }
     catch (const std::exception& e) {
         std::cerr
