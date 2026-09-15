@@ -2,6 +2,8 @@
 
 ## 1. Purpose
 
+Issue #126 is valid; see [TCP close recovery](tcp-close-recovery.md).
+
 Issue #144 is valid; see [TCP peer window](tcp-peer-window.md).
 
 Issue #138 is valid; see [TCP serial space](tcp-serial-space.md).
