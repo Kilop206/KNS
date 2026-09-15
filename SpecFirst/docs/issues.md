@@ -2,6 +2,8 @@
 
 ## 1. Purpose
 
+Issue #138 is valid; see [TCP serial space](tcp-serial-space.md).
+
 Issues #139 and #141 are valid; see [Run topology isolation](run-topology-isolation.md).
 
 Issue #143 is valid; see [TCP wire size](tcp-wire-size.md).
