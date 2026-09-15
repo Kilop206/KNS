@@ -12,18 +12,20 @@ endif()
 target_sources(KNS PRIVATE
     main.cpp
     intelligence/IntelligenceClient.cpp
-    gui/src/Window.cpp
-    gui/src/MetricsPannel.cpp
-    gui/src/LatencyChart.cpp
-    gui/src/VisualPacketManager.cpp
-    gui/src/PacketRenderer.cpp
+    intelligence/IntelligenceService.cpp
     gui/src/GUIFormat.cpp
+    gui/src/IntelligencePanel.cpp
+    gui/src/LatencyChart.cpp
+    gui/src/MetricsPannel.cpp
+    gui/src/PacketRenderer.cpp
     gui/src/TranslationService.cpp
     gui/src/ThemeManager.cpp
     gui/src/TcpCongestionPanel.cpp
     gui/src/TcpConnectionPanel.cpp
     gui/src/TcpTimelinePanel.cpp
     gui/src/TopologyPannel.cpp
+    gui/src/VisualPacketManager.cpp
+    gui/src/Window.cpp
 )
 
 target_include_directories(KNS PRIVATE

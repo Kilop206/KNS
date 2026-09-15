@@ -33,6 +33,7 @@
 
 #include "analysis/AIContextBuilder.hpp"
 #include "analysis/AnalysisJsonSerializer.hpp"
+#include "analysis/NetworkAnalysis.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
@@ -42,6 +43,7 @@
 #include "engine/core/Stats.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "gui/include/GUIFormat.hpp"
+#include "gui/include/IntelligencePannel.hpp"
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/PacketRenderer.hpp"
@@ -1765,23 +1767,54 @@ static void exportNetworkAnalysis(
     }
 }
 
+static std::optional<
+    kns::analysis::NetworkAnalysis
+>
+analyzeTopology(
+    const kns::Topology& topology
+)
+{
+    if (topology.size() <= 0) {
+        return std::nullopt;
+    }
+
+    const kns::analysis::NetworkAnalyzer analyzer;
+
+    return analyzer.analyze(
+        topology
+    );
+}
+
 static void visualizeWindow(
     std::unique_ptr<SimulationEngine>& engine,
     Topology& topo,
     SimulationState& state,
     GLFWwindow* window,
     CircularBuffer& buffer,
-    int& packetSize,
-    const RunConfig& runConfig
+    int& packetSize
 )
 {
-    if (!engine)
-    {
+    if (!engine) {
         engine =
-            std::make_unique<SimulationEngine>(
-                topo
-            );
+            std::make_unique<
+                SimulationEngine
+            >(topo);
     }
+
+    std::optional<
+        kns::analysis::NetworkAnalysis
+    > currentAnalysis;
+
+    if (topo.size() > 0) {
+        currentAnalysis =
+            analyzeTopology(topo);
+    }
+
+    kns::app::gui::IntelligencePanel
+        intelligencePanel({
+            .base_url =
+                "http://127.0.0.1:8080"
+        });
 
     VisualPacketManager visualManager;
     TranslationService translations;
