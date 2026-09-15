@@ -14,8 +14,10 @@ only inside a snapshot. Ordinary Topology copies retain their existing semantics
 an explicit cloneForRun boundary provides isolation.
 
 GUI loss override is disabled by default and explicitly enabled/disabled by a
-checkbox. Disabling restores source per-link loss by identity; changing the
-slider applies only while enabled. Restart preserves the explicit override mode.
+checkbox. The override selects the loss probability at transmission without
+mutating per-link configuration; disabling immediately restores per-link behavior.
+Changing the slider applies only while enabled. Restart preserves the explicit
+override mode. Invalid probabilities fail before enabling or changing it.
 
 ## Acceptance and plan
 
