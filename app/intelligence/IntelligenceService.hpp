@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <future>
 #include <mutex>
 #include <optional>
@@ -36,6 +37,7 @@ public:
 
     void startAnalysis(
         const kns::analysis::NetworkAnalysis& analysis,
+        std::uint64_t topologyRevision,
         kns::intelligence::AnalysisMode mode =
             kns::intelligence::AnalysisMode::Detailed
     );
@@ -58,6 +60,9 @@ public:
 
     void reset();
 
+    [[nodiscard]]
+    std::uint64_t getCompletedTopologyRevision() const;
+
 private:
     void setError(
         const std::string& message
@@ -79,6 +84,9 @@ private:
     std::future<
         kns::intelligence::IntelligenceResponse
     > future_;
+
+    std::uint64_t active_topology_revision_ = 0;
+    std::uint64_t completed_topology_revision_ = 0;
 };
 
 }

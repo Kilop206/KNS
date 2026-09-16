@@ -12,6 +12,7 @@ endif()
 target_sources(KNS PRIVATE
     main.cpp
     intelligence/IntelligenceClient.cpp
+    intelligence/IntelligenceConfigLoader.cpp
     intelligence/IntelligenceService.cpp
     gui/src/GuiFormat.cpp
     gui/src/IntelligencePanel.cpp

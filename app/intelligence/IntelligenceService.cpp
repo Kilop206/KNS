@@ -25,9 +25,17 @@ IntelligenceService::~IntelligenceService()
 
 void IntelligenceService::startAnalysis(
     const kns::analysis::NetworkAnalysis& analysis,
+    std::uint64_t topologyRevision,
     kns::intelligence::AnalysisMode mode
 )
 {
+    const auto request =
+        kns::intelligence::
+            IntelligenceRequestBuilder::build(
+                analysis,
+                mode
+            );
+
     {
         std::scoped_lock lock(mutex_);
 
@@ -40,19 +48,15 @@ void IntelligenceService::startAnalysis(
             );
         }
 
+        active_topology_revision_ =
+            topologyRevision;
+
         state_ =
             IntelligenceServiceState::Analyzing;
 
         response_.reset();
         error_.clear();
     }
-
-    const auto request =
-        kns::intelligence::
-            IntelligenceRequestBuilder::build(
-                analysis,
-                mode
-            );
 
     future_ =
         std::async(
@@ -65,6 +69,14 @@ void IntelligenceService::startAnalysis(
                 );
             }
         );
+}
+
+std::uint64_t
+IntelligenceService::getCompletedTopologyRevision() const
+{
+    std::scoped_lock lock(mutex_);
+
+    return completed_topology_revision_;
 }
 
 void IntelligenceService::update()
@@ -108,6 +120,9 @@ void IntelligenceService::update()
 
         response_ =
             std::move(response);
+
+        completed_topology_revision_ =
+            active_topology_revision_;
 
         error_.clear();
 

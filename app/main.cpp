@@ -36,6 +36,7 @@
 #include "analysis/NetworkAnalysis.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
 #include "intelligence/IntelligenceClient.hpp"
+#include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
@@ -1647,48 +1648,6 @@ static void exportNetworkAnalysis(
                 );
 
         // ============================================
-        // Temporary HTTP test - V10
-        // ============================================
-
-        try {
-            kns::app::intelligence::
-                IntelligenceClient client({
-                    .base_url =
-                        "http://127.0.0.1:8080"
-                });
-
-            const auto response =
-                client.analyze(
-                    intelligenceRequest
-                );
-
-            std::cout
-                << "\n===== KNS INTELLIGENCE =====\n"
-                << "Analysis ID: "
-                << response.analysis_id
-                << '\n'
-                << "Score: "
-                << response.network_score
-                << '\n'
-                << "Summary: "
-                << response.summary
-                << '\n'
-                << "Findings: "
-                << response.findings.size()
-                << '\n'
-                << "Recommendations: "
-                << response.recommendations.size()
-                << '\n'
-                << "============================\n";
-        }
-        catch (const std::exception& e) {
-            std::cerr
-                << "[INTELLIGENCE] "
-                << e.what()
-                << '\n';
-        }
-
-        // ============================================
         // Output directory
         // ============================================
 
@@ -1931,14 +1890,20 @@ static void visualizeWindow(
         kns::analysis::NetworkAnalysis
     > currentAnalysis;
 
+    std::uint64_t topologyRevision = 0;
+
     if (topo.size() > 0) {
         currentAnalysis =
             analyzeTopology(topo);
     }
 
-    kns::app::gui::IntelligencePanel intelligencePanel({
-        .base_url = "http://127.0.0.1:8080"
-    });
+    const auto intelligenceConfig =
+        kns::app::intelligence::
+            IntelligenceConfigLoader::fromEnvironment();
+
+    kns::app::gui::IntelligencePanel intelligencePanel(
+        intelligenceConfig
+    );
 
     while (!glfwWindowShouldClose(window))
     {
@@ -2157,6 +2122,8 @@ static void visualizeWindow(
                     currentAnalysis =
                         analyzeTopology(topo);
 
+                    ++topologyRevision;
+
                     exportNetworkAnalysis(topo);
 
                     visualTime = 0.0;
@@ -2215,7 +2182,8 @@ static void visualizeWindow(
         // ============================================
 
         intelligencePanel.render(
-            currentAnalysis
+            currentAnalysis,
+            topologyRevision
         );
 
         ImGui::Render();

@@ -16,7 +16,8 @@ public:
     void render(
         const std::optional<
             kns::analysis::NetworkAnalysis
-        >& analysis
+        >& analysis,
+        std::uint64_t topologyRevision
     );
 
 private:
@@ -31,7 +32,8 @@ private:
     void renderIdle(
         const std::optional<
             kns::analysis::NetworkAnalysis
-        >& analysis
+        >& analysis,
+        std::uint64_t topologyRevision
     );
 
     void renderAnalyzing();

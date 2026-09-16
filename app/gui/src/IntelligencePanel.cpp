@@ -61,20 +61,15 @@ IntelligencePanel::IntelligencePanel(
 void IntelligencePanel::render(
     const std::optional<
         kns::analysis::NetworkAnalysis
-    >& analysis
+    >& analysis,
+    std::uint64_t topologyRevision
 )
 {
     service_.update();
 
-    const bool visible =
-        ImGui::Begin(
-            "KNS Intelligence"
-        );
-
-    if (!visible) {
-        ImGui::End();
-        return;
-    }
+    ImGui::Begin(
+        "KNS Intelligence"
+    );
 
     const auto state =
         service_.getState();
@@ -88,7 +83,10 @@ void IntelligencePanel::render(
 
     switch (state) {
         case intelligence::IntelligenceServiceState::Idle:
-            renderIdle(analysis);
+            renderIdle(
+                analysis,
+                topologyRevision
+            );
             break;
 
         case intelligence::IntelligenceServiceState::Analyzing:
@@ -96,7 +94,32 @@ void IntelligencePanel::render(
             break;
 
         case intelligence::IntelligenceServiceState::Success:
-            renderSuccess();
+            if (
+                service_.getCompletedTopologyRevision() !=
+                topologyRevision
+            ) {
+                ImGui::TextWrapped(
+                    "The topology changed after this "
+                    "analysis was started."
+                );
+
+                ImGui::TextDisabled(
+                    "Run KNS Intelligence again to "
+                    "analyze the current topology."
+                );
+
+                if (
+                    ImGui::Button(
+                        "Discard outdated analysis"
+                    )
+                ) {
+                    service_.reset();
+                }
+            }
+            else {
+                renderSuccess();
+            }
+
             break;
 
         case intelligence::IntelligenceServiceState::Error:
@@ -110,7 +133,8 @@ void IntelligencePanel::render(
 void IntelligencePanel::renderIdle(
     const std::optional<
         kns::analysis::NetworkAnalysis
-    >& analysis
+    >& analysis,
+    std::uint64_t topologyRevision
 )
 {
     ImGui::TextWrapped(
@@ -191,8 +215,18 @@ void IntelligencePanel::renderIdle(
     ) {
         service_.startAnalysis(
             *analysis,
+            topologyRevision,
             selected_mode_
         );
+    }
+
+    if (!analysis.has_value()) {
+        ImGui::TextDisabled(
+            "Load a topology before running "
+            "KNS Intelligence."
+        );
+
+        return;
     }
 }
 
