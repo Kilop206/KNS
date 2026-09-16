@@ -43,7 +43,7 @@
 #include "engine/core/Stats.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "gui/include/GUIFormat.hpp"
-#include "gui/include/IntelligencePannel.hpp"
+#include "gui/include/IntelligencePanel.hpp"
 #include "gui/include/LatencyChart.hpp"
 #include "gui/include/MetricsPannel.hpp"
 #include "gui/include/PacketRenderer.hpp"
@@ -1046,9 +1046,14 @@ static void SetupDockingLayout()
         ImGui::GetMainViewport()->WorkSize
     );
 
-    ImGuiID dock_main  = dockspace_id;
-    ImGuiID dock_left  = 0;
-    ImGuiID dock_right = 0;
+    ImGuiID dock_main =
+        dockspace_id;
+
+    ImGuiID dock_left =
+        0;
+
+    ImGuiID dock_right =
+        0;
 
     ImGui::DockBuilderSplitNode(
         dock_main,
@@ -1061,28 +1066,33 @@ static void SetupDockingLayout()
     ImGui::DockBuilderSplitNode(
         dock_main,
         ImGuiDir_Right,
-        0.28f,
+        0.30f,
         &dock_right,
         &dock_main
     );
 
     ImGui::DockBuilderDockWindow(
-        "stats-window",
+        "Stats",
         dock_left
     );
 
     ImGui::DockBuilderDockWindow(
-        "settings-window",
+        "Settings",
         dock_right
     );
 
     ImGui::DockBuilderDockWindow(
-        "node-details-window",
+        "Node Details",
         dock_right
     );
 
     ImGui::DockBuilderDockWindow(
-        "network-window",
+        "KNS Intelligence",
+        dock_right
+    );
+
+    ImGui::DockBuilderDockWindow(
+        "Network",
         dock_main
     );
 
@@ -1791,7 +1801,8 @@ static void visualizeWindow(
     SimulationState& state,
     GLFWwindow* window,
     CircularBuffer& buffer,
-    int& packetSize
+    int& packetSize,
+    RunConfig runConfig
 )
 {
     if (!engine) {
@@ -1800,21 +1811,6 @@ static void visualizeWindow(
                 SimulationEngine
             >(topo);
     }
-
-    std::optional<
-        kns::analysis::NetworkAnalysis
-    > currentAnalysis;
-
-    if (topo.size() > 0) {
-        currentAnalysis =
-            analyzeTopology(topo);
-    }
-
-    kns::app::gui::IntelligencePanel
-        intelligencePanel({
-            .base_url =
-                "http://127.0.0.1:8080"
-        });
 
     VisualPacketManager visualManager;
     TranslationService translations;
@@ -1930,6 +1926,19 @@ static void visualizeWindow(
 
     bool firstFrame = true;
     bool dock_initialized = false;
+
+    std::optional<
+        kns::analysis::NetworkAnalysis
+    > currentAnalysis;
+
+    if (topo.size() > 0) {
+        currentAnalysis =
+            analyzeTopology(topo);
+    }
+
+    kns::app::gui::IntelligencePanel intelligencePanel({
+        .base_url = "http://127.0.0.1:8080"
+    });
 
     while (!glfwWindowShouldClose(window))
     {
@@ -2145,6 +2154,9 @@ static void visualizeWindow(
                             ->GetFilePathName()
                     );
 
+                    currentAnalysis =
+                        analyzeTopology(topo);
+
                     exportNetworkAnalysis(topo);
 
                     visualTime = 0.0;
@@ -2196,6 +2208,14 @@ static void visualizeWindow(
         renderTCPSessionsWindow(
             *engine,
             translations
+        );
+
+        // ============================================
+        // KNS Intelligence
+        // ============================================
+
+        intelligencePanel.render(
+            currentAnalysis
         );
 
         ImGui::Render();
@@ -2388,6 +2408,11 @@ int main(int argc, char* argv[])
                 TopologyLoader::load_topology(
                     argv[topologyPathIndex]
                 );
+
+            auto currentAnalysis =
+                analyzeTopology(
+                    topo
+                );
             
             exportNetworkAnalysis(topo);
         }
@@ -2473,6 +2498,11 @@ int main(int argc, char* argv[])
                 topo = TopologyLoader::load_topology(
                     argv[topologyPathIndex]
                 );
+
+                auto currentAnalysis =
+                    analyzeTopology(
+                        topo
+                    );
 
                 exportNetworkAnalysis(topo);
             }

@@ -13,7 +13,7 @@ target_sources(KNS PRIVATE
     main.cpp
     intelligence/IntelligenceClient.cpp
     intelligence/IntelligenceService.cpp
-    gui/src/GUIFormat.cpp
+    gui/src/GuiFormat.cpp
     gui/src/IntelligencePanel.cpp
     gui/src/LatencyChart.cpp
     gui/src/MetricsPannel.cpp

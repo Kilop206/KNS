@@ -66,7 +66,15 @@ void IntelligencePanel::render(
 {
     service_.update();
 
-    ImGui::Begin("KNS Intelligence");
+    const bool visible =
+        ImGui::Begin(
+            "KNS Intelligence"
+        );
+
+    if (!visible) {
+        ImGui::End();
+        return;
+    }
 
     const auto state =
         service_.getState();
