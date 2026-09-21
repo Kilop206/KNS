@@ -493,9 +493,14 @@ def main(argv: list[str] | None = None) -> int:
     graphs: list[str] = []
 
     print("[INFO] Generating graphs...")
-    dash = plot_summary_dashboard(run_records, test_dir)
-    graphs.append(str(dash))
-    print("       dashboard.png")
+    # Graphs are optional: a missing plotting dependency or a rendering failure
+    # must not discard the diagnostics for a failed simulation batch.
+    try:
+        dash = plot_summary_dashboard(run_records, test_dir)
+        graphs.append(str(dash))
+        print("       dashboard.png")
+    except Exception as exc:
+        print(f"[WARNING] Dashboard unavailable: {exc}", file=sys.stderr)
 
     run_config = {
         "project_root": str(root),

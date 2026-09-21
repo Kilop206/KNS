@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test (${'{'}{ matrix.os }{'}'})
+    name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -17,11 +17,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install prerequisites (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install prerequisites (Linux)
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get update || true
-          sudo apt-get install -y cmake build-essential || true
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
       - name: Install prerequisites (Windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -34,7 +39,7 @@ jobs:
         run: cmake --build build --config Release -- -j
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure
 
   sanitizers:
     name: Sanitizers (ubuntu-latest)
@@ -46,7 +51,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
 
       - name: Configure with sanitizers
         run: cmake -S . -B build-sanitizers -DKNS_BUILD_TESTS=ON -DKNS_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -55,7 +60,7 @@ jobs:
         run: cmake --build build-sanitizers --config RelWithDebInfo -- -j
 
       - name: Test (sanitizers)
-        run: ctest --test-dir build-sanitizers --output-on-failure || true
+        run: ctest --test-dir build-sanitizers --output-on-failure
 
   warnings-as-errors:
     name: Warnings as Errors (ubuntu-latest)
@@ -67,7 +72,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
 
       - name: Configure with warnings-as-errors
         run: cmake -S . -B build-werror -DKNS_BUILD_TESTS=ON -DKNS_WARNINGS_AS_ERRORS=ON -DKNS_ENABLE_WARNINGS=ON -DCMAKE_BUILD_TYPE=Release

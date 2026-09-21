@@ -19,3 +19,17 @@ endif()
 include(CTest)
 include(Catch)
 catch_discover_tests(kns_tests)
+
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME runner_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_run.py -v
+    )
+    set_tests_properties(runner_tests PROPERTIES TIMEOUT 60)
+    if(TARGET KNS)
+        set_tests_properties(runner_tests PROPERTIES
+            ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>"
+        )
+    endif()
+endif()
