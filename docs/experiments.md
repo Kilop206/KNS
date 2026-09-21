@@ -20,13 +20,24 @@ number of repetitions, and raw CSV alongside any plot.
 | `packets_delivered` | Packets that reached their final destination. |
 | `packets_lost` | Packets rejected or dropped by the modeled network path. |
 | `total_latency` | Sum of delivered DATA latency in simulated seconds. |
-| `avg_latency` | `total_latency / packets_delivered`, or zero when none arrived. |
+| `avg_latency` | `total_latency / data_packets_delivered`, or zero when no DATA arrived. |
 | `packets_in_transit` | Packets still recorded in flight at export time. |
 | `total_sessions` | TCP sessions retained by the engine. |
+| `data_packets_delivered` | Delivered DATA packets used as the latency denominator. |
+| `schema_version` | Aggregate CSV contract version; currently `1`. |
+| `simulation_duration_s` | Elapsed simulation time at export, in seconds. |
+| `seed` | Configured simulation random seed. |
 
-The average-latency denominator currently counts every delivered packet, while
-`total_latency` accumulates DATA packets only. Treat this field as the engine's
-current aggregate statistic rather than a pure DATA-only mean.
+Average latency includes DATA only. The runner derives delivery and loss rates
+by dividing their counters by `packets_sent` (zero when no packets were sent).
+Because sent counts link transmissions and delivered counts final arrivals,
+these ratios are aggregate counter ratios, not end-to-end delivery probabilities
+for a multihop workload.
+
+Network throughput is `packets_delivered / simulation_duration_s`, including
+control packets; it is undefined when simulated duration is zero. Host execution
+time is reported separately as `wall_clock_duration_s` and never used as the
+network-throughput denominator.
 
 ## Running a controlled comparison
 
@@ -44,9 +55,12 @@ On a Visual Studio build, the executable is normally
 `build/app/Debug/KNS.exe`. Routing metric values are `delay`, `bandwidth`,
 `hop-count`, and `delay-bandwidth`.
 
-[`scripts/run.py`](../scripts/run.py) is a historical automation runner. Its CSV
-parser expects a legacy column schema and must be aligned with the current
-exporter before its derived reports are treated as authoritative.
+[`scripts/run.py`](../scripts/run.py) consumes version 1 of this schema and
+rejects missing, malformed, unsupported, or nonfinite statistics. Its
+`--timeout` applies from each child's launch, including while waiting for a free
+parallel slot. Any failed run produces a nonzero batch exit status while
+preserving diagnostic JSON and CSV reports. Optional plotting failures are
+reported as warnings and do not suppress those artifacts.
 
 ## Observation 1: loss probability and measured latency
 
