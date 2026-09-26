@@ -1,6 +1,7 @@
 #include "IntelligencePanel.hpp"
 
 #include <imgui.h>
+#include <algorithm>
 
 #include <string>
 #include <utility>
@@ -50,7 +51,9 @@ void renderScore(double score)
 IntelligencePanel::IntelligencePanel(
     intelligence::IntelligenceClientConfig config
 )
-    : service_(
+    : chat_([client = intelligence::IntelligenceClient(config)](const nlohmann::json& request) {
+        return client.chat(request);
+    }), service_(
         intelligence::IntelligenceClient(
             std::move(config)
         )
@@ -66,10 +69,35 @@ void IntelligencePanel::render(
 )
 {
     service_.update();
+    if (chat_revision_ != topologyRevision) {
+        chat_revision_ = topologyRevision;
+        chat_input_.fill(0);
+    }
+    chat_.synchronizeTopology(topologyRevision);
+    chat_.update();
 
     ImGui::Begin(
         "KNS Intelligence"
     );
+
+    if (ImGui::BeginTabBar("intelligence_tabs")) {
+        if (ImGui::BeginTabItem("KiWi Chat")) {
+            renderChat(analysis);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Analysis")) {
+            renderAnalysis(analysis, topologyRevision);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
+}
+
+void IntelligencePanel::renderAnalysis(
+    const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+    std::uint64_t topologyRevision)
+{
 
     const auto state =
         service_.getState();
@@ -127,7 +155,65 @@ void IntelligencePanel::render(
             break;
     }
 
-    ImGui::End();
+}
+
+void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis)
+{
+    ImGui::TextWrapped("Converse com a KiWi sobre esta topologia.");
+    ImGui::TextDisabled("Contexto: análise da topologia, sem telemetria ao vivo.");
+    ImGui::TextDisabled("Memória: até 10 interações recentes.");
+    if (ImGui::Button("Nova conversa")) {
+        chat_.clear();
+        chat_input_.fill(0);
+    }
+    ImGui::Separator();
+    const float historyHeight = std::max(100.0f, ImGui::GetContentRegionAvail().y - 170.0f);
+    ImGui::BeginChild("kiwi_history", ImVec2(0, historyHeight), ImGuiChildFlags_Borders);
+    if (chat_.messages().empty()) {
+        ImGui::TextWrapped("Pergunte sobre conectividade, rotas, gargalos ou formas de adicionar redundância.");
+    }
+    for (const auto& message : chat_.messages()) {
+        ImGui::TextColored(message.role == "user" ? ImVec4(0.4f, 0.7f, 1, 1) : ImVec4(0.4f, 0.85f, 0.5f, 1),
+                           "%s", message.role == "user" ? "Você" : "KiWi");
+        ImGui::TextWrapped("%s", message.content.c_str());
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
+    if (displayed_messages_ != chat_.messages().size()) {
+        ImGui::SetScrollHereY(1.0f);
+        displayed_messages_ = chat_.messages().size();
+    }
+    ImGui::EndChild();
+    if (chat_.busy()) ImGui::TextDisabled("Aguardando a KiWi...");
+    if (!chat_.error().empty()) {
+        ImGui::TextWrapped("%s", chat_.error().c_str());
+        if (chat_.canRetry()) {
+            if (ImGui::Button("Tentar novamente")) chat_.retry();
+            ImGui::SameLine();
+            if (ImGui::Button("Editar pergunta") && chat_.canRetry()) {
+                const auto& question = chat_.messages().back().content;
+                std::copy(question.begin(), question.end(), chat_input_.begin());
+                chat_input_[question.size()] = '\0';
+                chat_.discardFailedQuestion();
+            }
+        }
+    }
+    if (!analysis) ImGui::TextDisabled("Carregue uma topologia para conversar.");
+    ImGui::BeginDisabled(!analysis || chat_.busy() || chat_.canRetry());
+    ImGui::SetNextItemWidth(-1);
+    const bool submitted = ImGui::InputTextMultiline("##kiwi_question", chat_input_.data(), chat_input_.size(),
+        ImVec2(-1, 65), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine);
+    const bool empty = std::string(chat_input_.data()).find_first_not_of(" \t\r\n") == std::string::npos;
+    ImGui::BeginDisabled(empty);
+    const bool clicked = ImGui::Button("Enviar");
+    ImGui::EndDisabled();
+    if ((submitted || clicked) && !empty && analysis && !chat_.busy() && !chat_.canRetry()) {
+        chat_.send(*analysis, chat_input_.data());
+        if (chat_.busy() || chat_.canRetry()) chat_input_.fill(0);
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("Enter envia / Shift+Enter quebra linha");
+    ImGui::EndDisabled();
 }
 
 void IntelligencePanel::renderIdle(

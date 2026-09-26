@@ -14,6 +14,7 @@ target_sources(KNS PRIVATE
     intelligence/IntelligenceClient.cpp
     intelligence/IntelligenceConfigLoader.cpp
     intelligence/IntelligenceService.cpp
+    intelligence/ChatService.cpp
     gui/src/GUIFormat.cpp
     gui/src/IntelligencePanel.cpp
     gui/src/LatencyChart.cpp

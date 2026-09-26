@@ -14,6 +14,9 @@ struct IntelligenceClientConfig {
     std::string analyze_endpoint =
         "/api/v1/intelligence/analyze";
 
+    std::string chat_endpoint = "/api/v1/intelligence/chat";
+    int chat_timeout_seconds = 130;
+
     std::string bearer_token;
 
     int connection_timeout_seconds = 5;
@@ -31,6 +34,8 @@ public:
     kns::intelligence::IntelligenceResponse analyze(
         const kns::intelligence::IntelligenceRequest& request
     ) const;
+
+    [[nodiscard]] std::string chat(const nlohmann::json& request) const;
 
 private:
     IntelligenceClientConfig config_;

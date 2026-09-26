@@ -21,6 +21,8 @@ and congestion-control state.
 - Tahoe, Reno, NewReno, and CUBIC congestion-control implementations;
 - interactive packet visualization and congestion/latency panels;
 - optional asynchronous translation of the main GUI controls;
+- conversational topology analysis with KiWi in the Intelligence panel
+  ([configuration and chat contract](docs/kiwi-chat.md));
 - headless CSV export and Catch2 unit/integration tests.
 
 KNS is a simulation model rather than a production TCP/IP stack. See

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <optional>
+#include <array>
 
 #include "analysis/NetworkAnalysis.hpp"
 #include "intelligence/IntelligenceService.hpp"
+#include "intelligence/ChatService.hpp"
 
 namespace kns::app::gui {
 
@@ -21,6 +23,14 @@ public:
     );
 
 private:
+    void renderAnalysis(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+                        std::uint64_t topologyRevision);
+    void renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis);
+    intelligence::ChatService chat_;
+    std::array<char, 4097> chat_input_{};
+    std::uint64_t chat_revision_ = 0;
+    std::size_t displayed_messages_ = 0;
+
     static const char* severityToString(
         kns::intelligence::FindingSeverity severity
     );
