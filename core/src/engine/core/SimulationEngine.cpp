@@ -659,6 +659,12 @@ namespace kns {
         return id;
     }
 
+    bool SimulationEngine::synchronizeTopology(const Topology& snapshot) {
+        const bool changed = topology_.synchronizeFrom(snapshot);
+        if (changed) rebuildRoutingTables();
+        return changed;
+    }
+
     bool SimulationEngine::deleteNode(int id) {
         const bool ok = topology_.removeNode(id);
         if (ok) rebuildRoutingTables();

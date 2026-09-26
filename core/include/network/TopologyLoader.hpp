@@ -14,6 +14,8 @@ namespace kns {
 
 	public:
 		static Topology load_topology(const std::string& filename);
+        static Topology fromJson(const nlohmann::json& document);
+        static nlohmann::json toJson(const Topology& topology);
 	};
 
 }

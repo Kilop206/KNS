@@ -160,7 +160,10 @@ namespace kns {
     }
 
     void Topology::setName(std::string name) {
-        name_ = std::move(name);
+        if (name_ != name) {
+            name_ = std::move(name);
+            markRoutingChanged();
+        }
     }
 
     int Topology::addNode() {
@@ -315,7 +318,26 @@ namespace kns {
     bool Topology::setNodeLabel(int id, std::string label) {
         const auto* node = getNode(id);
         if (!node || !node->isActive()) return false;
+        if (node->getLabel() == label) return true;
         nodes_[static_cast<std::size_t>(id)].setLabel(std::move(label));
+        markRoutingChanged();
+        return true;
+    }
+
+    bool Topology::setNodeDeviceInfo(int id, DeviceInfo device) {
+        const auto* node = getNode(id);
+        if (!node || !node->isActive()) return false;
+        if (node->getDeviceInfo() == device) return true;
+        if (!device.external_id.empty()) {
+            for (const auto& existing : nodes_) {
+                if (existing.isActive() && existing.getId() != id &&
+                    existing.getDeviceInfo().external_id == device.external_id) {
+                    throw std::invalid_argument("Duplicate node external_id");
+                }
+            }
+        }
+        nodes_[static_cast<std::size_t>(id)].setDeviceInfo(std::move(device));
+        markRoutingChanged();
         return true;
     }
 

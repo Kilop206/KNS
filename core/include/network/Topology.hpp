@@ -111,6 +111,14 @@ namespace kns {
         const Node* getNode(int id) const noexcept;
         /// Changes an active node's label. Returns false for missing/inactive nodes.
         bool setNodeLabel(int id, std::string label);
+        bool setNodeDeviceInfo(int id, DeviceInfo device);
+
+        /// Reconcile an authoritative snapshot on the simulation thread. Stable
+        /// external IDs preserve active nodes; removed IDs are never recycled.
+        /// Unchanged links retain their queues, identity and shared pointers.
+        /// Changed link mode/capacity creates a new link; in-flight arrivals keep
+        /// the existing removal policy. Returns whether configuration changed.
+        bool synchronizeFrom(const Topology& snapshot);
 
         /// All interface objects (one per link endpoint on a node).
         const std::vector<Interface>& getInterfaces() const noexcept { return interfaces_; }

@@ -248,6 +248,7 @@ namespace kns {
 
         // GUI / topology modification helpers
         int createNode();
+        bool synchronizeTopology(const Topology& snapshot);
         bool deleteNode(int id);
         Topology::LinkPtr createLink(
             int a,

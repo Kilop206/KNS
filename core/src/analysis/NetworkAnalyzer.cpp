@@ -477,6 +477,10 @@ void countNodeRouteUsage(
     NetworkAnalysis& analysis
 )
 {
+    std::map<int, std::size_t> node_index;
+    for (std::size_t index = 0; index < analysis.nodes.size(); ++index) {
+        node_index.emplace(analysis.nodes[index].node_id, index);
+    }
     for (const auto& route :
          analysis.routes)
     {
@@ -500,17 +504,10 @@ void countNodeRouteUsage(
             const int node =
                 route.path[i];
 
-            if (node < 0 ||
-                node >= static_cast<int>(
-                    analysis.nodes.size()
-                ))
-            {
-                continue;
+            const auto found = node_index.find(node);
+            if (found != node_index.end()) {
+                ++analysis.nodes[found->second].routes_using_node;
             }
-
-            ++analysis
-                .nodes[node]
-                .routes_using_node;
         }
     }
 }
@@ -1018,15 +1015,11 @@ NetworkAnalysis NetworkAnalyzer::analyze(
     const int node_count =
         topology.size();
 
-    analysis.node_count =
-        static_cast<std::size_t>(
-            std::max(
-                node_count,
-                0
-            )
-        );
+    for (int node = 0; node < node_count; ++node) {
+        if (topology.getNode(node)->isActive()) ++analysis.node_count;
+    }
 
-    if (node_count <= 0) {
+    if (analysis.node_count == 0) {
         return analysis;
     }
 
@@ -1061,7 +1054,7 @@ NetworkAnalysis NetworkAnalyzer::analyze(
          node < node_count;
          ++node)
     {
-        if (visited[node]) {
+        if (!topology.getNode(node)->isActive() || visited[node]) {
             continue;
         }
 
@@ -1115,6 +1108,7 @@ NetworkAnalysis NetworkAnalyzer::analyze(
          node < node_count;
          ++node)
     {
+        if (!topology.getNode(node)->isActive()) continue;
         NodeMetrics metrics;
 
         metrics.node_id = node;
@@ -1232,7 +1226,8 @@ NetworkAnalysis NetworkAnalyzer::analyze(
              destination < node_count;
              ++destination)
         {
-            if (source == destination) {
+            if (source == destination || !topology.getNode(source)->isActive() ||
+                !topology.getNode(destination)->isActive()) {
                 continue;
             }
 
