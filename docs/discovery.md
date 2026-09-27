@@ -1,0 +1,106 @@
+# Live network discovery
+
+KNS can follow topology snapshots produced by the sibling **KNS-Discovery** Go
+collector. The collector reads active interfaces, default routes and the OS
+neighbor cache on Windows or Linux. It does not scan ports or capture packets.
+
+## Run on Windows
+
+From the `KNS Environment` directory, build both applications:
+
+```powershell
+cmake -S KNS -B KNS/build
+cmake --build KNS/build --config Release --parallel
+Set-Location KNS-Discovery
+go build -o bin/kns-discovery.exe ./cmd/kns-discovery
+```
+
+Start the collector from `KNS-Discovery` and leave it running:
+
+```powershell
+.\bin\kns-discovery.exe --output output/network.json --watch 5s
+```
+
+Once the first snapshot is published, open a second terminal in `KNS Environment`:
+
+```powershell
+.\KNS\build\app\Release\KNS.exe --watch-topology .\KNS-Discovery\output\network.json
+```
+
+For single-configuration builds, the executable is normally `KNS/build/app/KNS`
+instead. `--watch-topology` requires GUI mode. To load a static snapshot, use
+`--topology` or **Settings > Load Topology**. Enable **Follow topology file** in
+Settings to follow a file loaded through the dialog; disable it to edit freely.
+
+## Updates and editing
+
+KNS checks the file approximately once per second, reading and validating on a
+worker thread. It applies changed snapshots on the simulation thread. Unchanged
+contents do not trigger reconciliation. Invalid, empty, missing or oversized
+files leave the current graph intact and show an error in Settings; checking
+continues so a corrected file can be loaded automatically. The live reader accepts
+files up to 4 MiB, and topology snapshots support up to 4,096 node slots.
+
+Discovery `external_id` values identify devices independently of snapshot-local
+numeric IDs. Surviving devices retain simulator IDs; unchanged links retain their
+IDs and queues. Updates preserve simulation time, pending events and TCP sessions.
+Removed devices become inactive slots, which are never reused during that run;
+a returning device receives a new slot. Existing sessions remain recorded, but
+removing an endpoint or route can prevent their traffic from completing. Reload
+the topology file if accumulated inactive slots reach the node limit.
+
+The Topology panel supports adding/removing devices and links, changing device
+labels/types and editing link metrics. Device colors and shapes distinguish types
+in the Network panel; select a device to see its addresses, MAC, discovery evidence
+and identity. Inactive devices cannot be selected for a new TCP connection.
+Intelligence analysis is refreshed after topology changes.
+
+While following a file, the next changed snapshot restores its graph configuration,
+including overwriting manual edits. For persistent labels/types, use the collector's
+`--inventory` file. Restarting the simulation retains the current graph and clears
+simulation state; loading a topology file starts a new simulation from that file.
+
+## Collector options and interpretation
+
+```powershell
+.\bin\kns-discovery.exe --interface "Wi-Fi" --watch 5s --inventory inventory.json --output output/network.json
+```
+
+`--interface` matches an exact OS interface name. `--timeout` defaults to `15s`.
+`--bandwidth` (default `100` Mbps) and `--delay` (default `1` ms) configure simulation
+assumptions. Without `--watch`, the collector publishes one snapshot and exits.
+Stop a running collector with Ctrl+C.
+
+An inventory is a JSON object keyed by the exact `external_id` from a snapshot:
+
+```json
+{
+  "host:example": {"label": "Workstation", "type": "computer"}
+}
+```
+
+The collector reads inventory at startup; restart it after editing that file.
+The supported types are `unknown`, `computer`, `router`, `switch`, `access_point`,
+`server`, `phone`, `printer`, `iot` and `network_segment`. Types are descriptive
+metadata; all devices share the simulator's TCP implementation.
+
+A network segment represents inferred shared-network adjacency, not verified
+cabling. A gateway is classified as a router because of its routing role. The
+neighbor cache cannot reliably identify hidden switches, access points or hardware
+models. An empty cache does not prove the absence of other devices. Bandwidth,
+delay and loss are simulated assumptions, not network measurements. Generated
+snapshots contain local network identifiers and belong in ignored output folders.
+
+## Verification
+
+```powershell
+ctest --test-dir KNS/build -C Release --output-on-failure
+Set-Location KNS-Discovery
+go test ./...
+go vet ./...
+```
+
+The C++ tests cover file errors/recovery, source switching, identity reconciliation,
+device removal and preservation of sessions, simulation time, events and link
+queues. The Go tests cover OS fixtures, deterministic snapshots, inventory overrides
+and atomic publication.

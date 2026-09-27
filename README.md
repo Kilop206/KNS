@@ -15,6 +15,8 @@ and congestion-control state.
 - Dijkstra routing with delay, bandwidth, hop-count, and combined metrics;
 - full-duplex, half-duplex, and simplex links with bounded queues;
 - runtime link availability, delay, bandwidth, and topology changes;
+- live network discovery snapshots, typed devices and desktop topology editing
+  ([setup and behavior](docs/discovery.md));
 - TCP handshake, listeners by node/port, backlog, RST rejection, and close;
 - send/receive buffers, cumulative and delayed ACKs, RTT/RTO, Karn's rule,
   timeout retransmission, and fast retransmit;
