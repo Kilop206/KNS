@@ -4,6 +4,7 @@
 #include "enums/LinkMode.hpp"
 
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <iostream>
 #include <limits>
@@ -15,7 +16,7 @@ using json = nlohmann::json;
 namespace kns {
 
     Topology TopologyLoader::load_topology(const std::string& filename) {
-        std::ifstream file(filename);
+        std::ifstream file(std::filesystem::path(std::u8string(filename.begin(), filename.end())), std::ios::binary);
         if (!file.is_open()) {
             throw std::runtime_error("Cannot open topology file: " + filename);
         }

@@ -1,6 +1,7 @@
 #include "network/LiveTopologyWatcher.hpp"
 
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <utility>
 
@@ -38,7 +39,7 @@ std::optional<Topology> LiveTopologyWatcher::poll(bool force)
     pending_ = std::async(std::launch::async, [path = path_, previous = contents_] {
         Result result;
         try {
-            std::ifstream file(path, std::ios::binary);
+            std::ifstream file(std::filesystem::path(std::u8string(path.begin(), path.end())), std::ios::binary);
             if (!file) throw std::runtime_error("Cannot open live topology file");
             constexpr std::size_t maximum = 4 * 1024 * 1024;
             std::string contents(maximum + 1, '\0');
