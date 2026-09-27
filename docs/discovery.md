@@ -55,6 +55,18 @@ in the Network panel; select a device to see its addresses, MAC, discovery evide
 and identity. Inactive devices cannot be selected for a new TCP connection.
 Intelligence analysis is refreshed after topology changes.
 
+Use **Settings > Save Topology As...** to export the current edited graph to JSON.
+The dialog confirms overwriting an existing file. Saving validates the snapshot and
+replaces the destination only after the complete file has been written; failures
+leave the previous file intact and appear in Settings. File paths support UTF-8,
+including accented names. The saved graph preserves device metadata, inactive
+node slots and link settings. It does not store simulation time, queued packets or
+TCP sessions; saving leaves the running simulation intact.
+
+Saving a copy does not change the file being followed. Disable **Follow topology
+file** before making edits you want to keep, and save to a separate file from the
+collector output. Load that saved file later to resume editing its graph.
+
 While following a file, the next changed snapshot restores its graph configuration,
 including overwriting manual edits. For persistent labels/types, use the collector's
 `--inventory` file. Restarting the simulation retains the current graph and clears

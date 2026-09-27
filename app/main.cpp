@@ -1613,7 +1613,8 @@ static void renderConfigWindow(
     SimulationState& /* state */,
     const std::string& topologyPath,
     bool& watchTopology,
-    const std::string& liveError
+    const std::string& liveError,
+    const std::string& fileStatus
 )
 {
     bool autoClick = false;
@@ -1641,7 +1642,8 @@ static void renderConfigWindow(
         autoClick)
     {
         if (!ImGuiFileDialog::Instance()
-                ->IsOpened("TopologyKey"))
+                ->IsOpened("TopologyKey") &&
+            !ImGuiFileDialog::Instance()->IsOpened("SaveTopologyKey"))
         {
             ImGuiFileDialog::Instance()
                 ->OpenDialog(
@@ -1651,6 +1653,20 @@ static void renderConfigWindow(
                 );
         }
     }
+
+    const bool fileDialogOpen = ImGuiFileDialog::Instance()->IsOpened("TopologyKey") ||
+        ImGuiFileDialog::Instance()->IsOpened("SaveTopologyKey");
+    ImGui::BeginDisabled(fileDialogOpen);
+    if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
+        IGFD::FileDialogConfig config;
+        config.path = ".";
+        config.fileName = "topology-edited.json";
+        config.flags = ImGuiFileDialogFlags_ConfirmOverwrite;
+        ImGuiFileDialog::Instance()->OpenDialog("SaveTopologyKey",
+            translations.translate("Save topology").c_str(), ".json", config);
+    }
+    ImGui::EndDisabled();
+    if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
 
     ImGui::BeginDisabled(topologyPath.empty());
     ImGui::Checkbox(translations.label("Follow topology file", "follow-topology").c_str(), &watchTopology);
@@ -1937,6 +1953,7 @@ static void visualizeWindow(
     std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
     LiveTopologyWatcher liveWatcher;
     std::string liveError;
+    std::string fileStatus;
 
     if (topo.size() > 0) {
         currentAnalysis =
@@ -2095,7 +2112,8 @@ static void visualizeWindow(
             state,
             topologyPath,
             watchTopology,
-            liveWatcher.error().empty() ? liveError : liveWatcher.error()
+            liveWatcher.error().empty() ? liveError : liveWatcher.error(),
+            fileStatus
         );
 
         topologyPanel.render(*engine, translations);
@@ -2180,6 +2198,7 @@ static void visualizeWindow(
                     // Invalidate pending reads even when reloading the same path.
                     liveWatcher.setSource({}, false);
                     liveError.clear();
+                    fileStatus.clear();
 
                     currentAnalysis =
                         analyzeTopology(topo);
@@ -2219,6 +2238,7 @@ static void visualizeWindow(
                 }
                 catch (const std::exception& e)
                 {
+                    fileStatus = translations.translate("Load failed:") + " " + e.what();
                     std::cerr
                         << "Load error: "
                         << e.what()
@@ -2228,6 +2248,20 @@ static void visualizeWindow(
 
             ImGuiFileDialog::Instance()
                 ->Close();
+        }
+
+        if (ImGuiFileDialog::Instance()->Display("SaveTopologyKey",
+                ImGuiWindowFlags_NoCollapse, ImVec2(400, 300))) {
+            if (ImGuiFileDialog::Instance()->IsOk()) {
+                try {
+                    const auto path = ImGuiFileDialog::Instance()->GetFilePathName();
+                    TopologyLoader::save_topology(engine->getTopology(), path);
+                    fileStatus = translations.translate("Topology saved:") + " " + path;
+                } catch (const std::exception& exception) {
+                    fileStatus = translations.translate("Save failed:") + " " + exception.what();
+                }
+            }
+            ImGuiFileDialog::Instance()->Close();
         }
 
         renderEventLogWindow(
