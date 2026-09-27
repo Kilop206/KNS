@@ -60,6 +60,7 @@
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
+#include "network/LiveTopologyWatcher.hpp"
 
 using namespace kns;
 using namespace gui;
@@ -82,6 +83,7 @@ namespace {
             << "Options:\n"
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
+            << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
@@ -1608,7 +1610,10 @@ static void renderConfigWindow(
     bool topologySelected,
     std::unique_ptr<SimulationEngine>& /* engine */,
     Topology& /* topo */,
-    SimulationState& /* state */
+    SimulationState& /* state */,
+    const std::string& topologyPath,
+    bool& watchTopology,
+    const std::string& liveError
 )
 {
     bool autoClick = false;
@@ -1647,6 +1652,12 @@ static void renderConfigWindow(
         }
     }
 
+    ImGui::BeginDisabled(topologyPath.empty());
+    ImGui::Checkbox(translations.label("Follow topology file", "follow-topology").c_str(), &watchTopology);
+    ImGui::EndDisabled();
+    if (!topologyPath.empty()) ImGui::TextWrapped("Source: %s", topologyPath.c_str());
+    if (watchTopology) ImGui::TextWrapped("File updates replace the graph configuration, including manual edits. Simulation time and sessions are preserved.");
+    if (!liveError.empty()) ImGui::TextWrapped("Live update: %s", liveError.c_str());
     ImGui::End();
 }
 
@@ -1790,7 +1801,9 @@ static void visualizeWindow(
     GLFWwindow* window,
     CircularBuffer& buffer,
     int& packetSize,
-    RunConfig runConfig
+    RunConfig runConfig,
+    std::string topologyPath,
+    bool watchTopology
 )
 {
     if (!engine) {
@@ -1922,6 +1935,8 @@ static void visualizeWindow(
 
     std::uint64_t topologyRevision = 0;
     std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
+    LiveTopologyWatcher liveWatcher;
+    std::string liveError;
 
     if (topo.size() > 0) {
         currentAnalysis =
@@ -1938,6 +1953,15 @@ static void visualizeWindow(
 
     while (!glfwWindowShouldClose(window))
     {
+        liveWatcher.setSource(topologyPath, watchTopology);
+        if (auto snapshot = liveWatcher.poll()) {
+            try {
+                engine->synchronizeTopology(*snapshot);
+                liveError.clear();
+            } catch (const std::exception& exception) {
+                liveError = exception.what();
+            }
+        }
         const double currentRealTime =
             glfwGetTime();
 
@@ -2068,7 +2092,10 @@ static void visualizeWindow(
             topo.size() > 0,
             engine,
             topo,
-            state
+            state,
+            topologyPath,
+            watchTopology,
+            liveWatcher.error().empty() ? liveError : liveWatcher.error()
         );
 
         topologyPanel.render(*engine, translations);
@@ -2149,6 +2176,10 @@ static void visualizeWindow(
                         ImGuiFileDialog::Instance()
                             ->GetFilePathName()
                     );
+                    topologyPath = ImGuiFileDialog::Instance()->GetFilePathName();
+                    // Invalidate pending reads even when reloading the same path.
+                    liveWatcher.setSource({}, false);
+                    liveError.clear();
 
                     currentAnalysis =
                         analyzeTopology(topo);
@@ -2263,6 +2294,7 @@ static void shutdownWindow(
 int main(int argc, char* argv[])
 {
     bool headless = false;
+    bool watchTopology = false;
 
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
@@ -2292,18 +2324,19 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        if (arg == "--topology")
+        if (arg == "--topology" || arg == "--watch-topology")
         {
             if (i + 1 >= argc)
             {
                 std::cerr
-                    << "Missing value for --topology\n";
+                    << "Missing value for " << arg << '\n';
                 printUsage(std::cerr);
 
                 return 1;
             }
 
             topologyPathIndex = ++i;
+            watchTopology = arg == "--watch-topology";
             continue;
         }
 
@@ -2384,6 +2417,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    if (watchTopology && headless) {
+        std::cerr << "--watch-topology requires GUI mode\n";
+        return 1;
+    }
     if (routingMetric && !headless)
     {
         std::cerr
@@ -2557,7 +2594,9 @@ int main(int argc, char* argv[])
         window,
         buffer,
         packetSize,
-        runConfig
+        runConfig,
+        topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
+        watchTopology
     );
 
     shutdownWindow(
