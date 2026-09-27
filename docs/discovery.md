@@ -83,6 +83,11 @@ simulation state; loading a topology file starts a new simulation from that file
 assumptions. Without `--watch`, the collector publishes one snapshot and exits.
 Stop a running collector with Ctrl+C.
 
+In watch mode, collection failures are logged and retried at the configured
+interval, including failures before the first snapshot. An existing snapshot is
+preserved; if none exists yet, wait for the first successful publication before
+opening it in KNS. Invalid static command-line options still fail immediately.
+
 An inventory is a JSON object keyed by the exact `external_id` from a snapshot:
 
 ```json
@@ -91,7 +96,9 @@ An inventory is a JSON object keyed by the exact `external_id` from a snapshot:
 }
 ```
 
-The collector reads inventory at startup; restart it after editing that file.
+The collector reloads inventory on each collection; edits take effect without a
+restart in watch mode. Use `{}` to clear overrides. If the inventory becomes
+invalid or unavailable, the last published snapshot is preserved until corrected.
 The supported types are `unknown`, `computer`, `router`, `switch`, `access_point`,
 `server`, `phone`, `printer`, `iot` and `network_segment`. Types are descriptive
 metadata; all devices share the simulator's TCP implementation.
