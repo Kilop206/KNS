@@ -478,7 +478,8 @@ static std::vector<std::pair<float, float>> generatePositions(
 
 static int pickNodeAtMouse(
     const std::vector<std::pair<float, float>>& positions,
-    float radius
+    float radius,
+    const Topology& topo
 )
 {
     const ImVec2 mouse_pos = ImGui::GetMousePos();
@@ -487,6 +488,7 @@ static int pickNodeAtMouse(
          i < positions.size();
          ++i)
     {
+        if (!topo.getNode(static_cast<int>(i))->isActive()) continue;
         const float dx =
             mouse_pos.x - positions[i].first;
 
@@ -881,10 +883,17 @@ static void drawNodes(
          i < static_cast<std::size_t>(topo.size());
          ++i)
     {
-        const ImU32 color =
-            static_cast<int>(i) == selected_node
-                ? IM_COL32(128, 128, 128, 255)
-                : IM_COL32(169, 169, 169, 255);
+        const auto& node = *topo.getNode(static_cast<int>(i));
+        if (!node.isActive()) continue;
+        const auto type = node.getDeviceInfo().type;
+        constexpr ImU32 colors[] = {
+            IM_COL32(169,169,169,255), IM_COL32(89,166,244,255), IM_COL32(245,163,64,255),
+            IM_COL32(79,193,147,255), IM_COL32(162,125,235,255), IM_COL32(83,186,202,255),
+            IM_COL32(240,133,178,255), IM_COL32(208,183,105,255), IM_COL32(186,206,93,255),
+            IM_COL32(207,216,226,255)
+        };
+        const ImU32 color = static_cast<int>(i) == selected_node ? IM_COL32(128,128,128,255) :
+            colors[std::min(static_cast<std::size_t>(type), std::size(colors) - 1)];
 
         const float radius = 20.0f;
         const std::string label =
@@ -896,11 +905,16 @@ static void drawNodes(
         const float y =
             positions[i].second;
 
-        draw_list->AddCircleFilled(
-            ImVec2(x, y),
-            radius,
-            color
-        );
+        if (type == DeviceType::NetworkSegment) {
+            draw_list->AddCircle(ImVec2(x, y), radius, color, 0, 3.0f);
+        } else if (type == DeviceType::Router || type == DeviceType::Switch || type == DeviceType::Server) {
+            draw_list->AddRectFilled(ImVec2(x - radius, y - radius), ImVec2(x + radius, y + radius), color, 5.0f);
+        } else {
+            draw_list->AddCircleFilled(ImVec2(x, y), radius, color);
+        }
+        const std::string device_label = node.getLabel().empty() ? std::string(toString(type)) : node.getLabel();
+        const auto device_size = ImGui::CalcTextSize(device_label.c_str());
+        draw_list->AddText(ImVec2(x - device_size.x * 0.5f, y + radius + 3), IM_COL32(40,50,65,255), device_label.c_str());
 
         const ImVec2 label_size =
             ImGui::CalcTextSize(label.c_str());
@@ -944,13 +958,22 @@ static void renderSelectedNodePanel(
 
     ImGui::Separator();
 
-    if (selected_node >= topo.size())
+    if (selected_node >= topo.size() || !topo.getNode(selected_node)->isActive())
     {
         ImGui::TextUnformatted(translations.translate("Invalid node.").c_str());
         ImGui::End();
         return;
     }
 
+    const auto& selected = *topo.getNode(selected_node);
+    const auto& device = selected.getDeviceInfo();
+    ImGui::TextWrapped("%s", selected.getLabel().c_str());
+    ImGui::Text("Device type: %s", toString(device.type).data());
+    if (!device.mac.empty()) ImGui::Text("MAC: %s", device.mac.c_str());
+    for (const auto& address : device.addresses) ImGui::Text("IP: %s", address.c_str());
+    if (!device.evidence.empty()) ImGui::TextWrapped("Evidence: %s", device.evidence.c_str());
+    if (!device.external_id.empty()) ImGui::TextWrapped("Identity: %s", device.external_id.c_str());
+    ImGui::Separator();
     ImGui::Text("%s:", translations.translate("Neighbors").c_str());
 
     const auto& links =
@@ -1179,6 +1202,9 @@ static PickedNodes renderNetworkPanel(
 )
 {
     static int drag_source_node = -1;
+    if (drag_source_node >= 0 && (drag_source_node >= topo.size() || !topo.getNode(drag_source_node)->isActive())) {
+        drag_source_node = -1;
+    }
 
     const std::string window_label =
         translations.label("Network", "network-window");
@@ -1233,7 +1259,8 @@ static PickedNodes renderNetworkPanel(
         hovered_node =
             pickNodeAtMouse(
                 positions,
-                20.0f
+                20.0f,
+                topo
             );
     }
 
@@ -1347,7 +1374,8 @@ static PickedNodes renderNetworkPanel(
         const int node =
             pickNodeAtMouse(
                 positions,
-                20.0f
+                20.0f,
+                topo
             );
 
         if (node != -1)
@@ -1384,7 +1412,8 @@ static PickedNodes renderNetworkPanel(
         const int dest =
             pickNodeAtMouse(
                 positions,
-                20.0f
+                20.0f,
+                topo
             );
 
         if (dest != -1 &&
@@ -2068,7 +2097,7 @@ static void visualizeWindow(
 
         PickedNodes clicked_node =
             renderNetworkPanel(
-                topo,
+                engine->getTopology(),
                 selected_node,
                 visualManager.getActivePackets(),
                 visualTime,
@@ -2093,7 +2122,7 @@ static void visualizeWindow(
         }
 
         renderSelectedNodePanel(
-            topo,
+            engine->getTopology(),
             selected_node,
             engine->getRoutingTable(selected_node),
             translations

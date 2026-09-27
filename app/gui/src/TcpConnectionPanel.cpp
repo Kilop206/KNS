@@ -84,7 +84,9 @@ namespace gui {
                 kMaximumPort
             );
 
-            const bool valid_nodes = source_node_ != destination_node_;
+            const bool valid_nodes = source_node_ != destination_node_ &&
+                engine.getTopology().getNode(source_node_)->isActive() &&
+                engine.getTopology().getNode(destination_node_)->isActive();
 
             ImGui::BeginDisabled(!valid_nodes);
 
@@ -107,7 +109,7 @@ namespace gui {
                 ImGui::TextDisabled(
                     "%s",
                     translations.translate(
-                        "Source and destination must differ."
+                        "Source and destination must be different active devices."
                     ).c_str()
                 );
             }
