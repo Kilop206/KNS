@@ -1900,6 +1900,7 @@ static void visualizeWindow(
 
     auto restartSimulation = [&]()
     {
+        topo = engine->getTopology().cloneForRun();
         visualTime = 0.0;
         lastRealTime = glfwGetTime();
         visualManager.clear();
@@ -1920,6 +1921,7 @@ static void visualizeWindow(
     > currentAnalysis;
 
     std::uint64_t topologyRevision = 0;
+    std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
 
     if (topo.size() > 0) {
         currentAnalysis =
@@ -2177,6 +2179,7 @@ static void visualizeWindow(
                     }
 
                     selected_node = -1;
+                    observedRevision = engine->getTopology().getRoutingRevision();
 
                     state =
                         engine->hasEvents()
@@ -2210,6 +2213,12 @@ static void visualizeWindow(
         // KNS Intelligence
         // ============================================
 
+        const auto revision = engine->getTopology().getRoutingRevision();
+        if (revision != observedRevision) {
+            observedRevision = revision;
+            ++topologyRevision;
+            currentAnalysis = analyzeTopology(engine->getTopology());
+        }
         intelligencePanel.render(
             currentAnalysis,
             topologyRevision
