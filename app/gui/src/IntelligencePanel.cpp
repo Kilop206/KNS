@@ -166,15 +166,38 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
         chat_.clear();
         chat_input_.fill(0);
     }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(chat_.messages().empty());
+    if (ImGui::Button("Copiar conversa")) {
+        ImGui::SetClipboardText(chat_.transcript().c_str());
+    }
+    ImGui::EndDisabled();
     ImGui::Separator();
     const float historyHeight = std::max(100.0f, ImGui::GetContentRegionAvail().y - 170.0f);
     ImGui::BeginChild("kiwi_history", ImVec2(0, historyHeight), ImGuiChildFlags_Borders);
     if (chat_.messages().empty()) {
         ImGui::TextWrapped("Pergunte sobre conectividade, rotas, gargalos ou formas de adicionar redundância.");
+        ImGui::TextDisabled("Escolha uma sugestão e edite antes de enviar:");
+        ImGui::BeginDisabled(!analysis || chat_.busy() || chat_input_[0] != '\0');
+        const char* suggestions[] = {
+            "Quais são os pontos críticos desta topologia?",
+            "Como posso melhorar a redundância da rede?",
+            "Quais rotas devo verificar primeiro?"
+        };
+        for (const auto* suggestion : suggestions) {
+            if (ImGui::Button(suggestion)) {
+                std::copy_n(suggestion, std::char_traits<char>::length(suggestion) + 1, chat_input_.begin());
+            }
+        }
+        ImGui::EndDisabled();
     }
+    int messageIndex = 0;
     for (const auto& message : chat_.messages()) {
+        ImGui::PushID(messageIndex++);
         ImGui::TextColored(message.role == "user" ? ImVec4(0.4f, 0.7f, 1, 1) : ImVec4(0.4f, 0.85f, 0.5f, 1),
                            "%s", message.role == "user" ? "Você" : "KiWi");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Copiar")) ImGui::SetClipboardText(message.content.c_str());
         ImGui::TextWrapped("%s", message.content.c_str());
         if (message.history_turns_omitted > 0) {
             ImGui::TextWrapped("Memória desta resposta: %zu interação(ões) antiga(s) fora do contexto. "
@@ -182,6 +205,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
         }
         ImGui::Spacing();
         ImGui::Separator();
+        ImGui::PopID();
     }
     if (displayed_messages_ != chat_.messages().size()) {
         ImGui::SetScrollHereY(1.0f);

@@ -25,6 +25,19 @@
   Historical messages and embedded topology labels are untrusted text. The LLM
   must distinguish evidence from suggestions and acknowledge missing facts.
 
+## Using the desktop chat
+
+Load a topology and open **KNS Intelligence → KiWi Chat**. In a new conversation,
+the suggested questions fill the composer for editing; they never send a request
+automatically or replace an existing draft. **Enter** sends; **Shift+Enter** or
+**Ctrl+Enter** inserts a new line.
+
+Each message has a **Copiar** button. **Copiar conversa** copies the entire visible
+conversation as plain UTF-8 text, including the topology revision and notices
+about history omitted from model input. It includes pending/failed questions as
+unanswered and does not copy internal transport errors. Copy before starting a
+new conversation, changing topology, or closing KNS to keep the transcript.
+
 ## Run
 
 Start KiWi with its existing `KIWI_LLM_ENABLED=true` and `KIWI_LLM_MODEL`

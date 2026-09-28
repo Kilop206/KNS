@@ -9,6 +9,23 @@ namespace kns::app::intelligence {
 
 ChatService::ChatService(Transport transport) : transport_(std::move(transport)) {}
 
+std::string ChatService::transcript() const
+{
+    if (messages_.empty()) return {};
+    std::string text = "KiWi Chat — revisão da topologia: " + std::to_string(revision_) +
+        "\nContexto: análise da topologia, sem telemetria ao vivo.\n";
+    for (const auto& message : messages_) {
+        text += message.role == "user" ? "\nVocê:\n" : "\nKiWi:\n";
+        text += message.content + "\n";
+        if (message.history_turns_omitted > 0) {
+            text += "[Interações anteriores fora do contexto desta resposta: " +
+                std::to_string(message.history_turns_omitted) + "]\n";
+        }
+    }
+    if (messages_.back().role == "user") text += "\n[Última pergunta ainda sem resposta.]\n";
+    return text;
+}
+
 void ChatService::synchronizeTopology(std::uint64_t revision)
 {
     if (revision_ != revision) {

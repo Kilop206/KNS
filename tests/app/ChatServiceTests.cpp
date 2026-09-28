@@ -160,6 +160,48 @@ TEST_CASE("KiWi chat preserves a failed question when history metadata is imposs
     REQUIRE_FALSE(chat.error().empty());
 }
 
+TEST_CASE("KiWi transcript preserves full UTF-8 history and context notices", "[chat]")
+{
+    ChatService chat([](const nlohmann::json& request) {
+        return ChatReply{"Verifique a conexão.\nNão há telemetria.", request.at("messages").size() > 1 ? 1u : 0u};
+    });
+    REQUIRE(chat.transcript().empty());
+    chat.synchronizeTopology(42);
+    chat.send({}, "E a redundância?\nRota 10 → 30");
+    complete(chat);
+    chat.send({}, "Pode explicar?");
+    complete(chat);
+    const auto transcript = chat.transcript();
+    REQUIRE(transcript.find("revisão da topologia: 42") != std::string::npos);
+    REQUIRE(transcript.find("Você:\nE a redundância?\nRota 10 → 30") != std::string::npos);
+    REQUIRE(transcript.find("KiWi:\nVerifique a conexão.\nNão há telemetria.") != std::string::npos);
+    REQUIRE(transcript.find("fora do contexto desta resposta: 1") != std::string::npos);
+    REQUIRE(transcript.find("ainda sem resposta") == std::string::npos);
+    REQUIRE(chat.messages().size() == 4);
+    chat.synchronizeTopology(43);
+    REQUIRE(chat.transcript().empty());
+}
+
+TEST_CASE("KiWi transcript identifies pending and failed questions without inventing replies", "[chat]")
+{
+    std::promise<void> release;
+    auto ready = release.get_future().share();
+    ChatService chat([ready](const nlohmann::json&) -> ChatReply {
+        ready.wait();
+        throw std::runtime_error("private transport diagnostic");
+    });
+    chat.send({}, "Pending question");
+    const auto pending = chat.transcript();
+    release.set_value();
+    complete(chat);
+    REQUIRE(pending.find("Última pergunta ainda sem resposta") != std::string::npos);
+    REQUIRE(pending.find("KiWi:\n") == std::string::npos);
+    REQUIRE(chat.transcript() == pending);
+    REQUIRE(chat.canRetry());
+    chat.discardFailedQuestion();
+    REQUIRE(chat.transcript().empty());
+}
+
 TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][http]")
 {
     httplib::Server server;

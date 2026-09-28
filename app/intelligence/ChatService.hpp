@@ -29,6 +29,7 @@ public:
     void retry();
     void discardFailedQuestion();
     void update();
+    [[nodiscard]] std::string transcript() const;
     [[nodiscard]] bool busy() const { return future_.valid(); }
     [[nodiscard]] bool canRetry() const { return !busy() && failed_request_.has_value(); }
     [[nodiscard]] const std::vector<ChatMessage>& messages() const { return messages_; }
