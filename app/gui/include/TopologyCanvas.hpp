@@ -1,0 +1,40 @@
+#pragma once
+#include "CanvasView.hpp"
+#include "VisualPacket.hpp"
+#include "network/DeviceType.hpp"
+#include <array>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace kns { class SimulationEngine; class Topology; }
+namespace gui {
+class TranslationService;
+
+class TopologyCanvas {
+public:
+    // Returns a requested TCP connection; moving devices never creates traffic.
+    std::optional<std::pair<int,int>> render(kns::SimulationEngine& engine, int& selectedNode,
+        const std::vector<VisualPacket>& packets, double visualTime, TranslationService& translations);
+    void reset();
+private:
+    enum class Tool { Select, Cable, TCP };
+    CanvasView view_;
+    Tool tool_ = Tool::Select;
+    std::optional<kns::DeviceType> placing_;
+    std::optional<std::uint64_t> selectedLink_;
+    int source_ = -1;
+    int dragging_ = -1;
+    ImVec2 dragOffset_{};
+    bool snap_ = true;
+    bool fitPending_ = true;
+    std::string error_;
+    std::array<char, 256> label_{};
+    void ensurePositions(kns::Topology& topology);
+    void arrange(kns::Topology& topology);
+    void fit(const kns::Topology& topology, ImVec2 size);
+    void palette(TranslationService& translations);
+    void createDevice(kns::SimulationEngine& engine, kns::DeviceType type, ImVec2 position, int& selectedNode);
+};
+}

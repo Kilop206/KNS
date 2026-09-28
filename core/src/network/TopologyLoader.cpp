@@ -67,6 +67,14 @@ namespace kns {
                 device.evidence = node.value("evidence", "");
                 topology.setNodeDeviceInfo(id, std::move(device));
                 topology.setNodeLabel(id, node.value("label", ""));
+                if (node.contains("position")) {
+                    const auto& position = node.at("position");
+                    if (!position.is_object() || !position.contains("x") || !position.contains("y") ||
+                        !position.at("x").is_number() || !position.at("y").is_number()) {
+                        throw std::invalid_argument("Node position must contain numeric x and y coordinates");
+                    }
+                    topology.setNodePosition(id, {position.at("x").get<double>(), position.at("y").get<double>()});
+                }
                 if (!node.value("active", true)) topology.removeNode(id);
             }
         }
@@ -151,6 +159,10 @@ namespace kns {
                 {"label", node.getLabel()}, {"type", toString(device.type)},
                 {"external_id", device.external_id}, {"addresses", device.addresses},
                 {"mac", device.mac}, {"evidence", device.evidence}});
+            if (node.getPosition()) {
+                result["nodes"].back()["position"] = {
+                    {"x", node.getPosition()->x}, {"y", node.getPosition()->y}};
+            }
         }
         for (const auto& link : topology.getLinks()) {
             const auto mode = link->getMode() == LinkMode::SIMPLEX ? "simplex" :

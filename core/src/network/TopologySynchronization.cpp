@@ -11,6 +11,7 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
 {
     if (this == &snapshot) return false;
     const auto initial_revision = getRoutingRevision();
+    bool layout_changed = false;
     std::map<std::string, int> identities;
     for (const auto& node : nodes_) {
         if (node.isActive() && !node.getDeviceInfo().external_id.empty()) {
@@ -75,6 +76,11 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         const auto& incoming = *snapshot.getNode(source);
         setNodeLabel(target, incoming.getLabel());
         setNodeDeviceInfo(target, incoming.getDeviceInfo());
+        // Discovery snapshots omit positions; keep the user's canvas layout.
+        if (incoming.getPosition() && incoming.getPosition() != getNode(target)->getPosition()) {
+            setNodePosition(target, *incoming.getPosition());
+            layout_changed = true;
+        }
     }
     std::vector<std::uint64_t> removed_links;
     for (const auto& link : links_) {
@@ -99,7 +105,7 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         link->setDiscoveryMetadata(incoming->isInferred(), incoming->getEvidence());
     }
     setName(snapshot.getName());
-    return getRoutingRevision() != initial_revision;
+    return layout_changed || getRoutingRevision() != initial_revision;
 }
 
 } // namespace kns

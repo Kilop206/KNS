@@ -28,6 +28,8 @@ target_sources(KNS PRIVATE
     gui/src/TcpConnectionPanel.cpp
     gui/src/TcpTimelinePanel.cpp
     gui/src/TopologyPannel.cpp
+    gui/src/TopologyCanvas.cpp
+    gui/src/DeviceIcons.cpp
     gui/src/VisualPacketManager.cpp
     gui/src/Window.cpp
 )

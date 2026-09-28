@@ -347,4 +347,15 @@ namespace kns {
         }
     }
 
+    bool Topology::setNodePosition(int id, NodePosition position) {
+        if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
+            std::abs(position.x) > 1000000.0 || std::abs(position.y) > 1000000.0) {
+            throw std::invalid_argument("Node position must be finite and within +/-1000000");
+        }
+        const auto* node = getNode(id);
+        if (!node || !node->isActive()) return false;
+        nodes_[static_cast<std::size_t>(id)].setPosition(position);
+        return true;
+    }
+
 }

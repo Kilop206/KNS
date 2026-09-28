@@ -55,6 +55,36 @@ in the Network panel; select a device to see its addresses, MAC, discovery evide
 and identity. Inactive devices cannot be selected for a new TCP connection.
 Intelligence analysis is refreshed after topology changes.
 
+## Interactive topology canvas
+
+KNS opens an empty editable canvas when no topology file is supplied. The Network
+panel includes a device palette with vector icons for computers, routers,
+switches, wireless access points, servers, phones, printers, IoT devices, network
+segments and unknown devices.
+
+- Drag a palette icon onto the canvas to create a device, or click its tile and
+  then click the desired location. Press Esc to cancel placement.
+- **Select / Move** selects a device or cable. Drag a device to reposition it.
+- **Cable** connects two clicked devices using a 100 Mbps, 1 ms full-duplex link.
+  Existing connections are not duplicated by this tool.
+- **TCP** selects a source and destination for a simulated TCP connection.
+  Moving devices and creating cables never starts TCP traffic.
+- Right-click a device to rename it, change its type, start a connection, or
+  remove it. Right-click a cable to edit bandwidth, delay, loss and link state.
+- **Delete selected** or Delete removes the selected device or cable. Device
+  removal uses the simulator's existing tombstone and in-flight packet policy.
+- The mouse wheel zooms around the pointer; the middle mouse button pans.
+  **Fit** frames the topology, **Arrange** lays out active devices on a grid,
+  and **Snap to grid** controls placement and movement snapping.
+
+Save Topology As includes optional per-node `position: {"x": ..., "y": ...}`
+coordinates. Loading or restarting preserves this layout. Old topology files
+without coordinates are arranged automatically. Discovery snapshots that omit
+coordinates preserve positions by device identity; snapshots with coordinates
+apply those explicit positions. Merely moving a device does not change routing.
+Live discovery still replaces network configuration, so disable Follow topology
+file when adding or removing devices manually.
+
 Use **Settings > Save Topology As...** to export the current edited graph to JSON.
 Opening and saving use the operating system's file dialog: Windows Common Item
 Dialog, macOS file chooser, or Zenity/KDialog on Linux (one must be installed).

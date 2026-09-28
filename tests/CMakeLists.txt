@@ -3,7 +3,7 @@ file(GLOB_RECURSE KNS_TEST_SOURCES CONFIGURE_DEPENDS
 )
 
 if(NOT KNS_BUILD_APP)
-    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/ChatServiceTests.cpp$")
+    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/(ChatServiceTests|TopologyCanvasTests).cpp$")
 endif()
 
 add_executable(kns_tests ${KNS_TEST_SOURCES})
@@ -19,9 +19,14 @@ target_compile_features(kns_tests PRIVATE cxx_std_20)
 if(KNS_BUILD_APP)
     target_sources(kns_tests PRIVATE
         ${PROJECT_SOURCE_DIR}/app/intelligence/ChatService.cpp
-        ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceClient.cpp)
+        ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceClient.cpp
+        ${PROJECT_SOURCE_DIR}/app/gui/src/TopologyCanvas.cpp
+        ${PROJECT_SOURCE_DIR}/app/gui/src/DeviceIcons.cpp
+        ${PROJECT_SOURCE_DIR}/app/gui/src/PacketRenderer.cpp
+        ${PROJECT_SOURCE_DIR}/app/gui/src/TranslationService.cpp)
     target_include_directories(kns_tests PRIVATE ${PROJECT_SOURCE_DIR}/app)
-    target_link_libraries(kns_tests PRIVATE httplib::httplib)
+    target_include_directories(kns_tests PRIVATE ${PROJECT_SOURCE_DIR}/app/gui/include)
+    target_link_libraries(kns_tests PRIVATE httplib::httplib imgui_lib)
     if(WIN32)
         # The HTTP client has the same Windows 10 API requirements as the app.
         target_compile_definitions(kns_tests PRIVATE

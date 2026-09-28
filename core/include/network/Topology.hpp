@@ -112,6 +112,8 @@ namespace kns {
         /// Changes an active node's label. Returns false for missing/inactive nodes.
         bool setNodeLabel(int id, std::string label);
         bool setNodeDeviceInfo(int id, DeviceInfo device);
+        /// Canvas coordinates do not affect routing or simulation state.
+        bool setNodePosition(int id, NodePosition position);
 
         /// Reconcile an authoritative snapshot on the simulation thread. Stable
         /// external IDs preserve active nodes; removed IDs are never recycled.
