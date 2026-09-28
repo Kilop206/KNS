@@ -4,7 +4,7 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 
-#include "ImGuiFileDialog.h"
+#include "gui/include/NativeFileDialog.hpp"
 #include "include/Environment.hpp"
 
 #include <algorithm>
@@ -1606,28 +1606,17 @@ static PickedNodes renderNetworkPanel(
 
 static void renderConfigWindow(
     TranslationService& translations,
-    bool& firstFrame,
-    bool topologySelected,
-    std::unique_ptr<SimulationEngine>& /* engine */,
-    Topology& /* topo */,
-    SimulationState& /* state */,
     const std::string& topologyPath,
     bool& watchTopology,
     const std::string& liveError,
-    const std::string& fileStatus
+    const std::string& fileStatus,
+    bool& loadRequested,
+    bool& saveRequested
 )
 {
-    bool autoClick = false;
-
     const std::string window_label =
         translations.label("Settings", "settings-window");
     ImGui::Begin(window_label.c_str());
-
-    if (firstFrame && !topologySelected)
-    {
-        autoClick = true;
-        firstFrame = false;
-    }
 
     ImGui::Text(
         "%s",
@@ -1638,34 +1627,14 @@ static void renderConfigWindow(
 
     const std::string load_label =
         translations.label("Load Topology", "load-topology");
-    if (ImGui::Button(load_label.c_str()) ||
-        autoClick)
+    if (ImGui::Button(load_label.c_str()))
     {
-        if (!ImGuiFileDialog::Instance()
-                ->IsOpened("TopologyKey") &&
-            !ImGuiFileDialog::Instance()->IsOpened("SaveTopologyKey"))
-        {
-            ImGuiFileDialog::Instance()
-                ->OpenDialog(
-                    "TopologyKey",
-                    translations.translate("Select file").c_str(),
-                    ".json"
-                );
-        }
+        loadRequested = true;
     }
 
-    const bool fileDialogOpen = ImGuiFileDialog::Instance()->IsOpened("TopologyKey") ||
-        ImGuiFileDialog::Instance()->IsOpened("SaveTopologyKey");
-    ImGui::BeginDisabled(fileDialogOpen);
     if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
-        IGFD::FileDialogConfig config;
-        config.path = ".";
-        config.fileName = "topology-edited.json";
-        config.flags = ImGuiFileDialogFlags_ConfirmOverwrite;
-        ImGuiFileDialog::Instance()->OpenDialog("SaveTopologyKey",
-            translations.translate("Save topology").c_str(), ".json", config);
+        saveRequested = true;
     }
-    ImGui::EndDisabled();
     if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
 
     ImGui::BeginDisabled(topologyPath.empty());
@@ -2042,20 +2011,9 @@ static void visualizeWindow(
         // Automatic topology dialog
         // --------------------------------------------------
 
-        if (firstFrame &&
-            topo.size() == 0)
-        {
-            ImGuiFileDialog::Instance()
-                ->OpenDialog(
-                    "TopologyKey",
-                    translations.translate(
-                        "Select initial topology"
-                    ).c_str(),
-                    ".json"
-                );
-
-            firstFrame = false;
-        }
+        bool loadRequested = firstFrame && topo.size() == 0;
+        bool saveRequested = false;
+        firstFrame = false;
 
         bool stepRequested = false;
         bool restartRequested = false;
@@ -2105,15 +2063,12 @@ static void visualizeWindow(
 
         renderConfigWindow(
             translations,
-            firstFrame,
-            topo.size() > 0,
-            engine,
-            topo,
-            state,
             topologyPath,
             watchTopology,
             liveWatcher.error().empty() ? liveError : liveWatcher.error(),
-            fileStatus
+            fileStatus,
+            loadRequested,
+            saveRequested
         );
 
         topologyPanel.render(*engine, translations);
@@ -2179,22 +2134,16 @@ static void visualizeWindow(
         // Topology loading
         // --------------------------------------------------
 
-        if (ImGuiFileDialog::Instance()
-                ->Display(
-                    "TopologyKey",
-                    ImGuiWindowFlags_NoCollapse,
-                    ImVec2(400, 300)))
+        if (loadRequested)
         {
-            if (ImGuiFileDialog::Instance()
-                    ->IsOk())
+            try
             {
-                try
+                const auto path = gui::chooseTopologyFile(window, false,
+                    translations.translate("Select file"));
+                if (path)
                 {
-                    topo = TopologyLoader::load_topology(
-                        ImGuiFileDialog::Instance()
-                            ->GetFilePathName()
-                    );
-                    topologyPath = ImGuiFileDialog::Instance()->GetFilePathName();
+                    topo = TopologyLoader::load_topology(*path);
+                    topologyPath = *path;
                     // Invalidate pending reads even when reloading the same path.
                     liveWatcher.setSource({}, false);
                     liveError.clear();
@@ -2236,32 +2185,28 @@ static void visualizeWindow(
                             ? SimulationState::Paused
                             : SimulationState::Ready;
                 }
-                catch (const std::exception& e)
-                {
-                    fileStatus = translations.translate("Load failed:") + " " + e.what();
-                    std::cerr
-                        << "Load error: "
-                        << e.what()
-                        << '\n';
-                }
             }
-
-            ImGuiFileDialog::Instance()
-                ->Close();
+            catch (const std::exception& e)
+            {
+                fileStatus = translations.translate("Load failed:") + " " + e.what();
+                std::cerr << "Load error: " << e.what() << '\n';
+            }
+            // Native dialogs are modal; their elapsed time is not simulation time.
+            lastRealTime = glfwGetTime();
         }
 
-        if (ImGuiFileDialog::Instance()->Display("SaveTopologyKey",
-                ImGuiWindowFlags_NoCollapse, ImVec2(400, 300))) {
-            if (ImGuiFileDialog::Instance()->IsOk()) {
-                try {
-                    const auto path = ImGuiFileDialog::Instance()->GetFilePathName();
-                    TopologyLoader::save_topology(engine->getTopology(), path);
-                    fileStatus = translations.translate("Topology saved:") + " " + path;
-                } catch (const std::exception& exception) {
-                    fileStatus = translations.translate("Save failed:") + " " + exception.what();
+        if (saveRequested) {
+            try {
+                const auto path = gui::chooseTopologyFile(window, true,
+                    translations.translate("Save topology"));
+                if (path) {
+                    TopologyLoader::save_topology(engine->getTopology(), *path);
+                    fileStatus = translations.translate("Topology saved:") + " " + *path;
                 }
+            } catch (const std::exception& exception) {
+                fileStatus = translations.translate("Save failed:") + " " + exception.what();
             }
-            ImGuiFileDialog::Instance()->Close();
+            lastRealTime = glfwGetTime();
         }
 
         renderEventLogWindow(

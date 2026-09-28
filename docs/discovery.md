@@ -56,6 +56,8 @@ and identity. Inactive devices cannot be selected for a new TCP connection.
 Intelligence analysis is refreshed after topology changes.
 
 Use **Settings > Save Topology As...** to export the current edited graph to JSON.
+Opening and saving use the operating system's file dialog: Windows Common Item
+Dialog, macOS file chooser, or Zenity/KDialog on Linux (one must be installed).
 The dialog confirms overwriting an existing file. Saving validates the snapshot and
 replaces the destination only after the complete file has been written; failures
 leave the previous file intact and appear in Settings. File paths support UTF-8,
@@ -79,6 +81,13 @@ simulation state; loading a topology file starts a new simulation from that file
 ```
 
 `--interface` matches an exact OS interface name. `--timeout` defaults to `15s`.
+The collector resolves observed device names by default, using up to eight
+parallel DNS queries, a 750 ms query timeout and a three-second total budget.
+Watch mode caches positive answers for ten minutes and negative answers for
+one minute. `--resolve-names=false` disables this enrichment. Unresolved devices
+keep their IP labels. Explicit hostname patterns can suggest device types;
+`reverse_dns` and `hostname_hint` in the evidence identify these sources.
+Gateway roles and manual inventory overrides take precedence over hostname hints.
 `--bandwidth` (default `100` Mbps) and `--delay` (default `1` ms) configure simulation
 assumptions. Without `--watch`, the collector publishes one snapshot and exits.
 Stop a running collector with Ctrl+C.

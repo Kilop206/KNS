@@ -22,6 +22,11 @@ if(KNS_BUILD_APP)
         ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceClient.cpp)
     target_include_directories(kns_tests PRIVATE ${PROJECT_SOURCE_DIR}/app)
     target_link_libraries(kns_tests PRIVATE httplib::httplib)
+    if(WIN32)
+        # The HTTP client has the same Windows 10 API requirements as the app.
+        target_compile_definitions(kns_tests PRIVATE
+            _WIN32_WINNT=0x0A00 WINVER=0x0A00 WIN32_LEAN_AND_MEAN NOMINMAX)
+    endif()
 endif()
 
 if(MSVC)
