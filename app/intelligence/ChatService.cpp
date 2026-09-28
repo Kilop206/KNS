@@ -109,7 +109,12 @@ void ChatService::update()
     try {
         auto response = future_.get();
         if (active_generation_ != generation_) return;
-        messages_.push_back({"assistant", std::move(response)});
+        const auto sentTurns = failed_request_->at("messages").size() / 2;
+        if (response.history_turns_omitted > sentTurns) {
+            throw std::runtime_error("KiWi returned invalid chat history metadata");
+        }
+        const auto omitted = messages_.size() / 2 - sentTurns + response.history_turns_omitted;
+        messages_.push_back({"assistant", std::move(response.message), omitted});
         failed_request_.reset();
         error_.clear();
     }

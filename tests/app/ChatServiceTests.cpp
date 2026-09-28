@@ -7,6 +7,7 @@
 #include <httplib.h>
 
 using kns::app::intelligence::ChatService;
+using kns::app::intelligence::ChatReply;
 
 namespace {
 void complete(ChatService& chat)
@@ -23,7 +24,7 @@ void complete(ChatService& chat)
 TEST_CASE("KiWi chat sends topology and bounded alternating history", "[chat]")
 {
     nlohmann::json captured;
-    ChatService chat([&](const nlohmann::json& request) { captured = request; return "KiWi reply"; });
+    ChatService chat([&](const nlohmann::json& request) { captured = request; return ChatReply{"KiWi reply"}; });
     kns::analysis::NetworkAnalysis analysis;
     analysis.node_count = 3;
     for (int id : {10, 30, 50}) {
@@ -45,14 +46,15 @@ TEST_CASE("KiWi chat sends topology and bounded alternating history", "[chat]")
     REQUIRE(captured.at("messages").front().at("content") == "Question 1");
     REQUIRE(captured.at("messages").back().at("content") == "Question 11");
     REQUIRE(chat.messages().size() == 24);
+    REQUIRE(chat.messages().back().history_turns_omitted == 1);
 }
 
 TEST_CASE("KiWi chat keeps failed turn for retry without duplicate messages", "[chat]")
 {
     int calls = 0;
-    ChatService chat([&](const nlohmann::json&) -> std::string {
+    ChatService chat([&](const nlohmann::json&) -> ChatReply {
         if (++calls == 1) throw std::runtime_error("offline");
-        return "Recovered";
+        return {"Recovered"};
     });
     chat.send({}, "  Question  ");
     complete(chat);
@@ -73,7 +75,7 @@ TEST_CASE("KiWi chat discards pending replies on topology change or clear", "[ch
 {
     std::promise<void> release;
     auto ready = release.get_future().share();
-    ChatService chat([ready](const nlohmann::json&) { ready.wait(); return "Old reply"; });
+    ChatService chat([ready](const nlohmann::json&) { ready.wait(); return ChatReply{"Old reply"}; });
     chat.send({}, "Old question");
     const bool wasBusy = chat.busy();
     SECTION("new topology") { chat.synchronizeTopology(1); }
@@ -88,7 +90,7 @@ TEST_CASE("KiWi chat discards pending replies on topology change or clear", "[ch
 
 TEST_CASE("KiWi chat ignores blank questions and reports oversized input", "[chat]")
 {
-    ChatService chat([](const nlohmann::json&) { return "unexpected"; });
+    ChatService chat([](const nlohmann::json&) { return ChatReply{"unexpected"}; });
     chat.send({}, " \n\t ");
     REQUIRE_FALSE(chat.busy());
     REQUIRE(chat.messages().empty());
@@ -99,7 +101,7 @@ TEST_CASE("KiWi chat ignores blank questions and reports oversized input", "[cha
 
 TEST_CASE("KiWi chat allows editing a failed question and forgets stale errors", "[chat]")
 {
-    ChatService chat([](const nlohmann::json&) -> std::string { throw std::runtime_error("offline"); });
+    ChatService chat([](const nlohmann::json&) -> ChatReply { throw std::runtime_error("offline"); });
     chat.send({}, "Original question");
     complete(chat);
     chat.discardFailedQuestion();
@@ -114,6 +116,50 @@ TEST_CASE("KiWi chat allows editing a failed question and forgets stale errors",
     REQUIRE_FALSE(chat.canRetry());
 }
 
+TEST_CASE("KiWi chat reports client and model history omissions without deleting the transcript", "[chat]")
+{
+    nlohmann::json captured;
+    bool fail = false;
+    ChatService chat([&](const nlohmann::json& request) -> ChatReply {
+        if (fail) throw std::runtime_error("offline");
+        captured = request;
+        const auto turns = request.at("messages").size() / 2;
+        return {std::string(16000, 'a'), turns > 0 ? 1u : 0u};
+    });
+    for (int i = 0; i < 5; ++i) {
+        chat.send({}, "Question " + std::to_string(i));
+        complete(chat);
+    }
+    // The byte budget omits one old turn; the model omits another.
+    REQUIRE(captured.at("messages").size() == 7);
+    REQUIRE(chat.messages().size() == 10);
+    REQUIRE(chat.messages().front().content == "Question 0");
+    REQUIRE(chat.messages().back().history_turns_omitted == 2);
+    fail = true;
+    chat.send({}, "Retry me");
+    complete(chat);
+    REQUIRE(chat.canRetry());
+    fail = false;
+    chat.retry();
+    complete(chat);
+    REQUIRE(chat.messages().size() == 12);
+    REQUIRE(chat.messages().back().history_turns_omitted == 3);
+    chat.clear();
+    chat.send({}, "Fresh question");
+    complete(chat);
+    REQUIRE(chat.messages().back().history_turns_omitted == 0);
+}
+
+TEST_CASE("KiWi chat preserves a failed question when history metadata is impossible", "[chat]")
+{
+    ChatService chat([](const nlohmann::json&) { return ChatReply{"Reply", 1}; });
+    chat.send({}, "First question");
+    complete(chat);
+    REQUIRE(chat.canRetry());
+    REQUIRE(chat.messages().size() == 1);
+    REQUIRE_FALSE(chat.error().empty());
+}
+
 TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][http]")
 {
     httplib::Server server;
@@ -123,8 +169,10 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
         auto body = nlohmann::json::parse(req.body);
         if (mode == "offline") { res.status = 503; return; }
         if (mode == "invalid") { res.set_content("not json", "application/json"); return; }
-        res.set_content(nlohmann::json({{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
-            {"topologyRevision", body.at("topologyRevision")}, {"message", "Reply"}}).dump(), "application/json");
+        auto reply = nlohmann::json({{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
+            {"topologyRevision", body.at("topologyRevision")}, {"message", "Reply"}});
+        if (mode != "success" && mode != "stale") reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
+        res.set_content(reply.dump(), "application/json");
     });
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
@@ -136,8 +184,18 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
     config.chat_endpoint = "/chat";
     config.bearer_token = "test-token";
     kns::app::intelligence::IntelligenceClient client(config);
-    const nlohmann::json request{{"requestId", "turn-1"}, {"topologyRevision", "3"}};
-    REQUIRE(client.chat(request) == "Reply");
+    const nlohmann::json request{{"requestId", "turn-1"}, {"topologyRevision", "3"},
+        {"messages", {{{"role", "user"}, {"content", "Earlier"}},
+                      {{"role", "assistant"}, {"content", "Reply"}},
+                      {{"role", "user"}, {"content", "Now?"}}}}};
+    REQUIRE(client.chat(request).message == "Reply");
+    REQUIRE(client.chat(request).history_turns_omitted == 0);
+    mode = "1";
+    REQUIRE(client.chat(request).history_turns_omitted == 1);
+    for (const auto* value : {"-1", "2", "1.5", "1.0", "true", "null", "\"1\"", "4294967296"}) {
+        mode = value;
+        REQUIRE_THROWS(client.chat(request));
+    }
     mode = "stale";
     REQUIRE_THROWS(client.chat(request));
     mode = "invalid";

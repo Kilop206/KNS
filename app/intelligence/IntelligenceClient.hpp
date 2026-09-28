@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "intelligence/ChatReply.hpp"
 
 #include "intelligence/IntelligenceRequest.hpp"
 #include "intelligence/IntelligenceResponse.hpp"
@@ -35,7 +36,7 @@ public:
         const kns::intelligence::IntelligenceRequest& request
     ) const;
 
-    [[nodiscard]] std::string chat(const nlohmann::json& request) const;
+    [[nodiscard]] ChatReply chat(const nlohmann::json& request) const;
 
 private:
     IntelligenceClientConfig config_;

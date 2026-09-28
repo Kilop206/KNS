@@ -38,7 +38,7 @@ IntelligenceClient::IntelligenceClient(
 {
 }
 
-std::string IntelligenceClient::chat(const nlohmann::json& request) const
+ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
 {
     httplib::Client client(config_.base_url);
     client.set_connection_timeout(config_.connection_timeout_seconds);
@@ -66,7 +66,16 @@ std::string IntelligenceClient::chat(const nlohmann::json& request) const
         message.find_first_not_of(" \t\r\n") == std::string::npos) {
         throw std::runtime_error("KiWi returned an empty or oversized reply");
     }
-    return message;
+    std::size_t omitted = 0;
+    if (response.contains("historyTurnsOmitted")) {
+        const auto& value = response.at("historyTurnsOmitted");
+        if (!value.is_number_integer() || value < 0 ||
+            value > request.at("messages").size() / 2) {
+            throw std::runtime_error("KiWi returned invalid chat history metadata");
+        }
+        omitted = value.get<std::size_t>();
+    }
+    return {std::move(message), omitted};
 }
 
 kns::intelligence::IntelligenceResponse

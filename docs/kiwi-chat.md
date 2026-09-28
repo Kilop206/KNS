@@ -9,13 +9,18 @@
   Chat never substitutes a deterministic report for an unavailable LLM.
 - Each request has `requestId`, `topologyRevision`, `analysisMode`, `context`,
   `score`, and alternating user/assistant `messages`, ending in a user message.
-  Responses echo both identifiers and contain `message`.
+  Responses echo both identifiers and contain `message` and `historyTurnsOmitted`.
+  The latter counts complete oldest turns omitted by KiWi to fit the model's
+  token budget; older servers may omit the field (treated as zero).
 - The UI stays responsive, permits one pending turn, preserves failed questions
   for retry, and supports a new conversation. Changing topology or clearing chat
   discards late responses. History is local to the application session.
 - At most ten completed turns accompany a question. Questions are limited to
   4,096 UTF-8 bytes in the desktop UI. The server bounds messages and model input;
-  oversized requests fail explicitly instead of silently dropping topology facts.
+  KiWi drops complete oldest conversation turns as needed to fit the token budget,
+  preserving the entire snapshot and current question. If those alone cannot fit,
+  the request fails explicitly. The UI annotates each reply with the total number
+  of turns omitted by client and server; the visible transcript remains intact.
 - Topology context is a deterministic snapshot, not live simulation telemetry.
   Historical messages and embedded topology labels are untrusted text. The LLM
   must distinguish evidence from suggestions and acknowledge missing facts.

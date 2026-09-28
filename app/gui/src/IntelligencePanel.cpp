@@ -176,6 +176,10 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
         ImGui::TextColored(message.role == "user" ? ImVec4(0.4f, 0.7f, 1, 1) : ImVec4(0.4f, 0.85f, 0.5f, 1),
                            "%s", message.role == "user" ? "Você" : "KiWi");
         ImGui::TextWrapped("%s", message.content.c_str());
+        if (message.history_turns_omitted > 0) {
+            ImGui::TextWrapped("Memória desta resposta: %zu interação(ões) antiga(s) fora do contexto. "
+                               "Repita detalhes anteriores se necessário.", message.history_turns_omitted);
+        }
         ImGui::Spacing();
         ImGui::Separator();
     }

@@ -8,18 +8,20 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "analysis/NetworkAnalysis.hpp"
+#include "intelligence/ChatReply.hpp"
 
 namespace kns::app::intelligence {
 
 struct ChatMessage {
     std::string role;
     std::string content;
+    std::size_t history_turns_omitted = 0;
 };
 
 // Owned by the UI thread. Workers receive only copied request/transport values.
 class ChatService {
 public:
-    using Transport = std::function<std::string(const nlohmann::json&)>;
+    using Transport = std::function<ChatReply(const nlohmann::json&)>;
     explicit ChatService(Transport transport);
     void synchronizeTopology(std::uint64_t revision);
     void clear();
@@ -35,7 +37,7 @@ public:
 private:
     void launch(nlohmann::json request);
     Transport transport_;
-    std::future<std::string> future_;
+    std::future<ChatReply> future_;
     std::vector<ChatMessage> messages_;
     std::optional<nlohmann::json> failed_request_;
     std::uint64_t revision_ = 0;
