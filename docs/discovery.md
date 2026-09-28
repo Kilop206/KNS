@@ -73,6 +73,8 @@ segments and unknown devices.
   remove it. Right-click a cable to edit bandwidth, delay, loss and link state.
 - **Delete selected** or Delete removes the selected device or cable. Device
   removal uses the simulator's existing tombstone and in-flight packet policy.
+  Existing packet animations retain the removed device's last canvas position;
+  the device and its cables disappear and the device can no longer be selected.
 - The mouse wheel zooms around the pointer; the middle mouse button pans.
   **Fit** frames the topology, **Arrange** lays out active devices on a grid,
   and **Snap to grid** controls placement and movement snapping.

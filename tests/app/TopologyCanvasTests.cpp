@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "gui/include/TopologyCanvas.hpp"
+#include "gui/include/PacketRenderer.hpp"
 #include "gui/include/TranslationService.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "imgui_internal.h"
@@ -19,6 +20,8 @@ struct CanvasHarness {
     int selected=-1;
     GLFWwindow* window=nullptr;
     std::optional<std::pair<int,int>> connection;
+    std::vector<gui::VisualPacket> packets;
+    double visualTime=0;
     CanvasHarness() {
         ImGui::CreateContext();
         auto& io=ImGui::GetIO();
@@ -49,7 +52,7 @@ struct CanvasHarness {
         ImGui::NewFrame();
         ImGui::SetNextWindowPos({0,0});
         ImGui::SetNextWindowSize({1280,800});
-        if (auto request=canvas.render(engine,selected,{},0,translations)) connection=request;
+        if (auto request=canvas.render(engine,selected,packets,visualTime,translations)) connection=request;
         ImGui::Render();
         if (window) {
             glViewport(0,0,1280,800); glClearColor(0.05f,0.07f,0.1f,1); glClear(GL_COLOR_BUFFER_BIT);
@@ -168,4 +171,48 @@ TEST_CASE("Canvas renders all device silhouettes with a saved layout", "[canvas-
     ui.capture("canvas-devices");
     REQUIRE(ImGui::GetDrawData()->TotalVtxCount>1000);
     REQUIRE(ui.engine.getTopology().size()==10);
+}
+
+TEST_CASE("Canvas keeps in-flight packet positions after device removal", "[canvas-ui]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    ui.click(ui.paletteTile(0)); ui.click({origin.x+240,origin.y+180});
+    ui.click(ui.paletteTile(1)); ui.click({origin.x+540,origin.y+320});
+    ui.engine.createLink(0,1,100,1);
+    gui::VisualPacket packet;
+    packet.from=0; packet.to=1;
+    packet.sim_arrival_time=1; packet.visual_duration=1;
+    ui.packets.push_back(packet);
+    ui.visualTime=0.5;
+    ui.frame();
+
+    auto packetVertices=[&]() {
+        std::vector<ImVec2> vertices;
+        const auto color=gui::PacketRenderer{}.packetColorByType(kns::PacketType::DATA);
+        for (const auto* list:ImGui::GetDrawData()->CmdLists)
+            for (const auto& vertex:list->VtxBuffer)
+                if (vertex.col==color) vertices.push_back(vertex.pos);
+        return vertices;
+    };
+    const auto before=packetVertices();
+    REQUIRE(before.size()>3);
+    int removed=0;
+    SECTION("source removed") { removed=0; }
+    SECTION("destination removed") { removed=1; }
+    SECTION("both endpoints removed") { REQUIRE(ui.engine.deleteNode(1)); }
+    const auto position=*ui.engine.getTopology().getNode(removed)->getPosition();
+    REQUIRE(ui.engine.deleteNode(removed));
+    REQUIRE(ui.engine.getTopology().getLinks().empty());
+    for (int frame=0;frame<2;++frame) {
+        ui.frame();
+        const auto after=packetVertices();
+        REQUIRE(after.size()==before.size());
+        for (std::size_t i=0;i<before.size();++i) {
+            REQUIRE(after[i].x==Catch::Approx(before[i].x));
+            REQUIRE(after[i].y==Catch::Approx(before[i].y));
+        }
+    }
+    // A removed endpoint anchors existing animations but cannot be selected.
+    ui.click({origin.x+60+static_cast<float>(position.x),origin.y+60+static_cast<float>(position.y)});
+    REQUIRE(ui.selected==-1);
 }

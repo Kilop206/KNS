@@ -213,10 +213,12 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     std::vector<std::pair<float,float>> positions(topology.size());
     int hit=-1;
     for (int id=0;id<topology.size();++id) {
-        if (!active(id)) continue;
-        const auto p=view_.toScreen(nodePoint(*topology.getNode(id)),origin);
+        const auto* node=topology.getNode(id);
+        if (!node->getPosition()) continue;
+        // Removed nodes retain their coordinates for packets already in flight.
+        const auto p=view_.toScreen(nodePoint(*node),origin);
         positions[id]={p.x,p.y};
-        if (hovered && std::abs(mouse.x-p.x)<=40*view_.zoom && mouse.y>=p.y-36*view_.zoom && mouse.y<=p.y+53*view_.zoom) hit=id;
+        if (node->isActive() && hovered && std::abs(mouse.x-p.x)<=40*view_.zoom && mouse.y>=p.y-36*view_.zoom && mouse.y<=p.y+53*view_.zoom) hit=id;
     }
     std::optional<std::uint64_t> hitLink;
     float nearest=7;
