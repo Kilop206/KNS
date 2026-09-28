@@ -216,3 +216,77 @@ TEST_CASE("Canvas keeps in-flight packet positions after device removal", "[canv
     ui.click({origin.x+60+static_cast<float>(position.x),origin.y+60+static_cast<float>(position.y)});
     REQUIRE(ui.selected==-1);
 }
+
+TEST_CASE("Canvas route inspection refreshes without creating traffic", "[canvas-ui][route-trace]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    for (const auto point:{ImVec2{180,180},ImVec2{360,360},ImVec2{650,180}}) {
+        ui.click(ui.paletteTile(0)); ui.click({origin.x+point.x,origin.y+point.y});
+    }
+    auto direct=ui.engine.createLink(0,2,10,1);
+    ui.engine.createLink(0,1,100,2);
+    auto last=ui.engine.createLink(1,2,100,2);
+    const auto revision=ui.engine.getTopology().getRoutingRevision();
+    auto toolbar=[&](const char* name) {
+        const auto start=ImGui::FindWindowByName("Network###network-window")->DC.CursorStartPos;
+        float x=start.x;
+        for (const char* label:{"Select / Move","Cable","TCP","Route"}) {
+            if (std::strcmp(label,name)==0) { ui.click({x+12,start.y+10}); return; }
+            x+=ImGui::CalcTextSize(label).x+2*ImGui::GetStyle().FramePadding.x+ImGui::GetStyle().ItemSpacing.x;
+        }
+        FAIL("Unknown toolbar button");
+    };
+    auto nodePoint=[&](int id) {
+        const auto p=*ui.engine.getTopology().getNode(id)->getPosition();
+        return ImVec2{origin.x+60+static_cast<float>(p.x),origin.y+60+static_cast<float>(p.y)};
+    };
+    auto routeVertices=[]() {
+        std::vector<ImVec2> vertices;
+        for (const auto* list:ImGui::GetDrawData()->CmdLists)
+            for (const auto& vertex:list->VtxBuffer)
+                if (vertex.col==IM_COL32(94,224,174,255)) vertices.push_back(vertex.pos);
+        return vertices;
+    };
+    auto verticalExtent=[&]() {
+        const auto vertices=routeVertices();
+        REQUIRE_FALSE(vertices.empty());
+        float lo=vertices.front().y,hi=lo;
+        for (const auto p:vertices) { lo=std::min(lo,p.y); hi=std::max(hi,p.y); }
+        return hi-lo;
+    };
+    toolbar("Route"); ui.click(nodePoint(0)); ui.click(nodePoint(2));
+    REQUIRE(verticalExtent()<10);
+    REQUIRE_FALSE(ui.connection);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.getTCPSessions().empty());
+    REQUIRE(ui.engine.getTopology().getRoutingRevision()==revision);
+    REQUIRE(ui.engine.now()==0);
+    ui.capture("canvas-route-direct");
+
+    SECTION("live changes select an alternate path and report disconnection") {
+        ui.engine.setRoutingMetric(kns::RoutingMetric::Bandwidth); ui.frame();
+        REQUIRE(verticalExtent()>100);
+        ui.frame(); ui.capture("canvas-route-bandwidth");
+        last->setUp(false); ui.frame();
+        REQUIRE(verticalExtent()<10);
+        direct->setUp(false); ui.frame();
+        REQUIRE(routeVertices().empty());
+        direct->setUp(true); ui.frame();
+        REQUIRE_FALSE(routeVertices().empty());
+        REQUIRE(ui.engine.deleteNode(2)); ui.frame();
+        REQUIRE(routeVertices().empty());
+    }
+    SECTION("switching tools clears the route") {
+        toolbar("Select / Move");
+        REQUIRE(routeVertices().empty());
+    }
+    SECTION("Escape clears the route") {
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape,true); ui.frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape,false); ui.frame();
+        REQUIRE(routeVertices().empty());
+    }
+    SECTION("reset clears the route") {
+        ui.canvas.reset(); ui.frame();
+        REQUIRE(routeVertices().empty());
+    }
+}

@@ -31,6 +31,19 @@ float distanceToLink(ImVec2 point, ImVec2 a, ImVec2 b) {
 
 void TopologyCanvas::reset() { *this = TopologyCanvas{}; }
 
+void TopologyCanvas::updateRoute(const kns::SimulationEngine& engine) {
+    if (!routeEndpoints_) return;
+    const auto& topology=engine.getTopology();
+    for (int id:{routeEndpoints_->first,routeEndpoints_->second}) {
+        const auto* node=topology.getNode(id);
+        if (!node || !node->isActive()) { routeEndpoints_.reset(); return; }
+    }
+    if (routeRevision_==topology.getRoutingRevision() && routeMetric_==engine.getRoutingMetric()) return;
+    route_=engine.traceRoute(routeEndpoints_->first,routeEndpoints_->second);
+    routeRevision_=topology.getRoutingRevision();
+    routeMetric_=engine.getRoutingMetric();
+}
+
 void TopologyCanvas::ensurePositions(kns::Topology& topology) {
     int slot = 0;
     const int columns = std::max(3, static_cast<int>(std::ceil(std::sqrt(topology.size()))));
@@ -115,7 +128,7 @@ void TopologyCanvas::palette(TranslationService& tr) {
         const auto start=ImGui::GetCursorScreenPos();
         const bool chosen=placing_ && *placing_==type;
         if (chosen) ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(0.15f,0.40f,0.62f,1));
-        if (ImGui::Button("##device",{68,76})) { placing_=type; tool_=Tool::Select; source_=-1; }
+        if (ImGui::Button("##device",{68,76})) { placing_=type; tool_=Tool::Select; source_=-1; routeEndpoints_.reset(); }
         if (chosen) ImGui::PopStyleColor();
         auto* draw=ImGui::GetWindowDrawList();
         drawDeviceIcon(draw,type,{start.x+34,start.y+27},36);
@@ -156,12 +169,13 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     auto toolButton=[&](const char* name, Tool tool) {
         const bool current=tool_==tool && !placing_;
         if (current) ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(0.16f,0.42f,0.65f,1));
-        if (ImGui::Button(tr.translate(name).c_str())) { tool_=tool; placing_.reset(); source_=-1; dragging_=-1; error_.clear(); }
+        if (ImGui::Button(tr.translate(name).c_str())) { tool_=tool; placing_.reset(); source_=-1; dragging_=-1; error_.clear(); routeEndpoints_.reset(); }
         if (current) ImGui::PopStyleColor();
     };
     toolButton("Select / Move",Tool::Select); ImGui::SameLine();
     toolButton("Cable",Tool::Cable); ImGui::SameLine();
     toolButton("TCP",Tool::TCP); ImGui::SameLine();
+    toolButton("Route",Tool::Route); ImGui::SameLine();
     if (ImGui::Button(tr.translate("Fit").c_str())) fitPending_=true;
     ImGui::SameLine();
     if (ImGui::Button(tr.translate("Arrange").c_str())) { arrange(topology); dragging_=-1; }
@@ -170,7 +184,26 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     ImGui::BeginDisabled(selectedNode<0 && !selectedLink_);
     bool remove=ImGui::SmallButton(tr.translate("Delete selected").c_str());
     ImGui::EndDisabled();
+    updateRoute(engine);
     if (!error_.empty()) ImGui::TextColored(ImVec4(1,0.5f,0.35f,1),"%s",error_.c_str());
+    else if (routeEndpoints_) {
+        const char* status=route_.status==kns::RouteStatus::Reachable ? "Reachable" :
+            route_.status==kns::RouteStatus::ForwardingLoop ? "Forwarding loop" : "Unreachable";
+        ImGui::Text("#%d -> #%d: %s | %s (%s)",routeEndpoints_->first,routeEndpoints_->second,
+            tr.translate(status).c_str(),tr.translate(kns::routingMetricName(routeMetric_).data()).c_str(),
+            tr.translate("hover for details").c_str());
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::Text("%s: %zu",tr.translate("Hops").c_str(),route_.hops.size());
+            ImGui::Text("%s: %.2f ms",tr.translate("Propagation delay").c_str(),route_.propagation_delay_ms);
+            if (route_.bottleneck_mbps) ImGui::Text("%s: %.2f Mbps",tr.translate("Bottleneck capacity").c_str(),*route_.bottleneck_mbps);
+            ImGui::TextUnformatted(tr.translate("Configured path values; excludes queueing and serialization delay.").c_str());
+            if (route_.status!=kns::RouteStatus::Reachable) ImGui::TextUnformatted(tr.translate("Values describe the traversed prefix only.").c_str());
+            for (const auto& hop:route_.hops) ImGui::Text("#%d -> #%d | %s %llu",hop.from,hop.to,
+                tr.translate("Link").c_str(),static_cast<unsigned long long>(hop.link_id));
+            ImGui::EndTooltip();
+        }
+    }
     else ImGui::TextDisabled("%s",tr.translate(placing_ ? "Click the canvas to place a device. Esc cancels." :
         tool_==Tool::Select ? "Drag to move. Right-click a device or cable to edit." :
         source_<0 ? "Choose the source device." : "Choose the destination device. Esc cancels.").c_str());
@@ -204,7 +237,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
                 if (type>=0 && type<static_cast<int>(kns::deviceTypeNames.size())) {
                     try { createDevice(engine,static_cast<kns::DeviceType>(type),view_.toWorld(mouse,origin),selectedNode); }
                     catch (const std::exception& e) { error_=e.what(); }
-                    placing_.reset(); tool_=Tool::Select; dragging_=-1; delivered=true;
+                    placing_.reset(); tool_=Tool::Select; dragging_=-1; delivered=true; routeEndpoints_.reset();
                 }
             }
         }
@@ -242,9 +275,12 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
             }
         } else if (hit>=0) {
             selectedNode=hit; selectedLink_.reset();
-            if (source_<0) source_=hit;
-            else if (hit!=source_) {
+            if (source_<0) { source_=hit; routeEndpoints_.reset(); }
+            else if (hit!=source_ || tool_==Tool::Route) {
                 if (tool_==Tool::TCP) connection=std::pair{source_,hit};
+                else if (tool_==Tool::Route) {
+                    routeEndpoints_=std::pair{source_,hit}; routeRevision_.reset();
+                }
                 else {
                     try {
                         const auto& links=topology.getLinksFromNode(source_);
@@ -267,7 +303,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     }
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) dragging_=-1;
     if (focused && !io.WantTextInput && !ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId)) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { placing_.reset(); source_=-1; dragging_=-1; tool_=Tool::Select; }
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape)) { placing_.reset(); source_=-1; dragging_=-1; tool_=Tool::Select; routeEndpoints_.reset(); }
         remove=remove || ImGui::IsKeyPressed(ImGuiKey_Delete,false);
     }
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
@@ -287,8 +323,9 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
                 }
                 ImGui::EndCombo();
             }
-            if (ImGui::MenuItem(tr.translate("Connect cable from here").c_str())) { source_=selectedNode; tool_=Tool::Cable; placing_.reset(); }
-            if (ImGui::MenuItem(tr.translate("Start TCP from here").c_str())) { source_=selectedNode; tool_=Tool::TCP; placing_.reset(); }
+            if (ImGui::MenuItem(tr.translate("Connect cable from here").c_str())) { source_=selectedNode; tool_=Tool::Cable; placing_.reset(); routeEndpoints_.reset(); }
+            if (ImGui::MenuItem(tr.translate("Start TCP from here").c_str())) { source_=selectedNode; tool_=Tool::TCP; placing_.reset(); routeEndpoints_.reset(); }
+            if (ImGui::MenuItem(tr.translate("Inspect route from here").c_str())) { source_=selectedNode; tool_=Tool::Route; placing_.reset(); routeEndpoints_.reset(); }
             if (ImGui::MenuItem(tr.translate("Delete device").c_str())) remove=true;
         } else if (selectedLink_) {
             for (const auto& link:topology.getLinks()) if (link->getId()==*selectedLink_) {
@@ -324,12 +361,17 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     std::set<std::pair<int,int>> busy;
     for (const auto& packet:packets) if (visualTime>=packet.visual_start_time &&
         visualTime<=packet.visual_start_time+packet.visual_duration) busy.insert(std::minmax(packet.from,packet.to));
+    updateRoute(engine);
+    std::set<std::uint64_t> routeLinks;
+    if (routeEndpoints_) for (const auto& hop:route_.hops) routeLinks.insert(hop.link_id);
     for (const auto& link:topology.getLinks()) {
         const auto a=positions[link->getA()],b=positions[link->getB()];
         ImU32 color=link->isUp() ? IM_COL32(102,146,172,255) : IM_COL32(196,88,98,255);
         if (busy.contains(std::minmax(link->getA(),link->getB()))) color=IM_COL32(246,180,65,255);
         if (selectedLink_==link->getId()) color=IM_COL32(78,190,255,255);
-        draw->AddLine({a.first,a.second},{b.first,b.second},color,selectedLink_==link->getId() ? 4.0f : 2.0f);
+        const bool onRoute=routeLinks.contains(link->getId());
+        if (onRoute) color=IM_COL32(94,224,174,255);
+        draw->AddLine({a.first,a.second},{b.first,b.second},color,onRoute || selectedLink_==link->getId() ? 4.0f : 2.0f);
         if (link->getMode()==kns::LinkMode::SIMPLEX) {
             const float dx=b.first-a.first,dy=b.second-a.second,len=std::hypot(dx,dy);
             if (len>1) {

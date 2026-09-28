@@ -22,6 +22,8 @@ and congestion-control state.
   timeout retransmission, and fast retransmit;
 - Tahoe, Reno, NewReno, and CUBIC congestion-control implementations;
 - interactive packet visualization and congestion/latency panels;
+- canvas route inspection with exact forwarding links, reachability, propagation
+  delay and bottleneck capacity, updated as the topology changes;
 - optional asynchronous translation of the main GUI controls;
 - conversational topology analysis with KiWi in the Intelligence panel
   ([configuration and chat contract](docs/kiwi-chat.md));

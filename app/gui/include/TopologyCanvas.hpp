@@ -2,6 +2,8 @@
 #include "CanvasView.hpp"
 #include "VisualPacket.hpp"
 #include "network/DeviceType.hpp"
+#include "network/RouteTrace.hpp"
+#include "network/Routing.hpp"
 #include <array>
 #include <optional>
 #include <string>
@@ -19,12 +21,16 @@ public:
         const std::vector<VisualPacket>& packets, double visualTime, TranslationService& translations);
     void reset();
 private:
-    enum class Tool { Select, Cable, TCP };
+    enum class Tool { Select, Cable, TCP, Route };
     CanvasView view_;
     Tool tool_ = Tool::Select;
     std::optional<kns::DeviceType> placing_;
     std::optional<std::uint64_t> selectedLink_;
     int source_ = -1;
+    std::optional<std::pair<int,int>> routeEndpoints_;
+    kns::RouteTrace route_;
+    std::optional<std::uint64_t> routeRevision_;
+    kns::RoutingMetric routeMetric_ = kns::RoutingMetric::Delay;
     int dragging_ = -1;
     ImVec2 dragOffset_{};
     bool snap_ = true;
@@ -35,6 +41,7 @@ private:
     void arrange(kns::Topology& topology);
     void fit(const kns::Topology& topology, ImVec2 size);
     void palette(TranslationService& translations);
+    void updateRoute(const kns::SimulationEngine& engine);
     void createDevice(kns::SimulationEngine& engine, kns::DeviceType type, ImVec2 position, int& selectedNode);
 };
 }

@@ -14,6 +14,7 @@
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
+#include "network/RouteTrace.hpp"
 #include "network/transport/tcp/TCPListener.hpp"
 #include "engine/core/Event.hpp"
 #include "engine/core/Stats.hpp"
@@ -130,6 +131,10 @@ namespace kns {
         /// Returns the routing table currently used by source, or an empty view for an invalid node.
         /// The view is invalidated when the engine rebuilds its routing tables.
         std::span<const Routing::RoutingEntry> getRoutingTable(int source) const;
+
+        /// Inspect current hop-by-hop forwarding without creating traffic.
+        /// Invalid/inactive endpoints and forwarding loops have distinct statuses.
+        RouteTrace traceRoute(int source, int destination) const;
 
         /// Returns the live topology. Routing-relevant mutations made through
         /// this reference or its Link objects are detected automatically before

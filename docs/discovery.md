@@ -69,6 +69,13 @@ segments and unknown devices.
   Existing connections are not duplicated by this tool.
 - **TCP** selects a source and destination for a simulated TCP connection.
   Moving devices and creating cables never starts TCP traffic.
+- **Route** selects a source and destination to inspect current forwarding without
+  creating traffic. Green cables mark the exact selected links, including parallel
+  links. Hover over the route status for the ordered hops, link IDs, total
+  propagation delay and bottleneck capacity. These are configured path values,
+  not measured RTT or throughput. Change the routing metric in the Topology panel
+  or edit a link to refresh the preview automatically. Unreachable destinations
+  are reported explicitly; deleted endpoints, Esc and switching tools clear it.
 - Right-click a device to rename it, change its type, start a connection, or
   remove it. Right-click a cable to edit bandwidth, delay, loss and link state.
 - **Delete selected** or Delete removes the selected device or cable. Device
