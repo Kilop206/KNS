@@ -27,9 +27,48 @@ float distanceToLink(ImVec2 point, ImVec2 a, ImVec2 b) {
     const float t=length > 0 ? std::clamp(((point.x-a.x)*dx+(point.y-a.y)*dy)/length,0.0f,1.0f) : 0;
     return std::hypot(point.x-a.x-dx*t,point.y-a.y-dy*t);
 }
+
+bool modePicker(kns::LinkMode& mode, TranslationService& tr) {
+    bool changed=false;
+    for (const auto& [value,label]:{
+            std::pair{kns::LinkMode::FULL_DUPLEX,"Full duplex"},
+            std::pair{kns::LinkMode::HALF_DUPLEX,"Half duplex"},
+            std::pair{kns::LinkMode::SIMPLEX,"Simplex"}}) {
+        if (ImGui::RadioButton(tr.translate(label).c_str(),mode==value)) { mode=value; changed=true; }
+    }
+    const char* description=mode==kns::LinkMode::FULL_DUPLEX ? "Both directions simultaneously; queue capacity per direction." :
+        mode==kns::LinkMode::HALF_DUPLEX ? "Both directions share one transmission queue." :
+        "One direction only: first device to second device.";
+    ImGui::TextWrapped("%s",tr.translate(description).c_str());
+    return changed;
+}
 }
 
 void TopologyCanvas::reset() { *this = TopologyCanvas{}; }
+
+void TopologyCanvas::cableSettings(TranslationService& tr) {
+    if (ImGui::SmallButton(tr.translate("Cable settings").c_str())) ImGui::OpenPopup("cable-settings");
+    ImGui::SetNextWindowSize({360,0},ImGuiCond_Always);
+    if (ImGui::BeginPopup("cable-settings")) {
+        ImGui::TextUnformatted(tr.translate("New cables").c_str());
+        ImGui::TextWrapped("%s",tr.translate("Applies to the next cables you create with the Cable tool.").c_str());
+        ImGui::Separator();
+        ImGui::SetNextItemWidth(140);
+        ImGui::InputDouble(tr.translate("Bandwidth (Mbps)").c_str(),&cableOptions_.bandwidthMbps,0,0,"%.2f");
+        ImGui::SetNextItemWidth(140);
+        ImGui::InputDouble(tr.translate("Delay (ms)").c_str(),&cableOptions_.delayMs,0,0,"%.2f");
+        ImGui::SetNextItemWidth(140);
+        ImGui::InputDouble(tr.translate("Loss (%)").c_str(),&cableOptions_.lossPercent,0,0,"%.2f");
+        ImGui::SetNextItemWidth(140);
+        ImGui::InputInt(tr.translate("Queue capacity").c_str(),&cableOptions_.queueCapacity,0,0);
+        modePicker(cableOptions_.mode,tr);
+        ImGui::Separator();
+        if (ImGui::Button(tr.translate("Reset defaults").c_str())) cableOptions_=CableOptions{};
+        ImGui::SameLine();
+        if (ImGui::Button(tr.translate("Done").c_str())) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+}
 
 void TopologyCanvas::updateRoute(const kns::SimulationEngine& engine) {
     if (!routeEndpoints_) return;
@@ -184,6 +223,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     ImGui::BeginDisabled(selectedNode<0 && !selectedLink_);
     bool remove=ImGui::SmallButton(tr.translate("Delete selected").c_str());
     ImGui::EndDisabled();
+    ImGui::SameLine(); cableSettings(tr);
     updateRoute(engine);
     if (!error_.empty()) ImGui::TextColored(ImVec4(1,0.5f,0.35f,1),"%s",error_.c_str());
     else if (routeEndpoints_) {
@@ -287,7 +327,9 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
                         if (std::any_of(links.begin(),links.end(),[&](const auto& l) { return l->getOtherNode(source_)==hit; })) {
                             throw std::invalid_argument("These devices are already connected. Edit the existing cable.");
                         }
-                        selectedLink_=engine.createLink(source_,hit,100.0,1.0)->getId();
+                        selectedLink_=engine.createLink(source_,hit,cableOptions_.bandwidthMbps,
+                            cableOptions_.delayMs,cableOptions_.lossPercent/100.0,
+                            cableOptions_.mode,cableOptions_.queueCapacity)->getId();
                     } catch (const std::exception& e) { error_=e.what(); }
                 }
                 source_=-1;
@@ -311,6 +353,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
         if (hit>=0) std::snprintf(label_.data(),label_.size(),"%s",topology.getNode(hit)->getLabel().c_str());
         ImGui::OpenPopup("canvas-context");
     }
+    ImGui::SetNextWindowSize({360,0},ImGuiCond_Always);
     if (ImGui::BeginPopup("canvas-context")) {
         if (active(selectedNode)) {
             ImGui::Text("%s #%d",tr.translate("Device").c_str(),selectedNode);
@@ -329,13 +372,24 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
             if (ImGui::MenuItem(tr.translate("Delete device").c_str())) remove=true;
         } else if (selectedLink_) {
             for (const auto& link:topology.getLinks()) if (link->getId()==*selectedLink_) {
-                ImGui::Text("%d <-> %d",link->getA(),link->getB());
+                ImGui::Text("%d %s %d",link->getA(),link->getMode()==kns::LinkMode::SIMPLEX ? "->" : "<->",link->getB());
                 double bandwidth=link->getBandwidthMbps(), delay=link->getDelayMs(),loss=link->getLossProb()*100;
                 try {
                     if (ImGui::InputDouble("Mbps",&bandwidth,0,0,"%.1f")) link->setBandwidthMbps(bandwidth);
                     if (ImGui::InputDouble(tr.translate("Delay (ms)").c_str(),&delay,0,0,"%.2f")) link->setDelayMs(delay);
                     if (ImGui::InputDouble(tr.translate("Loss (%)").c_str(),&loss,0,0,"%.2f")) link->setLossProb(loss/100);
                 } catch (const std::exception& e) { error_=e.what(); }
+                int capacity=static_cast<int>(link->getQueueCapacity());
+                if (ImGui::InputInt(tr.translate("Queue capacity").c_str(),&capacity,0,0)) {
+                    try { link->setQueueCapacity(capacity); error_.clear(); }
+                    catch (const std::exception& e) { error_=e.what(); }
+                }
+                auto mode=link->getMode();
+                if (modePicker(mode,tr)) {
+                    try { link->setMode(mode); error_.clear(); }
+                    catch (const std::exception& e) { error_=e.what(); }
+                }
+                if (!error_.empty()) ImGui::TextWrapped("%s",error_.c_str());
                 bool up=link->isUp(); if (ImGui::Checkbox(tr.translate("Up").c_str(),&up)) link->setUp(up);
                 if (ImGui::MenuItem(tr.translate("Delete cable").c_str())) remove=true;
                 break;

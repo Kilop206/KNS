@@ -4,6 +4,7 @@
 #include "network/DeviceType.hpp"
 #include "network/RouteTrace.hpp"
 #include "network/Routing.hpp"
+#include "enums/LinkMode.hpp"
 #include <array>
 #include <optional>
 #include <string>
@@ -37,10 +38,18 @@ private:
     bool fitPending_ = true;
     std::string error_;
     std::array<char, 256> label_{};
+    struct CableOptions {
+        double bandwidthMbps = 100.0;
+        double delayMs = 1.0;
+        double lossPercent = 0.0;
+        int queueCapacity = 32;
+        kns::LinkMode mode = kns::LinkMode::FULL_DUPLEX;
+    } cableOptions_;
     void ensurePositions(kns::Topology& topology);
     void arrange(kns::Topology& topology);
     void fit(const kns::Topology& topology, ImVec2 size);
     void palette(TranslationService& translations);
+    void cableSettings(TranslationService& translations);
     void updateRoute(const kns::SimulationEngine& engine);
     void createDevice(kns::SimulationEngine& engine, kns::DeviceType type, ImVec2 position, int& selectedNode);
 };

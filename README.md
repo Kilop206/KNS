@@ -24,6 +24,8 @@ and congestion-control state.
 - interactive packet visualization and congestion/latency panels;
 - canvas route inspection with exact forwarding links, reachability, propagation
   delay and bottleneck capacity, updated as the topology changes;
+- configurable canvas cables with full-duplex, half-duplex and simplex modes,
+  loss, delay, bandwidth, and queue capacity;
 - optional asynchronous translation of the main GUI controls;
 - conversational topology analysis with KiWi in the Intelligence panel
   ([configuration and chat contract](docs/kiwi-chat.md));

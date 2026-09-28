@@ -4,6 +4,7 @@
 #include "gui/include/PacketRenderer.hpp"
 #include "gui/include/TranslationService.hpp"
 #include "engine/core/SimulationEngine.hpp"
+#include "network/TopologyLoader.hpp"
 #include "imgui_internal.h"
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
@@ -74,6 +75,30 @@ struct CanvasHarness {
     void click(ImVec2 p) {
         move(p); ImGui::GetIO().AddMouseButtonEvent(0,true); frame();
         ImGui::GetIO().AddMouseButtonEvent(0,false); frame(); frame();
+    }
+    void rightClick(ImVec2 p) {
+        move(p); ImGui::GetIO().AddMouseButtonEvent(1,true); frame();
+        ImGui::GetIO().AddMouseButtonEvent(1,false); frame(); frame();
+    }
+    ImGuiWindow* popup() {
+        auto& stack=ImGui::GetCurrentContext()->OpenPopupStack;
+        REQUIRE_FALSE(stack.empty());
+        REQUIRE(stack.back().Window!=nullptr);
+        return stack.back().Window;
+    }
+    void activate(const char* label, ImGuiWindow* window=nullptr) {
+        if (!window) window=ImGui::FindWindowByName("Network###network-window");
+        REQUIRE(window!=nullptr);
+        ImGui::FocusWindow(window);
+        ImGui::ActivateItemByID(window->GetID(label)); frame(); frame();
+    }
+    void input(const char* label, const char* value) {
+        auto* window=popup();
+        activate(label,window);
+        REQUIRE(ImGui::GetActiveID()==window->GetID(label));
+        ImGui::GetIO().AddInputCharactersUTF8(value); frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true); frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false); frame();
     }
     void drag(ImVec2 from,ImVec2 to) {
         move(from); ImGui::GetIO().AddMouseButtonEvent(0,true); frame();
@@ -289,4 +314,118 @@ TEST_CASE("Canvas route inspection refreshes without creating traffic", "[canvas
         ui.canvas.reset(); ui.frame();
         REQUIRE(routeVertices().empty());
     }
+}
+
+TEST_CASE("Canvas creates configured cables and preserves their properties in JSON", "[canvas-ui][cable-settings]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    const ImVec2 first{origin.x+180,origin.y+180},second{origin.x+540,origin.y+320};
+    ui.click(ui.paletteTile(0)); ui.click(first);
+    ui.click(ui.paletteTile(1)); ui.click(second);
+    ui.activate("Cable settings");
+    ui.input("Bandwidth (Mbps)","25");
+    ui.input("Delay (ms)","8.5");
+    ui.input("Loss (%)","12.5");
+    ui.input("Queue capacity","7");
+    kns::LinkMode mode=kns::LinkMode::FULL_DUPLEX;
+    SECTION("full duplex") { ui.activate("Full duplex",ui.popup()); }
+    SECTION("half duplex") { mode=kns::LinkMode::HALF_DUPLEX; ui.activate("Half duplex",ui.popup()); }
+    SECTION("simplex") { mode=kns::LinkMode::SIMPLEX; ui.activate("Simplex",ui.popup()); }
+    ui.capture("canvas-cable-settings");
+    ui.activate("Done",ui.popup());
+    ui.activate("Cable"); ui.click(first); ui.click(second);
+    REQUIRE(ui.engine.getTopology().getLinks().size()==1);
+    const auto link=ui.engine.getTopology().getLinks().front();
+    REQUIRE(link->getBandwidthMbps()==25);
+    REQUIRE(link->getDelayMs()==8.5);
+    REQUIRE(link->getLossProb()==0.125);
+    REQUIRE(link->getQueueCapacity()==7);
+    REQUIRE(link->getMode()==mode);
+    REQUIRE(ui.engine.traceRoute(0,1).status==kns::RouteStatus::Reachable);
+    REQUIRE(ui.engine.traceRoute(1,0).status==(mode==kns::LinkMode::SIMPLEX ? kns::RouteStatus::Unreachable : kns::RouteStatus::Reachable));
+    const auto restored=kns::TopologyLoader::fromJson(kns::TopologyLoader::toJson(ui.engine.getTopology()));
+    const auto saved=restored.getLinks().front();
+    REQUIRE(saved->getMode()==mode);
+    REQUIRE(saved->getQueueCapacity()==7);
+    REQUIRE(saved->getBandwidthMbps()==25);
+    REQUIRE(saved->getDelayMs()==8.5);
+    REQUIRE(saved->getLossProb()==0.125);
+    ui.activate("Cable settings"); ui.activate("Reset defaults",ui.popup()); ui.activate("Done",ui.popup());
+    REQUIRE(link->getMode()==mode);
+    REQUIRE(link->getQueueCapacity()==7);
+    REQUIRE(link->getBandwidthMbps()==25);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.getTCPSessions().empty());
+    REQUIRE_FALSE(ui.connection);
+    REQUIRE(ui.engine.now()==0);
+}
+
+TEST_CASE("Canvas invalid cable settings do not partially create a link", "[canvas-ui][cable-settings]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    const ImVec2 first{origin.x+180,origin.y+180},second{origin.x+540,origin.y+320};
+    ui.click(ui.paletteTile(0)); ui.click(first);
+    ui.click(ui.paletteTile(1)); ui.click(second);
+    const auto revision=ui.engine.getTopology().getRoutingRevision();
+    ui.activate("Cable settings");
+    SECTION("zero bandwidth") { ui.input("Bandwidth (Mbps)","0"); }
+    SECTION("negative delay") { ui.input("Delay (ms)","-1"); }
+    SECTION("excessive loss") { ui.input("Loss (%)","101"); }
+    SECTION("invalid capacity") { ui.input("Queue capacity","0"); }
+    ui.activate("Done",ui.popup());
+    ui.activate("Cable"); ui.click(first); ui.click(second);
+    REQUIRE(ui.engine.getTopology().getLinks().empty());
+    REQUIRE(ui.engine.getTopology().getInterfaces().empty());
+    REQUIRE(ui.engine.getTopology().getRoutingRevision()==revision);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    ui.activate("Cable settings"); ui.activate("Reset defaults",ui.popup()); ui.activate("Done",ui.popup());
+    ui.click(first); ui.click(second);
+    REQUIRE(ui.engine.getTopology().getLinks().size()==1);
+    const auto link=ui.engine.getTopology().getLinks().front();
+    REQUIRE(link->getBandwidthMbps()==100);
+    REQUIRE(link->getDelayMs()==1);
+    REQUIRE(link->getLossProb()==0);
+    REQUIRE(link->getMode()==kns::LinkMode::FULL_DUPLEX);
+    REQUIRE(link->getQueueCapacity()==32);
+}
+
+TEST_CASE("Canvas cable edits preserve identity and reject unsafe changes", "[canvas-ui][cable-settings]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    ui.click(ui.paletteTile(0)); ui.click({origin.x+180,origin.y+180});
+    ui.click(ui.paletteTile(1)); ui.click({origin.x+540,origin.y+320});
+    const auto link=ui.engine.createLink(0,1,100,1);
+    const auto id=link->getId();
+    const auto revision=ui.engine.getTopology().getRoutingRevision();
+    const auto a=*ui.engine.getTopology().getNode(0)->getPosition();
+    const auto b=*ui.engine.getTopology().getNode(1)->getPosition();
+    ui.rightClick({origin.x+60+static_cast<float>((a.x+b.x)/2),origin.y+60+static_cast<float>((a.y+b.y)/2)});
+    SECTION("idle mode and capacity changes") {
+        ui.input("Queue capacity","5");
+        ui.activate("Simplex",ui.popup());
+        REQUIRE(link->getQueueCapacity()==5);
+        REQUIRE(link->getMode()==kns::LinkMode::SIMPLEX);
+        REQUIRE(ui.engine.getTopology().getRoutingRevision()>revision);
+        REQUIRE(ui.engine.traceRoute(1,0).status==kns::RouteStatus::Unreachable);
+        ui.capture("canvas-cable-edit");
+    }
+    SECTION("pending transmissions prevent mode changes and shrinking") {
+        link->enqueueTransmission(0,1,0,1);
+        link->enqueueTransmission(0,1,1,2);
+        ui.input("Queue capacity","1");
+        REQUIRE(link->getQueueCapacity()==32);
+        ui.activate("Half duplex",ui.popup());
+        REQUIRE(link->getMode()==kns::LinkMode::FULL_DUPLEX);
+        REQUIRE(link->getQueueSize()==2);
+        REQUIRE(ui.engine.getTopology().getRoutingRevision()==revision);
+        ui.capture("canvas-cable-rejected");
+        REQUIRE(link->dequeueTransmission(0,1,0,1));
+        REQUIRE(link->dequeueTransmission(0,1,1,2));
+        ui.activate("Half duplex",ui.popup());
+        REQUIRE(link->getMode()==kns::LinkMode::HALF_DUPLEX);
+    }
+    REQUIRE(link->getId()==id);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.getTCPSessions().empty());
+    REQUIRE_FALSE(ui.connection);
 }

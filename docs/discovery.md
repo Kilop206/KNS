@@ -65,8 +65,13 @@ segments and unknown devices.
 - Drag a palette icon onto the canvas to create a device, or click its tile and
   then click the desired location. Press Esc to cancel placement.
 - **Select / Move** selects a device or cable. Drag a device to reposition it.
-- **Cable** connects two clicked devices using a 100 Mbps, 1 ms full-duplex link.
-  Existing connections are not duplicated by this tool.
+- **Cable** connects two clicked devices. **Cable settings** configures new cables:
+  bandwidth, propagation delay, loss percentage, queue capacity and transmission
+  mode. Defaults are 100 Mbps, 1 ms, zero loss, full duplex and capacity 32.
+  Full duplex has independent queues in each direction; half duplex shares one
+  queue; simplex transmits only from the first clicked device to the second.
+  Invalid settings show an error without creating a cable. Reset defaults changes
+  future cables only. Existing connections are not duplicated by this tool.
 - **TCP** selects a source and destination for a simulated TCP connection.
   Moving devices and creating cables never starts TCP traffic.
 - **Route** selects a source and destination to inspect current forwarding without
@@ -77,7 +82,11 @@ segments and unknown devices.
   or edit a link to refresh the preview automatically. Unreachable destinations
   are reported explicitly; deleted endpoints, Esc and switching tools clear it.
 - Right-click a device to rename it, change its type, start a connection, or
-  remove it. Right-click a cable to edit bandwidth, delay, loss and link state.
+  remove it. Right-click a cable to edit bandwidth, delay, loss, transmission mode,
+  queue capacity and link state. Mode changes are rejected while transmissions
+  are pending; capacity cannot be reduced below current occupancy. Failed edits
+  preserve the setting and show the error in the menu. Saved topology files retain
+  all cable properties. Editing a cable does not start traffic.
 - **Delete selected** or Delete removes the selected device or cable. Device
   removal uses the simulator's existing tombstone and in-flight packet policy.
   Existing packet animations retain the removed device's last canvas position;

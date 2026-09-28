@@ -261,7 +261,8 @@ namespace kns {
             double bandwidth_mbps,
             double delay_ms,
             double link_loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX
+            LinkMode mode = LinkMode::FULL_DUPLEX,
+            int queue_capacity = 32
         );
         bool deleteLink(int a, int b);
         bool deleteLinkById(std::uint64_t link_id);
