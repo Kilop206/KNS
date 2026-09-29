@@ -10,7 +10,7 @@ namespace kns::app::intelligence {
 
 struct IntelligenceClientConfig {
     std::string base_url =
-        "http://localhost:8080";
+        "http://localhost:8081";
 
     std::string analyze_endpoint =
         "/api/v1/intelligence/analyze";
