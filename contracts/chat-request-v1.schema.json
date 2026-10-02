@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/chat-request-v1.schema.json",
+  "title": "KNS Chat Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "topologyRevision",
+    "analysisMode",
+    "context",
+    "score",
+    "messages"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "topologyRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "analysisMode": {
+      "type": "string",
+      "enum": [
+        "quick",
+        "detailed",
+        "deep"
+      ]
+    },
+    "context": {
+      "type": "object"
+    },
+    "score": {
+      "$ref": "#/$defs/score"
+    },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 21,
+      "items": {
+        "$ref": "#/$defs/message"
+      }
+    }
+  },
+  "$defs": {
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall",
+        "resilience",
+        "routing",
+        "performance",
+        "risk"
+      ],
+      "properties": {
+        "overall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "resilience": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "routing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "performance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "content"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "user",
+            "assistant"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        }
+      }
+    }
+  }
+}

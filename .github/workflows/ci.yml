@@ -41,6 +41,9 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+      - name: Validate ecosystem contracts
+        run: python scripts/validate_contracts.py
+
   sanitizers:
     name: Sanitizers (ubuntu-latest)
     runs-on: ubuntu-latest

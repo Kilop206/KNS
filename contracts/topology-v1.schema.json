@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/topology-v1.schema.json",
+  "title": "KNS Topology v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "nodes",
+    "links"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "name": {
+      "type": "string"
+    },
+    "nodes": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "external_id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "computer",
+                  "router",
+                  "switch",
+                  "access_point",
+                  "server",
+                  "phone",
+                  "printer",
+                  "iot",
+                  "network_segment"
+                ]
+              },
+              "addresses": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "position": {
+                "type": "object",
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "bandwidth",
+          "delay",
+          "loss"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bandwidth": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "delay": {
+            "type": "number",
+            "minimum": 0
+          },
+          "loss": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full_duplex",
+              "half_duplex",
+              "simplex"
+            ]
+          },
+          "queue_capacity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "inferred": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
