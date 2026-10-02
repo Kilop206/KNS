@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/desktop-intelligence-request-v1.schema.json",
+  "title": "KNS Desktop Intelligence Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "analysis_mode",
+    "client",
+    "context",
+    "score"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "analysis_mode": {
+      "type": "string",
+      "enum": [
+        "quick",
+        "detailed",
+        "deep"
+      ]
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "context": {
+      "type": "object"
+    },
+    "score": {
+      "$ref": "#/$defs/score"
+    }
+  },
+  "$defs": {
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall",
+        "resilience",
+        "routing",
+        "performance",
+        "risk"
+      ],
+      "properties": {
+        "overall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "resilience": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "routing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "performance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    }
+  }
+}
