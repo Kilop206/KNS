@@ -310,3 +310,24 @@ The main remaining integration and extension areas are:
 KNS is source-available for personal, educational, research, and private
 modification under the terms in [`LICENSE`](LICENSE). Commercial use is
 prohibited unless separately authorized. This is not the MIT License.
+
+## Load from Topology Hub
+
+KNS can load a public topology directly from Topology Hub without downloading a
+JSON file first:
+
+```bash
+KNS --hub-topology <topology-id>
+```
+
+The same source works in headless mode:
+
+```bash
+KNS --headless --hub-topology <topology-id> --output results/hub.csv
+```
+
+The client defaults to `http://localhost:3001`. Set
+`KNS_TOPOLOGY_HUB_URL` to use another Hub instance. Remote documents are
+bounded to 1 MiB and are parsed through the same `TopologyLoader` validation as
+local files. `--hub-topology` cannot be combined with `--topology` or
+`--watch-topology`.
