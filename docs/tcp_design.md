@@ -123,7 +123,11 @@ is filled. ACKs therefore advertise the highest contiguous byte received, not
 the greatest sequence number observed.
 
 The default local send and receive windows are 65,535 bytes. ACK, SYN, SYN-ACK,
-and FIN segments advertise the receiver's currently available buffer space.
+FIN, DATA, and retransmitted DATA advertise the receiver's currently available
+buffer space. Accepted handshake and ACK-bearing segments update the independent
+peer-advertised window. New DATA is admitted only when it fits the local send
+window, the peer-advertised receive window, and the selected congestion
+controller's current congestion window.
 
 ## Acknowledgement policy
 
@@ -162,15 +166,20 @@ and expose timestamped congestion-history samples for the GUI.
 
 Reno is the default controller created by `TCPConnection`. The algorithms and
 their transitions are unit-tested independently and through ACK/loss paths.
+`TCPConnection::canSend()` combines local flow control, the peer-advertised
+window, and the selected controller's `canSend()` result, so congestion state
+actively gates generated DATA rather than serving only as telemetry.
 
 ## Connection termination
 
 After all generated DATA is acknowledged, the engine schedules an active close.
 FIN consumes one sequence number. The peer ACKs the FIN, enters `CLOSE_WAIT`,
 then sends its own FIN and waits in `LAST_ACK`. The active closer ACKs that FIN,
-enters `TIME_WAIT`, and schedules `TCPTimeWaitTimeoutEvent` for 0.1 simulated
-seconds later. When both endpoints are closed, any listener backlog slot is
-released.
+enters `TIME_WAIT`, and schedules `TCPTimeWaitTimeoutEvent` after a seven
+simulated-second retention period. FIN recovery retries the same endpoint FIN at
+one-second intervals with a bounded retry count; duplicate FINs during closing
+are acknowledged without consuming sequence space again. When both endpoints
+are closed, any listener backlog slot is released.
 
 ## Current limitations
 
@@ -182,11 +191,6 @@ current model still has these deliberate limitations:
   or silly-window avoidance;
 - generated application traffic is client-to-server and uses a fixed engine
   workload rather than a socket API or arbitrary byte stream;
-- the advertised peer window is represented on segments, but normal ACK
-  processing does not yet copy it into the sender's local send-window limit;
-- congestion controllers maintain and expose their algorithms, but
-  `PacketGenerationEvent` currently gates new data with the send window rather
-  than the selected controller's `canSend()` result;
 - handshake retry uses a fixed one-second timeout and is separate from the DATA
   RTT/RTO estimator;
 - simultaneous-open and all simultaneous-close edge cases are not modeled as a
