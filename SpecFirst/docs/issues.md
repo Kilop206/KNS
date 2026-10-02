@@ -2,19 +2,19 @@
 
 ## 1. Purpose
 
-Issue #126 is valid; see [TCP close recovery](tcp-close-recovery.md).
+Issue #126 was valid and is resolved; see [TCP close recovery](tcp-close-recovery.md).
 
-Issue #144 is valid; see [TCP peer window](tcp-peer-window.md).
+Issue #144 was valid and is resolved; see [TCP peer window](tcp-peer-window.md).
 
-Issue #138 is valid; see [TCP serial space](tcp-serial-space.md).
+Issue #138 was valid and is resolved; see [TCP serial space](tcp-serial-space.md).
 
-Issues #139 and #141 are valid; see [Run topology isolation](run-topology-isolation.md).
+Issues #139 and #141 were valid and are resolved; see [Run topology isolation](run-topology-isolation.md).
 
-Issue #143 is valid; see [TCP wire size](tcp-wire-size.md).
+Issue #143 was valid and is resolved; see [TCP wire size](tcp-wire-size.md).
 
-Issue #148 is valid; see [Independent RNG](run-random-stream.md).
+Issue #148 was valid and is resolved; see [Independent RNG](run-random-stream.md).
 
-Issues #133-#136 are valid on `0f3e20a`; implementation follows
+Issues #133-#136 were valid on `0f3e20a` and are resolved; see
 [Runner results](runner-results.md).
 
 Issue #130 was valid at `e8e24a7` and is resolved locally by `fbd518b`;
