@@ -38,6 +38,7 @@
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
+#include "hub/TopologyHubClient.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -79,12 +80,14 @@ namespace {
         output
             << "Usage:\n"
             << "  KNS [topology.json]\n"
-            << "  KNS --headless --topology <file> [--output <csv>] "
+            << "  KNS --hub-topology <id>\n"
+            << "  KNS --headless (--topology <file> | --hub-topology <id>) [--output <csv>] "
             << "[--routing-metric <metric>]\n\n"
             << "Options:\n"
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
+            << "  --hub-topology <id>        Load a public topology from Topology Hub\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
@@ -113,6 +116,18 @@ namespace {
         return !raw_value.has_value()
             ? default_value
             : isAutoStartEnabledValue(*raw_value);
+    }
+
+    [[nodiscard]] Topology loadTopologyFromHub(const std::string& topology_id)
+    {
+        kns::app::hub::TopologyHubClientConfig config;
+        if (const auto base_url =
+                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_HUB_URL")) {
+            config.base_url = *base_url;
+        }
+
+        return kns::app::hub::TopologyHubClient(std::move(config))
+            .fetchPublicTopology(topology_id);
     }
 
 } // namespace
@@ -1631,6 +1646,7 @@ int main(int argc, char* argv[])
 
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
+    std::optional<std::string> hubTopologyId;
     std::optional<RoutingMetric> routingMetric;
     RunConfig runConfig;
 
@@ -1655,6 +1671,19 @@ int main(int argc, char* argv[])
         {
             printUsage(std::cout);
             return 0;
+        }
+
+        if (arg == "--hub-topology")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr << "Missing value for --hub-topology\n";
+                printUsage(std::cerr);
+                return 1;
+            }
+
+            hubTopologyId = argv[++i];
+            continue;
         }
 
         if (arg == "--topology" || arg == "--watch-topology")
@@ -1750,6 +1779,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    if (hubTopologyId && topologyPathIndex >= 0) {
+        std::cerr << "--hub-topology cannot be combined with a local topology file\n";
+        return 1;
+    }
+    if (hubTopologyId && watchTopology) {
+        std::cerr << "--hub-topology cannot be combined with --watch-topology\n";
+        return 1;
+    }
     if (watchTopology && headless) {
         std::cerr << "--watch-topology requires GUI mode\n";
         return 1;
@@ -1768,11 +1805,11 @@ int main(int argc, char* argv[])
 
     if (headless)
     {
-        if (topologyPathIndex < 0 ||
-            topologyPathIndex >= argc)
+        if (!hubTopologyId &&
+            (topologyPathIndex < 0 || topologyPathIndex >= argc))
         {
             std::cerr
-                << "Missing required --topology for headless mode\n";
+                << "Missing required --topology or --hub-topology for headless mode\n";
             printUsage(std::cerr);
 
             return 1;
@@ -1780,10 +1817,9 @@ int main(int argc, char* argv[])
 
         try
         {
-            topo =
-                TopologyLoader::load_topology(
-                    argv[topologyPathIndex]
-                );
+            topo = hubTopologyId
+                ? loadTopologyFromHub(*hubTopologyId)
+                : TopologyLoader::load_topology(argv[topologyPathIndex]);
 
             auto currentAnalysis =
                 analyzeTopology(
@@ -1867,13 +1903,13 @@ int main(int argc, char* argv[])
     // GUI mode
     // --------------------------------------------------
 
-    if (topologyPathIndex >= 0 &&
-            topologyPathIndex < argc)
+    if (hubTopologyId ||
+        (topologyPathIndex >= 0 && topologyPathIndex < argc))
         {
             try {
-                topo = TopologyLoader::load_topology(
-                    argv[topologyPathIndex]
-                );
+                topo = hubTopologyId
+                    ? loadTopologyFromHub(*hubTopologyId)
+                    : TopologyLoader::load_topology(argv[topologyPathIndex]);
 
                 auto currentAnalysis =
                     analyzeTopology(
