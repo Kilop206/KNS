@@ -4,7 +4,7 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 
-#include "ImGuiFileDialog.h"
+#include "gui/include/NativeFileDialog.hpp"
 #include "include/Environment.hpp"
 
 #include <algorithm>
@@ -51,6 +51,7 @@
 #include "gui/include/TcpCongestionPanel.hpp"
 #include "gui/include/TcpConnectionPanel.hpp"
 #include "gui/include/TopologyPannel.hpp"
+#include "gui/include/TopologyCanvas.hpp"
 #include "gui/include/VisualPacketManager.hpp"
 #include "gui/include/VisualPacket.hpp"
 #include "gui/include/Window.hpp"
@@ -60,6 +61,7 @@
 #include "network/Routing.hpp"
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
+#include "network/LiveTopologyWatcher.hpp"
 
 using namespace kns;
 using namespace gui;
@@ -82,6 +84,7 @@ namespace {
             << "Options:\n"
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
+            << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
@@ -113,12 +116,6 @@ namespace {
     }
 
 } // namespace
-
-struct PickedNodes {
-    int origin = -1;
-    int dest = -1;
-    bool tcp = false;
-};
 
 struct LogEntry {
     double time = 0.0;
@@ -159,12 +156,6 @@ struct EventLog {
     {
         lines.clear();
     }
-};
-
-struct VisualLinkUsage {
-    int from = -1;
-    int to = -1;
-    double until = 0.0;
 };
 
 static const char* tcpStateToString(kns::TCPState state)
@@ -426,84 +417,6 @@ static void generatePackets(
     }
 }
 
-static std::vector<std::pair<float, float>> generatePositions(
-    const Topology& topo,
-    ImVec2 canvas_origin,
-    ImVec2 canvas_size
-)
-{
-    std::vector<std::pair<float, float>> positions;
-
-    positions.reserve(
-        static_cast<std::size_t>(topo.size())
-    );
-
-    if (topo.size() <= 0) {
-        return positions;
-    }
-
-    const float centerX =
-        canvas_origin.x + canvas_size.x * 0.5f;
-
-    const float centerY =
-        canvas_origin.y + canvas_size.y * 0.5f;
-
-    const float radius =
-        std::max(
-            40.0f,
-            0.35f * std::min(
-                canvas_size.x,
-                canvas_size.y
-            )
-        );
-
-    for (std::size_t i = 0;
-         i < static_cast<std::size_t>(topo.size());
-         ++i)
-    {
-        const float angle =
-            2.0f *
-            std::numbers::pi_v<float> *
-            static_cast<float>(i) /
-            static_cast<float>(topo.size());
-
-        positions.push_back({
-            centerX + radius * std::cos(angle),
-            centerY + radius * std::sin(angle)
-        });
-    }
-
-    return positions;
-}
-
-static int pickNodeAtMouse(
-    const std::vector<std::pair<float, float>>& positions,
-    float radius
-)
-{
-    const ImVec2 mouse_pos = ImGui::GetMousePos();
-
-    for (std::size_t i = 0;
-         i < positions.size();
-         ++i)
-    {
-        const float dx =
-            mouse_pos.x - positions[i].first;
-
-        const float dy =
-            mouse_pos.y - positions[i].second;
-
-        const float dist2 =
-            dx * dx + dy * dy;
-
-        if (dist2 <= radius * radius) {
-            return static_cast<int>(i);
-        }
-    }
-
-    return -1;
-}
-
 static void renderStatsWindow(
     SimulationEngine& engine,
     TranslationService& translations,
@@ -657,7 +570,7 @@ static void renderStatsWindow(
         ImGui::SliderFloat(
             label("Simulation speed", "simulation-speed").c_str(),
             &speedMultiplier,
-            0.25f,
+            0.18f,
             4.0f,
             "%.2fx"
         );
@@ -798,124 +711,6 @@ static void renderStatsWindow(
     ImGui::End();
 }
 
-static void drawLinks(
-    ImDrawList* draw_list,
-    const Topology& topo,
-    const std::vector<std::pair<float, float>>& positions,
-    const std::vector<VisualLinkUsage>& activeLinks
-)
-{
-    for (std::size_t i = 0;
-         i < static_cast<std::size_t>(topo.size());
-         ++i)
-    {
-        const auto& links =
-            topo.getLinksFromNode(static_cast<int>(i));
-
-        for (const auto& link : links)
-        {
-            if (!link) {
-                continue;
-            }
-
-            const int a = link->getA();
-            const int b = link->getB();
-
-            if (a < 0 || b < 0 ||
-                a >= static_cast<int>(positions.size()) ||
-                b >= static_cast<int>(positions.size()))
-            {
-                continue;
-            }
-
-            bool occupied = false;
-
-            for (const auto& usage : activeLinks)
-            {
-                if ((usage.from == a &&
-                     usage.to == b) ||
-                    (usage.from == b &&
-                     usage.to == a))
-                {
-                    occupied = true;
-                    break;
-                }
-            }
-
-            const ImU32 color =
-                occupied
-                    ? IM_COL32(255, 80, 0, 255)
-                    : IM_COL32(0, 0, 0, 255);
-
-            const float thickness =
-                occupied ? 8.0f : 2.0f;
-
-            const ImVec2 p1(
-                positions[a].first,
-                positions[a].second
-            );
-
-            const ImVec2 p2(
-                positions[b].first,
-                positions[b].second
-            );
-
-            draw_list->AddLine(
-                p1,
-                p2,
-                color,
-                thickness
-            );
-        }
-    }
-}
-
-static void drawNodes(
-    ImDrawList* draw_list,
-    const Topology& topo,
-    const std::vector<std::pair<float, float>>& positions,
-    int selected_node
-)
-{
-    for (std::size_t i = 0;
-         i < static_cast<std::size_t>(topo.size());
-         ++i)
-    {
-        const ImU32 color =
-            static_cast<int>(i) == selected_node
-                ? IM_COL32(128, 128, 128, 255)
-                : IM_COL32(169, 169, 169, 255);
-
-        const float radius = 20.0f;
-        const std::string label =
-            std::to_string(i);
-
-        const float x =
-            positions[i].first;
-
-        const float y =
-            positions[i].second;
-
-        draw_list->AddCircleFilled(
-            ImVec2(x, y),
-            radius,
-            color
-        );
-
-        const ImVec2 label_size =
-            ImGui::CalcTextSize(label.c_str());
-
-        draw_list->AddText(
-            ImVec2(
-                x - label_size.x * 0.5f,
-                y - label_size.y * 0.5f
-            ),
-            IM_COL32(0, 0, 0, 255),
-            label.c_str()
-        );
-    }
-}
-
 static void renderSelectedNodePanel(
     const Topology& topo,
     int selected_node,
@@ -944,13 +739,22 @@ static void renderSelectedNodePanel(
 
     ImGui::Separator();
 
-    if (selected_node >= topo.size())
+    if (selected_node >= topo.size() || !topo.getNode(selected_node)->isActive())
     {
         ImGui::TextUnformatted(translations.translate("Invalid node.").c_str());
         ImGui::End();
         return;
     }
 
+    const auto& selected = *topo.getNode(selected_node);
+    const auto& device = selected.getDeviceInfo();
+    ImGui::TextWrapped("%s", selected.getLabel().c_str());
+    ImGui::Text("Device type: %s", toString(device.type).data());
+    if (!device.mac.empty()) ImGui::Text("MAC: %s", device.mac.c_str());
+    for (const auto& address : device.addresses) ImGui::Text("IP: %s", address.c_str());
+    if (!device.evidence.empty()) ImGui::TextWrapped("Evidence: %s", device.evidence.c_str());
+    if (!device.external_id.empty()) ImGui::TextWrapped("Identity: %s", device.external_id.c_str());
+    ImGui::Separator();
     ImGui::Text("%s:", translations.translate("Neighbors").c_str());
 
     const auto& links =
@@ -1059,7 +863,7 @@ static void SetupDockingLayout()
     ImGui::DockBuilderSplitNode(
         dock_main,
         ImGuiDir_Left,
-        0.25f,
+        0.18f,
         &dock_left,
         &dock_main
     );
@@ -1067,23 +871,23 @@ static void SetupDockingLayout()
     ImGui::DockBuilderSplitNode(
         dock_main,
         ImGuiDir_Right,
-        0.30f,
+        0.23f,
         &dock_right,
         &dock_main
     );
 
     ImGui::DockBuilderDockWindow(
-        "Stats",
+        "Stats###stats-window",
         dock_left
     );
 
     ImGui::DockBuilderDockWindow(
-        "Settings",
+        "Settings###settings-window",
         dock_right
     );
 
     ImGui::DockBuilderDockWindow(
-        "Node Details",
+        "Node Details###node-details-window",
         dock_right
     );
 
@@ -1093,9 +897,14 @@ static void SetupDockingLayout()
     );
 
     ImGui::DockBuilderDockWindow(
-        "Network",
+        "Network###network-window",
         dock_main
     );
+    ImGui::DockBuilderDockWindow("Topology###topology-window", dock_right);
+    ImGui::DockBuilderDockWindow("TCP Connections###tcp-connections-window", dock_right);
+    ImGui::DockBuilderDockWindow("TCP Sessions###tcp-sessions-window", dock_left);
+    ImGui::DockBuilderDockWindow("Event Log###event-log-window", dock_left);
+    ImGui::DockBuilderDockWindow("TCP Congestion Control###tcp-congestion-window", dock_left);
 
     ImGui::DockBuilderFinish(
         dockspace_id
@@ -1169,430 +978,19 @@ static void BeginDockSpaceHost(
     ImGui::End();
 }
 
-static PickedNodes renderNetworkPanel(
-    const Topology& topo,
-    int selected_node,
-    const std::vector<VisualPacket>& visualPackets,
-    double visualTime,
-    const SimulationEngine* /*engine*/,
-    TranslationService& translations
-)
-{
-    static int drag_source_node = -1;
-
-    const std::string window_label =
-        translations.label("Network", "network-window");
-    ImGui::Begin(window_label.c_str());
-
-    ImVec2 canvas_p0 =
-        ImGui::GetCursorScreenPos();
-
-    ImVec2 canvas_sz =
-        ImGui::GetContentRegionAvail();
-
-    if (canvas_sz.x < 50.0f) {
-        canvas_sz.x = 50.0f;
-    }
-
-    if (canvas_sz.y < 50.0f) {
-        canvas_sz.y = 50.0f;
-    }
-
-    ImDrawList* draw_list =
-        ImGui::GetWindowDrawList();
-
-    draw_list->PushClipRect(
-        canvas_p0,
-        ImVec2(
-            canvas_p0.x + canvas_sz.x,
-            canvas_p0.y + canvas_sz.y
-        ),
-        true
-    );
-
-    draw_list->AddRectFilled(
-        canvas_p0,
-        ImVec2(
-            canvas_p0.x + canvas_sz.x,
-            canvas_p0.y + canvas_sz.y
-        ),
-        IM_COL32(245, 245, 245, 255)
-    );
-
-    const std::vector<std::pair<float, float>> positions =
-        generatePositions(
-            topo,
-            canvas_p0,
-            canvas_sz
-        );
-
-    int hovered_node = -1;
-
-    if (ImGui::IsWindowHovered())
-    {
-        hovered_node =
-            pickNodeAtMouse(
-                positions,
-                20.0f
-            );
-    }
-
-    if (hovered_node != -1)
-    {
-        ImGui::BeginTooltip();
-
-        ImGui::Text(
-            "%s %d",
-            translations.translate("Node").c_str(),
-            hovered_node
-        );
-
-        if (hovered_node < topo.size())
-        {
-            const auto& links =
-                topo.getLinksFromNode(
-                    hovered_node
-                );
-
-            int neighbors = 0;
-
-            for (const auto& link : links)
-            {
-                if (!link) {
-                    continue;
-                }
-
-                if (link->getOtherNode(
-                        hovered_node) != -1)
-                {
-                    ++neighbors;
-                }
-            }
-
-            ImGui::Text(
-                "%s: %d",
-                translations.translate("Neighbors").c_str(),
-                neighbors
-            );
-
-            ImGui::TextUnformatted(
-                translations.translate("Click to inspect").c_str()
-            );
-        }
-
-        ImGui::EndTooltip();
-    }
-
-    if (topo.size() > 0)
-    {
-        std::vector<VisualLinkUsage> activeLinks;
-
-        for (const auto& packet : visualPackets)
-        {
-            VisualLinkUsage usage;
-
-            usage.from =
-                packet.from;
-
-            usage.to =
-                packet.to;
-
-            usage.until =
-                packet.sim_arrival_time;
-
-            activeLinks.push_back(
-                usage
-            );
-        }
-
-        drawLinks(
-            draw_list,
-            topo,
-            positions,
-            activeLinks
-        );
-
-        drawNodes(
-            draw_list,
-            topo,
-            positions,
-            selected_node
-        );
-
-        PacketRenderer packetRenderer;
-
-        packetRenderer.render(
-            draw_list,
-            positions,
-            visualPackets,
-            visualTime,
-            translations
-        );
-    }
-
-    ImGui::InvisibleButton(
-        "network_canvas",
-        canvas_sz
-    );
-
-    const bool hovered =
-        ImGui::IsItemHovered();
-
-    int clicked_node = -1;
-
-    if (hovered &&
-        ImGui::IsMouseClicked(
-            ImGuiMouseButton_Left))
-    {
-        const int node =
-            pickNodeAtMouse(
-                positions,
-                20.0f
-            );
-
-        if (node != -1)
-        {
-            clicked_node = node;
-            drag_source_node = node;
-        }
-    }
-
-    if (ImGui::IsMouseDragging(
-            ImGuiMouseButton_Left) &&
-        drag_source_node != -1)
-    {
-        ImVec2 src(
-            positions[drag_source_node].first,
-            positions[drag_source_node].second
-        );
-
-        ImVec2 mouse =
-            ImGui::GetMousePos();
-
-        draw_list->AddLine(
-            src,
-            mouse,
-            IM_COL32(255, 255, 255, 150),
-            1.5f
-        );
-    }
-
-    if (ImGui::IsMouseReleased(
-            ImGuiMouseButton_Left) &&
-        drag_source_node != -1)
-    {
-        const int dest =
-            pickNodeAtMouse(
-                positions,
-                20.0f
-            );
-
-        if (dest != -1 &&
-            dest != drag_source_node)
-        {
-            const int src =
-                drag_source_node;
-
-            drag_source_node = -1;
-
-            draw_list->PopClipRect();
-            ImGui::End();
-
-            return PickedNodes{
-                src,
-                dest,
-                true
-            };
-        }
-
-        drag_source_node = -1;
-    }
-
-    PacketRenderer legendRenderer;
-
-    const float legend_width = 180.0f;
-    const float legend_line_h = 18.0f;
-    const float legend_padding = 10.0f;
-
-    const float legend_height =
-        20.0f +
-        (5.0f * legend_line_h) +
-        (2.0f * legend_padding);
-
-    ImVec2 legend_p0(
-        canvas_p0.x +
-            canvas_sz.x -
-            legend_width -
-            10.0f,
-        canvas_p0.y + 10.0f
-    );
-
-    ImVec2 legend_p1(
-        legend_p0.x +
-            legend_width,
-        legend_p0.y +
-            legend_height
-    );
-
-    draw_list->AddRectFilled(
-        legend_p0,
-        legend_p1,
-        IM_COL32(32, 32, 32, 220),
-        8.0f
-    );
-
-    draw_list->AddRect(
-        legend_p0,
-        legend_p1,
-        IM_COL32(255, 255, 255, 70),
-        8.0f,
-        0,
-        1.0f
-    );
-
-    const std::string title =
-        translations.translate("Packet legend");
-
-    const ImVec2 title_sz =
-        ImGui::CalcTextSize(title.c_str());
-
-    const float title_y =
-        legend_p0.y +
-        10.0f +
-        (16.0f - title_sz.y) * 0.5f;
-
-    draw_list->AddText(
-        ImVec2(
-            legend_p0.x + 12.0f,
-            title_y
-        ),
-        IM_COL32(255, 255, 255, 255),
-        title.c_str()
-    );
-
-    const float rows_y =
-        legend_p0.y + 34.0f;
-
-    const float row_gap =
-        legend_line_h;
-
-    const float box_size =
-        12.0f;
-
-    auto addLegendRow =
-        [&](float y,
-            const char* label,
-            ImU32 color)
-    {
-        const ImVec2 box_p(
-            legend_p0.x + 12.0f,
-            y
-        );
-
-        const ImVec2 text_size =
-            ImGui::CalcTextSize(label);
-
-        const float text_x =
-            box_p.x +
-            box_size +
-            8.0f;
-
-        const float text_y =
-            box_p.y +
-            (box_size -
-             text_size.y) * 0.5f;
-
-        draw_list->AddRectFilled(
-            box_p,
-            ImVec2(
-                box_p.x + box_size,
-                box_p.y + box_size
-            ),
-            color,
-            2.0f
-        );
-
-        draw_list->AddText(
-            ImVec2(
-                text_x,
-                text_y
-            ),
-            IM_COL32(255, 255, 255, 235),
-            label
-        );
-    };
-
-    addLegendRow(
-        rows_y,
-        "SYN",
-        legendRenderer.packetColorByType(
-            PacketType::SYN
-        )
-    );
-
-    addLegendRow(
-        rows_y + row_gap,
-        "SYN-ACK",
-        legendRenderer.packetColorByType(
-            PacketType::SYN_ACK
-        )
-    );
-
-    addLegendRow(
-        rows_y + row_gap * 2.0f,
-        "ACK",
-        legendRenderer.packetColorByType(
-            PacketType::ACK
-        )
-    );
-
-    addLegendRow(
-        rows_y + row_gap * 3.0f,
-        "DATA",
-        legendRenderer.packetColorByType(
-            PacketType::DATA
-        )
-    );
-
-    addLegendRow(
-        rows_y + row_gap * 4.0f,
-        "FIN",
-        legendRenderer.packetColorByType(
-            PacketType::FIN
-        )
-    );
-
-    draw_list->PopClipRect();
-
-    ImGui::End();
-
-    return PickedNodes{
-        clicked_node,
-        -1,
-        false
-    };
-}
-
 static void renderConfigWindow(
     TranslationService& translations,
-    bool& firstFrame,
-    bool topologySelected,
-    std::unique_ptr<SimulationEngine>& /* engine */,
-    Topology& /* topo */,
-    SimulationState& /* state */
+    const std::string& topologyPath,
+    bool& watchTopology,
+    const std::string& liveError,
+    const std::string& fileStatus,
+    bool& loadRequested,
+    bool& saveRequested
 )
 {
-    bool autoClick = false;
-
     const std::string window_label =
         translations.label("Settings", "settings-window");
     ImGui::Begin(window_label.c_str());
-
-    if (firstFrame && !topologySelected)
-    {
-        autoClick = true;
-        firstFrame = false;
-    }
 
     ImGui::Text(
         "%s",
@@ -1603,21 +1001,22 @@ static void renderConfigWindow(
 
     const std::string load_label =
         translations.label("Load Topology", "load-topology");
-    if (ImGui::Button(load_label.c_str()) ||
-        autoClick)
+    if (ImGui::Button(load_label.c_str()))
     {
-        if (!ImGuiFileDialog::Instance()
-                ->IsOpened("TopologyKey"))
-        {
-            ImGuiFileDialog::Instance()
-                ->OpenDialog(
-                    "TopologyKey",
-                    translations.translate("Select file").c_str(),
-                    ".json"
-                );
-        }
+        loadRequested = true;
     }
 
+    if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
+        saveRequested = true;
+    }
+    if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
+
+    ImGui::BeginDisabled(topologyPath.empty());
+    ImGui::Checkbox(translations.label("Follow topology file", "follow-topology").c_str(), &watchTopology);
+    ImGui::EndDisabled();
+    if (!topologyPath.empty()) ImGui::TextWrapped("Source: %s", topologyPath.c_str());
+    if (watchTopology) ImGui::TextWrapped("File updates replace the graph configuration, including manual edits. Simulation time and sessions are preserved.");
+    if (!liveError.empty()) ImGui::TextWrapped("Live update: %s", liveError.c_str());
     ImGui::End();
 }
 
@@ -1761,7 +1160,9 @@ static void visualizeWindow(
     GLFWwindow* window,
     CircularBuffer& buffer,
     int& packetSize,
-    RunConfig runConfig
+    RunConfig runConfig,
+    std::string topologyPath,
+    bool watchTopology
 )
 {
     if (!engine) {
@@ -1868,9 +1269,11 @@ static void visualizeWindow(
 
     TcpConnectionPanel tcpConnectionPanel;
     TopologyPanel topologyPanel;
+    TopologyCanvas topologyCanvas;
 
     auto restartSimulation = [&]()
     {
+        topo = engine->getTopology().cloneForRun();
         visualTime = 0.0;
         lastRealTime = glfwGetTime();
         visualManager.clear();
@@ -1883,7 +1286,6 @@ static void visualizeWindow(
         state = SimulationState::Ready;
     };
 
-    bool firstFrame = true;
     bool dock_initialized = false;
 
     std::optional<
@@ -1891,6 +1293,10 @@ static void visualizeWindow(
     > currentAnalysis;
 
     std::uint64_t topologyRevision = 0;
+    std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
+    LiveTopologyWatcher liveWatcher;
+    std::string liveError;
+    std::string fileStatus;
 
     if (topo.size() > 0) {
         currentAnalysis =
@@ -1907,6 +1313,15 @@ static void visualizeWindow(
 
     while (!glfwWindowShouldClose(window))
     {
+        liveWatcher.setSource(topologyPath, watchTopology);
+        if (auto snapshot = liveWatcher.poll()) {
+            try {
+                engine->synchronizeTopology(*snapshot);
+                liveError.clear();
+            } catch (const std::exception& exception) {
+                liveError = exception.what();
+            }
+        }
         const double currentRealTime =
             glfwGetTime();
 
@@ -1970,20 +1385,8 @@ static void visualizeWindow(
         // Automatic topology dialog
         // --------------------------------------------------
 
-        if (firstFrame &&
-            topo.size() == 0)
-        {
-            ImGuiFileDialog::Instance()
-                ->OpenDialog(
-                    "TopologyKey",
-                    translations.translate(
-                        "Select initial topology"
-                    ).c_str(),
-                    ".json"
-                );
-
-            firstFrame = false;
-        }
+        bool loadRequested = false;
+        bool saveRequested = false;
 
         bool stepRequested = false;
         bool restartRequested = false;
@@ -2033,11 +1436,12 @@ static void visualizeWindow(
 
         renderConfigWindow(
             translations,
-            firstFrame,
-            topo.size() > 0,
-            engine,
-            topo,
-            state
+            topologyPath,
+            watchTopology,
+            liveWatcher.error().empty() ? liveError : liveWatcher.error(),
+            fileStatus,
+            loadRequested,
+            saveRequested
         );
 
         topologyPanel.render(*engine, translations);
@@ -2066,34 +1470,14 @@ static void visualizeWindow(
         // Network interaction
         // --------------------------------------------------
 
-        PickedNodes clicked_node =
-            renderNetworkPanel(
-                topo,
-                selected_node,
-                visualManager.getActivePackets(),
-                visualTime,
-                engine.get(),
-                translations
-            );
-
-        if (clicked_node.tcp)
-        {
-            engine->startTCPConnection(
-                clicked_node.origin,
-                clicked_node.dest
-            );
-
-            state =
-                SimulationState::Paused;
-        }
-        else if (clicked_node.origin != -1)
-        {
-            selected_node =
-                clicked_node.origin;
+        if (const auto connection = topologyCanvas.render(*engine, selected_node,
+                visualManager.getActivePackets(), visualTime, translations)) {
+            engine->startTCPConnection(connection->first, connection->second);
+            state = SimulationState::Paused;
         }
 
         renderSelectedNodePanel(
-            topo,
+            engine->getTopology(),
             selected_node,
             engine->getRoutingTable(selected_node),
             translations
@@ -2103,21 +1487,21 @@ static void visualizeWindow(
         // Topology loading
         // --------------------------------------------------
 
-        if (ImGuiFileDialog::Instance()
-                ->Display(
-                    "TopologyKey",
-                    ImGuiWindowFlags_NoCollapse,
-                    ImVec2(400, 300)))
+        if (loadRequested)
         {
-            if (ImGuiFileDialog::Instance()
-                    ->IsOk())
+            try
             {
-                try
+                const auto path = gui::chooseTopologyFile(window, false,
+                    translations.translate("Select file"));
+                if (path)
                 {
-                    topo = TopologyLoader::load_topology(
-                        ImGuiFileDialog::Instance()
-                            ->GetFilePathName()
-                    );
+                    topo = TopologyLoader::load_topology(*path);
+                    topologyPath = *path;
+                    topologyCanvas.reset();
+                    // Invalidate pending reads even when reloading the same path.
+                    liveWatcher.setSource({}, false);
+                    liveError.clear();
+                    fileStatus.clear();
 
                     currentAnalysis =
                         analyzeTopology(topo);
@@ -2148,23 +1532,35 @@ static void visualizeWindow(
                     }
 
                     selected_node = -1;
+                    observedRevision = engine->getTopology().getRoutingRevision();
 
                     state =
                         engine->hasEvents()
                             ? SimulationState::Paused
                             : SimulationState::Ready;
                 }
-                catch (const std::exception& e)
-                {
-                    std::cerr
-                        << "Load error: "
-                        << e.what()
-                        << '\n';
-                }
             }
+            catch (const std::exception& e)
+            {
+                fileStatus = translations.translate("Load failed:") + " " + e.what();
+                std::cerr << "Load error: " << e.what() << '\n';
+            }
+            // Native dialogs are modal; their elapsed time is not simulation time.
+            lastRealTime = glfwGetTime();
+        }
 
-            ImGuiFileDialog::Instance()
-                ->Close();
+        if (saveRequested) {
+            try {
+                const auto path = gui::chooseTopologyFile(window, true,
+                    translations.translate("Save topology"));
+                if (path) {
+                    TopologyLoader::save_topology(engine->getTopology(), *path);
+                    fileStatus = translations.translate("Topology saved:") + " " + *path;
+                }
+            } catch (const std::exception& exception) {
+                fileStatus = translations.translate("Save failed:") + " " + exception.what();
+            }
+            lastRealTime = glfwGetTime();
         }
 
         renderEventLogWindow(
@@ -2181,6 +1577,12 @@ static void visualizeWindow(
         // KNS Intelligence
         // ============================================
 
+        const auto revision = engine->getTopology().getRoutingRevision();
+        if (revision != observedRevision) {
+            observedRevision = revision;
+            ++topologyRevision;
+            currentAnalysis = analyzeTopology(engine->getTopology());
+        }
         intelligencePanel.render(
             currentAnalysis,
             topologyRevision
@@ -2225,6 +1627,7 @@ static void shutdownWindow(
 int main(int argc, char* argv[])
 {
     bool headless = false;
+    bool watchTopology = false;
 
     int topologyPathIndex = -1;
     int outputPathIndex = -1;
@@ -2254,18 +1657,19 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        if (arg == "--topology")
+        if (arg == "--topology" || arg == "--watch-topology")
         {
             if (i + 1 >= argc)
             {
                 std::cerr
-                    << "Missing value for --topology\n";
+                    << "Missing value for " << arg << '\n';
                 printUsage(std::cerr);
 
                 return 1;
             }
 
             topologyPathIndex = ++i;
+            watchTopology = arg == "--watch-topology";
             continue;
         }
 
@@ -2346,6 +1750,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    if (watchTopology && headless) {
+        std::cerr << "--watch-topology requires GUI mode\n";
+        return 1;
+    }
     if (routingMetric && !headless)
     {
         std::cerr
@@ -2519,7 +1927,9 @@ int main(int argc, char* argv[])
         window,
         buffer,
         packetSize,
-        runConfig
+        runConfig,
+        topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
+        watchTopology
     );
 
     shutdownWindow(

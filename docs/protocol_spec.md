@@ -115,8 +115,9 @@ ack   = current RCV.NXT
 
 The payload length consumes the same number of sequence values. A successfully
 transmitted segment is stored in `TCPSendBuffer`, after which `SND.NXT` advances.
-The local send-window check prevents the outstanding byte range plus the new
-payload from exceeding the configured limit.
+New DATA is admitted only when the outstanding byte range plus the payload fits
+the configured local send window, the most recently accepted peer-advertised
+receive window, and the selected congestion controller's current window.
 
 The first outstanding segment starts an RTO event. After cumulative ACK
 advancement removes it, the new oldest segment receives the next effective
@@ -129,10 +130,11 @@ subject to its byte capacity. Entries are kept in sequence order. Contiguous
 entries starting at `RCV.NXT` are consumed and advance the cumulative
 acknowledgement; later entries remain buffered until the gap arrives.
 
-ACK-bearing control segments advertise the receiver's available buffer space,
-clamped to the 16-bit TCP window field. The default receive capacity is 65,535
-bytes. The normal ACK path does not yet propagate the received window field into
-the sender's local limit; see the limitations in `tcp_design.md`.
+ACK-bearing control segments and DATA advertise the receiver's available buffer
+space, clamped to the 16-bit TCP window field. The default receive capacity is
+65,535 bytes. Accepted SYN/SYN-ACK and in-range ACK-bearing segments update the
+peer window independently from the local send window. A zero peer window pauses
+generation; a valid window update resumes the existing workload without polling.
 
 ## Delayed ACK
 
@@ -202,8 +204,8 @@ Every `TCPConnection` owns one of these controllers:
 The controller receives byte-counted ACKs, timeout loss, duplicate ACKs, fast
 retransmit, and recovery ACKs as supported by the selected algorithm. It tracks
 `cwnd`, `ssthresh`, MSS, and fast-recovery state and records changed congestion
-samples for visualization. The current packet generator does not yet use
-controller `canSend()` as an additional transmission gate.
+samples for visualization. `TCPConnection::canSend()` uses the controller's
+`canSend()` result as an additional transmission gate.
 
 ## Connection termination
 
@@ -219,9 +221,10 @@ the acknowledgement edge to `peer FIN seq + 1`. The server ACKs the client FIN,
 sends its own FIN, and closes after its FIN is acknowledged.
 
 The active closer schedules `TCPTimeWaitTimeoutEvent` on entry to `TIME_WAIT`.
-The implemented hold time is 0.1 simulated seconds. Expiration transitions that
-endpoint to `CLOSED`; a fully closed accepted session releases its listener's
-backlog slot.
+The implemented hold time is seven simulated seconds so that loss of the final
+ACK can be recovered within the bounded FIN retry horizon. Each FIN is retried
+at one-second intervals with at most five retries. Exhaustion records
+`CloseRetriesExhausted`, closes both endpoints, and releases listener occupancy.
 
 ## Supported and unsupported behavior
 

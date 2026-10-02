@@ -15,12 +15,20 @@ and congestion-control state.
 - Dijkstra routing with delay, bandwidth, hop-count, and combined metrics;
 - full-duplex, half-duplex, and simplex links with bounded queues;
 - runtime link availability, delay, bandwidth, and topology changes;
+- live network discovery snapshots, typed devices and desktop topology editing
+  ([setup and behavior](docs/discovery.md));
 - TCP handshake, listeners by node/port, backlog, RST rejection, and close;
 - send/receive buffers, cumulative and delayed ACKs, RTT/RTO, Karn's rule,
   timeout retransmission, and fast retransmit;
 - Tahoe, Reno, NewReno, and CUBIC congestion-control implementations;
 - interactive packet visualization and congestion/latency panels;
+- canvas route inspection with exact forwarding links, reachability, propagation
+  delay and bottleneck capacity, updated as the topology changes;
+- configurable canvas cables with full-duplex, half-duplex and simplex modes,
+  loss, delay, bandwidth, and queue capacity;
 - optional asynchronous translation of the main GUI controls;
+- conversational topology analysis with KiWi in the Intelligence panel
+  ([configuration and chat contract](docs/kiwi-chat.md));
 - headless CSV export and Catch2 unit/integration tests.
 
 KNS is a simulation model rather than a production TCP/IP stack. See
@@ -222,15 +230,31 @@ The suite covers:
 - `tests/tcp/`: state transitions, listeners, buffering, reliability, close,
   timers, and congestion control;
 - `tests/integration/`: end-to-end simulation behavior;
-- application CTest entries: accepted and rejected headless routing metrics.
+- application CTest entries: accepted and rejected headless routing metrics;
+- `scripts/test_run.py`: CSV schema, simulated throughput, process deadlines,
+  batch failures, and engine-to-runner integration (when Python 3 is available).
+
+For multi-config builds, pass `-C Debug` or `-C Release` to CTest. The Python
+tests can also run independently with
+`python -m unittest discover -s scripts -p test_run.py -v`; set `KNS_TEST_EXE`
+to the built executable to include the engine CSV integration test.
 
 ## Experiments
 
-[`scripts/run.py`](scripts/run.py) is the historical batch runner. It can launch
-headless simulations, but its report parser currently expects an older CSV
-schema than `SimulationEngine::exportStatsCSV()` emits. Use direct headless
-commands for authoritative runs until those schemas are aligned. Measurement
-definitions and earlier observations are documented in
+[`scripts/run.py`](scripts/run.py) launches headless simulations and reads the
+engine's version 1 CSV schema. For example:
+
+```bash
+python scripts/run.py app/topologies --max-procs 2 --timeout 60
+```
+
+Each timeout is measured from process launch. The runner exits with code 1 if
+any simulation fails, times out, or exports missing/incompatible statistics;
+it still writes `summary.json`, `metrics.csv`, and `run_config.json` under
+`results/v1.2/test_N`. Throughput uses simulated time, while
+`wall_clock_duration_s` records host execution time. Dashboard generation is
+optional and requires `matplotlib` and `numpy`; plotting failures do not prevent
+diagnostic reports. Measurement definitions are documented in
 [`docs/experiments.md`](docs/experiments.md).
 
 ## Architecture
@@ -266,13 +290,10 @@ in-flight packet records. See [architecture](docs/architecture.md) and
 
 The main remaining integration and extension areas are:
 
-- feed the advertised peer receive window back into normal sender flow control;
-- gate packet generation with the selected congestion controller's `cwnd`;
 - expand simultaneous-open/close and general RST behavior;
 - add TCP options such as SACK and timestamps;
 - implement dynamic routing protocols rather than centralized table rebuilds;
-- add active queue-management policies such as RED;
-- align the Python experiment runner with the current CSV schema.
+- add active queue-management policies such as RED.
 
 ## Contributing
 

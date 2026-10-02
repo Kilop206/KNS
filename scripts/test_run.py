@@ -113,6 +113,26 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(records[0]["status"], "stats_error")
         self.assertNotEqual(records[0]["returncode"], 0)
 
+    def test_timeout_batch_preserves_reports_without_plotting(self):
+        (self.root / "hung.json").write_text("{}")
+        (self.root / "later.json").write_text("{}")
+        with patch.object(runner, "find_executable", return_value=Path(sys.executable)), \
+             patch.object(runner, "get_test_dir", return_value=self.root), \
+             patch.object(runner, "build_command", return_value=[
+                 sys.executable, "-c", "import time; time.sleep(60)"
+             ]), \
+             patch.object(runner, "plot_summary_dashboard", side_effect=ImportError("matplotlib")):
+            started = time.perf_counter()
+            self.assertEqual(runner.main([str(self.root), "-j", "1", "-t", "0.2"]), 1)
+            self.assertLess(time.perf_counter() - started, 10)
+        import json
+        report = json.loads((self.root / "summary.json").read_text())
+        self.assertEqual(report["failed_runs"], 2)
+        self.assertEqual(report["graphs"], [])
+        self.assertTrue(all(run["status"] == "timeout" for run in report["runs"]))
+        self.assertTrue((self.root / "metrics.csv").exists())
+        self.assertTrue((self.root / "run_config.json").exists())
+
     def test_mixed_batch_exit_and_reports(self):
         for name in ("ok", "bad"):
             (self.root / f"{name}.json").write_text("{}")

@@ -1,6 +1,7 @@
 #include "IntelligencePanel.hpp"
 
 #include <imgui.h>
+#include <algorithm>
 
 #include <string>
 #include <utility>
@@ -50,7 +51,9 @@ void renderScore(double score)
 IntelligencePanel::IntelligencePanel(
     intelligence::IntelligenceClientConfig config
 )
-    : service_(
+    : chat_([client = intelligence::IntelligenceClient(config)](const nlohmann::json& request) {
+        return client.chat(request);
+    }), service_(
         intelligence::IntelligenceClient(
             std::move(config)
         )
@@ -66,10 +69,38 @@ void IntelligencePanel::render(
 )
 {
     service_.update();
+    if (chat_revision_ != topologyRevision) {
+        chat_revision_ = topologyRevision;
+        chat_input_.fill(0);
+        displayed_messages_ = 0;
+        chat_unread_reply_ = false;
+        chat_scroll_to_latest_ = true;
+    }
+    chat_.synchronizeTopology(topologyRevision);
+    chat_.update();
 
     ImGui::Begin(
         "KNS Intelligence"
     );
+
+    if (ImGui::BeginTabBar("intelligence_tabs")) {
+        if (ImGui::BeginTabItem("KiWi Chat")) {
+            renderChat(analysis);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Analysis")) {
+            renderAnalysis(analysis, topologyRevision);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
+}
+
+void IntelligencePanel::renderAnalysis(
+    const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+    std::uint64_t topologyRevision)
+{
 
     const auto state =
         service_.getState();
@@ -127,7 +158,154 @@ void IntelligencePanel::render(
             break;
     }
 
-    ImGui::End();
+}
+
+void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis)
+{
+    ImGui::TextWrapped("Converse com a KiWi sobre esta topologia.");
+    ImGui::TextDisabled("Contexto: análise da topologia, sem telemetria ao vivo.");
+    ImGui::TextDisabled("Memória: até 10 interações recentes.");
+    if (ImGui::Button("Nova conversa")) {
+        chat_.clear();
+        chat_input_.fill(0);
+        displayed_messages_ = 0;
+        chat_unread_reply_ = false;
+        chat_scroll_to_latest_ = true;
+        chat_focus_input_ = true;
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(chat_.messages().empty());
+    if (ImGui::Button("Copiar conversa")) {
+        ImGui::SetClipboardText(chat_.transcript().c_str());
+    }
+    ImGui::EndDisabled();
+    ImGui::Separator();
+    const float historyHeight = std::max(100.0f, ImGui::GetContentRegionAvail().y -
+        (chat_.error().empty() ? 210.0f : 270.0f));
+    ImGui::BeginChild("kiwi_history", ImVec2(0, historyHeight), ImGuiChildFlags_Borders);
+    const bool followingLatest = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 24.0f;
+    if (chat_.messages().empty()) {
+        ImGui::TextWrapped("Pergunte sobre conectividade, rotas, gargalos ou formas de adicionar redundância.");
+        ImGui::TextDisabled("Escolha uma sugestão e edite antes de enviar:");
+        ImGui::BeginDisabled(!analysis || chat_.busy() || chat_input_[0] != '\0');
+        const char* suggestions[] = {
+            "Quais são os pontos críticos desta topologia?",
+            "Como posso melhorar a redundância da rede?",
+            "Quais rotas devo verificar primeiro?"
+        };
+        for (const auto* suggestion : suggestions) {
+            if (ImGui::Button(suggestion)) {
+                std::copy_n(suggestion, std::char_traits<char>::length(suggestion) + 1, chat_input_.begin());
+                chat_focus_input_ = true;
+            }
+        }
+        ImGui::EndDisabled();
+    }
+    int messageIndex = 0;
+    for (const auto& message : chat_.messages()) {
+        ImGui::PushID(messageIndex++);
+        ImGui::TextColored(message.role == "user" ? ImVec4(0.4f, 0.7f, 1, 1) : ImVec4(0.4f, 0.85f, 0.5f, 1),
+                           "%s", message.role == "user" ? "Você" : "KiWi");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Copiar")) ImGui::SetClipboardText(message.content.c_str());
+        // Keep long answers readable even when the panel spans a wide monitor.
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() +
+            std::min(ImGui::GetContentRegionAvail().x, ImGui::GetFontSize() * 42.0f));
+        ImGui::TextUnformatted(message.content.c_str());
+        ImGui::PopTextWrapPos();
+        if (message.history_turns_omitted > 0) {
+            ImGui::TextWrapped("Memória desta resposta: %zu interação(ões) antiga(s) fora do contexto. "
+                               "Repita detalhes anteriores se necessário.", message.history_turns_omitted);
+        }
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::PopID();
+    }
+    if (displayed_messages_ != chat_.messages().size()) {
+        if (followingLatest) chat_scroll_to_latest_ = true;
+        else if (!chat_.messages().empty() && chat_.messages().back().role == "assistant")
+            chat_unread_reply_ = true;
+        displayed_messages_ = chat_.messages().size();
+    }
+    if (chat_scroll_to_latest_) {
+        ImGui::SetScrollHereY(1.0f);
+        chat_scroll_to_latest_ = false;
+        chat_unread_reply_ = false;
+    }
+    if (followingLatest) chat_unread_reply_ = false;
+    ImGui::EndChild();
+    if (chat_unread_reply_ && ImGui::Button("Nova resposta - ir ao fim"))
+        chat_scroll_to_latest_ = true;
+    if (chat_.busy()) {
+        if (chat_wait_started_ < 0.0) chat_wait_started_ = ImGui::GetTime();
+        ImGui::TextDisabled("KiWi preparando resposta... %.0f s", ImGui::GetTime() - chat_wait_started_);
+    } else {
+        chat_wait_started_ = -1.0;
+    }
+    if (!chat_.messages().empty() && chat_.messages().back().role == "assistant" && !chat_.busy()) {
+        ImGui::BeginDisabled(!analysis || chat_input_[0] != '\0');
+        const char* labels[] = {"Explicar melhor", "Próximos passos", "Mostrar evidências"};
+        const char* questions[] = {
+            "Explique a resposta anterior de forma mais simples, usando os dados desta topologia.",
+            "Com base na resposta anterior, quais são os próximos passos e como verificar cada um no KNS?",
+            "Quais fatos desta topologia sustentam a resposta anterior e o que ainda não sabemos?"
+        };
+        for (int i = 0; i < 3; ++i) {
+            if (i > 0 && ImGui::GetContentRegionAvail().x > 420.0f) ImGui::SameLine();
+            if (ImGui::SmallButton(labels[i])) {
+                std::copy_n(questions[i], std::char_traits<char>::length(questions[i]) + 1, chat_input_.begin());
+                chat_focus_input_ = true;
+            }
+        }
+        ImGui::EndDisabled();
+    }
+    if (!chat_.error().empty()) {
+        ImGui::TextWrapped("%s", chat_.error().c_str());
+        if (chat_.canRetry()) {
+            if (ImGui::Button("Tentar novamente")) {
+                chat_.retry();
+                chat_wait_started_ = ImGui::GetTime();
+            }
+            ImGui::SameLine();
+            ImGui::BeginDisabled(chat_input_[0] != '\0');
+            if (ImGui::Button("Editar pergunta") && chat_.canRetry()) {
+                const auto& question = chat_.messages().back().content;
+                std::copy(question.begin(), question.end(), chat_input_.begin());
+                chat_input_[question.size()] = '\0';
+                chat_.discardFailedQuestion();
+                chat_focus_input_ = true;
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button("Descartar pergunta")) chat_.discardFailedQuestion();
+        }
+    }
+    if (!analysis) ImGui::TextDisabled("Carregue uma topologia para conversar.");
+    ImGui::BeginDisabled(!analysis);
+    if (chat_focus_input_ && analysis) {
+        ImGui::SetKeyboardFocusHere();
+        chat_focus_input_ = false;
+    }
+    ImGui::SetNextItemWidth(-1);
+    const bool submitted = ImGui::InputTextMultiline("##kiwi_question", chat_input_.data(), chat_input_.size(),
+        ImVec2(-1, 65), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine);
+    const bool empty = std::string(chat_input_.data()).find_first_not_of(" \t\r\n") == std::string::npos;
+    ImGui::BeginDisabled(empty || chat_.busy() || chat_.canRetry());
+    const bool clicked = ImGui::Button("Enviar");
+    ImGui::EndDisabled();
+    if ((submitted || clicked) && !empty && analysis && !chat_.busy() && !chat_.canRetry()) {
+        chat_.send(*analysis, chat_input_.data());
+        if (chat_.busy() || chat_.canRetry()) {
+            chat_input_.fill(0);
+            chat_scroll_to_latest_ = true;
+            chat_focus_input_ = true;
+            chat_wait_started_ = ImGui::GetTime();
+        }
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("Enter envia / Shift+Enter quebra linha");
+    ImGui::EndDisabled();
+    ImGui::TextDisabled("%zu / 4096 bytes", std::char_traits<char>::length(chat_input_.data()));
 }
 
 void IntelligencePanel::renderIdle(

@@ -39,10 +39,17 @@ TEST_CASE("Node labels change only through active topology nodes", "[network][to
     const auto revision = topology.getRoutingRevision();
     REQUIRE(topology.setNodeLabel(0, "source"));
     REQUIRE(topology.getNode(0)->getLabel() == "source");
-    REQUIRE(topology.getRoutingRevision() == revision);
+    // Metadata changes invalidate the desktop analysis and topology context too.
+    REQUIRE(topology.getRoutingRevision() > revision);
+    const auto renamed_revision = topology.getRoutingRevision();
+    REQUIRE(topology.setNodeLabel(0, "source"));
+    REQUIRE(topology.getRoutingRevision() == renamed_revision);
     REQUIRE_FALSE(topology.setNodeLabel(-1, "invalid"));
     REQUIRE_FALSE(topology.setNodeLabel(2, "invalid"));
+    REQUIRE(topology.getRoutingRevision() == renamed_revision);
     REQUIRE(topology.removeNode(0));
+    const auto removed_revision = topology.getRoutingRevision();
     REQUIRE_FALSE(topology.setNodeLabel(0, "inactive"));
+    REQUIRE(topology.getRoutingRevision() == removed_revision);
     REQUIRE(topology.getNode(0)->getLabel() == "source");
 }

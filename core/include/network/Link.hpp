@@ -1,10 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
 #include <limits>
 #include <deque>
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "enums/LinkMode.hpp"
 #include "engine/core/Random.hpp"
@@ -92,6 +95,16 @@ class Link {
         bool isUp() const noexcept;
         void setUp(bool up) noexcept;
 
+        bool isInferred() const noexcept { return inferred_; }
+        const std::string& getEvidence() const noexcept { return evidence_; }
+        void setDiscoveryMetadata(bool inferred, std::string evidence) {
+            if (inferred_ != inferred || evidence_ != evidence) {
+                inferred_ = inferred;
+                evidence_ = std::move(evidence);
+                markRoutingChanged();
+            }
+        }
+
     private:
         friend class Topology;
 
@@ -125,7 +138,7 @@ class Link {
         queueForSlot(DirectionSlot slot) const noexcept;
 
         const std::uint64_t id_;
-        static std::uint64_t next_id_;
+        static std::atomic<std::uint64_t> next_id_;
 
         const int a_;
         const int b_;
@@ -146,6 +159,8 @@ class Link {
         std::size_t queue_capacity_ = 32;
 
         bool up_ = true;
+        bool inferred_ = false;
+        std::string evidence_;
 
         std::shared_ptr<std::uint64_t> routing_revision_;
 

@@ -111,6 +111,11 @@ IntelligenceConfigLoader::fromEnvironment()
         "KNS_INTELLIGENCE_CONNECT_TIMEOUT"
     );
 
+    if (const auto value = kns::app::readEnvironmentVariable("KNS_INTELLIGENCE_CHAT_ENDPOINT")) {
+        config.chat_endpoint = *value;
+    }
+    applyTimeout(config.chat_timeout_seconds, "KNS_INTELLIGENCE_CHAT_TIMEOUT");
+
     applyTimeout(
         config.read_timeout_seconds,
         "KNS_INTELLIGENCE_READ_TIMEOUT"

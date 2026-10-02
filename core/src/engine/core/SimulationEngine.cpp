@@ -659,6 +659,12 @@ namespace kns {
         return id;
     }
 
+    bool SimulationEngine::synchronizeTopology(const Topology& snapshot) {
+        const bool changed = topology_.synchronizeFrom(snapshot);
+        if (changed) rebuildRoutingTables();
+        return changed;
+    }
+
     bool SimulationEngine::deleteNode(int id) {
         const bool ok = topology_.removeNode(id);
         if (ok) rebuildRoutingTables();
@@ -671,7 +677,8 @@ namespace kns {
         double bandwidth_mbps,
         double delay_ms,
         double link_loss_prob,
-        LinkMode mode
+        LinkMode mode,
+        int queue_capacity
     ) {
         auto ptr = topology_.addLinkPtr(
             a,
@@ -679,7 +686,8 @@ namespace kns {
             bandwidth_mbps,
             delay_ms,
             link_loss_prob,
-            mode
+            mode,
+            queue_capacity
         );
         rebuildRoutingTables();
         return ptr;

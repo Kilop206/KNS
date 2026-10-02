@@ -1,6 +1,7 @@
 add_executable(KNS)
 
 if(WIN32)
+    target_link_libraries(KNS PRIVATE ole32 shell32 uuid)
     target_compile_definitions(KNS PRIVATE
         _WIN32_WINNT=0x0A00
         WINVER=0x0A00
@@ -14,7 +15,9 @@ target_sources(KNS PRIVATE
     intelligence/IntelligenceClient.cpp
     intelligence/IntelligenceConfigLoader.cpp
     intelligence/IntelligenceService.cpp
-    gui/src/GuiFormat.cpp
+    intelligence/ChatService.cpp
+    gui/src/GUIFormat.cpp
+    gui/src/NativeFileDialog.cpp
     gui/src/IntelligencePanel.cpp
     gui/src/LatencyChart.cpp
     gui/src/MetricsPannel.cpp
@@ -25,6 +28,8 @@ target_sources(KNS PRIVATE
     gui/src/TcpConnectionPanel.cpp
     gui/src/TcpTimelinePanel.cpp
     gui/src/TopologyPannel.cpp
+    gui/src/TopologyCanvas.cpp
+    gui/src/DeviceIcons.cpp
     gui/src/VisualPacketManager.cpp
     gui/src/Window.cpp
 )

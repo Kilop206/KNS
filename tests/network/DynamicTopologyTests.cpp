@@ -10,6 +10,26 @@
 
 using namespace kns;
 
+TEST_CASE("Engine cable creation validates queue capacity before changing topology", "[network][topology][cable-settings]") {
+    SimulationEngine engine(Topology(2));
+    const auto revision=engine.getTopology().getRoutingRevision();
+    for (int capacity:{0,-1}) {
+        REQUIRE_THROWS_AS(engine.createLink(0,8,100,1,0,LinkMode::FULL_DUPLEX,capacity),std::invalid_argument);
+        REQUIRE(engine.getTopology().size()==2);
+        REQUIRE(engine.getTopology().getLinks().empty());
+        REQUIRE(engine.getTopology().getInterfaces().empty());
+        REQUIRE(engine.getTopology().getRoutingRevision()==revision);
+    }
+    const auto link=engine.createLink(0,1,100,1,0,LinkMode::HALF_DUPLEX,2);
+    REQUIRE(link->getQueueCapacity()==2);
+    link->enqueueTransmission(0,1,0,1);
+    link->enqueueTransmission(1,0,1,2);
+    REQUIRE_FALSE(link->canQueue(0,1));
+    REQUIRE_FALSE(link->canQueue(1,0));
+    REQUIRE_FALSE(engine.hasEvents());
+    REQUIRE(engine.getTCPSessions().empty());
+}
+
 TEST_CASE("Dynamic topology: packet in transit reaches destination after link removal", "[network][topology][dynamic]")
 {
     // Test A & D: packet already accepted on link continues to destination even if link is deleted

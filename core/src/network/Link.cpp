@@ -53,7 +53,7 @@ double validateLossProbability(double value)
 
 namespace kns {
 
-    std::uint64_t Link::next_id_ = 0;
+    std::atomic<std::uint64_t> Link::next_id_{0};
 
     Link::Link(
         int a,

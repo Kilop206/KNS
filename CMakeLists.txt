@@ -116,21 +116,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(imgui)
 
 # ==================================================
-# ImGuiFileDialog
-# ==================================================
-FetchContent_Declare(
-    imguifiledialog
-    GIT_REPOSITORY https://github.com/aiekick/ImGuiFileDialog.git
-    # Pinned commit from the master branch.
-    GIT_TAG d0e97b2adc3d3452d72c750c7305dc0291acd052
-    # The sources are compiled into imgui_lib below, so skip the
-    # upstream CMakeLists.txt by pointing at a directory without one.
-    SOURCE_SUBDIR non_cmake
-)
-
-FetchContent_MakeAvailable(imguifiledialog)
-
-# ==================================================
 #  ImGui library agregated to the project
 # ==================================================
 add_library(imgui_lib STATIC)
@@ -144,13 +129,11 @@ target_sources(imgui_lib PRIVATE
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    ${imguifiledialog_SOURCE_DIR}/ImGuiFileDialog.cpp
 )
 
 target_include_directories(imgui_lib PUBLIC
     $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
     $<BUILD_INTERFACE:${imgui_SOURCE_DIR}/backends>
-    $<BUILD_INTERFACE:${imguifiledialog_SOURCE_DIR}>
 )
 
 target_link_libraries(imgui_lib
