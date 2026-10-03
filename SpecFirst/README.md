@@ -58,14 +58,14 @@ Engineering decisions
 
 For implementation work, the current Git branch is the primary source of truth.
 
-For TCP development:
+The canonical integration line is:
 
 ```text
 repository: Kilop206/KNS
-branch: tcp
+branch: main
 ```
 
-Do not assume that local files, previous conversations, issue descriptions, or historical commits represent the current implementation.
+Create short-lived feature or fix branches from the current `main` unless work explicitly targets another supported release line. Do not assume that local files, previous conversations, issue descriptions, or historical commits represent the current implementation.
 
 When investigating an issue:
 
