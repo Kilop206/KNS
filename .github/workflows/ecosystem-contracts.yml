@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: discovery/go.mod
-          cache-dependency-path: discovery/go.sum
+          cache: false
 
       - name: Validate Discovery topology producer
         working-directory: discovery
