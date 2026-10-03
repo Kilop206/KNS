@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <future>
+#include <stdexcept>
 #include <string>
 
 #include <httplib.h>
@@ -158,8 +159,14 @@ TEST_CASE("Topology Hub client reports stale revisions and requires token for sa
     topology.visibility = "PRIVATE";
     topology.version = 3;
 
-    REQUIRE_THROWS_WITH(
-        TopologyHubClient{}.saveTopology(topology),
+    std::string missingTokenMessage;
+    try {
+        TopologyHubClient{}.saveTopology(topology);
+    } catch (const std::runtime_error& error) {
+        missingTokenMessage = error.what();
+    }
+    REQUIRE(
+        missingTokenMessage ==
         "Saving to Topology Hub requires KNS_TOPOLOGY_HUB_TOKEN"
     );
 
@@ -179,8 +186,14 @@ TEST_CASE("Topology Hub client reports stale revisions and requires token for sa
     TopologyHubClientConfig config;
     config.base_url = "http://127.0.0.1:" + std::to_string(port);
     config.bearer_token = "knsh_test-token";
-    REQUIRE_THROWS_WITH(
-        TopologyHubClient(config).saveTopology(topology),
+    std::string staleRevisionMessage;
+    try {
+        TopologyHubClient(config).saveTopology(topology);
+    } catch (const std::runtime_error& error) {
+        staleRevisionMessage = error.what();
+    }
+    REQUIRE(
+        staleRevisionMessage ==
         "Topology save failed because the topology changed on the Hub; reload before saving"
     );
 }
