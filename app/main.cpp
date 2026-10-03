@@ -87,7 +87,7 @@ namespace {
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
-            << "  --hub-topology <id>        Load a public topology from Topology Hub\n"
+            << "  --hub-topology <id>        Load a Topology Hub document (token required if private)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
@@ -118,16 +118,26 @@ namespace {
             : isAutoStartEnabledValue(*raw_value);
     }
 
-    [[nodiscard]] Topology loadTopologyFromHub(const std::string& topology_id)
+    [[nodiscard]] kns::app::hub::TopologyHubClientConfig topologyHubConfigFromEnvironment()
     {
         kns::app::hub::TopologyHubClientConfig config;
         if (const auto base_url =
                 kns::app::readEnvironmentVariable("KNS_TOPOLOGY_HUB_URL")) {
             config.base_url = *base_url;
         }
+        if (const auto token =
+                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_HUB_TOKEN")) {
+            config.bearer_token = *token;
+        }
+        return config;
+    }
 
-        return kns::app::hub::TopologyHubClient(std::move(config))
-            .fetchPublicTopology(topology_id);
+    [[nodiscard]] kns::app::hub::HubTopology loadTopologyFromHub(
+        const std::string& topology_id
+    )
+    {
+        return kns::app::hub::TopologyHubClient(topologyHubConfigFromEnvironment())
+            .fetchTopology(topology_id);
     }
 
 } // namespace
@@ -1000,7 +1010,9 @@ static void renderConfigWindow(
     const std::string& liveError,
     const std::string& fileStatus,
     bool& loadRequested,
-    bool& saveRequested
+    bool& saveRequested,
+    bool canSaveToHub,
+    bool& saveHubRequested
 )
 {
     const std::string window_label =
@@ -1024,6 +1036,11 @@ static void renderConfigWindow(
     if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
         saveRequested = true;
     }
+    ImGui::BeginDisabled(!canSaveToHub);
+    if (ImGui::Button(translations.label("Save to Topology Hub", "save-topology-hub").c_str())) {
+        saveHubRequested = true;
+    }
+    ImGui::EndDisabled();
     if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
 
     ImGui::BeginDisabled(topologyPath.empty());
@@ -1177,7 +1194,8 @@ static void visualizeWindow(
     int& packetSize,
     RunConfig runConfig,
     std::string topologyPath,
-    bool watchTopology
+    bool watchTopology,
+    std::optional<kns::app::hub::HubTopology> hubDocument
 )
 {
     if (!engine) {
@@ -1402,6 +1420,7 @@ static void visualizeWindow(
 
         bool loadRequested = false;
         bool saveRequested = false;
+        bool saveHubRequested = false;
 
         bool stepRequested = false;
         bool restartRequested = false;
@@ -1456,7 +1475,9 @@ static void visualizeWindow(
             liveWatcher.error().empty() ? liveError : liveWatcher.error(),
             fileStatus,
             loadRequested,
-            saveRequested
+            saveRequested,
+            hubDocument.has_value(),
+            saveHubRequested
         );
 
         topologyPanel.render(*engine, translations);
@@ -1511,6 +1532,7 @@ static void visualizeWindow(
                 if (path)
                 {
                     topo = TopologyLoader::load_topology(*path);
+                    hubDocument.reset();
                     topologyPath = *path;
                     topologyCanvas.reset();
                     // Invalidate pending reads even when reloading the same path.
@@ -1574,6 +1596,22 @@ static void visualizeWindow(
                 }
             } catch (const std::exception& exception) {
                 fileStatus = translations.translate("Save failed:") + " " + exception.what();
+            }
+            lastRealTime = glfwGetTime();
+        }
+
+        if (saveHubRequested && hubDocument) {
+            try {
+                hubDocument->topology = engine->getTopology().cloneForRun();
+                auto client = kns::app::hub::TopologyHubClient(
+                    topologyHubConfigFromEnvironment()
+                );
+                *hubDocument = client.saveTopology(*hubDocument);
+                topo = hubDocument->topology.cloneForRun();
+                fileStatus = translations.translate("Topology saved to Hub. Revision:") +
+                    " " + std::to_string(hubDocument->version);
+            } catch (const std::exception& exception) {
+                fileStatus = translations.translate("Hub save failed:") + " " + exception.what();
             }
             lastRealTime = glfwGetTime();
         }
@@ -1651,6 +1689,7 @@ int main(int argc, char* argv[])
     RunConfig runConfig;
 
     Topology topo;
+    std::optional<kns::app::hub::HubTopology> hubDocument;
 
     // --------------------------------------------------
     // Parse command-line arguments
@@ -1817,9 +1856,12 @@ int main(int argc, char* argv[])
 
         try
         {
-            topo = hubTopologyId
-                ? loadTopologyFromHub(*hubTopologyId)
-                : TopologyLoader::load_topology(argv[topologyPathIndex]);
+            if (hubTopologyId) {
+                hubDocument = loadTopologyFromHub(*hubTopologyId);
+                topo = hubDocument->topology.cloneForRun();
+            } else {
+                topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
+            }
 
             auto currentAnalysis =
                 analyzeTopology(
@@ -1907,9 +1949,12 @@ int main(int argc, char* argv[])
         (topologyPathIndex >= 0 && topologyPathIndex < argc))
         {
             try {
-                topo = hubTopologyId
-                    ? loadTopologyFromHub(*hubTopologyId)
-                    : TopologyLoader::load_topology(argv[topologyPathIndex]);
+                if (hubTopologyId) {
+                    hubDocument = loadTopologyFromHub(*hubTopologyId);
+                    topo = hubDocument->topology.cloneForRun();
+                } else {
+                    topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
+                }
 
                 auto currentAnalysis =
                     analyzeTopology(
@@ -1965,7 +2010,8 @@ int main(int argc, char* argv[])
         packetSize,
         runConfig,
         topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
-        watchTopology
+        watchTopology,
+        std::move(hubDocument)
     );
 
     shutdownWindow(

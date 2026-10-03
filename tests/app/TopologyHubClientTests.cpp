@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <future>
+#include <stdexcept>
 #include <string>
 
 #include <httplib.h>
@@ -75,4 +76,124 @@ TEST_CASE("Topology Hub client rejects invalid IDs and upstream failures", "[hub
 
     REQUIRE_THROWS(client.fetchPublicTopology("missing"));
     REQUIRE_THROWS(client.fetchPublicTopology("broken"));
+}
+
+
+TEST_CASE("Topology Hub client authenticates private reads and optimistic saves", "[hub][http]")
+{
+    httplib::Server server;
+    std::string observedAuthorization;
+    std::string observedHubHeader;
+    std::uint64_t observedVersion = 99;
+    bool observedSchemaVersion = false;
+
+    const auto detail = [](std::uint64_t version, std::string title) {
+        return nlohmann::json({
+            {"topology", {
+                {"title", std::move(title)},
+                {"description", "Private topology"},
+                {"visibility", "PRIVATE"},
+                {"version", version}
+            }},
+            {"graph", {
+                {"schema_version", "1.0"},
+                {"name", "Private hub topology"},
+                {"nodes", 2},
+                {"links", nlohmann::json::array({
+                    {{"from", 0}, {"to", 1}, {"bandwidth", 100.0}, {"delay", 1.0}, {"loss", 0.0}}
+                })}
+            }}
+        });
+    };
+
+    server.Get("/api/topologies/private-1", [&](const httplib::Request& request, httplib::Response& response) {
+        observedAuthorization = request.get_header_value("Authorization");
+        response.set_content(detail(7, "Private network").dump(), "application/json");
+    });
+    server.Put("/api/topologies/private-1", [&](const httplib::Request& request, httplib::Response& response) {
+        observedAuthorization = request.get_header_value("Authorization");
+        observedHubHeader = request.get_header_value("X-Hub-Request");
+        const auto body = nlohmann::json::parse(request.body);
+        observedVersion = body.at("version").get<std::uint64_t>();
+        observedSchemaVersion =
+            body.at("graph").at("schema_version").get<std::string>() == "1.0";
+        response.set_content(detail(8, body.at("title").get<std::string>()).dump(), "application/json");
+    });
+
+    const int port = server.bind_to_any_port("127.0.0.1");
+    REQUIRE(port > 0);
+    auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+    struct StopServer {
+        httplib::Server& server;
+        ~StopServer() { server.stop(); }
+    } cleanup{server};
+    server.wait_until_ready();
+
+    TopologyHubClientConfig config;
+    config.base_url = "http://127.0.0.1:" + std::to_string(port);
+    config.bearer_token = "knsh_test-token";
+    TopologyHubClient client(config);
+
+    auto document = client.fetchTopology("private-1");
+    REQUIRE(document.version == 7);
+    REQUIRE(document.title == "Private network");
+    REQUIRE(document.topology.size() == 2);
+    REQUIRE(observedAuthorization == "Bearer knsh_test-token");
+
+    document.title = "Edited in KNS";
+    auto saved = client.saveTopology(document);
+    REQUIRE(observedAuthorization == "Bearer knsh_test-token");
+    REQUIRE(observedHubHeader == "1");
+    REQUIRE(observedVersion == 7);
+    REQUIRE(observedSchemaVersion);
+    REQUIRE(saved.version == 8);
+    REQUIRE(saved.title == "Edited in KNS");
+}
+
+TEST_CASE("Topology Hub client reports stale revisions and requires token for saves", "[hub][http]")
+{
+    kns::app::hub::HubTopology topology;
+    topology.id = "private-1";
+    topology.title = "Network";
+    topology.description = "";
+    topology.visibility = "PRIVATE";
+    topology.version = 3;
+
+    std::string missingTokenMessage;
+    try {
+        TopologyHubClient{}.saveTopology(topology);
+    } catch (const std::runtime_error& error) {
+        missingTokenMessage = error.what();
+    }
+    REQUIRE(
+        missingTokenMessage ==
+        "Saving to Topology Hub requires KNS_TOPOLOGY_HUB_TOKEN"
+    );
+
+    httplib::Server server;
+    server.Put("/api/topologies/private-1", [](const httplib::Request&, httplib::Response& response) {
+        response.status = 409;
+    });
+    const int port = server.bind_to_any_port("127.0.0.1");
+    REQUIRE(port > 0);
+    auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+    struct StopServer {
+        httplib::Server& server;
+        ~StopServer() { server.stop(); }
+    } cleanup{server};
+    server.wait_until_ready();
+
+    TopologyHubClientConfig config;
+    config.base_url = "http://127.0.0.1:" + std::to_string(port);
+    config.bearer_token = "knsh_test-token";
+    std::string staleRevisionMessage;
+    try {
+        TopologyHubClient(config).saveTopology(topology);
+    } catch (const std::runtime_error& error) {
+        staleRevisionMessage = error.what();
+    }
+    REQUIRE(
+        staleRevisionMessage ==
+        "Topology save failed because the topology changed on the Hub; reload before saving"
+    );
 }
