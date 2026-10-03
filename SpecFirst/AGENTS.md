@@ -17,7 +17,7 @@ When a more specific document conflicts with this file, the more specific docume
 For repository analysis and implementation work:
 
 1. The current state of the target Git branch is the primary source of truth.
-2. For work on the TCP development line, use branch `tcp`.
+2. `main` is the canonical integration line. Start short-lived feature or fix branches from the current `main` unless a change explicitly targets another supported release line.
 3. Do not assume that a local working tree is equivalent to GitHub.
 4. User-provided local code supersedes the repository only for the explicitly supplied code.
 5. Issues must be evaluated against the current implementation before being implemented.
