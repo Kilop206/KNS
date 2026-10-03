@@ -36,7 +36,7 @@ jobs:
         run: cmake -S . -B build -DKNS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release -- -j
+        run: cmake --build build --config Release --parallel
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
@@ -60,7 +60,7 @@ jobs:
         run: cmake -S . -B build-sanitizers -DKNS_BUILD_TESTS=ON -DKNS_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
       - name: Build (sanitizers)
-        run: cmake --build build-sanitizers --config RelWithDebInfo -- -j
+        run: cmake --build build-sanitizers --config RelWithDebInfo --parallel
 
       - name: Test (sanitizers)
         run: ctest --test-dir build-sanitizers --output-on-failure
@@ -81,4 +81,4 @@ jobs:
         run: cmake -S . -B build-werror -DKNS_BUILD_TESTS=ON -DKNS_WARNINGS_AS_ERRORS=ON -DKNS_ENABLE_WARNINGS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (warnings-as-errors)
-        run: cmake --build build-werror --config Release -- -j
+        run: cmake --build build-werror --config Release --parallel
