@@ -38,7 +38,22 @@ def main() -> int:
     if data.get("contracts") != expected_contracts:
         raise SystemExit("Release manifest contract set does not match ecosystem v1")
 
-    print(f"Validated {data['release']} ({data['status']}).")
+    model = data.get("model")
+    if not isinstance(model, dict) or model.get("name") != "kiwi-model-v1":
+        raise SystemExit("Release manifest must describe kiwi-model-v1")
+    if model.get("status") not in {"pipeline_ready", "candidate", "released"}:
+        raise SystemExit("Invalid KiWi Model v1 status")
+    if model.get("software_component") != "kiwi":
+        raise SystemExit("KiWi Model v1 must belong to the kiwi software component")
+    if model.get("base_model") != "Qwen/Qwen3-1.7B":
+        raise SystemExit("Unexpected KiWi Model v1 base model")
+    if model["status"] == "released":
+        if not model.get("promoted_artifact") or not model.get("promotion_manifest"):
+            raise SystemExit("Released model requires artifact and promotion manifest")
+    elif model.get("promoted_artifact") is not None or model.get("promotion_manifest") is not None:
+        raise SystemExit("Unreleased model must not claim promoted artifacts")
+
+    print(f"Validated {data['release']} ({data['status']}) with model state {model['status']}.")
     return 0
 
 
