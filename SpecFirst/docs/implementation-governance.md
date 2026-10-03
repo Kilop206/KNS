@@ -12,7 +12,7 @@ The purpose is to keep implementation aligned with the actual repository, the cu
 
 For repository-related work, the current GitHub branch being worked on is the primary source of truth unless the user explicitly provides local code for inspection.
 
-For the `tcp` development line, the current `tcp` branch must be inspected before making assumptions about implementation status.
+`main` is the canonical integration line. New feature and fix branches should start from the current `main` unless the work explicitly targets another supported release line.
 
 Previous conversations, old code snippets, and historical documentation must not override the current repository.
 
