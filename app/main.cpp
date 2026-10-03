@@ -87,7 +87,7 @@ namespace {
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
-            << "  --hub-topology <id>        Load a public topology from Topology Hub\n"
+            << "  --hub-topology <id>        Load a Topology Hub document (token required if private)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
