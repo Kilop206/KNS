@@ -84,6 +84,7 @@ TEST_CASE("Topology Hub client authenticates private reads and optimistic saves"
     std::string observedAuthorization;
     std::string observedHubHeader;
     std::uint64_t observedVersion = 99;
+    bool observedSchemaVersion = false;
 
     const auto detail = [](std::uint64_t version, std::string title) {
         return nlohmann::json({
@@ -113,7 +114,8 @@ TEST_CASE("Topology Hub client authenticates private reads and optimistic saves"
         observedHubHeader = request.get_header_value("X-Hub-Request");
         const auto body = nlohmann::json::parse(request.body);
         observedVersion = body.at("version").get<std::uint64_t>();
-        REQUIRE(body.at("graph").at("schema_version") == "1.0");
+        observedSchemaVersion =
+            body.at("graph").at("schema_version").get<std::string>() == "1.0";
         response.set_content(detail(8, body.at("title").get<std::string>()).dump(), "application/json");
     });
 
@@ -142,6 +144,7 @@ TEST_CASE("Topology Hub client authenticates private reads and optimistic saves"
     REQUIRE(observedAuthorization == "Bearer knsh_test-token");
     REQUIRE(observedHubHeader == "1");
     REQUIRE(observedVersion == 7);
+    REQUIRE(observedSchemaVersion);
     REQUIRE(saved.version == 8);
     REQUIRE(saved.title == "Edited in KNS");
 }
