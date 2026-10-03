@@ -311,23 +311,23 @@ KNS is source-available for personal, educational, research, and private
 modification under the terms in [`LICENSE`](LICENSE). Commercial use is
 prohibited unless separately authorized. This is not the MIT License.
 
-## Load from Topology Hub
 
-KNS can load a public topology directly from Topology Hub without downloading a
-JSON file first:
+## Topology Hub desktop access
 
-```bash
-KNS --hub-topology <topology-id>
+KNS can open a Topology Hub document by ID:
+
+```powershell
+$env:KNS_TOPOLOGY_HUB_URL = "http://localhost:3001"
+$env:KNS_TOPOLOGY_HUB_TOKEN = "knsh_..."
+.\build\app\Release\KNS.exe --hub-topology <topology-id>
 ```
 
-The same source works in headless mode:
+The token is optional for public topologies and required for private topologies
+or write-back. When a Hub-backed topology is open, **Save to Topology Hub**
+updates the same document using its loaded optimistic-lock version. A concurrent
+remote edit returns a conflict and KNS refuses to overwrite it; reload the
+topology before saving again. Successful saves create an immutable Hub revision.
 
-```bash
-KNS --headless --hub-topology <topology-id> --output results/hub.csv
-```
-
-The client defaults to `http://localhost:3001`. Set
-`KNS_TOPOLOGY_HUB_URL` to use another Hub instance. Remote documents are
-bounded to 1 MiB and are parsed through the same `TopologyLoader` validation as
-local files. `--hub-topology` cannot be combined with `--topology` or
-`--watch-topology`.
+Desktop tokens are created and revoked from the authenticated Topology Hub API
+and should be treated as secrets. KNS reads the token from the environment and
+does not store a Hub password or browser session.
