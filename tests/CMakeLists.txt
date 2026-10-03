@@ -3,7 +3,7 @@ file(GLOB_RECURSE KNS_TEST_SOURCES CONFIGURE_DEPENDS
 )
 
 if(NOT KNS_BUILD_APP)
-    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/(ChatServiceTests|TopologyCanvasTests).cpp$")
+    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/(ChatServiceTests|IntelligenceConfigLoaderTests|TopologyCanvasTests).cpp$")
 endif()
 
 add_executable(kns_tests ${KNS_TEST_SOURCES})
@@ -20,6 +20,7 @@ if(KNS_BUILD_APP)
     target_sources(kns_tests PRIVATE
         ${PROJECT_SOURCE_DIR}/app/intelligence/ChatService.cpp
         ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceClient.cpp
+        ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceConfigLoader.cpp
         ${PROJECT_SOURCE_DIR}/app/hub/TopologyHubClient.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/TopologyCanvas.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/DeviceIcons.cpp
