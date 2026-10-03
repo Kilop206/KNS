@@ -1,0 +1,19 @@
+{
+  "format_version": "1.0",
+  "release": "kns-ecosystem-1",
+  "status": "candidate",
+  "components": {
+    "kns": "1.1.0",
+    "kns_discovery": "0.1.0",
+    "topology_hub": "0.1.0",
+    "sentient_kns": "0.1.0",
+    "kiwi": "0.1.0"
+  },
+  "contracts": {
+    "topology": "1.0",
+    "experiment_csv": "1",
+    "desktop_intelligence": "v1",
+    "chat_request": "v1",
+    "chat_response": "v1"
+  }
+}

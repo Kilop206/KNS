@@ -44,6 +44,23 @@ jobs:
       - name: Validate canonical KNS schemas
         run: python kns/scripts/validate_contracts.py
 
+      - name: Validate public release train versions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("kns/releases/ecosystem-v1.json").read_text())
+          expected = manifest["components"]
+          actual = {
+              "kns_discovery": Path("discovery/VERSION").read_text().strip(),
+              "topology_hub": Path("topology-hub/VERSION").read_text().strip(),
+          }
+          for name, version in actual.items():
+              if version != expected[name]:
+                  raise SystemExit(f"{name}: {version} != release train {expected[name]}")
+          print("Public component versions match ecosystem-v1.")
+          PY
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
