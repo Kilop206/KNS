@@ -51,6 +51,9 @@ jobs:
       - name: Validate ecosystem contracts
         run: python scripts/validate_contracts.py
 
+      - name: Validate coordinated release train
+        run: python scripts/validate_release_train.py
+
   sanitizers:
     name: Sanitizers (ubuntu-latest)
     runs-on: ubuntu-latest
