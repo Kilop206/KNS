@@ -15,5 +15,21 @@
     "desktop_intelligence": "v1",
     "chat_request": "v1",
     "chat_response": "v1"
+  },
+  "model": {
+    "name": "kiwi-model-v1",
+    "status": "pipeline_ready",
+    "software_component": "kiwi",
+    "base_model": "Qwen/Qwen3-1.7B",
+    "promoted_artifact": null,
+    "promotion_manifest": null,
+    "requirements": [
+      "teacher_annotations",
+      "human_review",
+      "frozen_sft_dataset",
+      "lora_or_qlora_training",
+      "base_vs_adapter_benchmark",
+      "promotion_gate_pass"
+    ]
   }
 }
