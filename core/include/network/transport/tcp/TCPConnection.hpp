@@ -14,7 +14,7 @@
 #include "network/transport/tcp/buffer/TCPSendBuffer.hpp"
 #include "network/transport/tcp/congestion/CongestionControl.hpp"
 #include "network/transport/tcp/congestion/CongestionControlType.hpp"
-#include "network/transport/tcp/congestion/TcpCongestionSample.hpp"
+#include "network/transport/tcp/congestion/TCPCongestionSample.hpp"
 #include "network/transport/tcp/recovery/TCPLossDetector.hpp"
 #include "network/transport/tcp/timer/RTOManager.hpp"
 
