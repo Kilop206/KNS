@@ -30,6 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate release version
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION="$(sed -n 's/.*project(KNS VERSION \([^ ]*\).*/\1/p' CMakeLists.txt)"
+          if [ -z "$PROJECT_VERSION" ]; then
+            echo "Could not read KNS project version from CMakeLists.txt" >&2
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PROJECT_VERSION" ]; then
+            echo "Tag version $TAG_VERSION does not match KNS project version $PROJECT_VERSION" >&2
+            exit 1
+          fi
+
       - name: Install prerequisites (Linux)
         if: runner.os == 'Linux'
         run: |
