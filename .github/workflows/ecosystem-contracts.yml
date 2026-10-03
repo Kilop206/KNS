@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   contracts:
-    name: Cross-repository contract smoke tests
+    name: Public cross-repository contract smoke tests
     runs-on: ubuntu-latest
 
     steps:
@@ -39,22 +39,6 @@ jobs:
           repository: Kilop206/Topology-Hub
           ref: main
           path: topology-hub
-          persist-credentials: false
-
-      - name: Checkout Sentient KNS
-        uses: actions/checkout@v4
-        with:
-          repository: Kilop206/sentient-KNS
-          ref: main
-          path: sentient
-          persist-credentials: false
-
-      - name: Checkout KiWi
-        uses: actions/checkout@v4
-        with:
-          repository: Kilop206/KiWi
-          ref: main
-          path: kiwi
           persist-credentials: false
 
       - name: Validate canonical KNS schemas
@@ -84,21 +68,3 @@ jobs:
         working-directory: topology-hub/backend
         run: mvn -B -ntp -Dtest=HubApiTest test
 
-      - name: Validate Sentient chat boundary
-        working-directory: sentient
-        run: mvn -B -ntp -Dtest=ChatControllerTests test
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: kiwi/pyproject.toml
-
-      - name: Install KiWi contract test dependencies
-        working-directory: kiwi
-        run: python -m pip install -e ".[test]"
-
-      - name: Validate KiWi chat boundary
-        working-directory: kiwi
-        run: python -m unittest discover -s tests -p "test_chat.py" -v
