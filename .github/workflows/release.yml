@@ -1,0 +1,95 @@
+name: Release KNS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            os: ubuntu-latest
+            artifact: kns-linux-amd64.tar.gz
+          - name: windows-amd64
+            os: windows-latest
+            artifact: kns-windows-amd64.zip
+          - name: macos-arm64
+            os: macos-latest
+            artifact: kns-macos-arm64.tar.gz
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+
+      - name: Configure
+        run: cmake -S . -B build -DKNS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist/kns
+          cp build/app/KNS dist/kns/
+          cp -R build/app/assets dist/kns/assets
+          cp -R build/app/topologies dist/kns/topologies
+          cp README.md LICENSE dist/kns/
+          tar -C dist -czf "dist/${{ matrix.artifact }}" kns
+          (cd dist && shasum -a 256 "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256")
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/kns | Out-Null
+          Copy-Item build/app/Release/KNS.exe dist/kns/KNS.exe
+          Copy-Item build/app/Release/assets dist/kns/assets -Recurse
+          Copy-Item build/app/Release/topologies dist/kns/topologies -Recurse
+          Copy-Item README.md,LICENSE dist/kns/
+          Compress-Archive -Path dist/kns/* -DestinationPath "dist/${{ matrix.artifact }}"
+          $hash = (Get-FileHash "dist/${{ matrix.artifact }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.artifact }}" | Set-Content "dist/${{ matrix.artifact }}.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/${{ matrix.artifact }}
+            dist/${{ matrix.artifact }}.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag
