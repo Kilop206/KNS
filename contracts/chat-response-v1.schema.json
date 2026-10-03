@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/chat-response-v1.schema.json",
+  "title": "KNS Chat Response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "topologyRevision",
+    "message",
+    "historyTurnsOmitted"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "topologyRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "historyTurnsOmitted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    }
+  }
+}

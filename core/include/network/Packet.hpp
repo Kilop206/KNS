@@ -1,35 +1,113 @@
 #pragma once
 
+<<<<<<< HEAD
 #include "enums/PacketType.hpp"
 
 #include <cstddef>
+=======
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+
+#include "enums/PacketType.hpp"
+#include "network/transport/tcp/TCPSegment.hpp"
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
-    class Packet {
-    public:
-        const int source;
-        const int destination;
-        int current_node;
-        double creation_time;
-        double departure_time;
-        std::size_t packet_size_bytes;
+
+    inline PacketType inferPacketType(const TCPSegment& seg)
+    {
+        const bool syn = (seg.flags & TCPFlag::SYN) == TCPFlag::SYN;
+        const bool ack = (seg.flags & TCPFlag::ACK) == TCPFlag::ACK;
+        const bool fin = (seg.flags & TCPFlag::FIN) == TCPFlag::FIN;
+        const bool psh = (seg.flags & TCPFlag::PSH) == TCPFlag::PSH;
+        const bool rst = (seg.flags & TCPFlag::RST) == TCPFlag::RST;
+
+        if (rst) return PacketType::RST;
+
+        if (syn && ack) return PacketType::SYN_ACK;
+
+        if (fin && ack) return PacketType::FIN;
+
+        if (syn) return PacketType::SYN;
+
+        if (fin) return PacketType::FIN;
+
+        if (psh) return PacketType::DATA;
+
+        if (ack) return PacketType::ACK;
+
+        return PacketType::DATA;
+    }
+
+    struct Packet {
+        static constexpr int TCP_IPV4_HEADER_BYTES = 40;
+
+        int serializedSize() const {
+            if (tcp.flags == TCPFlag::None && tcp.payload.empty()) {
+                return packet_size_bytes;
+            }
+            if (tcp.payload.size() > static_cast<std::size_t>(
+                    std::numeric_limits<int>::max() - TCP_IPV4_HEADER_BYTES)) {
+                throw std::invalid_argument("TCP wire size exceeds supported range");
+            }
+            return TCP_IPV4_HEADER_BYTES + static_cast<int>(tcp.payload.size());
+        }
+
+        int source = 0;
+        int destination = 0;
+        int current_node = 0;
+
+        int previous_node = -1;
+
+        double creation_time = 0.0;
+        double departure_time = 0.0;
+        double arrival_time = 0.0;  ///< Simulation time at which this packet arrived at current_node.
+
+        int packet_size_bytes = 0;
         int hop_count = 0;
         PacketType packet_type = PacketType::DATA;
         int seq_num = 0;
         int ack_num = 0;
+
+        std::uint64_t session_id = 0;
+
+        /// Identity of the Link used for the last hop. Set by sendPacket()
+        /// so that the arrival event can release exactly the right link.
+        std::uint64_t link_id = 0;
+
+        TCPSegment tcp;
+
+        PacketType packet_type = PacketType::DATA;
+
+        Packet() = default;
 
         Packet(
             int source,
             int destination,
             int current_node,
             double creation_time,
+<<<<<<< HEAD
             std::size_t packet_size_bytes
+=======
+            int packet_size_bytes,
+            std::uint64_t session_id
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
         )
             : source(source),
               destination(destination),
               current_node(current_node),
               creation_time(creation_time),
+<<<<<<< HEAD
               departure_time(0.0),
               packet_size_bytes(packet_size_bytes) {}
+=======
+              packet_size_bytes(packet_size_bytes),
+              session_id(session_id)
+        {
+        }
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     };
+
 }

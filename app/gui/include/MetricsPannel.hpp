@@ -8,9 +8,15 @@
 #include "../../../core/include/engine/core/Stats.hpp"
 #include "LatencyChart.hpp"
 
-namespace interface {
+namespace gui {
+    class TranslationService;
+
     class MetricsPannel {
     public:
-        void render(const kns::Stats& stats, const CircularBuffer& buffer);
+        void render(
+            const kns::Stats& stats,
+            const CircularBuffer& buffer,
+            TranslationService& translations
+        );
     };
 }

@@ -9,7 +9,7 @@ namespace kns {
 			return static_cast<int>(kns::Event::getTimestamp());
 		}
 
-	void kns::PrintEvent::execute(SimulationEngine& engine) {
+	void kns::PrintEvent::execute(SimulationEngine& /*engine*/) {
 		std::cout << "Time: " << getTimestamp() << " - " << message << std::endl;
 	}
 	

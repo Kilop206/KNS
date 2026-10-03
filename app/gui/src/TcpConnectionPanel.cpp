@@ -1,0 +1,188 @@
+#include "gui/include/TcpConnectionPanel.hpp"
+
+#include <algorithm>
+
+#include "imgui.h"
+
+#include "engine/core/SimulationEngine.hpp"
+#include "gui/include/TranslationService.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
+
+namespace gui {
+    namespace {
+        constexpr int kMinimumPort = 0;
+        constexpr int kMaximumPort = 65535;
+
+        const char* stateLabel(kns::TCPState state) noexcept
+        {
+            switch (state) {
+                case kns::TCPState::CLOSED: return "CLOSED";
+                case kns::TCPState::LISTEN: return "LISTEN";
+                case kns::TCPState::SYN_SENT: return "SYN_SENT";
+                case kns::TCPState::SYN_RECEIVED: return "SYN_RECEIVED";
+                case kns::TCPState::ESTABLISHED: return "ESTABLISHED";
+                case kns::TCPState::FIN_WAIT_1: return "FIN_WAIT_1";
+                case kns::TCPState::FIN_WAIT_2: return "FIN_WAIT_2";
+                case kns::TCPState::CLOSE_WAIT: return "CLOSE_WAIT";
+                case kns::TCPState::LAST_ACK: return "LAST_ACK";
+                case kns::TCPState::TIME_WAIT: return "TIME_WAIT";
+                case kns::TCPState::CLOSING: return "CLOSING";
+            }
+
+            return "UNKNOWN";
+        }
+    } // namespace
+
+    std::optional<TcpConnectionAction> TcpConnectionPanel::render(
+        const kns::SimulationEngine& engine,
+        TranslationService& translations
+    )
+    {
+        std::optional<TcpConnectionAction> action;
+
+        const std::string window_label =
+            translations.label("TCP Connections", "tcp-connections-window");
+        ImGui::Begin(window_label.c_str());
+
+        const int node_count = engine.getTopology().size();
+
+        if (node_count < 2) {
+            ImGui::TextDisabled(
+                "%s",
+                translations.translate("At least two nodes are required.").c_str()
+            );
+        } else {
+            source_node_ = std::clamp(source_node_, 0, node_count - 1);
+            destination_node_ = std::clamp(destination_node_, 0, node_count - 1);
+            source_port_ = std::clamp(source_port_, kMinimumPort, kMaximumPort);
+            destination_port_ = std::clamp(
+                destination_port_,
+                kMinimumPort,
+                kMaximumPort
+            );
+
+            const std::string source_node_label =
+                translations.label("Source node", "tcp-source-node");
+            const std::string destination_node_label =
+                translations.label("Destination node", "tcp-destination-node");
+            const std::string source_port_label =
+                translations.label("Source port", "tcp-source-port");
+            const std::string destination_port_label =
+                translations.label("Destination port", "tcp-destination-port");
+
+            ImGui::InputInt(source_node_label.c_str(), &source_node_);
+            ImGui::InputInt(destination_node_label.c_str(), &destination_node_);
+            ImGui::InputInt(source_port_label.c_str(), &source_port_);
+            ImGui::InputInt(destination_port_label.c_str(), &destination_port_);
+
+            source_node_ = std::clamp(source_node_, 0, node_count - 1);
+            destination_node_ = std::clamp(destination_node_, 0, node_count - 1);
+            source_port_ = std::clamp(source_port_, kMinimumPort, kMaximumPort);
+            destination_port_ = std::clamp(
+                destination_port_,
+                kMinimumPort,
+                kMaximumPort
+            );
+
+            const bool valid_nodes = source_node_ != destination_node_ &&
+                engine.getTopology().getNode(source_node_)->isActive() &&
+                engine.getTopology().getNode(destination_node_)->isActive();
+
+            ImGui::BeginDisabled(!valid_nodes);
+
+            const std::string open_label =
+                translations.label("Open TCP Session", "open-tcp-session");
+            if (ImGui::Button(open_label.c_str())) {
+                action = TcpConnectionAction{
+                    TcpConnectionActionType::Open,
+                    source_node_,
+                    destination_node_,
+                    static_cast<std::uint16_t>(source_port_),
+                    static_cast<std::uint16_t>(destination_port_),
+                    0
+                };
+            }
+
+            ImGui::EndDisabled();
+
+            if (!valid_nodes) {
+                ImGui::TextDisabled(
+                    "%s",
+                    translations.translate(
+                        "Source and destination must be different active devices."
+                    ).c_str()
+                );
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginTable(
+                "TcpConnectionTable",
+                5,
+                ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_Borders |
+                    ImGuiTableFlags_Resizable |
+                    ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn(translations.translate("Session").c_str());
+            ImGui::TableSetupColumn(translations.translate("Source").c_str());
+            ImGui::TableSetupColumn(translations.translate("Destination").c_str());
+            ImGui::TableSetupColumn(translations.translate("State").c_str());
+            ImGui::TableSetupColumn(
+                translations.translate("Action").c_str(),
+                ImGuiTableColumnFlags_WidthFixed
+            );
+            ImGui::TableHeadersRow();
+
+            for (const auto& [session_id, session] : engine.getTCPSessions()) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%llu", static_cast<unsigned long long>(session_id));
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text(
+                    "%d:%u",
+                    session.getSource(),
+                    session.getClientConnection().getLocalPort()
+                );
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text(
+                    "%d:%u",
+                    session.getDestination(),
+                    session.getClientConnection().getRemotePort()
+                );
+                ImGui::TableSetColumnIndex(3);
+                ImGui::TextUnformatted(
+                    translations.translate(
+                        stateLabel(session.getState())
+                    ).c_str()
+                );
+                ImGui::TableSetColumnIndex(4);
+
+                ImGui::PushID(static_cast<int>(session_id));
+
+                const std::string cancel_label =
+                    translations.label("Cancel", "cancel-tcp-session");
+                if (ImGui::SmallButton(cancel_label.c_str())) {
+                    action = TcpConnectionAction{
+                        TcpConnectionActionType::Cancel,
+                        0,
+                        0,
+                        0,
+                        0,
+                        session_id
+                    };
+                }
+
+                ImGui::PopID();
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::End();
+
+        return action;
+    }
+
+} // namespace gui

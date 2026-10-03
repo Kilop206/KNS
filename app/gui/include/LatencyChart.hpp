@@ -3,12 +3,13 @@
 #include <cstddef>
 #include <vector>
 
-namespace interface {
+namespace gui {
     struct CircularBuffer {
     public:
         explicit CircularBuffer(std::size_t capacity = 100);
 
         void addLatencyToBuffer(float latency);
+        void clear() noexcept;
 
         std::vector<float> values() const;
 

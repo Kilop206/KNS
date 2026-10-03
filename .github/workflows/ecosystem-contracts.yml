@@ -1,0 +1,87 @@
+name: Ecosystem contract integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "contracts/**"
+      - "scripts/validate_contracts.py"
+      - ".github/workflows/ecosystem-contracts.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Public cross-repository contract smoke tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout KNS
+        uses: actions/checkout@v4
+        with:
+          path: kns
+
+      - name: Checkout KNS Discovery
+        uses: actions/checkout@v4
+        with:
+          repository: Kilop206/KNS-Discovery
+          ref: main
+          path: discovery
+          persist-credentials: false
+
+      - name: Checkout Topology Hub
+        uses: actions/checkout@v4
+        with:
+          repository: Kilop206/Topology-Hub
+          ref: main
+          path: topology-hub
+          persist-credentials: false
+
+      - name: Validate canonical KNS schemas
+        run: python kns/scripts/validate_contracts.py
+
+      - name: Validate public release train versions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("kns/releases/ecosystem-v1.json").read_text())
+          expected = manifest["components"]
+          actual = {
+              "kns_discovery": Path("discovery/VERSION").read_text().strip(),
+              "topology_hub": Path("topology-hub/VERSION").read_text().strip(),
+          }
+          for name, version in actual.items():
+              if version != expected[name]:
+                  raise SystemExit(f"{name}: {version} != release train {expected[name]}")
+          print("Public component versions match ecosystem-v1.")
+          PY
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: discovery/go.mod
+          cache: false
+
+      - name: Validate Discovery topology producer
+        working-directory: discovery
+        run: go test ./internal/discovery
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: |
+            topology-hub/backend/pom.xml
+            sentient/pom.xml
+
+      - name: Validate Topology Hub topology boundary
+        working-directory: topology-hub/backend
+        run: mvn -B -ntp -Dtest=HubApiTest test
+

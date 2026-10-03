@@ -1,0 +1,56 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "network/transport/tcp/TCPSegment.hpp"
+#include "network/transport/tcp/TCPSequence.hpp"
+
+namespace kns {
+
+    struct TCPSendEntry {
+        TCPSegment segment;
+
+        // Timestamp da transmissão mais recente.
+        double sent_at = 0.0;
+
+        // Indica que este segmento já foi retransmitido.
+        // Pelo algoritmo de Karn, uma entrada marcada assim
+        // não pode fornecer amostra válida de RTT.
+        bool retransmitted = false;
+
+        // Número de retransmissões realizadas para este segmento.
+        std::uint32_t retransmission_count = 0;
+
+        std::uint32_t sequence_end() const noexcept {
+            return segment.seq +
+                   static_cast<std::uint32_t>(
+                       segment.payloadSize()
+                   );
+        }
+
+        std::size_t payload_size() const noexcept {
+            return segment.payloadSize();
+        }
+
+        bool isAcknowledged(
+            std::uint32_t ack_number
+        ) const noexcept {
+            return tcp_sequence::beforeOrEqual(sequence_end(), ack_number);
+        }
+
+        bool canMeasureRtt() const noexcept {
+            return !retransmitted;
+        }
+
+        void markRetransmitted(
+            double retransmission_time
+        ) noexcept
+        {
+            sent_at = retransmission_time;
+            retransmitted = true;
+            ++retransmission_count;
+        }
+    };
+
+} // namespace kns

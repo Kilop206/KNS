@@ -1,0 +1,323 @@
+#include <catch2/catch_test_macros.hpp>
+#include "network/Link.hpp"
+#include "network/Topology.hpp"
+#include "enums/LinkMode.hpp"
+#include <limits>
+#include <stdexcept>
+
+using kns::Link;
+using kns::LinkMode;
+using kns::Topology;
+
+static_assert(!noexcept(std::declval<Link&>().enqueueTransmission(0, 1, 0.0, 1.0)),
+    "Queue allocation errors must propagate instead of terminating the process");
+
+TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]")
+{
+    const auto invalid = static_cast<LinkMode>(999);
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    Link link(0, 1, 10.0, 1.0);
+    REQUIRE_THROWS_AS(link.setMode(invalid), std::invalid_argument);
+    REQUIRE(link.getMode() == LinkMode::FULL_DUPLEX);
+    Topology topology(2);
+    const auto revision = topology.getRoutingRevision();
+    REQUIRE_THROWS_AS(topology.addLinkPtr(0, 8, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    REQUIRE_THROWS_AS(topology.addLink(0, 8, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
+    REQUIRE(topology.size() == 2);
+    REQUIRE(topology.getLinks().empty());
+    REQUIRE(topology.getLinksFromNode(0).empty());
+    REQUIRE(topology.getRoutingRevision() == revision);
+}
+
+TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][mode]")
+{
+    for (const auto initial : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
+        const auto next = initial == LinkMode::FULL_DUPLEX
+            ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
+        Link link(0, 1, 10.0, 1.0, 0.0, initial);
+        link.enqueueTransmission(0, 1, 0.0, 1.0);
+        link.enqueueTransmission(1, 0, 1.0, 2.0);
+        REQUIRE_NOTHROW(link.setMode(initial));
+        REQUIRE_THROWS_AS(link.setMode(next), std::logic_error);
+        REQUIRE(link.getMode() == initial);
+        REQUIRE(link.dequeueTransmission(0, 1, 0.0, 1.0));
+        REQUIRE(link.dequeueTransmission(1, 0, 1.0, 2.0));
+        REQUIRE(link.getQueueSize() == 0);
+        REQUIRE_NOTHROW(link.setMode(next));
+        REQUIRE(link.getMode() == next);
+    }
+}
+
+TEST_CASE("Configurable link capacity bounds each transmission queue", "[network][link][queue]")
+{
+    for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX, LinkMode::SIMPLEX}) {
+        for (const int capacity : {1, 5}) {
+            CAPTURE(mode, capacity);
+            Link link(0, 1, 10.0, 1.0, 0.0, mode, capacity);
+            REQUIRE(link.getQueueCapacity() == static_cast<std::size_t>(capacity));
+            for (int i = 0; i < capacity; ++i) {
+                REQUIRE(link.canQueue(0, 1));
+                link.enqueueTransmission(0, 1, i, i + 1);
+            }
+            REQUIRE_FALSE(link.canQueue(0, 1));
+            link.enqueueTransmission(0, 1, 100.0, 101.0);
+            REQUIRE(link.getQueueSize() == static_cast<std::size_t>(capacity));
+            REQUIRE(link.canQueue(1, 0) == (mode == LinkMode::FULL_DUPLEX));
+            REQUIRE_THROWS_AS(link.setQueueCapacity(0), std::invalid_argument);
+            REQUIRE_THROWS_AS(link.setQueueCapacity(-1), std::invalid_argument);
+            if (capacity > 1) {
+                REQUIRE_THROWS_AS(link.setQueueCapacity(1), std::invalid_argument);
+            }
+            REQUIRE(link.getQueueCapacity() == static_cast<std::size_t>(capacity));
+            link.setQueueCapacity(capacity + 1);
+            REQUIRE(link.canQueue(0, 1));
+        }
+    }
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, -1), std::invalid_argument);
+    Link defaults(0, 1, 10.0, 1.0);
+    REQUIRE(defaults.getQueueCapacity() == 32);
+    defaults.setQueueCapacity(7);
+    Topology topology(2);
+    topology.addLink(defaults);
+    REQUIRE(topology.getLinks().front()->getQueueCapacity() == 7);
+}
+
+TEST_CASE("Link construction and basic attributes", "[network][link]")
+{
+    Link link(1, 2, 100.0, 10.0, 0.05, LinkMode::FULL_DUPLEX);
+
+    REQUIRE(link.getA() == 1);
+    REQUIRE(link.getB() == 2);
+    REQUIRE(link.getOtherNode(1) == 2);
+    REQUIRE(link.getOtherNode(2) == 1);
+    REQUIRE(link.getOtherNode(3) == -1);
+
+    REQUIRE(link.getBandwidthMbps() == 100.0);
+    REQUIRE(link.getDelayMs() == 10.0);
+    REQUIRE(link.getLossProb() == 0.05);
+    REQUIRE(link.getMode() == LinkMode::FULL_DUPLEX);
+
+    link.setBandwidthMbps(50.0);
+    REQUIRE(link.getBandwidthMbps() == 50.0);
+
+    link.setDelayMs(20.0);
+    REQUIRE(link.getDelayMs() == 20.0);
+
+    link.setLossProb(0.1);
+    REQUIRE(link.getLossProb() == 0.1);
+
+    link.setMode(LinkMode::HALF_DUPLEX);
+    REQUIRE(link.getMode() == LinkMode::HALF_DUPLEX);
+}
+
+TEST_CASE("Link rejects invalid transmission parameters", "[network][link]")
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    REQUIRE_THROWS_AS(Link(1, 2, 0.0, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, -1.0, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, nan, 5.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, infinity, 5.0), std::invalid_argument);
+
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, -1.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, infinity), std::invalid_argument);
+
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, -0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, 1.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(Link(1, 2, 10.0, 5.0, infinity), std::invalid_argument);
+
+    Link link(1, 2, 10.0, 5.0, 0.25);
+
+    REQUIRE_THROWS_AS(link.setBandwidthMbps(nan), std::invalid_argument);
+    REQUIRE(link.getBandwidthMbps() == 10.0);
+    REQUIRE_THROWS_AS(link.setBandwidthMbps(0.0), std::invalid_argument);
+    REQUIRE(link.getBandwidthMbps() == 10.0);
+
+    REQUIRE_THROWS_AS(link.setDelayMs(infinity), std::invalid_argument);
+    REQUIRE(link.getDelayMs() == 5.0);
+    REQUIRE_THROWS_AS(link.setDelayMs(-1.0), std::invalid_argument);
+    REQUIRE(link.getDelayMs() == 5.0);
+
+    REQUIRE_THROWS_AS(link.setLossProb(nan), std::invalid_argument);
+    REQUIRE(link.getLossProb() == 0.25);
+    REQUIRE_THROWS_AS(link.setLossProb(1.1), std::invalid_argument);
+    REQUIRE(link.getLossProb() == 0.25);
+}
+
+TEST_CASE("Link full-duplex transmission model", "[network][link]")
+{
+    Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    // Initial state: not busy
+    REQUIRE_FALSE(link.isBusy(1, 2, 0.0));
+    REQUIRE_FALSE(link.isBusy(2, 1, 0.0));
+
+    // Reserve A->B
+    link.reserveTransmission(1, 2, 15.0);
+    REQUIRE(link.isBusy(1, 2, 10.0));
+    REQUIRE_FALSE(link.isBusy(1, 2, 20.0));
+
+    // Full duplex: B->A should remain idle/not busy
+    REQUIRE_FALSE(link.isBusy(2, 1, 10.0));
+}
+
+TEST_CASE("Link half-duplex transmission model", "[network][link]")
+{
+    Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::HALF_DUPLEX);
+
+    REQUIRE_FALSE(link.isBusy(1, 2, 0.0));
+    REQUIRE_FALSE(link.isBusy(2, 1, 0.0));
+
+    // Reserve A->B
+    link.reserveTransmission(1, 2, 15.0);
+
+    // Half duplex: both directions are busy until 15.0
+    REQUIRE(link.isBusy(1, 2, 10.0));
+    REQUIRE(link.isBusy(2, 1, 10.0));
+
+    REQUIRE_FALSE(link.isBusy(1, 2, 20.0));
+    REQUIRE_FALSE(link.isBusy(2, 1, 20.0));
+}
+
+TEST_CASE("Link simplex transmission model", "[network][link]")
+{
+    Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::SIMPLEX);
+
+    // A->B is allowed
+    REQUIRE_FALSE(link.isBusy(1, 2, 0.0));
+
+    // B->A is NOT allowed and should return busy (infinity)
+    REQUIRE(link.isBusy(2, 1, 0.0));
+    REQUIRE(link.getNextAvailableTime(2, 1, 0.0) == std::numeric_limits<double>::infinity());
+
+    // Reserve A->B
+    link.reserveTransmission(1, 2, 15.0);
+    REQUIRE(link.isBusy(1, 2, 10.0));
+}
+
+TEST_CASE("Link queue management limits", "[network][link][queue]")
+{
+    Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+
+    REQUIRE(link.getQueueSize() == 0);
+    REQUIRE(link.getQueueCapacity() == 32);
+    REQUIRE(link.canQueue(1, 2));
+
+    for (std::size_t i = 0; i < link.getQueueCapacity(); ++i) {
+        REQUIRE(link.canQueue(1, 2));
+
+        link.enqueueTransmission(
+            1,
+            2,
+            static_cast<double>(i),
+            static_cast<double>(i + 1)
+        );
+    }
+
+    REQUIRE(link.getQueueSize() == link.getQueueCapacity());
+    REQUIRE_FALSE(link.canQueue(1, 2));
+
+    REQUIRE(
+        link.dequeueTransmission(
+            1,
+            2,
+            0.0,
+            1.0
+        )
+    );
+
+    REQUIRE(link.getQueueSize() == 31);
+    REQUIRE(link.canQueue(1, 2));
+}
+
+TEST_CASE("Link drop behavior based on probability", "[network][link]")
+{
+    Link link_no_loss(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    REQUIRE_FALSE(link_no_loss.should_drop());
+
+    Link link_total_loss(1, 2, 10.0, 5.0, 1.0, LinkMode::FULL_DUPLEX);
+    REQUIRE(link_total_loss.should_drop());
+}
+
+TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[network][topology]")
+{
+    Topology topo(2);
+    topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
+    const auto& const_topo = topo;
+
+    // Valid node: both const and non-const overloads return identical link list
+    REQUIRE(topo.getLinksFromNode(0).size() == 1);
+    REQUIRE(const_topo.getLinksFromNode(0).size() == 1);
+    REQUIRE(topo.getLinksFromNode(0)[0]->getId() == const_topo.getLinksFromNode(0)[0]->getId());
+    REQUIRE(topo.getLinksFromNode(1).size() == 1);
+    REQUIRE(const_topo.getLinksFromNode(1).size() == 1);
+
+    // Invalid negative node ID throws std::out_of_range consistently
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(-1), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(-1), std::out_of_range);
+
+    // Invalid node ID above range throws std::out_of_range consistently
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(2), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(2), std::out_of_range);
+    REQUIRE_THROWS_AS(topo.getLinksFromNode(99), std::out_of_range);
+    REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
+}
+
+TEST_CASE("Topology programmatic API validation", "[network][topology]")
+{
+    // Constructor negative node count
+    REQUIRE_THROWS_AS(Topology(-1), std::invalid_argument);
+    REQUIRE_THROWS_AS(Topology(-10), std::invalid_argument);
+
+    Topology topo(3);
+
+    // Reject negative node indices (both endpoints)
+    REQUIRE_THROWS_AS(topo.addLink(-1, 1, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, -2, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(-1, 1, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, -2, 100.0, 10.0), std::invalid_argument);
+
+    // Reject self-loops
+    REQUIRE_THROWS_AS(topo.addLink(1, 1, 100.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(2, 2, 100.0, 10.0), std::invalid_argument);
+
+    // Reject non-positive bandwidth
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 0.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, -50.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 0.0, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, -10.0, 10.0), std::invalid_argument);
+
+    // Reject negative delay
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 10.0, -1.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, -5.0), std::invalid_argument);
+
+    // Reject invalid loss probability
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 100.0, 10.0, -0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 100.0, 10.0, 1.5), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 100.0, 10.0, -0.01), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 100.0, 10.0, 2.0), std::invalid_argument);
+
+    // Reject invalid global loss probability
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(-0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(1.1), std::invalid_argument);
+
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+
+    // Reject non-finite link and global loss parameters.
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, nan, 10.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, infinity), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLink(0, 1, 10.0, 5.0, nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.addLinkPtr(0, 1, 10.0, 5.0, infinity), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(nan), std::invalid_argument);
+    REQUIRE_THROWS_AS(topo.setGlobalLossProb(infinity), std::invalid_argument);
+
+    // Valid parameters succeed
+    REQUIRE_NOTHROW(topo.addLink(0, 1, 10.0, 5.0, 0.0));
+    REQUIRE_NOTHROW(topo.addLinkPtr(1, 2, 10.0, 5.0, 1.0));
+    REQUIRE_NOTHROW(topo.setGlobalLossProb(0.25));
+}

@@ -1,11 +1,15 @@
 #pragma once
 
+#include <optional>
+#include <cstdint>
+#include <string_view>
 #include <vector>
 
 namespace kns {
 
-class Topology;
+    class Topology;
 
+<<<<<<< HEAD
 	class Routing {
 		public:
 			struct DijkstraResult {
@@ -24,3 +28,48 @@ class Topology;
 	};
 
 } // namespace kns
+=======
+    /// Selects the cost function used by Dijkstra when building routing tables.
+    enum class RoutingMetric {
+        /// Minimize end-to-end propagation delay (sum of link delay_ms). Default.
+        Delay,
+        /// Maximize available bandwidth (maximize minimum link bandwidth_mbps).
+        Bandwidth,
+        /// Minimize hop count (each link costs 1).
+        HopCount,
+        /// Composite: delay / bandwidth_mbps — favours low-latency, high-bandwidth paths.
+        DelayBandwidth,
+    };
+
+    /// Returns the stable CLI/configuration name for a routing metric.
+    std::string_view routingMetricName(RoutingMetric metric) noexcept;
+
+    /// Parses a stable routing metric name, or std::nullopt when unsupported.
+    std::optional<RoutingMetric> parseRoutingMetric(
+        std::string_view name
+    ) noexcept;
+
+    class Routing {
+        public:
+            struct DijkstraResult {
+                std::vector<double> dist;
+                std::vector<int> parent;
+                std::vector<std::optional<std::uint64_t>> parent_link;
+            };
+
+            struct RoutingEntry {
+                int destination = -1;
+                int next_hop = -1;
+                double distance = 0.0;
+                std::optional<std::uint64_t> link_id;
+            };
+
+            DijkstraResult buildDijkstra(const Topology& topology, int src,
+                                          RoutingMetric metric = RoutingMetric::Delay);
+
+            std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src,
+                                                         RoutingMetric metric = RoutingMetric::Delay);
+    };
+
+}
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

@@ -1,0 +1,27 @@
+#include "engine/events/TCPTimeWaitTimeoutEvent.hpp"
+
+#include "engine/core/SimulationEngine.hpp"
+#include "network/transport/tcp/TCPSession.hpp"
+#include "enums/TCPState.hpp"
+
+namespace kns {
+    TCPTimeWaitTimeoutEvent::TCPTimeWaitTimeoutEvent(double timestamp, std::uint64_t session_id)
+        : Event(timestamp),
+          session_id_(session_id)
+    {
+    }
+
+    void TCPTimeWaitTimeoutEvent::execute(SimulationEngine& engine) {
+        if (!engine.hasTCPSession(session_id_)) {
+            return;
+        }
+
+        auto& session = engine.getTCPSession(session_id_);
+        auto& client = session.getClientConnection();
+        client.expire_time_wait();
+        session.getServerConnection().expire_time_wait();
+        if (session.getState() == TCPState::CLOSED) {
+            engine.releaseTCPListenerSession(session_id_);
+        }
+    }
+}

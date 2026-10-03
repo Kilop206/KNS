@@ -1,27 +1,169 @@
 #pragma once
 
+#include <cstdint>
+#include <atomic>
+#include <limits>
+#include <deque>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "enums/LinkMode.hpp"
+#include "engine/core/Random.hpp"
+
 namespace kns {
-	struct Link {
 
-		// Node IDs of the two nodes connected by this link
-		int from;
-		int to;
+class Topology;
 
-		// Link properties
+class Link {
+    mutable Random random_;
+    public:
+        Link(
+            int a,
+            int b,
+            double bandwidth_mbps,
+            double delay_ms,
+            double loss_prob = 0.0,
+            LinkMode mode = LinkMode::FULL_DUPLEX,
+            int queue_capacity = 32
+        );
 
-		// Delay in milliseconds
-		double delay_ms;
-		
-		// Bandwidth in Mbps
-		double bandwidth_mbps;
+        /// Stable numeric identity assigned at construction. Unique within a simulation run.
+        std::uint64_t getId() const noexcept;
 
-		// Loss probability (0.0 to 1.0)
-		double loss_prob;
+        int getA() const noexcept;
+        int getB() const noexcept;
+        int getOtherNode(int node) const noexcept;
+        /// Whether the mode permits transmission between these endpoints.
+        bool allowsTransmission(int from, int to) const noexcept;
 
-		// Returns the ID of the other node connected by this link
-		int getOtherNode(int node) const;
+        double getBandwidthMbps() const noexcept;
+        void setBandwidthMbps(double value);
 
-		// Determines if a packet should be dropped based on the loss probability
-		bool should_drop() const;
-	};
+        double getDelayMs() const noexcept;
+        void setDelayMs(double value);
+
+        double getLossProb() const noexcept;
+        void setLossProb(double value);
+
+        LinkMode getMode() const noexcept;
+        /// Throws logic_error if a mode change would affect pending transmissions.
+        void setMode(LinkMode mode);
+
+        bool isBusy(int from, int to, double now) const noexcept;
+
+        double getNextAvailableTime(int from, int to, double now) const noexcept;
+        void reserveTransmission(int from, int to, double busy_until) const noexcept;
+
+        bool should_drop() const;
+
+        std::size_t estimatedQueueSize(double now, int from, int to) const;
+
+        bool canQueue(int from, int to) const noexcept;
+
+        /// Record a transmission if capacity is available. Allocation failures
+        /// propagate without changing queue contents.
+        void enqueueTransmission(
+            int from,
+            int to,
+            double departure_time,
+            double arrival_time
+        );
+
+        /// Remove the oldest matching transmission from the FIFO queue.
+        /// Returns true if a matching entry was found and removed.
+        bool dequeueTransmission(
+            int from,
+            int to,
+            double departure_time,
+            double arrival_time
+        ) noexcept;
+
+        /// Legacy counter-only helpers kept for callers that have not yet been
+        /// migrated to the typed FIFO methods.
+        void enqueuePacket() noexcept;
+        void dequeuePacket() noexcept;
+
+        std::size_t getQueueSize() const noexcept;
+        std::size_t getQueueCapacity() const noexcept;
+        /// Positive capacity per direction (FULL_DUPLEX) or shared (HALF_DUPLEX).
+        /// Cannot shrink below the current occupancy of any queue.
+        void setQueueCapacity(int capacity);
+
+        // Up/down state for GUI toggling
+        bool isUp() const noexcept;
+        void setUp(bool up) noexcept;
+
+        bool isInferred() const noexcept { return inferred_; }
+        const std::string& getEvidence() const noexcept { return evidence_; }
+        void setDiscoveryMetadata(bool inferred, std::string evidence) {
+            if (inferred_ != inferred || evidence_ != evidence) {
+                inferred_ = inferred;
+                evidence_ = std::move(evidence);
+                markRoutingChanged();
+            }
+        }
+
+    private:
+        friend class Topology;
+
+        void attachRoutingRevision(
+            const std::shared_ptr<std::uint64_t>& revision
+        ) noexcept;
+        void markRoutingChanged() noexcept;
+        
+        enum class DirectionSlot {
+            AB,
+            BA,
+            Shared,
+            Invalid
+        };
+
+        struct LinkTransmission {
+            int from = -1;
+            int to = -1;
+            double departure_time = 0.0;
+            double arrival_time = 0.0;
+        };
+
+        double busy_until_ = 0.0;
+
+        DirectionSlot getDirectionSlot(int from, int to) const noexcept;
+
+        std::deque<LinkTransmission>&
+        queueForSlot(DirectionSlot slot) noexcept;
+
+        const std::deque<LinkTransmission>&
+        queueForSlot(DirectionSlot slot) const noexcept;
+
+        const std::uint64_t id_;
+        static std::atomic<std::uint64_t> next_id_;
+
+        const int a_;
+        const int b_;
+
+        double bandwidth_mbps_;
+        double delay_ms_;
+        double loss_prob_;
+        LinkMode mode_;
+
+        mutable double busy_until_ab_ = 0.0;
+        mutable double busy_until_ba_ = 0.0;
+        mutable double busy_until_shared_ = 0.0;
+
+        std::deque<LinkTransmission> queue_ab_;
+        std::deque<LinkTransmission> queue_ba_;
+        std::deque<LinkTransmission> queue_shared_;
+
+        std::size_t queue_capacity_ = 32;
+
+        bool up_ = true;
+        bool inferred_ = false;
+        std::string evidence_;
+
+        std::shared_ptr<std::uint64_t> routing_revision_;
+
+        DirectionSlot getQueueSlot(int from, int to) const noexcept;
+    };
 }

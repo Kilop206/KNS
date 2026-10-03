@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 add_executable(kns_app main.cpp
     gui/src/Window.cpp
     gui/src/MetricsPannel.cpp
@@ -9,15 +10,127 @@ target_link_libraries(kns_app
     kns_core 
     imgui
 )
+=======
+add_executable(KNS)
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 if(WIN32)
-    target_link_libraries(kns_app opengl32 gdi32 user32 shell32)
-elseif(UNIX)
-    target_link_libraries(kns_app GL dl)
+    target_link_libraries(KNS PRIVATE ole32 shell32 uuid)
+    target_compile_definitions(KNS PRIVATE
+        _WIN32_WINNT=0x0A00
+        WINVER=0x0A00
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+    )
 endif()
 
+<<<<<<< HEAD
 add_custom_command(TARGET kns_app POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/app/topologies
     $<TARGET_FILE_DIR:kns_app>/topologies
+=======
+target_sources(KNS PRIVATE
+    main.cpp
+    intelligence/IntelligenceClient.cpp
+    intelligence/IntelligenceConfigLoader.cpp
+    intelligence/IntelligenceService.cpp
+    intelligence/ChatService.cpp
+    hub/TopologyHubClient.cpp
+    gui/src/GUIFormat.cpp
+    gui/src/NativeFileDialog.cpp
+    gui/src/IntelligencePanel.cpp
+    gui/src/LatencyChart.cpp
+    gui/src/MetricsPannel.cpp
+    gui/src/PacketRenderer.cpp
+    gui/src/TranslationService.cpp
+    gui/src/ThemeManager.cpp
+    gui/src/TcpCongestionPanel.cpp
+    gui/src/TcpConnectionPanel.cpp
+    gui/src/TcpTimelinePanel.cpp
+    gui/src/TopologyPannel.cpp
+    gui/src/TopologyCanvas.cpp
+    gui/src/DeviceIcons.cpp
+    gui/src/VisualPacketManager.cpp
+    gui/src/Window.cpp
+)
+
+target_include_directories(KNS PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/gui/include
+)
+
+target_link_libraries(KNS
+    PRIVATE
+        kns
+        imgui_lib
+        httplib::httplib
+)
+
+target_compile_features(KNS PRIVATE cxx_std_20)
+
+if(MSVC)
+    target_compile_options(KNS PRIVATE /utf-8)
+endif()
+
+if(KNS_ENABLE_WARNINGS)
+    kns_enable_warnings(KNS)
+endif()
+
+if(KNS_BUILD_TESTS)
+    add_test(
+        headless_run_configuration
+        ${CMAKE_COMMAND}
+        -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+        -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+        -DKNS_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/configuration-tests
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessConfiguration.cmake
+    )
+    foreach(metric delay bandwidth hop-count delay-bandwidth)
+        add_test(
+            headless_routing_metric_${metric}
+            ${CMAKE_COMMAND}
+            -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+            -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+            -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+            -DKNS_METRIC=${metric}
+            -DKNS_OUTPUT=${CMAKE_CURRENT_BINARY_DIR}/headless-tests/${metric}.csv
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessRoutingMetric.cmake
+        )
+    endforeach()
+
+    add_test(
+        headless_routing_metric_rejects_invalid_value
+        ${CMAKE_COMMAND}
+        -DKNS_APP_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -DKNS_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+        -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
+        -DKNS_METRIC=invalid
+        -DKNS_EXPECT_FAILURE=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessRoutingMetric.cmake
+    )
+endif()
+
+# ============================================
+# Assets
+# ============================================
+
+target_compile_definitions(KNS PRIVATE
+    KNS_ASSET_DIR="$<TARGET_FILE_DIR:KNS>/assets"
+)
+
+add_custom_command(TARGET KNS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/assets
+            $<TARGET_FILE_DIR:KNS>/assets
+    COMMENT "Copying assets..."
+)
+
+add_custom_command(TARGET KNS POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/app/topologies
+            $<TARGET_FILE_DIR:KNS>/topologies
+    COMMENT "Copying topologies..."
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 )

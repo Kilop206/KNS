@@ -2,18 +2,22 @@
 
 #include <cstdint>
 
+#include "engine/core/Event.hpp"
 #include "network/Packet.hpp"
-#include "engine/events/Event.hpp"
 
 namespace kns {
 
+    class TCPSession;
+
     class PacketReceivedEvent : public Event {
-    public:
-        Packet packet;
+        public:
+            explicit PacketReceivedEvent(double timestamp, Packet packet);
 
-        PacketReceivedEvent(double timestamp, Packet packet);
+            void execute(SimulationEngine& engine) override;
+            const char* getName() const noexcept override { return "PacketReceivedEvent"; }
 
-        void execute(SimulationEngine& engine) override;
+        private:
+            Packet packet;
     };
 
 }

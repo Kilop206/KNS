@@ -1,5 +1,17 @@
 #include "engine/events/PacketGenerationEvent.hpp"
+<<<<<<< HEAD
 #include "network/utils/PacketUtils.hpp"
+=======
+
+#include "engine/core/SimulationEngine.hpp"
+#include "engine/events/TCPTimeoutEvent.hpp"
+#include "network/Packet.hpp"
+#include "network/utils/PacketUtils.hpp"
+
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
 
@@ -7,6 +19,7 @@ namespace kns {
         double timestamp,
         int source,
         int destination,
+<<<<<<< HEAD
         PacketType type
     )
         : Event(timestamp),
@@ -32,3 +45,101 @@ namespace kns {
     }
 
 }
+=======
+        std::uint64_t session_id
+    )
+        : Event(timestamp),
+          source_(source),
+          destination_(destination),
+          session_id_(session_id)
+    {
+    }
+
+    void PacketGenerationEvent::execute(SimulationEngine& engine)
+    {
+        if (!engine.hasTCPSession(session_id_)) {
+            return;
+        }
+
+        auto& session = engine.getTCPSession(session_id_);
+        session.setGenerationPending(false);
+        auto& client = session.getClientConnection();
+
+        if (session.getState() != TCPState::ESTABLISHED) {
+            return;
+        }
+
+        if (session.isComplete()) {
+            return;
+        }
+
+        const std::size_t payload_size =
+            engine.getGlobalPacketSize() > 0
+                ? static_cast<std::size_t>(
+                      engine.getGlobalPacketSize()
+                  )
+                : 1;
+
+        if (!client.canSend(payload_size)) {
+            return;
+        }
+
+        Packet pkt(
+            source_,
+            destination_,
+            source_,
+            engine.now(),
+            engine.getGlobalPacketSize(),
+            session_id_
+        );
+
+        pkt.packet_type = PacketType::DATA;
+        pkt.tcp.source_port = client.getLocalPort();
+        pkt.tcp.destination_port = client.getRemotePort();
+        pkt.tcp.seq = client.getSendNext();
+        pkt.tcp.ack = client.getExpectedAckNum();
+
+        pkt.tcp.window = static_cast<std::uint16_t>(
+            std::min<std::uint32_t>(
+                client.getReceiveWindow(),
+                65535U
+            )
+        );
+
+        pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
+        pkt.tcp.payload.assign(payload_size, 0x41);
+        pkt.departure_time = engine.now();
+
+        const bool hadOutstandingData =
+            client.getSendBufferSize() != 0;
+
+        if (!client.queueSentSegment(
+                pkt.tcp,
+                engine.now()
+            )) {
+            return;
+        }
+
+        if (!hadOutstandingData) {
+            engine.schedule(
+                std::make_unique<TCPTimeoutEvent>(
+                    engine.now() +
+                        client.getCurrentRTO(),
+                    session_id_,
+                    pkt.tcp.seq
+                )
+            );
+        }
+
+        session.incrementPacketsSent();
+
+        // TCP owns the bytes and their recovery timer before network delivery.
+        PacketUtils::sendPacketThroughTopology(engine, pkt);
+
+        if (!session.isComplete()) {
+            engine.generatePackets(engine.now(), session);
+        }
+    }
+
+} // namespace kns
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

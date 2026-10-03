@@ -1,4 +1,5 @@
 #include <limits>
+#include <array>
 #include <vector>
 #include <queue>
 #include <cassert>
@@ -11,54 +12,155 @@
 
 namespace kns {
 
+<<<<<<< HEAD
 	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src) {
+=======
+	namespace {
+		constexpr std::array routingMetrics{
+			std::pair{"delay", RoutingMetric::Delay},
+			std::pair{"bandwidth", RoutingMetric::Bandwidth},
+			std::pair{"hop-count", RoutingMetric::HopCount},
+			std::pair{"delay-bandwidth", RoutingMetric::DelayBandwidth},
+		};
+	} // namespace
+
+	std::string_view routingMetricName(RoutingMetric metric) noexcept {
+		for (const auto& [name, candidate] : routingMetrics) {
+			if (candidate == metric) {
+				return name;
+			}
+		}
+
+		return "unknown";
+	}
+
+	std::optional<RoutingMetric> parseRoutingMetric(
+		std::string_view name
+	) noexcept {
+		for (const auto& [candidate_name, metric] : routingMetrics) {
+			if (candidate_name == name) {
+				return metric;
+			}
+		}
+
+		return std::nullopt;
+	}
+
+	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
+	                                                 RoutingMetric metric) {
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 
 		const double inf = std::numeric_limits<double>::infinity();
 
-		std::vector<double> dist(n, inf);
-		std::vector<int> parent(n, -1);
+		// For Bandwidth metric we maximise the minimum bandwidth, so we start with
+		// 0.0 as "worst" and use a max-heap. For all other metrics we minimise cost
+		// and start with +inf.
+		const bool maximise = (metric == RoutingMetric::Bandwidth);
 
+		std::vector<double> dist(n, maximise ? 0.0 : inf);
+		std::vector<int> parent(n, -1);
+		std::vector<std::optional<std::uint64_t>> parent_link(n);
+
+		using QueueEntry = std::pair<double, int>;
 		std::priority_queue<
-			std::pair<double, int>,
-			std::vector<std::pair<double, int>>,
+			QueueEntry,
+			std::vector<QueueEntry>,
 			std::greater<>
 		> pq;
 
+<<<<<<< HEAD
 		dist[src] = 0.0;
 		pq.push({0.0, src});
+=======
+		// Negating the bottleneck capacity lets the min-heap also service the
+		// bandwidth maximisation case.
+		const auto encode = [maximise](double value) {
+			return maximise ? -value : value;
+		};
+		const auto decode = [maximise](double value) {
+			return maximise ? -value : value;
+		};
+		const auto better = [maximise](double candidate, double current) {
+			return maximise ? candidate > current : candidate < current;
+		};
+
+		dist[src] = maximise ? inf : 0.0;
+		pq.push({encode(dist[src]), src});
+
+		const auto linkCost = [metric, inf](const Link& link) -> double {
+			switch (metric) {
+				case RoutingMetric::Delay:
+					return link.getDelayMs();
+				case RoutingMetric::Bandwidth:
+					return link.getBandwidthMbps();   // will be negated via encode()
+				case RoutingMetric::HopCount:
+					return 1.0;
+				case RoutingMetric::DelayBandwidth:
+					return (link.getBandwidthMbps() > 0.0)
+					       ? link.getDelayMs() / link.getBandwidthMbps()
+					       : inf;
+				default:
+					return link.getDelayMs();
+			}
+		};
+
+		const auto combine = [metric](double current_dist, double edge_cost) -> double {
+			if (metric == RoutingMetric::Bandwidth)
+				return std::min(current_dist, edge_cost);   // bottleneck bandwidth
+			return current_dist + edge_cost;
+		};
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 		while (!pq.empty()) {
-			auto [currentDist, u] = pq.top();
+			auto [encoded, u] = pq.top();
 			pq.pop();
+			double currentDist = decode(encoded);
 
+<<<<<<< HEAD
 			if (currentDist > dist[u]) {
+=======
+			if (!better(currentDist, dist[u]) && currentDist != dist[u]) {
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 				continue;
 			}
 
 			const auto& adjacency = topology.getLinksFromNode(u);
 
-			for (const Link& link : adjacency) {
-				int v = link.getOtherNode(u);
-				double newDist = dist[u] + link.delay_ms;
+			for (const auto& link : adjacency) {
+				if (!link || !link->isUp()) {
+					continue;
+				}
 
-				if (newDist < dist[v]) {
+				int v = link->getOtherNode(u);
+				if (!link->allowsTransmission(u, v)) {
+					continue;
+				}
+				double newDist = combine(dist[u], linkCost(*link));
+
+				if (better(newDist, dist[v])) {
 					dist[v] = newDist;
 					parent[v] = u;
-					pq.push({newDist, v});
+					parent_link[v] = link->getId();
+					pq.push({encode(newDist), v});
 				}
 			}
 		}
 
-		return {dist, parent};
+		return {dist, parent, parent_link};
 	}
 
+<<<<<<< HEAD
 	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src) {
+=======
+	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src,
+	                                                               RoutingMetric metric) {
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 
-		DijkstraResult result = buildDijkstra(topology, src);
+		DijkstraResult result = buildDijkstra(topology, src, metric);
 
 		const auto& parent = result.parent;
 		const auto& dist = result.dist;
@@ -74,7 +176,15 @@ namespace kns {
 			entry.distance = dist[d];
 			entry.next_hop = -1;
 
-			if (d == src || dist[d] == inf) {
+			if (d == src) {
+				table.push_back(entry);
+				continue;
+			}
+
+			const bool unreachable = (metric == RoutingMetric::Bandwidth)
+			                             ? (dist[d] <= 0.0)
+			                             : (dist[d] == inf);
+			if (unreachable) {
 				table.push_back(entry);
 				continue;
 			}
@@ -92,6 +202,7 @@ namespace kns {
 			}
 
 			entry.next_hop = current;
+			entry.link_id = result.parent_link[current];
 			table.push_back(entry);
 
 		next_destination:

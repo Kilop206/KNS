@@ -1,13 +1,21 @@
 #include "engine/core/EventQueue.hpp"
+<<<<<<< HEAD
 #include "engine/events/Event.hpp"
 
 #include <stdexcept>
 #include <limits>
+=======
+#include "engine/core/Event.hpp"
+
+#include <stdexcept>
+#include <limits>
+#include <iostream>
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
     // Comparator for the priority queue to order events by timestamp and ID
-    bool EventQueue::EventComparator::operator()(const std::unique_ptr<kns::Event>& a,
-        const std::unique_ptr<kns::Event>& b) const {
+    bool EventQueue::EventComparator::operator()(const std::unique_ptr<Event>& a,
+        const std::unique_ptr<Event>& b) const {
         // Order by timestamp first (earlier events have higher priority)
         if (a->getTimestamp() != b->getTimestamp()) {
             return a->getTimestamp() > b->getTimestamp();
@@ -18,7 +26,7 @@ namespace kns {
     }
 
     // Schedule a new event in the queue
-    void EventQueue::schedule(std::unique_ptr<kns::Event> event) {
+    void EventQueue::schedule(std::unique_ptr<Event> event) {
         // Ensure the event is not null before scheduling
         if (!event) {
             throw std::invalid_argument("Cannot schedule null event");
@@ -34,6 +42,7 @@ namespace kns {
 
         // Get the event with the earliest timestamp (and lowest ID if timestamps are equal)
         auto ptr = std::move(const_cast<std::unique_ptr<Event>&>(event_list_.top()));
+
         event_list_.pop();
         return ptr;
     }

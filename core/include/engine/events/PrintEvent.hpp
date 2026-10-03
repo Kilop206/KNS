@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "engine/events/Event.hpp"
+#include "engine/core/Event.hpp"
 #include "engine/core/SimulationEngine.hpp"
 
 namespace kns {
@@ -17,5 +17,6 @@ namespace kns {
         std::uint64_t getTimestamp() const noexcept;
 
         void execute(kns::SimulationEngine& engine) override;
+        const char* getName() const noexcept override { return "PrintEvent"; }
     };
 }

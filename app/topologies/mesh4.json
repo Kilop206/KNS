@@ -1,33 +1,112 @@
 {
-  "nodes": 4,
   "links": [
     {
+      "bandwidth": 100.0,
+      "delay": 5.0,
+      "evidence": "",
       "from": 0,
+      "inferred": false,
+      "loss": 0.0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
       "to": 1,
-      "delay": 5,
-      "bandwidth": 100,
-      "loss": 0.5
+      "up": true
     },
     {
+      "bandwidth": 100.0,
+      "delay": 10.0,
+      "evidence": "",
       "from": 1,
+      "inferred": false,
+      "loss": 0.0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
       "to": 2,
-      "delay": 10,
-      "bandwidth": 100,
-      "loss": 0.02
+      "up": true
     },
     {
+      "bandwidth": 100.0,
+      "delay": 8.0,
+      "evidence": "",
       "from": 2,
+      "inferred": false,
+      "loss": 0.0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
       "to": 3,
-      "delay": 8,
-      "bandwidth": 100,
-      "loss": 0.015
+      "up": true
     },
     {
+      "bandwidth": 100.0,
+      "delay": 6.0,
+      "evidence": "",
       "from": 3,
+      "inferred": false,
+      "loss": 0.0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
       "to": 0,
-      "delay": 6,
-      "bandwidth": 100,
-      "loss": 0.005
+      "up": true
     }
-  ]
+  ],
+  "name": "mesh4",
+  "nodes": [
+    {
+      "active": true,
+      "addresses": [],
+      "evidence": "",
+      "external_id": "",
+      "id": 0,
+      "label": "",
+      "mac": "",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "type": "unknown"
+    },
+    {
+      "active": true,
+      "addresses": [],
+      "evidence": "",
+      "external_id": "",
+      "id": 1,
+      "label": "",
+      "mac": "",
+      "position": {
+        "x": 192.0,
+        "y": 0.0
+      },
+      "type": "unknown"
+    },
+    {
+      "active": true,
+      "addresses": [],
+      "evidence": "",
+      "external_id": "",
+      "id": 2,
+      "label": "",
+      "mac": "",
+      "position": {
+        "x": 384.0,
+        "y": 0.0
+      },
+      "type": "unknown"
+    },
+    {
+      "active": true,
+      "addresses": [],
+      "evidence": "",
+      "external_id": "",
+      "id": 3,
+      "label": "",
+      "mac": "",
+      "position": {
+        "x": 192.0,
+        "y": 168.0
+      },
+      "type": "unknown"
+    }
+  ],
+  "schema_version": "1.0"
 }

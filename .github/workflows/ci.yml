@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            build_tests: ON
+          - os: windows-latest
+            build_tests: ON
+          - os: macos-latest
+            build_tests: OFF
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+      - name: Install prerequisites (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install -y cmake visualstudio2019-buildtools || true
+
+      - name: Configure
+        run: cmake -S . -B build -DKNS_BUILD_TESTS=${{ matrix.build_tests }} -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        if: matrix.build_tests == 'ON'
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Validate ecosystem contracts
+        run: python scripts/validate_contracts.py
+
+      - name: Validate coordinated release train
+        run: python scripts/validate_release_train.py
+
+  sanitizers:
+    name: Sanitizers (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+
+      - name: Configure with sanitizers
+        run: cmake -S . -B build-sanitizers -DKNS_BUILD_TESTS=ON -DKNS_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build (sanitizers)
+        run: cmake --build build-sanitizers --config RelWithDebInfo --parallel
+
+      - name: Test (sanitizers)
+        run: ctest --test-dir build-sanitizers --output-on-failure
+
+  warnings-as-errors:
+    name: Warnings as Errors (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+
+      - name: Configure with warnings-as-errors
+        run: cmake -S . -B build-werror -DKNS_BUILD_TESTS=ON -DKNS_WARNINGS_AS_ERRORS=ON -DKNS_ENABLE_WARNINGS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (warnings-as-errors)
+        run: cmake --build build-werror --config Release --parallel

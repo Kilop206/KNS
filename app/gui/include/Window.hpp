@@ -6,7 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <cstdlib>
 
-namespace interface {
+namespace gui {
     class Window {
         public:
             GLFWwindow* generate_window();

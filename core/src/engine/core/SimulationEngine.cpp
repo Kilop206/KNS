@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #include <memory>
 #include <cstddef>
 #include <queue>
@@ -9,9 +10,18 @@
 #include <sstream>
 #include <iomanip>
 
+=======
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 #include "engine/core/SimulationEngine.hpp"
-#include "engine/events/Event.hpp"
+
+#include <fstream>
+#include <iostream>
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+
 #include "engine/events/PacketReceivedEvent.hpp"
+<<<<<<< HEAD
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "network/Packet.hpp"
 #include "enums/TCPState.hpp"
@@ -36,17 +46,73 @@ namespace kns {
 
         for (int u = 0; u < n; ++u) {
             routing_tables_[u] = routing.buildRoutingTable(topology_, u);
-        }
+=======
+#include "engine/core/RunConfig.hpp"
+#include "engine/events/TCPHandshakeEvent.hpp"
+#include "engine/events/TCPHandshakeTimeoutEvent.hpp"
+#include "engine/events/PacketGenerationEvent.hpp"
+#include "engine/events/TCPConnectionCloseEvent.hpp"
+#include "engine/events/LinkFailureEvent.hpp"
+#include "network/utils/PacketUtils.hpp"
+#include "engine/core/Random.hpp"
+
+namespace kns {
+
+    SimulationEngine::SimulationEngine(const Topology& topology)
+        : loss_prob(0.01),
+        clock_(),
+        topology_(topology.cloneForRun()),
+        routing_tables_(),
+        stats_(),
+        event_queue_(),
+        packets_in_transit(),
+        globalLossProb(0.0f),
+        globalPacketSize(1500),
+        latencyObserver_(nullptr),
+        packetObserver(nullptr),
+        sessions(),
+        next_session_id(0),
+        handshake_offset_(0.0),
+        kPacketsPerRoute(20)
+    {
+        rebuildRoutingTables();
     }
 
+    void SimulationEngine::configureRun(const RunConfig& config) {
+        if (hasEvents() || !sessions.empty() || now() != 0.0) {
+            throw std::logic_error("Run configuration must be applied before scheduling work");
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
+        }
+        setGlobalPacketSize(config.packet_size);
+        random_.seed(config.seed);
+    }
+
+<<<<<<< HEAD
     void SimulationEngine::schedule(std::unique_ptr<Event> event) {
         event_queue_.schedule(std::move(event));
     }
 
+=======
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     double SimulationEngine::now() const {
         return clock_.now();
     }
 
+<<<<<<< HEAD
+=======
+    double SimulationEngine::random() {
+        return random_.uniform01();
+    }
+
+    double SimulationEngine::get_loss_prob() const {
+        return loss_prob;
+    }
+
+    Topology& SimulationEngine::getTopology() {
+        return topology_;
+    }
+
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     const Topology& SimulationEngine::getTopology() const {
         return topology_;
     }
@@ -55,6 +121,7 @@ namespace kns {
         return stats_;
     }
 
+<<<<<<< HEAD
     int SimulationEngine::getNextHop(int current, int destination) const {
         return routing_tables_[current][destination].next_hop;
     }
@@ -150,32 +217,295 @@ namespace kns {
             << runConfig.seed  << "\n";
     }
 
+=======
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     bool SimulationEngine::hasEvents() const {
         return event_queue_.hasEvents();
     }
 
-    std::vector<PacketTravelInfo>& SimulationEngine::getPacketsInTransit() {
+    int SimulationEngine::getNextHop(int current, int destination) const {
+        refreshRoutingTablesIfNeeded();
+
+        if (current < 0 || static_cast<std::size_t>(current) >= routing_tables_.size()) {
+            return -1;
+        }
+        const auto& rt_row = routing_tables_[static_cast<std::size_t>(current)];
+        if (destination < 0 || static_cast<std::size_t>(destination) >= rt_row.size()) {
+            return -1;
+        }
+        return rt_row[static_cast<std::size_t>(destination)].next_hop;
+    }
+
+    std::span<const Routing::RoutingEntry>
+    SimulationEngine::getRoutingTable(int source) const {
+        refreshRoutingTablesIfNeeded();
+
+        if (source < 0 ||
+            static_cast<std::size_t>(source) >= routing_tables_.size()) {
+            return {};
+        }
+
+        return routing_tables_[static_cast<std::size_t>(source)];
+    }
+
+    const std::vector<PacketTravelInfo>& SimulationEngine::getPacketsInTransit() const {
         return packets_in_transit;
     }
 
+<<<<<<< HEAD
     void SimulationEngine::removePacketInTransit(double departure_time, double arrival_time) {
         for (std::size_t i = 0; i < packets_in_transit.size(); ++i) {
             if (packets_in_transit[i].departure_time == departure_time &&
                 packets_in_transit[i].arrival_time == arrival_time) {
                 packets_in_transit.erase(packets_in_transit.begin() + i);
+=======
+    bool SimulationEngine::removePacketInTransit(
+        double departure_time,
+        double arrival_time,
+        int from,
+        int to,
+        std::uint64_t link_id) {
+
+        for (auto it = packets_in_transit.begin();
+            it != packets_in_transit.end();
+            ++it) {
+
+            if (it->departure_time == departure_time &&
+                it->arrival_time == arrival_time &&
+                it->from_node == from &&
+                it->to_node == to &&
+                it->link_id == link_id) {
+
+                packets_in_transit.erase(it);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void SimulationEngine::run() {
+        while (event_queue_.hasEvents()) {
+            auto event = event_queue_.next();
+            if (!event) {
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
                 break;
             }
+
+            clock_.setTime(event->getTimestamp());
+            event->execute(*this);
         }
     }
 
-    void SimulationEngine::setGlobalLossProb(float value) {
-        if (globalLossProb == value) return;
+    bool SimulationEngine::processEvent() {
+        if (!event_queue_.hasEvents()) {
+            return false;
+        }
 
-        globalLossProb = value;
-        topology_.setGlobalLossProb(value);
+        auto event = event_queue_.next();
+        if (!event) {
+            return false;
+        }
+
+        // Debug logging macro removed to avoid build issues in environments without the macro
+        clock_.setTime(event->getTimestamp());
+        event->execute(*this);
+        return true;
     }
 
-    void SimulationEngine::setGlobalPacketSize(float value) {
+    double SimulationEngine::peekNextEventTime() const {
+        return event_queue_.peekTimestamp();
+    }
+
+    double SimulationEngine::compute_arrival_time(
+        const Packet& pkt,
+        const Link& link,
+        double now
+    ) {
+        if (pkt.packet_size_bytes <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
+        const double transmission =
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
+            (link.getBandwidthMbps() * 1e6);
+
+        const double propagation = link.getDelayMs() / 1000.0;
+
+        return now + propagation + transmission;
+    }
+
+    bool SimulationEngine::sendPacket(
+        const Packet& packet,
+        Link& link,
+        double now
+    )
+    {
+        Packet pkt = packet;
+        pkt.packet_size_bytes = packet.serializedSize();
+        if (!std::isfinite(now) || now < this->now()) {
+            throw std::invalid_argument("Packet time must be finite and not in the past");
+        }
+        if (pkt.packet_size_bytes <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
+        const auto& owned_links = topology_.getLinks();
+        if (std::none_of(owned_links.begin(), owned_links.end(),
+                [&link](const auto& owned) { return owned.get() == &link; })) {
+            return false;
+        }
+        if (!link.isUp()) {
+            return false;
+        }
+
+        const int next_node =
+            link.getOtherNode(pkt.current_node);
+
+        if (next_node == -1) {
+            return false;
+        }
+
+        if (!link.canQueue(pkt.current_node, next_node)) {
+            stats_.packets_lost++;
+            return false;
+        }
+
+        const double transmission_time =
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
+            (link.getBandwidthMbps() * 1e6);
+
+        const double propagation_time = link.getDelayMs() / 1000.0;
+
+        const double actual_departure_time =
+            link.getNextAvailableTime(pkt.current_node, next_node, now);
+
+        const double arrival_time =
+            actual_departure_time + transmission_time + propagation_time;
+
+        if (!std::isfinite(actual_departure_time) ||
+            !std::isfinite(arrival_time) || arrival_time < this->now()) {
+            throw std::invalid_argument("Packet arrival time must be finite and not in the past");
+        }
+
+        Packet new_pkt = pkt;
+        new_pkt.current_node = next_node;
+        new_pkt.previous_node = pkt.current_node;
+        new_pkt.link_id = link.getId();
+        new_pkt.hop_count++;
+        new_pkt.departure_time = actual_departure_time;
+        new_pkt.arrival_time = arrival_time;
+
+        const double loss = loss_override_enabled_ ? globalLossProb : link.getLossProb();
+        if (loss > 0.0 && random() < loss) {
+            link.reserveTransmission(pkt.current_node, next_node,
+                actual_departure_time + transmission_time);
+            if (pkt.hop_count == 0) {
+                stats_.packets_sent++;
+            }
+            stats_.packets_lost++;
+            return false;
+        }
+
+        // Record in the FIFO queue so the arrival event can release the exact slot.
+        link.enqueueTransmission(
+            pkt.current_node, next_node,
+            actual_departure_time, arrival_time
+        );
+
+        const auto previous_transit_size = packets_in_transit.size();
+        try {
+            packets_in_transit.push_back(PacketTravelInfo{
+            actual_departure_time,
+            arrival_time,
+            pkt.current_node,
+            next_node,
+            pkt.packet_type,
+            link.getId()
+            });
+            schedule(std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt));
+        } catch (...) {
+            packets_in_transit.resize(previous_transit_size);
+            link.dequeueTransmission(pkt.current_node, next_node,
+                actual_departure_time, arrival_time);
+            throw;
+        }
+        link.reserveTransmission(pkt.current_node, next_node,
+            actual_departure_time + transmission_time);
+        if (pkt.hop_count == 0) {
+            stats_.packets_sent++;
+        }
+
+        emitPacketEvent(
+            pkt,
+            pkt.current_node,
+            next_node,
+            actual_departure_time,
+            arrival_time
+        );
+
+        return true;
+    }
+
+    void SimulationEngine::exportStatsCSV(const RunConfig& runConfig) {
+        std::ofstream file(runConfig.filename, std::ios::out);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open CSV output: " + runConfig.filename);
+        }
+
+        // Header
+        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,schema_version,simulation_duration_s,seed\n";
+
+        // Values
+        const int sent = stats_.packets_sent;
+        const int delivered = stats_.packets_delivered;
+        const int lost = stats_.packets_lost;
+        const double total_latency = stats_.total_latency;
+        const int data_delivered = stats_.data_packets_delivered;
+        const double avg_latency = (data_delivered > 0)
+            ? total_latency / static_cast<double>(data_delivered) : 0.0;
+        const std::size_t in_transit = packets_in_transit.size();
+        const std::size_t total_sessions = sessions.size();
+
+        file << sent << ','
+             << delivered << ','
+             << lost << ','
+             << total_latency << ','
+             << avg_latency << ','
+             << in_transit << ','
+             << total_sessions << ','
+             << data_delivered << ",1," << now() << ',' << runConfig.seed << '\n';
+
+        file.close();
+        if (!file) {
+            throw std::runtime_error("Failed to write CSV output: " + runConfig.filename);
+        }
+    }
+
+    void SimulationEngine::advanceTime(double time) {
+        if (event_queue_.hasEvents() && time > event_queue_.peekTimestamp()) {
+            throw std::invalid_argument("Cannot advance past a pending event");
+        }
+        clock_.setTime(time);
+    }
+
+    void SimulationEngine::schedule(std::unique_ptr<Event> event) {
+        if (!event || event->getTimestamp() < now()) {
+            throw std::invalid_argument("Event must exist and not be scheduled in the past");
+        }
+        event_queue_.schedule(std::move(event));
+    }
+
+    void SimulationEngine::setGlobalLossProb(float value) {
+        if (!std::isfinite(value) || value < 0.0f || value > 1.0f) {
+            throw std::invalid_argument("Loss override must be finite and in [0, 1]");
+        }
+        globalLossProb = value;
+        loss_override_enabled_ = true;
+    }
+
+    void SimulationEngine::setGlobalPacketSize(int value) {
+        if (value <= 0) {
+            throw std::invalid_argument("Packet size must be positive");
+        }
         globalPacketSize = value;
     }
 
@@ -184,28 +514,425 @@ namespace kns {
     }
 
     void SimulationEngine::notifyLatencyDelivered(double latency) {
-        if (latencyObserver_) {
-            latencyObserver_(latency);
-        }
+        if (latencyObserver_) latencyObserver_(latency);
     }
 
     int SimulationEngine::getGlobalPacketSize() const {
         return globalPacketSize;
     }
 
+<<<<<<< HEAD
     void SimulationEngine::startTCPConnection(int source, int dest) {
         schedule(std::make_unique<TCPHandshakeEvent>(now(), source, dest));
     }
 
     void SimulationEngine::setPacketObserver(
         std::function<void(const Packet&, int, int, double)> observer
+=======
+    void SimulationEngine::setPacketObserver(
+        std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     ) {
         packetObserver = std::move(observer);
     }
 
+<<<<<<< HEAD
     void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to) {
         if (packetObserver) {
             packetObserver(p, from, to, now());
         }
     }
 }
+=======
+    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time) {
+        if (packetObserver) {
+            // if a real session id is known in context, pass it instead of 0
+            packetObserver(p, p.session_id, from, to, departure_time, arrival_time);
+        }
+    }
+
+    void SimulationEngine::requireActiveTCPNode(int node_id) const {
+        const auto* node = topology_.getNode(node_id);
+        if (!node || !node->isActive()) {
+            throw std::invalid_argument("TCP endpoint must reference an active topology node");
+        }
+    }
+
+    TCPSession& SimulationEngine::createTCPSession(
+        int source,
+        int destination
+    ) {
+        return createTCPSession(source, destination, 0, 0);
+    }
+
+    TCPSession& SimulationEngine::createTCPSession(
+        int source,
+        int destination,
+        std::uint16_t source_port,
+        std::uint16_t destination_port
+    ) {
+        requireActiveTCPNode(source);
+        requireActiveTCPNode(destination);
+        const std::uint64_t id = next_session_id++;
+
+        sessions.emplace(
+            id,
+            TCPSession(
+                id,
+                source,
+                destination,
+                TCPState::CLOSED,
+                source_port,
+                destination_port
+            )
+        );
+
+        return sessions.at(id);
+    }
+
+    TCPSession& SimulationEngine::getTCPSession(std::uint64_t session_id) {
+        return sessions.at(session_id);
+    }
+
+    const std::map<std::uint64_t, TCPSession>& SimulationEngine::getTCPSessions() const {
+        return sessions;
+    }
+
+    bool SimulationEngine::hasTCPSession(std::uint64_t session_id) const {
+        return sessions.find(session_id) != sessions.end();
+    }
+
+    bool SimulationEngine::cancelTCPSession(
+        std::uint64_t session_id
+    ) noexcept {
+        if (!hasTCPSession(session_id)) {
+            return false;
+        }
+
+        untrackTCPListenerSession(sessions.at(session_id));
+        sessions.erase(session_id);
+
+        return true;
+    }
+
+    int SimulationEngine::getPacketsPerRoute() const {
+        return static_cast<int>(kPacketsPerRoute);
+    }
+
+    ValidationReport SimulationEngine::validateSimulation() const {
+        ValidationReport r;
+        r.total_sessions = sessions.size();
+        r.packets_sent = stats_.packets_sent;
+        r.packets_delivered = stats_.packets_delivered;
+        r.packets_lost = stats_.packets_lost;
+        r.loss_free = r.packets_lost == 0;
+        r.completed_sessions = 0;
+
+        for (const auto& pair : sessions) {
+            const auto& session = pair.second;
+            const auto& client = session.getClientConnection();
+            const auto& server = session.getServerConnection();
+            if (client.getTcpState() == TCPState::CLOSED &&
+                server.getTcpState() == TCPState::CLOSED &&
+                session.hasGeneratedTraffic() && session.isComplete() &&
+                client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
+                client.getReceiveBufferSize() == 0 && server.getReceiveBufferSize() == 0) {
+                r.completed_sessions++;
+            }
+        }
+
+        r.sessions_ok =
+            (r.total_sessions == 0) ||
+            (r.completed_sessions == r.total_sessions);
+
+        r.traffic_ok =
+            (r.packets_sent > 0) &&
+            (r.packets_delivered >= 0) &&
+            (r.packets_delivered <= r.packets_sent) &&
+            (r.packets_lost >= 0) &&
+            // Rejected sends also count as losses without incrementing sent.
+            (r.packets_sent - r.packets_delivered <= r.packets_lost) &&
+            !hasEvents() && packets_in_transit.empty() &&
+            std::all_of(topology_.getLinks().begin(), topology_.getLinks().end(),
+                [](const auto& link) { return !link || link->getQueueSize() == 0; });
+
+        return r;
+    }
+
+    void SimulationEngine::startTCPConnection(int source, int dest) {
+        startTCPConnection(source, dest, 0, 0);
+    }
+
+    void SimulationEngine::startTCPConnection(
+        int source,
+        int dest,
+        std::uint16_t source_port,
+        std::uint16_t destination_port
+    ) {
+        TCPSession& session = createTCPSession(
+            source,
+            dest,
+            source_port,
+            destination_port
+        );
+        schedule(std::make_unique<TCPHandshakeEvent>(now() + handshake_offset_, source, dest, session.getSession_id()));
+        handshake_offset_ += 0.05;
+    }
+
+    TCPListener& SimulationEngine::startTCPListen(int node_id, int backlog) {
+        return startTCPListen(node_id, 0, backlog);
+    }
+
+    TCPListener& SimulationEngine::startTCPListen(
+        int node_id,
+        std::uint16_t port,
+        int backlog
+    ) {
+        requireActiveTCPNode(node_id);
+        auto [it, _] = listeners_.emplace(
+            std::make_pair(node_id, port),
+            TCPListener(node_id, port, backlog)
+        );
+        return it->second;
+    }
+
+    bool SimulationEngine::hasListener(int node_id) const noexcept {
+        return std::any_of(
+            listeners_.begin(),
+            listeners_.end(),
+            [node_id](const auto& entry) {
+                return entry.first.first == node_id && entry.second.isListening();
+            }
+        );
+    }
+
+    bool SimulationEngine::hasListener(
+        int node_id,
+        std::uint16_t port
+    ) const noexcept {
+        const auto it = listeners_.find(std::make_pair(node_id, port));
+        return it != listeners_.end() && it->second.isListening();
+    }
+
+    std::uint64_t SimulationEngine::acceptOnListener(
+        int listening_node,
+        int connecting_node,
+        std::uint32_t connecting_seq
+    ) {
+        return acceptOnListener(
+            listening_node,
+            connecting_node,
+            connecting_seq,
+            0,
+            0
+        );
+    }
+
+    std::uint64_t SimulationEngine::acceptOnListener(
+        int listening_node,
+        int connecting_node,
+        std::uint32_t connecting_seq,
+        std::uint16_t connecting_port,
+        std::uint16_t listening_port
+    ) {
+        const auto* listener_node = topology_.getNode(listening_node);
+        const auto* peer_node = topology_.getNode(connecting_node);
+        if (!listener_node || !listener_node->isActive() ||
+            !peer_node || !peer_node->isActive()) {
+            return TCPListener::INVALID_SESSION_ID;
+        }
+        auto it = listeners_.find(
+            std::make_pair(listening_node, listening_port)
+        );
+
+        if (it == listeners_.end()) {
+            return TCPListener::INVALID_SESSION_ID;
+        }
+
+        return it->second.accept(
+            connecting_node,
+            connecting_port,
+            connecting_seq,
+            *this
+        );
+    }
+
+    bool SimulationEngine::releaseTCPListenerSession(
+        std::uint64_t session_id
+    ) noexcept {
+        auto session_it = sessions.find(session_id);
+
+        if (session_it == sessions.end()) {
+            return false;
+        }
+
+        auto& session = session_it->second;
+        if (session.getClientConnection().getTcpState() != TCPState::CLOSED ||
+            session.getServerConnection().getTcpState() != TCPState::CLOSED) {
+            return false;
+        }
+        session.getClientConnection().discardBufferedData();
+        session.getServerConnection().discardBufferedData();
+        untrackTCPListenerSession(session);
+        return true;
+    }
+
+    void SimulationEngine::untrackTCPListenerSession(
+        const TCPSession& session
+    ) noexcept {
+        const auto& server = session.getServerConnection();
+        const auto listener_it = listeners_.find(
+            std::make_pair(server.getLocalNode(), server.getLocalPort())
+        );
+
+        if (listener_it != listeners_.end()) {
+            listener_it->second.untrackSession(session.getSession_id());
+        }
+    }
+
+    void SimulationEngine::generatePackets(
+        double startTime,
+        TCPSession& session
+    ) {
+        if (session.hasPendingGeneration()) {
+            return;
+        }
+
+        if (session.getState() != TCPState::ESTABLISHED) {
+            return;
+        }
+
+        const auto payload_size = static_cast<std::size_t>(getGlobalPacketSize());
+        const auto& client = session.getClientConnection();
+        if (payload_size > client.getSendWindow()) {
+            throw std::invalid_argument("Packet payload exceeds the configured send window");
+        }
+        if ((session.hasGeneratedTraffic() && session.isComplete()) ||
+            !client.canSend(payload_size)) {
+            return;
+        }
+
+        schedule(
+            std::make_unique<PacketGenerationEvent>(
+                startTime,
+                session.getSource(),
+                session.getDestination(),
+                session.getSession_id()
+            )
+        );
+        if (!session.hasGeneratedTraffic()) {
+            session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
+            session.markTrafficGenerated();
+        }
+        session.setGenerationPending(true);
+    }
+
+    int SimulationEngine::createNode() {
+        const int id = topology_.addNode();
+        rebuildRoutingTables();
+        return id;
+    }
+
+    bool SimulationEngine::synchronizeTopology(const Topology& snapshot) {
+        const bool changed = topology_.synchronizeFrom(snapshot);
+        if (changed) rebuildRoutingTables();
+        return changed;
+    }
+
+    bool SimulationEngine::deleteNode(int id) {
+        const bool ok = topology_.removeNode(id);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    Topology::LinkPtr SimulationEngine::createLink(
+        int a,
+        int b,
+        double bandwidth_mbps,
+        double delay_ms,
+        double link_loss_prob,
+        LinkMode mode,
+        int queue_capacity
+    ) {
+        auto ptr = topology_.addLinkPtr(
+            a,
+            b,
+            bandwidth_mbps,
+            delay_ms,
+            link_loss_prob,
+            mode,
+            queue_capacity
+        );
+        rebuildRoutingTables();
+        return ptr;
+    }
+
+    bool SimulationEngine::deleteLink(int a, int b) {
+        const bool ok = topology_.removeLink(a, b);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    bool SimulationEngine::deleteLinkById(std::uint64_t link_id) {
+        const bool ok = topology_.removeLinkById(link_id);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    bool SimulationEngine::toggleLinkUp(int a, int b, bool up) {
+        const bool ok = topology_.setLinkUp(a, b, up);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    bool SimulationEngine::toggleLinkUpById(std::uint64_t link_id, bool up) {
+        const bool ok = topology_.setLinkUpById(link_id, up);
+        if (ok) rebuildRoutingTables();
+        return ok;
+    }
+
+    void SimulationEngine::rebuildRoutingTables() {
+        refreshRoutingTables();
+    }
+
+    void SimulationEngine::refreshRoutingTablesIfNeeded() const {
+        if (routing_revision_ != topology_.getRoutingRevision()) {
+            refreshRoutingTables();
+        }
+    }
+
+    void SimulationEngine::refreshRoutingTables() const {
+        const int n = topology_.size();
+        routing_tables_.clear();
+        routing_tables_.resize(static_cast<std::size_t>(n));
+        Routing routing;
+        for (int u = 0; u < n; ++u) {
+            routing_tables_[static_cast<std::size_t>(u)] =
+                routing.buildRoutingTable(topology_, u, routing_metric_);
+        }
+        routing_revision_ = topology_.getRoutingRevision();
+    }
+
+    void SimulationEngine::setRoutingMetric(RoutingMetric metric) {
+        routing_metric_ = metric;
+        rebuildRoutingTables();
+    }
+
+    RoutingMetric SimulationEngine::getRoutingMetric() const noexcept {
+        return routing_metric_;
+    }
+
+    void SimulationEngine::scheduleLinkFailure(double at_time, int node_a, int node_b, bool up) {
+        schedule(std::make_unique<LinkFailureEvent>(at_time, node_a, node_b, up));
+    }
+
+    void SimulationEngine::scheduleLinkFailure(
+        double at_time,
+        std::uint64_t link_id,
+        bool up
+    ) {
+        schedule(std::make_unique<LinkFailureEvent>(at_time, link_id, up));
+    }
+
+} // namespace kns
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

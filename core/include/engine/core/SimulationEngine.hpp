@@ -7,29 +7,61 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+<<<<<<< HEAD
+=======
+#include <map>
+#include <span>
+#include <utility>
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
+#include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
 #include "network/Routing.hpp"
-#include "engine/events/Event.hpp"
+#include "network/RouteTrace.hpp"
+#include "network/transport/tcp/TCPListener.hpp"
+#include "engine/core/Event.hpp"
 #include "engine/core/Stats.hpp"
+#include "engine/core/Random.hpp"
 #include "engine/core/EventQueue.hpp"
-#include "engine/time/SimulationClock.hpp"
+#include "engine/core/SimulationClock.hpp"
 #include "network/Packet.hpp"
 #include "network/Link.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
+<<<<<<< HEAD
 #include "network/tcp/TCPConnection.hpp"
+=======
+#include "network/transport/tcp/TCPConnection.hpp"
+#include "network/transport/tcp/TCPConnectionKey.hpp"
+
+struct PacketSpec;
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
 
+    struct ValidationReport {
+        std::size_t total_sessions = 0;
+        std::size_t completed_sessions = 0;
+        int expected_data_packets = 0;
+        int packets_sent = 0;
+        int packets_delivered = 0;
+        int packets_lost = 0;
+        bool sessions_ok = false;
+        bool traffic_ok = false;
+        /// Descriptive metric only: packet loss does not imply invalid execution.
+        bool loss_free = false;
+
+        bool passed() const noexcept {
+            return sessions_ok && traffic_ok;
+        }
+    };
+
     class SimulationEngine {
     private:
+        Random random_;
+        void untrackTCPListenerSession(const TCPSession& session) noexcept;
 
         double loss_prob = 0.01;
-
-        std::unordered_map<int, std::queue<Packet>> buffers;
-
-        size_t max_queue_size = 50;
 
         // Current simulation time.
         SimulationClock clock_;
@@ -38,18 +70,13 @@ namespace kns {
         Topology topology_;
 
         // Routing tables for each node.
+<<<<<<< HEAD
         std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
+=======
+        mutable std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
-        // Event comparison functor for priority queue.
-        struct EventCompare {
-            bool operator()(const std::unique_ptr<Event>& a,
-                            const std::unique_ptr<Event>& b) const {
-                if (a->getTimestamp() == b->getTimestamp()) {
-                    return a->getId() > b->getId();
-                }
-                return a->getTimestamp() > b->getTimestamp();
-            }
-        };
+        mutable std::uint64_t routing_revision_ = 0;
 
         // Statistics for the simulation
         Stats stats_;
@@ -61,7 +88,9 @@ namespace kns {
         std::vector<PacketTravelInfo> packets_in_transit;
 
         float globalLossProb = 0.0f;
+        bool loss_override_enabled_ = false;
 
+<<<<<<< HEAD
         int globalPacketSize = 0;
 
         double simulation_speed_multiplier_ = 1.0;
@@ -76,63 +105,115 @@ namespace kns {
         > tcp_connections_;
 
         std::function<void(const Packet&, int, int, double)> packetObserver;
+=======
+        int globalPacketSize = 1500;
+
+        std::function<void(double)> latencyObserver_;
+
+        std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
+
+        std::map<std::uint64_t, TCPSession> sessions;
+
+        uint64_t next_session_id = 0;
+
+        double handshake_offset_ = 0.0;
+
+        unsigned int kPacketsPerRoute = 20;
+
+        /// Routing metric used by Dijkstra.
+        RoutingMetric routing_metric_ = RoutingMetric::Delay;
+
+        /// Passive TCP listeners keyed by their (node id, TCP port).
+        std::map<std::pair<int, std::uint16_t>, TCPListener> listeners_;
+
+        void refreshRoutingTables() const;
+        void refreshRoutingTablesIfNeeded() const;
+        void requireActiveTCPNode(int node_id) const;
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
     public:
         double random();
+        std::uint32_t randomSequence() { return random_.nextUint32(); }
 
         double get_loss_prob() const;
 
-        // Constructor that initializes the simulation engine with a given topology.
         explicit SimulationEngine(const Topology& topology);
 
-        // Schedules a new event to be processed by the simulation engine.
+        /// Apply reproducible configuration before creating sessions or events.
+        void configureRun(const RunConfig& config);
+
         void schedule(std::unique_ptr<Event> event);
 
-        // Runs the simulation by processing events from the event queue.
         void run();
 
-       // Runs a single event
-        void processEvent();
+        bool processEvent();
 
+        double peekNextEventTime() const;
+
+<<<<<<< HEAD
         // Returns the timestamp of the next scheduled event, if any.
         double peekNextEventTime() const;
 
         // Returns the current simulation time.
+=======
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
         double now() const;
 
-        // Returns the next hop for a packet based on the routing table.
+        /// Returns the next hop node index towards destination, or -1 if the destination
+        /// is unreachable, current == destination, or if either node ID is invalid/out-of-bounds.
         int getNextHop(int current, int destination) const;
 
-        // Returns a const reference to the topology.
+        /// Returns the routing table currently used by source, or an empty view for an invalid node.
+        /// The view is invalidated when the engine rebuilds its routing tables.
+        std::span<const Routing::RoutingEntry> getRoutingTable(int source) const;
+
+        /// Inspect current hop-by-hop forwarding without creating traffic.
+        /// Invalid/inactive endpoints and forwarding loops have distinct statuses.
+        RouteTrace traceRoute(int source, int destination) const;
+
+        /// Returns the live topology. Routing-relevant mutations made through
+        /// this reference or its Link objects are detected automatically before
+        /// the next route lookup.
+        Topology& getTopology();
+
         const Topology& getTopology() const;
 
-        // Returns the collected statistics of the simulation.
         Stats& getStats();
 
-        // Computes the arrival time of a packet at the next node based on the link characteristics.
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 
-        // Simulates sending a packet over a link, including potential packet loss and scheduling the next event for packet arrival.
-        void sendPacket(const Packet& pkt, const Link& link, double now);
+        bool sendPacket(const Packet& pkt, Link& link, double now);
 
-        // Exports the collected statistics to a CSV file for analysis.
         void exportStatsCSV(const RunConfig& runConfig);
 
         bool hasEvents() const;
 
-        std::vector<PacketTravelInfo>& getPacketsInTransit();
+        const std::vector<PacketTravelInfo>& getPacketsInTransit() const;
 
+<<<<<<< HEAD
         void removePacketInTransit(double departure_time, double arrival_time);
+=======
+        bool removePacketInTransit(
+            double departure_time,
+            double arrival_time,
+            int from,
+            int to,
+            std::uint64_t link_id
+        );
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         void setGlobalLossProb(float value);
+        void clearGlobalLossOverride() noexcept { loss_override_enabled_ = false; }
+        bool hasGlobalLossOverride() const noexcept { return loss_override_enabled_; }
 
-        void setGlobalPacketSize(float value);
+        void setGlobalPacketSize(int value);
 
         void setLatencyObserver(std::function<void(double)> observer);
 
         void notifyLatencyDelivered(double latency);
 
         int getGlobalPacketSize() const;
+<<<<<<< HEAD
 
         void startTCPConnection(int source, int dest);
 
@@ -142,5 +223,115 @@ namespace kns {
 
         void emitPacketEvent(const Packet& p, int from, int to);
     };
+=======
+>>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
+        void startTCPConnection(int source, int dest);
+        void startTCPConnection(
+            int source,
+            int dest,
+            std::uint16_t source_port,
+            std::uint16_t destination_port
+        );
+
+        /// Make node_id passively listen on the default TCP port (0).
+        /// Returns a reference to the created listener (backlog defaults to 128).
+        TCPListener& startTCPListen(int node_id, int backlog = 128);
+
+        /// Make node_id passively listen on a specific TCP port.
+        TCPListener& startTCPListen(
+            int node_id,
+            std::uint16_t port,
+            int backlog
+        );
+
+        /// Returns true if node_id has an active listener on any TCP port.
+        bool hasListener(int node_id) const noexcept;
+
+        /// Returns true if node_id has an active listener on port.
+        bool hasListener(int node_id, std::uint16_t port) const noexcept;
+
+        /// Accept an incoming SYN on a listening node. Returns the new
+        /// session_id, or TCPListener::INVALID_SESSION_ID on failure.
+        std::uint64_t acceptOnListener(
+            int listening_node,
+            int connecting_node,
+            std::uint32_t connecting_seq
+        );
+        std::uint64_t acceptOnListener(
+            int listening_node,
+            int connecting_node,
+            std::uint32_t connecting_seq,
+            std::uint16_t connecting_port,
+            std::uint16_t listening_port
+        );
+
+        /// Release a closed session from its server listener's backlog.
+        /// Returns false without mutation unless both endpoints are CLOSED.
+        bool releaseTCPListenerSession(std::uint64_t session_id) noexcept;
+
+        void setPacketObserver(
+            std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
+        );
+
+        void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
+
+        void generatePackets(double startTime, TCPSession& session);
+
+        TCPSession& createTCPSession(int source, int destination);
+        TCPSession& createTCPSession(
+            int source,
+            int destination,
+            std::uint16_t source_port,
+            std::uint16_t destination_port
+        );
+
+        TCPSession& getTCPSession(std::uint64_t session_id);
+
+        const std::map<std::uint64_t, TCPSession>& getTCPSessions() const;
+
+        bool hasTCPSession(std::uint64_t session_id) const;
+
+        /// Cancel a TCP session and release any listener backlog slot it owns.
+        /// Already scheduled events for this session safely become no-ops.
+        bool cancelTCPSession(std::uint64_t session_id) noexcept;
+
+        int getPacketsPerRoute() const;
+
+        ValidationReport validateSimulation() const;
+
+        void advanceTime(double time);
+
+        // GUI / topology modification helpers
+        int createNode();
+        bool synchronizeTopology(const Topology& snapshot);
+        bool deleteNode(int id);
+        Topology::LinkPtr createLink(
+            int a,
+            int b,
+            double bandwidth_mbps,
+            double delay_ms,
+            double link_loss_prob = 0.0,
+            LinkMode mode = LinkMode::FULL_DUPLEX,
+            int queue_capacity = 32
+        );
+        bool deleteLink(int a, int b);
+        bool deleteLinkById(std::uint64_t link_id);
+        bool toggleLinkUp(int a, int b, bool up);
+        bool toggleLinkUpById(std::uint64_t link_id, bool up);
+        void rebuildRoutingTables();
+
+        /// Change the routing metric and immediately rebuild all routing tables.
+        void setRoutingMetric(RoutingMetric metric);
+        RoutingMetric getRoutingMetric() const noexcept;
+
+        /// Schedule a link failure (up=false) or recovery (up=true) at the
+        /// given simulation time. This is the event-driven equivalent of
+        /// toggleLinkUp() for use inside a running simulation.
+        void scheduleLinkFailure(double at_time, int node_a, int node_b, bool up);
+
+        /// Schedule a state change for one specific link. Prefer this overload
+        /// whenever parallel links can exist between the same endpoints.
+        void scheduleLinkFailure(double at_time, std::uint64_t link_id, bool up);
+    };
 }

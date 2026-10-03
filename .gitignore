@@ -2,6 +2,7 @@
 build/
 .vs/
 .vscode/
+.idea/
 Debug/
 Release/
 x64/
@@ -22,3 +23,21 @@ Makefile
 *.lib
 *.pdb
 *.ilk
+
+# Test directories
+results/
+
+# ImGui runtime layout
+imgui.ini
+
+# AI direcotries
+.kiro/
+.devin/
+.cursor/
+.codex/
+.claude/
+
+# Python
+**/__pycache__/
+*.pyc
+.venv/
