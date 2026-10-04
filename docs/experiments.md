@@ -147,3 +147,9 @@ The suite definition is version-controlled separately from its result artifacts.
 Changing topologies, seeds, packet sizes, metrics, or interpretation rules should
 produce a new benchmark suite version rather than silently changing
 `routing-baseline-v1`.
+
+
+The repository CI validates the suite definition and expanded matrix with
+`--dry-run`, but it intentionally does not execute all 36 simulations on every
+commit. Full benchmark result artifacts should be produced from a known-good KNS
+build after the canonical build/test CI passes.
