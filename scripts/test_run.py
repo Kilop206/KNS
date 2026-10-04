@@ -8,6 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 
+import benchmark_suite
 import run as runner
 
 
@@ -82,6 +83,19 @@ class StatsTests(unittest.TestCase):
         stats = runner.parse_stats(self.path)
         self.assertGreater(stats["packets_delivered"], 0)
         self.assertGreater(stats["simulation_duration_s"], 0)
+
+
+class BenchmarkSuiteTests(unittest.TestCase):
+    def test_default_routing_baseline_is_valid_and_has_36_cases(self):
+        suite = benchmark_suite.load_suite(benchmark_suite.DEFAULT_SUITE)
+        cases = benchmark_suite.expand_cases(suite)
+        self.assertEqual(suite["name"], "routing-baseline-v1")
+        self.assertEqual(len(cases), 36)
+        self.assertEqual(
+            {case["routing_metric"] for case in cases},
+            {"delay", "bandwidth", "hop-count", "delay-bandwidth"},
+        )
+        self.assertEqual({case["seed"] for case in cases}, {42, 43, 44})
 
 
 class ProcessTests(unittest.TestCase):
