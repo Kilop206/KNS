@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "name": "routing-baseline-v1",
+  "description": "Baseline comparison of the four KNS routing metrics across bundled topologies and deterministic seeds.",
+  "topologies": [
+    "app/topologies/mesh4.json",
+    "app/topologies/mesh5.json",
+    "app/topologies/star.json"
+  ],
+  "routing_metrics": [
+    "delay",
+    "bandwidth",
+    "hop-count",
+    "delay-bandwidth"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "packet_sizes": [
+    1500
+  ]
+}
