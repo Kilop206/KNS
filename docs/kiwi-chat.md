@@ -67,3 +67,21 @@ do not prove arbitrary natural-language statements correct, particularly outside
 English; users should verify suggestions against KNS facts. No chat action edits
 or runs a topology. Automated tests use fake inference and local HTTP servers;
 model quality requires separate evaluation with the configured weights.
+
+
+## Authentication and product entitlements
+
+When Sentient KNS is configured to resolve product entitlements through Topology
+Hub, the desktop can reuse the same revocable Hub desktop token for intelligence
+requests.
+
+Token precedence is:
+
+1. `KNS_INTELLIGENCE_TOKEN`, when explicitly configured;
+2. otherwise `KNS_TOPOLOGY_HUB_TOKEN`;
+3. otherwise no bearer token.
+
+This keeps local/development deployments backward compatible while allowing the
+production flow `KNS desktop → Sentient KNS → Topology Hub entitlement` to use
+one revocable user identity. The explicit intelligence token remains available
+for deployments that intentionally use a separate gateway credential.

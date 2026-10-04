@@ -104,6 +104,14 @@ IntelligenceConfigLoader::fromEnvironment()
     ) {
         config.bearer_token =
             *value;
+    } else if (
+        const auto value =
+            kns::app::readEnvironmentVariable(
+                "KNS_TOPOLOGY_HUB_TOKEN"
+            )
+    ) {
+        config.bearer_token =
+            *value;
     }
 
     applyTimeout(
