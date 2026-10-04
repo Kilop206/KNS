@@ -64,7 +64,14 @@ def get_test_dir(base: Path) -> Path:
 # Simulation headless execution
 # ==============================================================
 
-def build_command(exe: Path, topo: Path, csv_out: Path) -> list[str]:
+def build_command(
+    exe: Path,
+    topo: Path,
+    csv_out: Path,
+    routing_metric: str = "delay",
+    seed: int = 42,
+    packet_size: int = 1500,
+) -> list[str]:
     return [
         str(exe),
         "--headless",
@@ -72,6 +79,12 @@ def build_command(exe: Path, topo: Path, csv_out: Path) -> list[str]:
         str(topo),
         "--output",
         str(csv_out),
+        "--routing-metric",
+        routing_metric,
+        "--seed",
+        str(seed),
+        "--packet-size",
+        str(packet_size),
     ]
 
 
@@ -80,8 +93,18 @@ def run_silent(
     topo: Path,
     log_file: Path,
     csv_out: Path,
+    routing_metric: str = "delay",
+    seed: int = 42,
+    packet_size: int = 1500,
 ) -> tuple[subprocess.Popen, float, TextIO]:
-    cmd = build_command(exe, topo, csv_out)
+    cmd = build_command(
+        exe,
+        topo,
+        csv_out,
+        routing_metric,
+        seed,
+        packet_size,
+    )
 
     log_handle = open(log_file, "w", encoding="utf-8")
 
@@ -418,6 +441,24 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Timeout in seconds per execution (default: no limit)",
     )
+    parser.add_argument(
+        "--routing-metric",
+        choices=("delay", "bandwidth", "hop-count", "delay-bandwidth"),
+        default="delay",
+        help="Routing metric passed to every simulation (default: delay)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Unsigned random seed passed to every simulation (default: 42)",
+    )
+    parser.add_argument(
+        "--packet-size",
+        type=int,
+        default=1500,
+        help="Application payload size in bytes (default: 1500)",
+    )
     args = parser.parse_args(argv)
 
     if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
@@ -425,6 +466,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.max_procs < 1:
         print("[ERROR] --max-procs must be at least 1.", file=sys.stderr)
+        return 1
+    if args.seed < 0 or args.seed > 2**64 - 1:
+        print("[ERROR] --seed must fit an unsigned 64-bit integer.", file=sys.stderr)
+        return 1
+    if args.packet_size <= 0:
+        print("[ERROR] --packet-size must be positive.", file=sys.stderr)
         return 1
 
     topo_dir = Path(args.topologies_dir).resolve()
@@ -463,7 +510,15 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"[RUN {i}] {topo.name}")
         try:
-            proc, t0, log_handle = run_silent(exe, topo, log_file, csv_file)
+            proc, t0, log_handle = run_silent(
+                exe,
+                topo,
+                log_file,
+                csv_file,
+                args.routing_metric,
+                args.seed,
+                args.packet_size,
+            )
             pending.append((proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
             print(f"[ERROR] Failed to start {topo.name}: {exc}", file=sys.stderr)
@@ -505,6 +560,9 @@ def main(argv: list[str] | None = None) -> int:
         "executable": str(exe),
         "max_procs": args.max_procs,
         "timeout_seconds": args.timeout,
+        "routing_metric": args.routing_metric,
+        "seed": args.seed,
+        "packet_size": args.packet_size,
         "platform": platform.platform(),
     }
 
