@@ -60,6 +60,20 @@ class StatsTests(unittest.TestCase):
             runner.parse_stats(self.path)
 
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_build_command_carries_experiment_parameters(self):
+        command = runner.build_command(
+            Path("KNS"),
+            Path("mesh4.json"),
+            Path("stats.csv"),
+            "hop-count",
+            123,
+            4096,
+        )
+        self.assertEqual(
+            command[-6:],
+            ["--routing-metric", "hop-count", "--seed", "123", "--packet-size", "4096"],
+        )
+
     def test_engine_csv(self):
         root = Path(__file__).resolve().parent.parent
         subprocess.run(runner.build_command(Path(os.environ["KNS_TEST_EXE"]),
@@ -129,6 +143,9 @@ class ProcessTests(unittest.TestCase):
         report = json.loads((self.root / "summary.json").read_text())
         self.assertEqual(report["failed_runs"], 2)
         self.assertEqual(report["graphs"], [])
+        self.assertEqual(report["run_config"]["routing_metric"], "delay")
+        self.assertEqual(report["run_config"]["seed"], 42)
+        self.assertEqual(report["run_config"]["packet_size"], 1500)
         self.assertTrue(all(run["status"] == "timeout" for run in report["runs"]))
         self.assertTrue((self.root / "metrics.csv").exists())
         self.assertTrue((self.root / "run_config.json").exists())
@@ -136,7 +153,7 @@ class ProcessTests(unittest.TestCase):
     def test_mixed_batch_exit_and_reports(self):
         for name in ("ok", "bad"):
             (self.root / f"{name}.json").write_text("{}")
-        def command(exe, topo, output):
+        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500):
             if topo.stem == "bad":
                 return [sys.executable, "-c", "raise SystemExit(7)"]
             content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
