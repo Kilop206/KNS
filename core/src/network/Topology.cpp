@@ -5,11 +5,6 @@
 #include <stdexcept>
 
 namespace kns {
-<<<<<<< HEAD
-	
-	// Constructor to initialize the topology with a given number of nodes
-	Topology::Topology(int nodes) : num_nodes(nodes) {
-=======
 
     Topology Topology::cloneForRun() const {
         Topology result;
@@ -34,7 +29,6 @@ namespace kns {
         }
         return result;
     }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
     Topology::Topology(int nodes)
         : routing_revision_(std::make_shared<std::uint64_t>(0))
@@ -85,11 +79,6 @@ namespace kns {
             );
         }
 
-<<<<<<< HEAD
-		// Add the link to the adjacency list of the 'from' node
-		adjacency_list[link.from].push_back(link);
-	}
-=======
         auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
         ptr->attachRoutingRevision(routing_revision_);
 
@@ -101,7 +90,6 @@ namespace kns {
                 nodes_.emplace_back(static_cast<int>(i));
             }
         }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         links_.push_back(ptr);
         adjacency_list_[static_cast<std::size_t>(a)].push_back(ptr);
@@ -127,12 +115,6 @@ namespace kns {
         );
     }
 
-<<<<<<< HEAD
-	std::vector<std::vector<Link>>& Topology::getLinks() {
-		return adjacency_list;
-	}
-}
-=======
     void Topology::addLink(
         int a,
         int b,
@@ -144,7 +126,6 @@ namespace kns {
     ) {
         addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
     }
-
 
 
     const std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) const {
@@ -377,4 +358,3 @@ namespace kns {
     }
 
 }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

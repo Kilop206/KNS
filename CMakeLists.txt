@@ -48,7 +48,6 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG v3.12.0
     GIT_SHALLOW TRUE
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 )
 
 FetchContent_MakeAvailable(nlohmann_json)

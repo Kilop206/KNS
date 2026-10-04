@@ -1,9 +1,6 @@
 {
   "nodes": 5,
-<<<<<<< HEAD
-=======
   "name": "mesh5",
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
   "links": [
     {
       "from": 0,

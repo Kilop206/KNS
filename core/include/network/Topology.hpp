@@ -30,12 +30,6 @@ namespace kns {
             int queue_capacity = 32
         );
 
-<<<<<<< HEAD
-		Topology() = default;
-
-		// Constructor to initialize the topology with a given number of nodes
-		Topology(int num_nodes);
-=======
         void addLink(
             int a,
             int b,
@@ -49,7 +43,6 @@ namespace kns {
         /// Returns a const reference to the list of links connected to the given node.
         /// Throws std::out_of_range if node < 0 or node >= size().
         const std::vector<LinkPtr>& getLinksFromNode(int node) const;
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         const std::vector<LinkPtr>& getLinks() const noexcept { return links_; }
 
@@ -62,18 +55,8 @@ namespace kns {
 
         void setGlobalLossProb(double value);
 
-<<<<<<< HEAD
-		void setGlobalLossProb(float value);
-	};
-}
-=======
         const std::string& getName() const noexcept;
         void setName(std::string name);
-
-    /// Dynamic topology change policy (issue #95)
-    /// ============================================
-    /// The simulation allows topology mutations during a run (GUI edits,
-    /// LinkFailureEvent, deleteNode/deleteLink). The following invariants
     /// define how in-flight packets and scheduled events are affected:
     ///
     /// 1. Packets already in transit (in packets_in_transit and scheduled as
@@ -149,4 +132,3 @@ namespace kns {
     };
 
 }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

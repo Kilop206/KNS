@@ -7,12 +7,9 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
-<<<<<<< HEAD
-=======
 #include <map>
 #include <span>
 #include <utility>
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 #include "network/transport/tcp/TCPSession.hpp"
 #include "network/Topology.hpp"
@@ -28,17 +25,9 @@
 #include "network/Link.hpp"
 #include "engine/core/RunConfig.hpp"
 #include "network/PacketTravelInfo.hpp"
-<<<<<<< HEAD
-#include "network/tcp/TCPConnection.hpp"
-=======
-#include "network/transport/tcp/TCPConnection.hpp"
-#include "network/transport/tcp/TCPConnectionKey.hpp"
-
 struct PacketSpec;
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
-
     struct ValidationReport {
         std::size_t total_sessions = 0;
         std::size_t completed_sessions = 0;
@@ -70,14 +59,8 @@ namespace kns {
         Topology topology_;
 
         // Routing tables for each node.
-<<<<<<< HEAD
-        std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
-=======
         mutable std::vector<std::vector<Routing::RoutingEntry>> routing_tables_;
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
-
         mutable std::uint64_t routing_revision_ = 0;
-
         // Statistics for the simulation
         Stats stats_;
 
@@ -90,22 +73,6 @@ namespace kns {
         float globalLossProb = 0.0f;
         bool loss_override_enabled_ = false;
 
-<<<<<<< HEAD
-        int globalPacketSize = 0;
-
-        double simulation_speed_multiplier_ = 1.0;
-
-        std::function<void(double)> latencyObserver_;
-
-        std::unordered_map<
-            kns::TCPConnection,
-            std::pair<int, int>,
-            kns::TCPConnectionHash,
-            kns::TCPConnectionEqual
-        > tcp_connections_;
-
-        std::function<void(const Packet&, int, int, double)> packetObserver;
-=======
         int globalPacketSize = 1500;
 
         std::function<void(double)> latencyObserver_;
@@ -113,9 +80,7 @@ namespace kns {
         std::function<void(const Packet&, std::uint64_t, int, int, double, double)> packetObserver;
 
         std::map<std::uint64_t, TCPSession> sessions;
-
-        uint64_t next_session_id = 0;
-
+        std::uint64_t next_session_id = 0;
         double handshake_offset_ = 0.0;
 
         unsigned int kPacketsPerRoute = 20;
@@ -129,7 +94,6 @@ namespace kns {
         void refreshRoutingTables() const;
         void refreshRoutingTablesIfNeeded() const;
         void requireActiveTCPNode(int node_id) const;
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
     public:
         double random();
@@ -150,13 +114,6 @@ namespace kns {
 
         double peekNextEventTime() const;
 
-<<<<<<< HEAD
-        // Returns the timestamp of the next scheduled event, if any.
-        double peekNextEventTime() const;
-
-        // Returns the current simulation time.
-=======
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
         double now() const;
 
         /// Returns the next hop node index towards destination, or -1 if the destination
@@ -190,9 +147,6 @@ namespace kns {
 
         const std::vector<PacketTravelInfo>& getPacketsInTransit() const;
 
-<<<<<<< HEAD
-        void removePacketInTransit(double departure_time, double arrival_time);
-=======
         bool removePacketInTransit(
             double departure_time,
             double arrival_time,
@@ -200,7 +154,6 @@ namespace kns {
             int to,
             std::uint64_t link_id
         );
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         void setGlobalLossProb(float value);
         void clearGlobalLossOverride() noexcept { loss_override_enabled_ = false; }
@@ -213,18 +166,6 @@ namespace kns {
         void notifyLatencyDelivered(double latency);
 
         int getGlobalPacketSize() const;
-<<<<<<< HEAD
-
-        void startTCPConnection(int source, int dest);
-
-        void setPacketObserver(
-            std::function<void(const Packet&, int from, int to, double time)> observer
-        );
-
-        void emitPacketEvent(const Packet& p, int from, int to);
-    };
-=======
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         void startTCPConnection(int source, int dest);
         void startTCPConnection(
@@ -235,7 +176,6 @@ namespace kns {
         );
 
         /// Make node_id passively listen on the default TCP port (0).
-        /// Returns a reference to the created listener (backlog defaults to 128).
         TCPListener& startTCPListen(int node_id, int backlog = 128);
 
         /// Make node_id passively listen on a specific TCP port.

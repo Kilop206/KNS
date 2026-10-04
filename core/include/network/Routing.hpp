@@ -9,26 +9,6 @@ namespace kns {
 
     class Topology;
 
-<<<<<<< HEAD
-	class Routing {
-		public:
-			struct DijkstraResult {
-				std::vector<double> dist;
-				std::vector<int> parent;
-			};
-
-			struct RoutingEntry {
-				int destination = -1;
-				int next_hop = -1;
-				double distance = 0.0;
-			};
-
-			DijkstraResult buildDijkstra(const Topology& topology, int src);
-			std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src);
-	};
-
-} // namespace kns
-=======
     /// Selects the cost function used by Dijkstra when building routing tables.
     enum class RoutingMetric {
         /// Minimize end-to-end propagation delay (sum of link delay_ms). Default.
@@ -72,4 +52,3 @@ namespace kns {
     };
 
 }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

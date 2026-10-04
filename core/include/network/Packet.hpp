@@ -1,10 +1,5 @@
 #pragma once
 
-<<<<<<< HEAD
-#include "enums/PacketType.hpp"
-
-#include <cstddef>
-=======
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -12,7 +7,6 @@
 
 #include "enums/PacketType.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
 
@@ -79,8 +73,6 @@ namespace kns {
 
         TCPSegment tcp;
 
-        PacketType packet_type = PacketType::DATA;
-
         Packet() = default;
 
         Packet(
@@ -88,26 +80,17 @@ namespace kns {
             int destination,
             int current_node,
             double creation_time,
-<<<<<<< HEAD
-            std::size_t packet_size_bytes
-=======
             int packet_size_bytes,
             std::uint64_t session_id
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
         )
             : source(source),
               destination(destination),
               current_node(current_node),
               creation_time(creation_time),
-<<<<<<< HEAD
-              departure_time(0.0),
-              packet_size_bytes(packet_size_bytes) {}
-=======
               packet_size_bytes(packet_size_bytes),
               session_id(session_id)
         {
         }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
     };
 
 }

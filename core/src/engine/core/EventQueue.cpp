@@ -1,16 +1,9 @@
 #include "engine/core/EventQueue.hpp"
-<<<<<<< HEAD
-#include "engine/events/Event.hpp"
-
-#include <stdexcept>
-#include <limits>
-=======
 #include "engine/core/Event.hpp"
 
 #include <stdexcept>
 #include <limits>
 #include <iostream>
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
     // Comparator for the priority queue to order events by timestamp and ID

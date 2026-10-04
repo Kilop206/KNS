@@ -1,18 +1,4 @@
-<<<<<<< HEAD
-add_executable(kns_app main.cpp
-    gui/src/Window.cpp
-    gui/src/MetricsPannel.cpp
-    gui/src/LatencyChart.cpp
-    gui/src/PacketRenderer.cpp
-)
-
-target_link_libraries(kns_app 
-    kns_core 
-    imgui
-)
-=======
 add_executable(KNS)
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 if(WIN32)
     target_link_libraries(KNS PRIVATE ole32 shell32 uuid)
@@ -24,12 +10,6 @@ if(WIN32)
     )
 endif()
 
-<<<<<<< HEAD
-add_custom_command(TARGET kns_app POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/app/topologies
-    $<TARGET_FILE_DIR:kns_app>/topologies
-=======
 target_sources(KNS PRIVATE
     main.cpp
     intelligence/IntelligenceClient.cpp
@@ -132,5 +112,4 @@ add_custom_command(TARGET KNS POST_BUILD
             ${PROJECT_SOURCE_DIR}/app/topologies
             $<TARGET_FILE_DIR:KNS>/topologies
     COMMENT "Copying topologies..."
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 )

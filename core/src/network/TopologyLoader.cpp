@@ -34,14 +34,6 @@ namespace kns {
             throw std::invalid_argument("Topology JSON is not an object: " + filename);
         }
 
-<<<<<<< HEAD
-            link.from = l["from"];
-            link.to = l["to"];
-            link.delay_ms = l["delay"];
-            link.bandwidth_mbps = l["bandwidth"];
-            link.loss_prob = l["loss"];
-            topology.addLink(link);
-=======
         if (j.contains("schema_version") && j.at("schema_version") != "1.0") {
             throw std::invalid_argument("Unsupported topology schema_version");
         }
@@ -152,7 +144,6 @@ namespace kns {
 
         if (j.contains("name") && j["name"].is_string()) {
             topology.setName(j["name"].get<std::string>().c_str());
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
         }
 
         return topology;

@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-#include <cassert>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <utility>
-
-=======
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 #include "engine/events/PacketReceivedEvent.hpp"
 
 #include <cassert>
@@ -62,50 +53,9 @@ namespace kns
     {
     }
 
-<<<<<<< HEAD
-    void PacketReceivedEvent::execute(SimulationEngine& engine) {
-        int u = packet.current_node;
-        int dest = packet.destination;
-
-        assert(u >= 0);
-
-        if (u == dest) {
-            auto& stats = engine.getStats();
-
-            stats.packets_delivered++;
-
-            const double latency = engine.now() - packet.creation_time;
-            stats.total_latency += latency;
-
-            std::ostringstream oss;
-            oss << std::fixed << std::setprecision(6)
-                << "[DELIVERED] Packet from " << packet.source
-                << " to " << packet.destination
-                << " latency=" << latency;
-            std::cout << oss.str() << '\n';
-
-            std::cout << "[LATENCY] " << std::fixed << std::setprecision(6)
-                      << latency << '\n';
-
-            engine.notifyLatencyDelivered(latency);
-
-            engine.removePacketInTransit(packet.departure_time, timestamp_);
-            return;
-        }
-
-        int next = engine.getNextHop(u, dest);
-        if (next == -1) {
-            engine.getStats().packets_lost++;
-            std::cout << "[DROPPED] Packet from " << packet.source
-                      << " to " << packet.destination
-                      << " at time " << engine.now() << '\n';
-            engine.removePacketInTransit(packet.departure_time, timestamp_);
-            return;
-        }
-=======
     void PacketReceivedEvent::execute(SimulationEngine& engine)
     {
-        // Release the slot in the previous link (if any) as the packet has left the link
+        // Release the slot in the previous link as the packet has left it.
         PacketUtils::releasePacketThroughTopology(engine, packet);
 
         packet.packet_type = inferPacketType(packet.tcp);
@@ -136,20 +86,15 @@ namespace kns
                 packet,
                 engine.getTCPSession(packet.session_id)
             );
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
         if (!has_matching_session) {
             if (packet.packet_type == PacketType::RST) {
                 return;
             }
 
-<<<<<<< HEAD
-        const Link* selected_link = nullptr;
-=======
             if (packet.packet_type != PacketType::SYN) {
                 return;
             }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
             // acceptOnListener returns INVALID_SESSION_ID for both an absent
             // listener and a listener that cannot accept another connection.
@@ -497,23 +442,6 @@ namespace kns
             default:
                 break;
         }
-<<<<<<< HEAD
-
-        if (!selected_link) {
-            engine.getStats().packets_lost++;
-            std::cout << "[DROPPED] Packet from " << packet.source
-                      << " to " << packet.destination
-                      << " at time " << engine.now() << '\n';
-            engine.removePacketInTransit(packet.departure_time, timestamp_);
-            return;
-        }
-
-        engine.sendPacket(packet, *selected_link, timestamp_);
-        engine.removePacketInTransit(packet.departure_time, timestamp_);
-    }
-}
-=======
     }
 
 }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

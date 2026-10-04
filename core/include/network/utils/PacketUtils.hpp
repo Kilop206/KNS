@@ -1,13 +1,5 @@
 #pragma once
 
-<<<<<<< HEAD
-#include "engine/core/SimulationEngine.hpp"
-#include "network/Packet.hpp"
-
-namespace kns {
-    bool sendPacketThroughTopology(SimulationEngine& engine, Packet pkt);
-}
-=======
 #include <cstdint>
 
 namespace kns {
@@ -40,4 +32,3 @@ namespace kns {
         );
     };
 }
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc

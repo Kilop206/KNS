@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-#include <cstdlib>
-#include <stdexcept>
-
-=======
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 #include "network/Link.hpp"
 
 #include <algorithm>

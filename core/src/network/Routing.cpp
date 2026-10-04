@@ -12,9 +12,6 @@
 
 namespace kns {
 
-<<<<<<< HEAD
-	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src) {
-=======
 	namespace {
 		constexpr std::array routingMetrics{
 			std::pair{"delay", RoutingMetric::Delay},
@@ -48,7 +45,6 @@ namespace kns {
 
 	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
 	                                                 RoutingMetric metric) {
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 
@@ -70,10 +66,6 @@ namespace kns {
 			std::greater<>
 		> pq;
 
-<<<<<<< HEAD
-		dist[src] = 0.0;
-		pq.push({0.0, src});
-=======
 		// Negating the bottleneck capacity lets the min-heap also service the
 		// bandwidth maximisation case.
 		const auto encode = [maximise](double value) {
@@ -111,18 +103,13 @@ namespace kns {
 				return std::min(current_dist, edge_cost);   // bottleneck bandwidth
 			return current_dist + edge_cost;
 		};
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 		while (!pq.empty()) {
 			auto [encoded, u] = pq.top();
 			pq.pop();
 			double currentDist = decode(encoded);
 
-<<<<<<< HEAD
-			if (currentDist > dist[u]) {
-=======
 			if (!better(currentDist, dist[u]) && currentDist != dist[u]) {
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 				continue;
 			}
 
@@ -151,12 +138,8 @@ namespace kns {
 		return {dist, parent, parent_link};
 	}
 
-<<<<<<< HEAD
-	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src) {
-=======
 	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src,
 	                                                               RoutingMetric metric) {
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 		int n = topology.size();
 		assert(src >= 0 && src < n);
 

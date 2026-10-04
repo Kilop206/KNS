@@ -1,7 +1,4 @@
 #include "engine/events/PacketGenerationEvent.hpp"
-<<<<<<< HEAD
-#include "network/utils/PacketUtils.hpp"
-=======
 
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/events/TCPTimeoutEvent.hpp"
@@ -11,7 +8,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
 
 namespace kns {
 
@@ -19,33 +15,6 @@ namespace kns {
         double timestamp,
         int source,
         int destination,
-<<<<<<< HEAD
-        PacketType type
-    )
-        : Event(timestamp),
-        source_(source),
-        destination_(destination),
-        type_(type) {}
-
-    void PacketGenerationEvent::execute(SimulationEngine& engine) {
-        Packet pkt(
-            source_,
-            destination_,
-            source_,
-            engine.now(),
-            engine.getGlobalPacketSize()
-        );
-
-        pkt.packet_type = type_;
-        pkt.seq_num = 0;
-        pkt.ack_num = 0;
-        pkt.departure_time = engine.now();
-
-        sendPacketThroughTopology(engine, pkt);
-    }
-
-}
-=======
         std::uint64_t session_id
     )
         : Event(timestamp),
@@ -142,4 +111,3 @@ namespace kns {
     }
 
 } // namespace kns
->>>>>>> 879e9a30eb706359e007b3218a4c881c257cd5bc
