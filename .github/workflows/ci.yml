@@ -54,6 +54,9 @@ jobs:
       - name: Validate coordinated release train
         run: python scripts/validate_release_train.py
 
+      - name: Validate benchmark suite
+        run: python scripts/benchmark_suite.py --dry-run
+
   sanitizers:
     name: Sanitizers (ubuntu-latest)
     runs-on: ubuntu-latest
