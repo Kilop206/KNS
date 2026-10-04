@@ -109,3 +109,41 @@ and no pending events, packets, buffers, or link queue entries remain.
 - distinguish simulated seconds from wall-clock runtime;
 - report failed headless validation instead of silently discarding the run;
 - avoid causal conclusions from delivered-only samples under packet loss.
+
+
+## Official routing baseline v1
+
+The repository now includes a versioned benchmark definition at
+`benchmarks/v1/routing-baseline.json`. It compares all four supported routing
+metrics across `mesh4`, `mesh5`, and `star` using seeds 42, 43, and 44 with
+a 1500-byte application payload.
+
+Validate the matrix without running simulations:
+
+```bash
+python scripts/benchmark_suite.py --dry-run
+```
+
+After building KNS, execute the complete suite:
+
+```bash
+python scripts/benchmark_suite.py --timeout 60
+```
+
+Use `--exe <path>` when the executable cannot be discovered automatically and
+`--output <directory>` to choose a deterministic artifact location.
+
+Each benchmark run stores:
+
+- the exact expanded case matrix;
+- the KNS Git commit and executable path;
+- platform and timeout metadata;
+- the exact command for every case;
+- per-case stdout/stderr logs and raw engine CSV;
+- `metrics.csv` with comparable derived metrics;
+- `benchmark.json` with all configuration and results.
+
+The suite definition is version-controlled separately from its result artifacts.
+Changing topologies, seeds, packet sizes, metrics, or interpretation rules should
+produce a new benchmark suite version rather than silently changing
+`routing-baseline-v1`.
