@@ -31,6 +31,7 @@ public:
 
     [[nodiscard]] Topology fetchPublicTopology(const std::string& topology_id) const;
     [[nodiscard]] HubTopology fetchTopology(const std::string& topology_id) const;
+    [[nodiscard]] HubTopology createTopology(const HubTopology& topology) const;
     [[nodiscard]] HubTopology saveTopology(const HubTopology& topology) const;
 
 private:

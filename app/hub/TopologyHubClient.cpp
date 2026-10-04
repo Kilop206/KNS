@@ -79,7 +79,11 @@ HubTopology parseDetail(
         const auto document = nlohmann::json::parse(body);
         const auto& summary = document.at("topology");
         HubTopology result;
-        result.id = topology_id;
+        result.id = topology_id.empty()
+            ? summary.at("id").get<std::string>() : topology_id;
+        if (!validTopologyId(result.id)) {
+            throw std::runtime_error("Topology Hub returned an invalid topology ID");
+        }
         result.title = summary.at("title").get<std::string>();
         result.description = summary.at("description").get<std::string>();
         result.visibility = summary.at("visibility").get<std::string>();
@@ -163,6 +167,36 @@ HubTopology TopologyHubClient::fetchTopology(const std::string& topology_id) con
         throw std::runtime_error("Topology Hub response exceeds response size limit");
     }
     return parseDetail(topology_id, result->body);
+}
+
+HubTopology TopologyHubClient::createTopology(const HubTopology& topology) const
+{
+    if (config_.bearer_token.empty()) {
+        throw std::runtime_error("Saving to Topology Hub requires KNS_TOPOLOGY_HUB_TOKEN");
+    }
+    nlohmann::json body{
+        {"title", topology.title},
+        {"description", topology.description},
+        {"visibility", topology.visibility},
+        {"graph", TopologyLoader::toJson(topology.topology)}
+    };
+    httplib::Client client(config_.base_url);
+    configureClient(client, config_);
+    const auto result = client.Post(
+        "/api/topologies", requestHeaders(config_, true), body.dump(), "application/json"
+    );
+    if (!result) {
+        throw std::runtime_error(
+            "Could not connect to Topology Hub: " + httplib::to_string(result.error())
+        );
+    }
+    if (result->status != 201) {
+        throw httpError("Topology upload", result->status);
+    }
+    if (result->body.size() > config_.max_response_bytes) {
+        throw std::runtime_error("Topology Hub response exceeds response size limit");
+    }
+    return parseDetail({}, result->body);
 }
 
 HubTopology TopologyHubClient::saveTopology(const HubTopology& topology) const

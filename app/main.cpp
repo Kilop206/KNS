@@ -8,6 +8,7 @@
 #include "include/Environment.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstddef>
 #include <cmath>
@@ -1011,7 +1012,6 @@ static void renderConfigWindow(
     const std::string& fileStatus,
     bool& loadRequested,
     bool& saveRequested,
-    bool canSaveToHub,
     bool& saveHubRequested
 )
 {
@@ -1036,11 +1036,9 @@ static void renderConfigWindow(
     if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
         saveRequested = true;
     }
-    ImGui::BeginDisabled(!canSaveToHub);
     if (ImGui::Button(translations.label("Save to Topology Hub", "save-topology-hub").c_str())) {
         saveHubRequested = true;
     }
-    ImGui::EndDisabled();
     if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
 
     ImGui::BeginDisabled(topologyPath.empty());
@@ -1207,6 +1205,20 @@ static void visualizeWindow(
 
     VisualPacketManager visualManager;
     TranslationService translations;
+
+    const auto initialHubConfig = topologyHubConfigFromEnvironment();
+    std::array<char, 1024> hubUrl{};
+    std::array<char, 512> hubToken{};
+    std::array<char, 121> hubTitle{};
+    std::array<char, 4001> hubDescription{};
+    bool hubPublic = false;
+    std::string hubError;
+    const auto copyHubField = [](auto& field, const std::string& value) {
+        field.fill('\0');
+        std::copy_n(value.data(), std::min(value.size(), field.size() - 1), field.data());
+    };
+    copyHubField(hubUrl, initialHubConfig.base_url);
+    copyHubField(hubToken, initialHubConfig.bearer_token);
 
     float lossProb = 0.0f;
     bool lossOverride = false;
@@ -1476,7 +1488,6 @@ static void visualizeWindow(
             fileStatus,
             loadRequested,
             saveRequested,
-            hubDocument.has_value(),
             saveHubRequested
         );
 
@@ -1600,20 +1611,52 @@ static void visualizeWindow(
             lastRealTime = glfwGetTime();
         }
 
-        if (saveHubRequested && hubDocument) {
-            try {
-                hubDocument->topology = engine->getTopology().cloneForRun();
-                auto client = kns::app::hub::TopologyHubClient(
-                    topologyHubConfigFromEnvironment()
-                );
-                *hubDocument = client.saveTopology(*hubDocument);
-                topo = hubDocument->topology.cloneForRun();
-                fileStatus = translations.translate("Topology saved to Hub. Revision:") +
-                    " " + std::to_string(hubDocument->version);
-            } catch (const std::exception& exception) {
-                fileStatus = translations.translate("Hub save failed:") + " " + exception.what();
+        if (saveHubRequested) {
+            copyHubField(hubTitle, hubDocument ? hubDocument->title :
+                (engine->getTopology().getName().empty() ? "KNS topology" : engine->getTopology().getName()));
+            copyHubField(hubDescription, hubDocument ? hubDocument->description : "");
+            hubPublic = hubDocument && hubDocument->visibility == "PUBLIC";
+            hubError.clear();
+            ImGui::OpenPopup("Topology Hub###hub-upload");
+        }
+        ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Appearing);
+        if (ImGui::BeginPopupModal("Topology Hub###hub-upload", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped("%s", translations.translate(
+                hubDocument ? "Update this topology on the Hub." : "Upload this topology to your Hub account.").c_str());
+            ImGui::InputText(translations.label("Hub URL", "hub-url").c_str(), hubUrl.data(), hubUrl.size());
+            ImGui::InputText(translations.label("Desktop token", "hub-token").c_str(), hubToken.data(), hubToken.size(), ImGuiInputTextFlags_Password);
+            ImGui::TextWrapped("%s", translations.translate("Create a token in Topology Hub > Connect KNS (/tokens). The token is kept only for this KNS session.").c_str());
+            ImGui::InputText(translations.label("Title", "hub-title").c_str(), hubTitle.data(), hubTitle.size());
+            ImGui::InputTextMultiline(translations.label("Description", "hub-description").c_str(), hubDescription.data(), hubDescription.size(), ImVec2(-1, 80));
+            ImGui::Checkbox(translations.label("Public topology", "hub-public").c_str(), &hubPublic);
+            if (!hubError.empty()) ImGui::TextWrapped("%s", hubError.c_str());
+            ImGui::BeginDisabled(hubToken[0] == '\0' || hubTitle[0] == '\0' || hubUrl[0] == '\0');
+            if (ImGui::Button(translations.label(hubDocument ? "Save changes" : "Upload topology", "hub-submit").c_str())) {
+                try {
+                    auto config = initialHubConfig;
+                    config.base_url = hubUrl.data();
+                    config.bearer_token = hubToken.data();
+                    kns::app::hub::TopologyHubClient client(config);
+                    kns::app::hub::HubTopology document;
+                    if (hubDocument) document = *hubDocument;
+                    document.title = hubTitle.data();
+                    document.description = hubDescription.data();
+                    document.visibility = hubPublic ? "PUBLIC" : "PRIVATE";
+                    document.topology = engine->getTopology().cloneForRun();
+                    auto saved = hubDocument ? client.saveTopology(document) : client.createTopology(document);
+                    hubDocument = std::move(saved);
+                    topo = hubDocument->topology.cloneForRun();
+                    fileStatus = translations.translate("Topology saved to Hub. ID:") + " " + hubDocument->id;
+                    ImGui::CloseCurrentPopup();
+                } catch (const std::exception& exception) {
+                    hubError = exception.what();
+                }
+                lastRealTime = glfwGetTime();
             }
-            lastRealTime = glfwGetTime();
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (ImGui::Button(translations.label("Cancel", "hub-cancel").c_str())) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
         }
 
         renderEventLogWindow(

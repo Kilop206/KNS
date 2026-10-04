@@ -315,6 +315,19 @@ prohibited unless separately authorized. This is not the MIT License.
 
 ## Topology Hub desktop access
 
+To upload a local topology, sign in to the Hub and open **Conectar KNS**
+(`/tokens`). Generate a desktop token and copy it once. In KNS, load or create
+your network and select **Settings > Save to Topology Hub**. Enter the Hub URL
+(locally `http://localhost:3001`), paste the token, and choose a title,
+description and visibility. New uploads default to private. The token is held
+only in memory for the current KNS session; the environment variables below
+can also prefill the connection fields.
+
+The first upload creates a document; later saves in the same KNS session update
+that document with optimistic version checking. The success message shows its
+ID. Reopen it with `--hub-topology` in a later session to continue editing the
+same document. Loading another local file starts a new upload.
+
 KNS can open a Topology Hub document by ID:
 
 ```powershell
