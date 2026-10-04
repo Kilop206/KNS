@@ -8,6 +8,7 @@ components. Contracts are versioned independently from application releases.
 | Contract | Producer | Consumer |
 | --- | --- | --- |
 | `topology-v1.schema.json` | KNS Discovery, Topology Hub, KNS | KNS, Topology Hub |
+| `discovery-diff-v1.schema.json` | KNS Discovery | KNS, Topology Hub |
 | `desktop-intelligence-request-v1.schema.json` | KNS desktop | Sentient KNS |
 | `chat-request-v1.schema.json` | KNS desktop | Sentient KNS, KiWi through the gateway |
 | `chat-response-v1.schema.json` | KiWi | Sentient KNS, KNS desktop |

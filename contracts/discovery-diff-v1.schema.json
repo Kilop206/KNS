@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/discovery-diff-v1.schema.json",
+  "title": "KNS Discovery Snapshot Diff v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "baseline_available"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "baseline_available": {
+      "type": "boolean"
+    },
+    "added_nodes": {
+      "$ref": "#/$defs/identity_list"
+    },
+    "removed_nodes": {
+      "$ref": "#/$defs/identity_list"
+    },
+    "changed_nodes": {
+      "$ref": "#/$defs/identity_list"
+    },
+    "added_links": {
+      "$ref": "#/$defs/identity_list"
+    },
+    "removed_links": {
+      "$ref": "#/$defs/identity_list"
+    },
+    "changed_links": {
+      "$ref": "#/$defs/identity_list"
+    }
+  },
+  "$defs": {
+    "identity_list": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

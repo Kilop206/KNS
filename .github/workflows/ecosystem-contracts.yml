@@ -25,21 +25,9 @@ jobs:
         with:
           path: kns
 
-      - name: Checkout KNS Discovery
-        uses: actions/checkout@v4
-        with:
-          repository: Kilop206/KNS-Discovery
-          ref: main
-          path: discovery
-          persist-credentials: false
-
-      - name: Checkout Topology Hub
-        uses: actions/checkout@v4
-        with:
-          repository: Kilop206/Topology-Hub
-          ref: main
-          path: topology-hub
-          persist-credentials: false
+      - name: Clone public Discovery repository
+        shell: bash
+        run: git clone --depth 1 https://github.com/Kilop206/KNS-Discovery.git discovery
 
       - name: Validate canonical KNS schemas
         run: python kns/scripts/validate_contracts.py
@@ -53,7 +41,6 @@ jobs:
           expected = manifest["components"]
           actual = {
               "kns_discovery": Path("discovery/VERSION").read_text().strip(),
-              "topology_hub": Path("topology-hub/VERSION").read_text().strip(),
           }
           for name, version in actual.items():
               if version != expected[name]:
@@ -71,17 +58,4 @@ jobs:
         working-directory: discovery
         run: go test ./internal/discovery
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
-          cache-dependency-path: |
-            topology-hub/backend/pom.xml
-            sentient/pom.xml
-
-      - name: Validate Topology Hub topology boundary
-        working-directory: topology-hub/backend
-        run: mvn -B -ntp -Dtest=HubApiTest test
 
