@@ -1,0 +1,72 @@
+name: Routing benchmark v1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Run routing baseline v1
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install KNS build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y             cmake build-essential libgl1-mesa-dev xorg-dev             libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+
+      - name: Configure benchmark build
+        run: cmake -S . -B build -DKNS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build KNS
+        run: cmake --build build --config Release --parallel
+
+      - name: Run official routing baseline
+        run: |
+          python scripts/benchmark_suite.py             --exe build/app/KNS             --timeout 60             --output "results/benchmarks/routing-baseline-v1/${GITHUB_SHA}"
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("results/benchmarks/routing-baseline-v1") / os.environ["GITHUB_SHA"] / "benchmark.json"
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          if not path.exists():
+              summary.write_text("## Routing benchmark v1\n\nBenchmark metadata was not produced.\n", encoding="utf-8")
+              raise SystemExit(0)
+          data = json.loads(path.read_text(encoding="utf-8"))
+          summary.write_text(
+              "## Routing benchmark v1\n\n"
+              f"- Commit: `{data['kns_commit']}`\n"
+              f"- Cases: {data['case_count']}\n"
+              f"- Successful: {data['successful_cases']}\n"
+              f"- Failed: {data['failed_cases']}\n"
+              f"- Platform: {data['platform']}\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routing-baseline-v1-${{ github.sha }}
+          path: results/benchmarks/routing-baseline-v1/${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 90
