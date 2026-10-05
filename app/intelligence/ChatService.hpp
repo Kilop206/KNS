@@ -8,6 +8,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "analysis/NetworkAnalysis.hpp"
+#include "engine/core/Stats.hpp"
 #include "intelligence/ChatReply.hpp"
 
 namespace kns::app::intelligence {
@@ -25,7 +26,7 @@ public:
     explicit ChatService(Transport transport);
     void synchronizeTopology(std::uint64_t revision);
     void clear();
-    void send(const kns::analysis::NetworkAnalysis& analysis, std::string question);
+    void send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question);
     void retry();
     void discardFailedQuestion();
     void update();
