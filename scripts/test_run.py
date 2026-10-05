@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import benchmark_suite
+import release_preflight
 import run as runner
 
 
@@ -177,6 +178,15 @@ class BenchmarkSuiteTests(unittest.TestCase):
 
 
 
+
+    def test_release_preflight_allows_software_before_model_promotion(self):
+        report = release_preflight.evaluate_release(release_preflight.ROOT)
+        self.assertTrue(report["software_ready"])
+        self.assertEqual(report["model_status"], "pipeline_ready")
+        self.assertFalse(report["model_ready"])
+        text = release_preflight.markdown(report)
+        self.assertIn("Software ready: **yes**", text)
+        self.assertIn("KiWi Model v1 ready: **no**", text)
 
     def test_markdown_report_summarizes_cases_and_fault_deltas(self):
         with tempfile.TemporaryDirectory() as temp:
