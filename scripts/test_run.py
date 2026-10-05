@@ -75,6 +75,16 @@ class StatsTests(unittest.TestCase):
             ["--routing-metric", "hop-count", "--seed", "123", "--packet-size", "4096",
              "--congestion-control", "reno"],
         )
+        with_faults = runner.build_command(
+            Path("KNS"),
+            Path("mesh4.json"),
+            Path("stats.csv"),
+            link_events=["0.5:0:1:down", "2.5:0:1:up"],
+        )
+        self.assertEqual(
+            with_faults[-4:],
+            ["--link-event", "0.5:0:1:down", "--link-event", "2.5:0:1:up"],
+        )
 
     def test_engine_csv(self):
         root = Path(__file__).resolve().parent.parent
@@ -108,6 +118,23 @@ class BenchmarkSuiteTests(unittest.TestCase):
         self.assertEqual(
             {case["congestion_control"] for case in cases},
             {"tahoe", "reno", "newreno", "cubic"},
+        )
+        self.assertEqual({case["fault_scenario"] for case in cases}, {"baseline"})
+
+    def test_resilience_baseline_expands_control_and_outage(self):
+        root = Path(__file__).resolve().parent.parent
+        suite = benchmark_suite.load_suite(root / "benchmarks/v1/resilience-baseline.json")
+        cases = benchmark_suite.expand_cases(suite)
+        self.assertEqual(suite["name"], "resilience-baseline-v1")
+        self.assertEqual(len(cases), 6)
+        self.assertEqual(
+            {case["fault_scenario"] for case in cases},
+            {"baseline", "link01-outage"},
+        )
+        outage = next(case for case in cases if case["fault_scenario"] == "link01-outage")
+        self.assertEqual(
+            outage["link_events"],
+            ["0.5:0:1:down", "2.5:0:1:up"],
         )
 
 
@@ -174,6 +201,7 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(report["run_config"]["seed"], 42)
         self.assertEqual(report["run_config"]["packet_size"], 1500)
         self.assertEqual(report["run_config"]["congestion_control"], "reno")
+        self.assertEqual(report["run_config"]["link_events"], [])
         self.assertTrue(all(run["status"] == "timeout" for run in report["runs"]))
         self.assertTrue((self.root / "metrics.csv").exists())
         self.assertTrue((self.root / "run_config.json").exists())
@@ -181,7 +209,7 @@ class ProcessTests(unittest.TestCase):
     def test_mixed_batch_exit_and_reports(self):
         for name in ("ok", "bad"):
             (self.root / f"{name}.json").write_text("{}")
-        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500, congestion_control="reno"):
+        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500, congestion_control="reno", link_events=None):
             if topo.stem == "bad":
                 return [sys.executable, "-c", "raise SystemExit(7)"]
             content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"

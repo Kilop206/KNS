@@ -153,3 +153,27 @@ The repository CI validates the suite definition and expanded matrix with
 `--dry-run`, but it intentionally does not execute all 36 simulations on every
 commit. Full benchmark result artifacts should be produced from a known-good KNS
 build after the canonical build/test CI passes.
+
+
+## Resilience baseline v1
+
+`benchmarks/v1/resilience-baseline.json` compares normal operation against a
+temporary deterministic link outage. The headless CLI accepts repeatable events:
+
+```bash
+./build/app/KNS --headless \
+  --topology app/topologies/mesh4.json \
+  --link-event 0.5:0:1:down \
+  --link-event 2.5:0:1:up
+```
+
+Each event uses simulated time and is scheduled before workload generation, so
+the same topology, seed, build and event list produce the same ordering. The
+benchmark suite records the named fault scenario in `benchmark.json` and
+`metrics.csv`. Existing suites omit `link_event_scenarios` and therefore run
+as a single `baseline` scenario with no fault events.
+
+The first official resilience baseline uses `mesh4`, Reno, delay routing and
+seeds 42–44. It compares a control run with a link 0–1 outage from t=0.5 to
+t=2.5. This benchmark measures simulator behavior under a controlled transient
+failure; it is not a claim about real-world physical failure rates.

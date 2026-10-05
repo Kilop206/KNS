@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "name": "resilience-baseline-v1",
+  "description": "Deterministic comparison of normal operation and a temporary 0-1 link outage with recovery.",
+  "topologies": ["app/topologies/mesh4.json"],
+  "routing_metrics": ["delay"],
+  "congestion_controls": ["reno"],
+  "seeds": [42, 43, 44],
+  "packet_sizes": [1500],
+  "link_event_scenarios": [
+    {"name": "baseline", "events": []},
+    {
+      "name": "link01-outage",
+      "events": [
+        {"time": 0.5, "from": 0, "to": 1, "state": "down"},
+        {"time": 2.5, "from": 0, "to": 1, "state": "up"}
+      ]
+    }
+  ]
+}

@@ -94,6 +94,7 @@ namespace {
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --congestion-control <cc>  Select TCP congestion control\n"
+            << "  --link-event <t:a:b:s>     Schedule headless link state (s=down|up)\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
             << "  --packet-size <bytes>      Positive packet size (default: 1500)\n"
             << "  -h, --help                 Show this help message\n\n"
@@ -112,6 +113,68 @@ namespace {
         if (value == "newreno") return CongestionControlType::NEW_RENO;
         if (value == "cubic") return CongestionControlType::CUBIC;
         return std::nullopt;
+    }
+
+    struct HeadlessLinkEvent {
+        double at_time = 0.0;
+        int node_a = -1;
+        int node_b = -1;
+        bool up = false;
+    };
+
+    [[nodiscard]] std::optional<HeadlessLinkEvent> parseHeadlessLinkEvent(
+        std::string_view value
+    ) noexcept
+    {
+        try {
+            std::array<std::string, 4> parts;
+            std::size_t start = 0;
+            for (std::size_t index = 0; index < parts.size(); ++index) {
+                const auto separator = value.find(':', start);
+                if (index + 1 < parts.size()) {
+                    if (separator == std::string_view::npos) return std::nullopt;
+                    parts[index] = std::string(value.substr(start, separator - start));
+                    start = separator + 1;
+                } else {
+                    if (separator != std::string_view::npos) return std::nullopt;
+                    parts[index] = std::string(value.substr(start));
+                }
+            }
+
+            std::size_t parsed = 0;
+            const double at_time = std::stod(parts[0], &parsed);
+            if (parsed != parts[0].size() || !std::isfinite(at_time) || at_time < 0.0) {
+                return std::nullopt;
+            }
+
+            parsed = 0;
+            const long node_a = std::stol(parts[1], &parsed);
+            if (parsed != parts[1].size() || node_a < 0 || node_a > std::numeric_limits<int>::max()) {
+                return std::nullopt;
+            }
+
+            parsed = 0;
+            const long node_b = std::stol(parts[2], &parsed);
+            if (parsed != parts[2].size() || node_b < 0 || node_b > std::numeric_limits<int>::max()) {
+                return std::nullopt;
+            }
+
+            bool up = false;
+            if (parts[3] == "up") {
+                up = true;
+            } else if (parts[3] != "down") {
+                return std::nullopt;
+            }
+
+            return HeadlessLinkEvent{
+                at_time,
+                static_cast<int>(node_a),
+                static_cast<int>(node_b),
+                up
+            };
+        } catch (...) {
+            return std::nullopt;
+        }
     }
 
     [[nodiscard]] bool isAutoStartEnabledValue(
@@ -1762,6 +1825,7 @@ int main(int argc, char* argv[])
     int outputPathIndex = -1;
     std::optional<std::string> hubTopologyId;
     std::optional<RoutingMetric> routingMetric;
+    std::vector<HeadlessLinkEvent> headlessLinkEvents;
     RunConfig runConfig;
 
     Topology topo;
@@ -1885,6 +1949,26 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (arg == "--link-event")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr << "Missing value for --link-event\n";
+                printUsage(std::cerr);
+                return 1;
+            }
+            const std::string_view value = argv[++i];
+            const auto parsed = parseHeadlessLinkEvent(value);
+            if (!parsed)
+            {
+                std::cerr << "Invalid value for --link-event: " << value
+                          << " (expected time:nodeA:nodeB:down|up)\n";
+                return 1;
+            }
+            headlessLinkEvents.push_back(*parsed);
+            continue;
+        }
+
         if (arg == "--routing-metric")
         {
             if (i + 1 >= argc)
@@ -1940,6 +2024,11 @@ int main(int argc, char* argv[])
     }
     if (topologyDiffPathIndex >= 0 && !watchTopology) {
         std::cerr << "--watch-topology-diff requires --watch-topology\n";
+        return 1;
+    }
+    if (!headlessLinkEvents.empty() && !headless)
+    {
+        std::cerr << "--link-event is only valid with --headless\n";
         return 1;
     }
     if (routingMetric && !headless)
@@ -2002,6 +2091,15 @@ int main(int argc, char* argv[])
         );
 
         engine->configureRun(runConfig);
+
+        for (const auto& event : headlessLinkEvents) {
+            engine->scheduleLinkFailure(
+                event.at_time,
+                event.node_a,
+                event.node_b,
+                event.up
+            );
+        }
 
         const bool headless_auto_start =
             autoStartFromEnvironment(
