@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "name": "aqm-baseline-v1",
+  "description": "Paired deterministic baseline comparing drop-tail and RED on the same 1 Mbps bottleneck topology.",
+  "topologies": [
+    "benchmarks/v1/topologies/aqm-bottleneck-drop-tail.json",
+    "benchmarks/v1/topologies/aqm-bottleneck-red.json"
+  ],
+  "routing_metrics": [
+    "delay"
+  ],
+  "congestion_controls": [
+    "reno"
+  ],
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "packet_sizes": [
+    1500
+  ]
+}
