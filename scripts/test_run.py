@@ -180,7 +180,7 @@ class BenchmarkSuiteTests(unittest.TestCase):
 
 
     def test_release_preflight_allows_software_before_model_promotion(self):
-        report = release_preflight.evaluate_release(ROOT)
+        report = release_preflight.evaluate_release(release_preflight.ROOT)
         self.assertTrue(report["software_ready"])
         self.assertEqual(report["model_status"], "pipeline_ready")
         self.assertFalse(report["model_ready"])
