@@ -226,6 +226,7 @@ namespace kns {
 
         if (!link.canQueue(pkt.current_node, next_node)) {
             stats_.packets_lost++;
+            stats_.queue_overflow_drops++;
             return false;
         }
 
@@ -233,6 +234,7 @@ namespace kns {
             link.earlyDropProbability(pkt.current_node, next_node);
         if (early_drop_probability > 0.0 && random() < early_drop_probability) {
             stats_.packets_lost++;
+            stats_.red_early_drops++;
             return false;
         }
 
@@ -319,7 +321,7 @@ namespace kns {
         }
 
         // Header
-        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,schema_version,simulation_duration_s,seed\n";
+        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,red_early_drops,schema_version,simulation_duration_s,seed\n";
 
         // Values
         const int sent = stats_.packets_sent;
@@ -327,6 +329,8 @@ namespace kns {
         const int lost = stats_.packets_lost;
         const double total_latency = stats_.total_latency;
         const int data_delivered = stats_.data_packets_delivered;
+        const int queue_overflow_drops = stats_.queue_overflow_drops;
+        const int red_early_drops = stats_.red_early_drops;
         const double avg_latency = (data_delivered > 0)
             ? total_latency / static_cast<double>(data_delivered) : 0.0;
         const std::size_t in_transit = packets_in_transit.size();
@@ -339,7 +343,9 @@ namespace kns {
              << avg_latency << ','
              << in_transit << ','
              << total_sessions << ','
-             << data_delivered << ",1," << now() << ',' << runConfig.seed << '\n';
+             << data_delivered << ','
+             << queue_overflow_drops << ','
+             << red_early_drops << ",1," << now() << ',' << runConfig.seed << '\n';
 
         file.close();
         if (!file) {
@@ -511,6 +517,9 @@ namespace kns {
             (r.packets_delivered >= 0) &&
             (r.packets_delivered <= r.packets_sent) &&
             (r.packets_lost >= 0) &&
+            (stats_.queue_overflow_drops >= 0) &&
+            (stats_.red_early_drops >= 0) &&
+            (stats_.queue_overflow_drops + stats_.red_early_drops <= r.packets_lost) &&
             // Rejected sends also count as losses without incrementing sent.
             (r.packets_sent - r.packets_delivered <= r.packets_lost) &&
             !hasEvents() && packets_in_transit.empty() &&

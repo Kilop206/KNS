@@ -72,6 +72,8 @@ TEST_CASE("Configured queues reject overflow and drain through arrival events", 
             }
             REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
             REQUIRE(engine.getStats().packets_lost == 1);
+            REQUIRE(engine.getStats().queue_overflow_drops == 1);
+            REQUIRE(engine.getStats().red_early_drops == 0);
             const auto next_mode = mode == LinkMode::FULL_DUPLEX
                 ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
             REQUIRE_THROWS_AS(link->setMode(next_mode), std::logic_error);
@@ -228,5 +230,7 @@ TEST_CASE("RED deterministically drops at max threshold", "[network][link][queue
 
     REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
     REQUIRE(engine.getStats().packets_lost == 1);
+    REQUIRE(engine.getStats().queue_overflow_drops == 0);
+    REQUIRE(engine.getStats().red_early_drops == 1);
     REQUIRE(link->getQueueSize() == 1);
 }

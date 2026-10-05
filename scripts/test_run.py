@@ -21,6 +21,7 @@ class StatsTests(unittest.TestCase):
         self.row = dict(packets_sent=10, packets_delivered=8, packets_lost=2,
                         total_latency=4, avg_latency=0.5, packets_in_transit=0,
                         total_sessions=1, data_packets_delivered=8,
+                        queue_overflow_drops=1, red_early_drops=1,
                         schema_version=1, simulation_duration_s=2, seed=42)
 
     def write(self):
@@ -34,10 +35,21 @@ class StatsTests(unittest.TestCase):
         stats = runner.parse_stats(self.path)
         self.assertEqual(stats["delivery_rate"], 0.8)
         self.assertEqual(stats["loss_rate"], 0.2)
+        self.assertEqual(stats["queue_overflow_drops"], 1)
+        self.assertEqual(stats["red_early_drops"], 1)
         for duration in (0.01, 100):
             result = runner.compute_stats(stats, duration)
             self.assertEqual(result["throughput_pps"], 4)
             self.assertEqual(result["wall_clock_duration_s"], duration)
+
+
+    def test_legacy_schema_v1_defaults_additive_aqm_metrics_to_zero(self):
+        self.row.pop("queue_overflow_drops")
+        self.row.pop("red_early_drops")
+        self.write()
+        stats = runner.parse_stats(self.path)
+        self.assertEqual(stats["queue_overflow_drops"], 0)
+        self.assertEqual(stats["red_early_drops"], 0)
 
     def test_empty_run(self):
         self.row.update(packets_sent=0, packets_delivered=0, packets_lost=0,
