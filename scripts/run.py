@@ -71,6 +71,7 @@ def build_command(
     routing_metric: str = "delay",
     seed: int = 42,
     packet_size: int = 1500,
+    congestion_control: str = "reno",
 ) -> list[str]:
     return [
         str(exe),
@@ -85,6 +86,8 @@ def build_command(
         str(seed),
         "--packet-size",
         str(packet_size),
+        "--congestion-control",
+        congestion_control,
     ]
 
 
@@ -96,6 +99,7 @@ def run_silent(
     routing_metric: str = "delay",
     seed: int = 42,
     packet_size: int = 1500,
+    congestion_control: str = "reno",
 ) -> tuple[subprocess.Popen, float, TextIO]:
     cmd = build_command(
         exe,
@@ -104,6 +108,7 @@ def run_silent(
         routing_metric,
         seed,
         packet_size,
+        congestion_control,
     )
 
     log_handle = open(log_file, "w", encoding="utf-8")
@@ -458,6 +463,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=1500,
         help="Application payload size in bytes (default: 1500)",
+    )
+    parser.add_argument(
+        "--congestion-control",
+        choices=("tahoe", "reno", "newreno", "cubic"),
+        default="reno",
+        help="TCP congestion control passed to every simulation (default: reno)",
     )
     args = parser.parse_args(argv)
 
