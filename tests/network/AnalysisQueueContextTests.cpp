@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "analysis/AIContextBuilder.hpp"
+#include "analysis/AnalysisJsonSerializer.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
 #include "network/Topology.hpp"
 
@@ -27,9 +28,18 @@ TEST_CASE("Network analysis exposes queue-management facts to intelligence conte
     const auto context = analysis::AIContextBuilder::build(analysis, options);
 
     REQUIRE(context.at("critical_links").is_array());
-    // This link may not be critical, so verify the complete analysis object directly
-    // and ensure the values survive through the analyzer contract.
-    REQUIRE(metrics.queue_policy == "red");
+    REQUIRE(context.at("critical_links").size() == 1);
+    const auto& linkContext = context.at("critical_links").at(0);
+    REQUIRE(linkContext.at("queue_capacity") == 16);
+    REQUIRE(linkContext.at("queue_policy") == "red");
+    REQUIRE(linkContext.at("red_min_threshold") == 4);
+    REQUIRE(linkContext.at("red_max_threshold") == 12);
+    REQUIRE(linkContext.at("red_max_drop_probability") == 0.25);
+
+    const auto serialized = analysis::AnalysisJsonSerializer::toJson(analysis);
+    const auto& serializedLink = serialized.at("links").at(0);
+    REQUIRE(serializedLink.at("queue_policy") == "red");
+    REQUIRE(serializedLink.at("queue_capacity") == 16);
 }
 
 TEST_CASE("Drop-tail analysis uses explicit defaults", "[analysis][aqm]")
