@@ -40,6 +40,7 @@ namespace kns {
             throw std::logic_error("Run configuration must be applied before scheduling work");
         }
         setGlobalPacketSize(config.packet_size);
+        congestion_control_ = config.congestion_control;
         random_.seed(config.seed);
     }
 
@@ -406,7 +407,8 @@ namespace kns {
                 destination,
                 TCPState::CLOSED,
                 source_port,
-                destination_port
+                destination_port,
+                congestion_control_
             )
         );
 

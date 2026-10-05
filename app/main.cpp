@@ -93,11 +93,25 @@ namespace {
             << "  --hub-topology <id>        Load a Topology Hub document (token required if private)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
+            << "  --congestion-control <cc>  Select TCP congestion control\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
             << "  --packet-size <bytes>      Positive packet size (default: 1500)\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
-            << "  delay (default), bandwidth, hop-count, delay-bandwidth\n";
+            << "  delay (default), bandwidth, hop-count, delay-bandwidth\n"
+            << "TCP congestion controls:\n"
+            << "  tahoe, reno (default), newreno, cubic\n";
+    }
+
+    [[nodiscard]] std::optional<CongestionControlType> parseCongestionControl(
+        std::string_view value
+    ) noexcept
+    {
+        if (value == "tahoe") return CongestionControlType::TAHOE;
+        if (value == "reno") return CongestionControlType::RENO;
+        if (value == "newreno") return CongestionControlType::NEW_RENO;
+        if (value == "cubic") return CongestionControlType::CUBIC;
+        return std::nullopt;
     }
 
     [[nodiscard]] bool isAutoStartEnabledValue(
@@ -1848,6 +1862,26 @@ int main(int argc, char* argv[])
             } else {
                 runConfig.packet_size = static_cast<int>(parsed);
             }
+            continue;
+        }
+
+        if (arg == "--congestion-control")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr << "Missing value for --congestion-control\n";
+                printUsage(std::cerr);
+                return 1;
+            }
+            const std::string_view value = argv[++i];
+            const auto parsed = parseCongestionControl(value);
+            if (!parsed)
+            {
+                std::cerr << "Invalid value for --congestion-control: " << value << '\n';
+                printUsage(std::cerr);
+                return 1;
+            }
+            runConfig.congestion_control = *parsed;
             continue;
         }
 
