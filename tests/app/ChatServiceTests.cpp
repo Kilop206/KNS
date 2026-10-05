@@ -208,6 +208,7 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
     std::string mode = "success";
     server.Post("/chat", [&](const httplib::Request& req, httplib::Response& res) {
         if (req.get_header_value("Authorization") != "Bearer test-token") { res.status = 401; return; }
+        if (req.get_header_value("X-Request-ID") != "turn-1") { res.status = 400; return; }
         auto body = nlohmann::json::parse(req.body);
         if (mode == "offline") { res.status = 503; return; }
         if (mode == "invalid") { res.set_content("not json", "application/json"); return; }

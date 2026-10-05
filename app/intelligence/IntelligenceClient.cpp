@@ -2,7 +2,10 @@
 
 #include <httplib.h>
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
+#include <string_view>
 #include <string>
 #include <utility>
 
@@ -29,6 +32,39 @@ std::string httpErrorMessage(
     return message;
 }
 
+
+bool validRequestId(std::string_view value) noexcept
+{
+    return !value.empty() &&
+        value.size() <= 128 &&
+        std::all_of(
+            value.begin(),
+            value.end(),
+            [](unsigned char character) {
+                return std::isalnum(character) ||
+                    character == '-' ||
+                    character == '_' ||
+                    character == '.';
+            }
+        );
+}
+
+void addRequestIdHeader(
+    httplib::Headers& headers,
+    const nlohmann::json& request,
+    const char* key
+)
+{
+    const auto iterator = request.find(key);
+    if (iterator == request.end() || !iterator->is_string()) {
+        return;
+    }
+    const auto value = iterator->get<std::string>();
+    if (validRequestId(value)) {
+        headers.emplace("X-Request-ID", value);
+    }
+}
+
 } // namespace
 
 IntelligenceClient::IntelligenceClient(
@@ -49,6 +85,7 @@ ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
     if (!config_.bearer_token.empty()) {
         headers.emplace("Authorization", "Bearer " + config_.bearer_token);
     }
+    addRequestIdHeader(headers, request, "requestId");
     const auto result = client.Post(config_.chat_endpoint, headers, request.dump(), "application/json");
     if (!result) {
         throw std::runtime_error("Could not reach KiWi chat: " + httplib::to_string(result.error()));
@@ -122,6 +159,8 @@ IntelligenceClient::analyze(
             IntelligenceRequestBuilder::toJson(
                 request
             );
+
+    addRequestIdHeader(headers, requestJson, "request_id");
 
     const auto result =
         client.Post(
