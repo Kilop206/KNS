@@ -321,3 +321,42 @@ TEST_CASE("Topology programmatic API validation", "[network][topology]")
     REQUIRE_NOTHROW(topo.addLinkPtr(1, 2, 10.0, 5.0, 1.0));
     REQUIRE_NOTHROW(topo.setGlobalLossProb(0.25));
 }
+
+
+TEST_CASE("RED computes early-drop probability from queue occupancy", "[network][link][queue][red]")
+{
+    Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 10);
+    REQUIRE(link.getQueueDiscipline() == Link::QueueDiscipline::DROP_TAIL);
+    REQUIRE(link.earlyDropProbability(0, 1) == 0.0);
+
+    link.configureRed(2, 6, 0.5);
+    REQUIRE(link.getQueueDiscipline() == Link::QueueDiscipline::RED);
+    REQUIRE(link.earlyDropProbability(0, 1) == 0.0);
+
+    link.enqueueTransmission(0, 1, 0.0, 1.0);
+    link.enqueueTransmission(0, 1, 1.0, 2.0);
+    REQUIRE(link.earlyDropProbability(0, 1) == 0.0);
+
+    link.enqueueTransmission(0, 1, 2.0, 3.0);
+    link.enqueueTransmission(0, 1, 3.0, 4.0);
+    REQUIRE(link.earlyDropProbability(0, 1) == Catch::Approx(0.25));
+
+    link.enqueueTransmission(0, 1, 4.0, 5.0);
+    link.enqueueTransmission(0, 1, 5.0, 6.0);
+    REQUIRE(link.earlyDropProbability(0, 1) == 1.0);
+}
+
+TEST_CASE("RED rejects invalid configuration and incompatible capacity shrink", "[network][link][queue][red]")
+{
+    Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 8);
+    REQUIRE_THROWS_AS(link.configureRed(-1, 4, 0.2), std::invalid_argument);
+    REQUIRE_THROWS_AS(link.configureRed(4, 4, 0.2), std::invalid_argument);
+    REQUIRE_THROWS_AS(link.configureRed(2, 9, 0.2), std::invalid_argument);
+    REQUIRE_THROWS_AS(link.configureRed(2, 6, -0.1), std::invalid_argument);
+    REQUIRE_THROWS_AS(link.configureRed(2, 6, 1.1), std::invalid_argument);
+
+    link.configureRed(2, 6, 0.2);
+    REQUIRE_THROWS_AS(link.setQueueCapacity(5), std::invalid_argument);
+    link.setDropTail();
+    REQUIRE_NOTHROW(link.setQueueCapacity(5));
+}
