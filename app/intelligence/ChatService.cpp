@@ -43,7 +43,7 @@ void ChatService::clear()
     // Keep polling an outstanding worker; clearing a std::async future would block.
 }
 
-void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::string question)
+void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question)
 {
     if (busy() || failed_request_) return;
     const auto begin = question.find_first_not_of(" \t\r\n");
@@ -79,6 +79,13 @@ void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::stri
             }
             snapshot["context"]["network"]["links"] = std::move(links);
         }
+        snapshot["context"]["simulation"] = {
+            {"packets_sent", stats.packets_sent},
+            {"packets_delivered", stats.packets_delivered},
+            {"packets_lost", stats.packets_lost},
+            {"queue_overflow_drops", stats.queue_overflow_drops},
+            {"red_early_drops", stats.red_early_drops}
+        };
         auto history = nlohmann::json::array();
         // Bound both number and bytes, dropping only complete oldest turns.
         std::size_t start = messages_.size() > 20 ? messages_.size() - 20 : 0;
