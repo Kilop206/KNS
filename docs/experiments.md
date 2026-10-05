@@ -211,3 +211,42 @@ failed-case evidence.
 
 The official GitHub Actions workflows append this Markdown report to the job
 summary while still uploading the full machine-readable artifact directory.
+
+
+## AQM baseline v1
+
+`benchmarks/v1/aqm-baseline.json` is the first controlled queue-management
+comparison. It uses two four-node line topologies with the same nodes, links,
+delay, bandwidth, loss, queue capacities and routing assumptions. The central
+link is a 1 Mbps bottleneck with capacity eight.
+
+The control topology uses drop-tail. The paired RED topology changes only the
+bottleneck queue configuration:
+
+```text
+min threshold = 2 packets
+max threshold = 6 packets
+max early-drop probability = 0.25
+```
+
+Both variants run Reno, delay routing, 1500-byte payloads and seeds 42–46. This
+produces ten cases. The paired topology files are protected by a regression test
+that rejects accidental non-AQM differences between them.
+
+Run the suite locally with:
+
+```bash
+python scripts/benchmark_suite.py \
+  --suite benchmarks/v1/aqm-baseline.json \
+  --exe build/app/KNS \
+  --timeout 60
+```
+
+The scheduled/manual **AQM benchmark v1** workflow builds a clean Release binary,
+executes the same matrix, appends `report.md` to the Actions summary and retains
+the full result directory as an artifact.
+
+This baseline characterizes the implemented simulator model; it is not a claim
+that RED universally outperforms drop-tail. In particular, KNS RED v1 uses
+instantaneous directional queue occupancy rather than the EWMA average used by
+many classic RED formulations.
