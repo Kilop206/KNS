@@ -1810,6 +1810,7 @@ static void visualizeWindow(
         }
         intelligencePanel.render(
             currentAnalysis,
+            engine->getStats(),
             topologyRevision
         );
 
