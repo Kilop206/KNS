@@ -137,6 +137,45 @@ class BenchmarkSuiteTests(unittest.TestCase):
             ["0.5:0:1:down", "2.5:0:1:up"],
         )
 
+    def test_fault_comparison_uses_matching_baseline_and_fault_minus_control(self):
+        common = {
+            "topology": "app/topologies/mesh4.json",
+            "routing_metric": "delay",
+            "seed": 42,
+            "packet_size": 1500,
+            "congestion_control": "reno",
+            "returncode": 0,
+        }
+        baseline = {
+            **common,
+            "case_id": "baseline",
+            "fault_scenario": "baseline",
+            "delivery_rate": 1.0,
+            "loss_rate": 0.0,
+            "throughput_pps": 10.0,
+            "avg_latency_s": 0.10,
+            "simulation_duration_s": 5.0,
+        }
+        fault = {
+            **common,
+            "case_id": "fault",
+            "fault_scenario": "link01-outage",
+            "delivery_rate": 0.9,
+            "loss_rate": 0.1,
+            "throughput_pps": 8.0,
+            "avg_latency_s": 0.15,
+            "simulation_duration_s": 6.0,
+        }
+        comparison = benchmark_suite.compare_fault_scenarios([baseline, fault])
+        self.assertEqual(len(comparison), 1)
+        row = comparison[0]
+        self.assertAlmostEqual(row["delivery_rate_delta"], -0.1)
+        self.assertAlmostEqual(row["loss_rate_delta"], 0.1)
+        self.assertAlmostEqual(row["throughput_pps_delta"], -2.0)
+        self.assertAlmostEqual(row["avg_latency_s_delta"], 0.05)
+        self.assertAlmostEqual(row["simulation_duration_s_delta"], 1.0)
+
+
 
 class ProcessTests(unittest.TestCase):
     def setUp(self):
