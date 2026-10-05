@@ -196,3 +196,15 @@ All reported deltas use **fault scenario minus baseline**:
 
 Failed cases are not paired into a numeric comparison; their process/status
 evidence remains available in `benchmark.json`.
+
+
+### Human-readable benchmark report
+
+Every official benchmark execution writes `report.md` next to
+`benchmark.json` and `metrics.csv`. The report is derived from the same
+recorded case data and includes the KNS version/commit, aggregate successful-case
+metrics, per-case results, fault-vs-baseline deltas when applicable, and explicit
+failed-case evidence.
+
+The official GitHub Actions workflows append this Markdown report to the job
+summary while still uploading the full machine-readable artifact directory.
