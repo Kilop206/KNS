@@ -175,6 +175,37 @@ namespace kns {
                 queue_capacity = value.get<int>();
             }
             auto link = topology.addLinkPtr(from, to, bandwidth, delay, loss, mode, queue_capacity);
+
+            const std::string queue_policy = l.value("queue_policy", "drop_tail");
+            if (queue_policy == "red") {
+                if (
+                    !l.contains("red_min_threshold") ||
+                    !l.contains("red_max_threshold") ||
+                    !l.contains("red_max_drop_probability")
+                ) {
+                    throw std::invalid_argument(
+                        "RED queue policy requires red_min_threshold, red_max_threshold, and red_max_drop_probability"
+                    );
+                }
+                const auto& min_threshold = l.at("red_min_threshold");
+                const auto& max_threshold = l.at("red_max_threshold");
+                const auto& max_probability = l.at("red_max_drop_probability");
+                if (
+                    !min_threshold.is_number_integer() ||
+                    !max_threshold.is_number_integer() ||
+                    !max_probability.is_number()
+                ) {
+                    throw std::invalid_argument("Invalid RED queue configuration");
+                }
+                link->configureRed(
+                    min_threshold.get<int>(),
+                    max_threshold.get<int>(),
+                    max_probability.get<double>()
+                );
+            } else if (queue_policy != "drop_tail") {
+                throw std::invalid_argument("Unknown queue_policy in " + filename);
+            }
+
             link->setUp(l.value("up", true));
             link->setDiscoveryMetadata(l.value("inferred", false), l.value("evidence", ""));
         }
@@ -217,11 +248,18 @@ namespace kns {
         for (const auto& link : topology.getLinks()) {
             const auto mode = link->getMode() == LinkMode::SIMPLEX ? "simplex" :
                 (link->getMode() == LinkMode::HALF_DUPLEX ? "half_duplex" : "full_duplex");
-            result["links"].push_back({{"from", link->getA()}, {"to", link->getB()},
+            json entry = {{"from", link->getA()}, {"to", link->getB()},
                 {"bandwidth", link->getBandwidthMbps()}, {"delay", link->getDelayMs()},
                 {"loss", link->getLossProb()}, {"mode", mode}, {"up", link->isUp()},
                 {"queue_capacity", link->getQueueCapacity()},
-                {"inferred", link->isInferred()}, {"evidence", link->getEvidence()}});
+                {"queue_policy", link->getQueueDiscipline() == Link::QueueDiscipline::RED ? "red" : "drop_tail"},
+                {"inferred", link->isInferred()}, {"evidence", link->getEvidence()}};
+            if (link->getQueueDiscipline() == Link::QueueDiscipline::RED) {
+                entry["red_min_threshold"] = link->getRedMinThreshold();
+                entry["red_max_threshold"] = link->getRedMaxThreshold();
+                entry["red_max_drop_probability"] = link->getRedMaxDropProbability();
+            }
+            result["links"].push_back(std::move(entry));
         }
         return result;
     }
