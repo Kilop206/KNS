@@ -180,3 +180,34 @@ The C++ tests cover file errors/recovery, source switching, identity reconciliat
 device removal and preservation of sessions, simulation time, events and link
 queues. The Go tests cover OS fixtures, deterministic snapshots, inventory overrides
 and atomic publication.
+
+## Structured change summaries
+
+KNS Discovery can publish a separate snapshot-diff artifact alongside the full
+topology snapshot. The full topology remains the only authoritative input used
+to synchronize the simulator; the diff is informational metadata for operators
+and UI observability.
+
+Example Discovery invocation:
+
+```powershell
+.\kns-discovery.exe --output .\output\network.json --diff-output .\output\network.diff.json --interval 5s
+```
+
+Open both in KNS:
+
+```powershell
+.\KNS.exe --watch-topology .\output\network.json --watch-topology-diff .\output\network.diff.json
+```
+
+The Settings window reports the most recent canonical diff summary, for example:
+
+```text
+Discovery changes: nodes +1 / -0 / ~2, links +1 / -1 / ~0
+```
+
+The diff follows `discovery-diff-v1`. KNS validates its schema version, rejects
+unknown fields and duplicate/empty identities, and treats malformed or partial
+diff writes as an observability error without rejecting an otherwise valid full
+topology snapshot. This separation avoids using a potentially lagging diff file
+as the mutation source for the running simulation.

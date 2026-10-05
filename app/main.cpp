@@ -64,6 +64,7 @@
 #include "network/Topology.hpp"
 #include "network/TopologyLoader.hpp"
 #include "network/LiveTopologyWatcher.hpp"
+#include "network/DiscoveryDiffWatcher.hpp"
 
 using namespace kns;
 using namespace gui;
@@ -88,6 +89,7 @@ namespace {
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
+            << "  --watch-topology-diff <file>  Observe KNS Discovery diff metadata (GUI)\n"
             << "  --hub-topology <id>        Load a Topology Hub document (token required if private)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
@@ -1009,6 +1011,8 @@ static void renderConfigWindow(
     const std::string& topologyPath,
     bool& watchTopology,
     const std::string& liveError,
+    const std::string& discoveryDiffStatus,
+    const std::string& discoveryDiffError,
     const std::string& fileStatus,
     bool& loadRequested,
     bool& saveRequested,
@@ -1047,6 +1051,8 @@ static void renderConfigWindow(
     if (!topologyPath.empty()) ImGui::TextWrapped("Source: %s", topologyPath.c_str());
     if (watchTopology) ImGui::TextWrapped("File updates replace the graph configuration, including manual edits. Simulation time and sessions are preserved.");
     if (!liveError.empty()) ImGui::TextWrapped("Live update: %s", liveError.c_str());
+    if (!discoveryDiffStatus.empty()) ImGui::TextWrapped("%s", discoveryDiffStatus.c_str());
+    if (!discoveryDiffError.empty()) ImGui::TextWrapped("Discovery diff: %s", discoveryDiffError.c_str());
     ImGui::End();
 }
 
@@ -1192,6 +1198,7 @@ static void visualizeWindow(
     int& packetSize,
     RunConfig runConfig,
     std::string topologyPath,
+    std::string topologyDiffPath,
     bool watchTopology,
     std::optional<kns::app::hub::HubTopology> hubDocument
 )
@@ -1340,7 +1347,9 @@ static void visualizeWindow(
     std::uint64_t topologyRevision = 0;
     std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
     LiveTopologyWatcher liveWatcher;
+    DiscoveryDiffWatcher discoveryDiffWatcher;
     std::string liveError;
+    std::string discoveryDiffStatus;
     std::string fileStatus;
 
     if (topo.size() > 0) {
@@ -1359,6 +1368,10 @@ static void visualizeWindow(
     while (!glfwWindowShouldClose(window))
     {
         liveWatcher.setSource(topologyPath, watchTopology);
+        discoveryDiffWatcher.setSource(
+            topologyDiffPath,
+            watchTopology && !topologyDiffPath.empty()
+        );
         if (auto snapshot = liveWatcher.poll()) {
             try {
                 engine->synchronizeTopology(*snapshot);
@@ -1366,6 +1379,9 @@ static void visualizeWindow(
             } catch (const std::exception& exception) {
                 liveError = exception.what();
             }
+        }
+        if (auto diff = discoveryDiffWatcher.poll()) {
+            discoveryDiffStatus = diff->summary();
         }
         const double currentRealTime =
             glfwGetTime();
@@ -1485,6 +1501,8 @@ static void visualizeWindow(
             topologyPath,
             watchTopology,
             liveWatcher.error().empty() ? liveError : liveWatcher.error(),
+            discoveryDiffStatus,
+            discoveryDiffWatcher.error(),
             fileStatus,
             loadRequested,
             saveRequested,
@@ -1726,6 +1744,7 @@ int main(int argc, char* argv[])
     bool watchTopology = false;
 
     int topologyPathIndex = -1;
+    int topologyDiffPathIndex = -1;
     int outputPathIndex = -1;
     std::optional<std::string> hubTopologyId;
     std::optional<RoutingMetric> routingMetric;
@@ -1781,6 +1800,18 @@ int main(int argc, char* argv[])
 
             topologyPathIndex = ++i;
             watchTopology = arg == "--watch-topology";
+            continue;
+        }
+
+        if (arg == "--watch-topology-diff")
+        {
+            if (i + 1 >= argc)
+            {
+                std::cerr << "Missing value for --watch-topology-diff\n";
+                printUsage(std::cerr);
+                return 1;
+            }
+            topologyDiffPathIndex = ++i;
             continue;
         }
 
@@ -1871,6 +1902,10 @@ int main(int argc, char* argv[])
     }
     if (watchTopology && headless) {
         std::cerr << "--watch-topology requires GUI mode\n";
+        return 1;
+    }
+    if (topologyDiffPathIndex >= 0 && !watchTopology) {
+        std::cerr << "--watch-topology-diff requires --watch-topology\n";
         return 1;
     }
     if (routingMetric && !headless)
@@ -2053,6 +2088,7 @@ int main(int argc, char* argv[])
         packetSize,
         runConfig,
         topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
+        topologyDiffPathIndex >= 0 ? argv[topologyDiffPathIndex] : "",
         watchTopology,
         std::move(hubDocument)
     );
