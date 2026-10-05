@@ -34,6 +34,8 @@ public:
     [[nodiscard]] bool canRetry() const { return !busy() && failed_request_.has_value(); }
     [[nodiscard]] const std::vector<ChatMessage>& messages() const { return messages_; }
     [[nodiscard]] const std::string& error() const { return error_; }
+    [[nodiscard]] const std::string& last_plan() const { return last_plan_; }
+    [[nodiscard]] const std::optional<int>& last_quota_remaining() const { return last_quota_remaining_; }
 
 private:
     void launch(nlohmann::json request);
@@ -45,6 +47,8 @@ private:
     std::uint64_t generation_ = 0;
     std::uint64_t active_generation_ = 0;
     std::string error_;
+    std::string last_plan_;
+    std::optional<int> last_quota_remaining_;
 };
 
 }
