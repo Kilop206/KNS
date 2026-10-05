@@ -23,13 +23,14 @@ namespace kns {
                             int destination,
                             TCPState state,
                             std::uint16_t source_port,
-                            std::uint16_t destination_port)
+                            std::uint16_t destination_port,
+                            CongestionControlType congestion_control_type)
                             : session_id(session_id),
                             source(source),
                             destination(destination),
                             client_connection(
                                 state, 0, 0, source, destination,
-                                CongestionControlType::RENO,
+                                congestion_control_type,
                                 TCPConnection::DEFAULT_CONGESTION_MSS,
                                 65535,
                                 source_port,
@@ -37,7 +38,7 @@ namespace kns {
                             ),
                             server_connection(
                                 state, 0, 0, destination, source,
-                                CongestionControlType::RENO,
+                                congestion_control_type,
                                 TCPConnection::DEFAULT_CONGESTION_MSS,
                                 65535,
                                 destination_port,
