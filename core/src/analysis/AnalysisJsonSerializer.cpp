@@ -139,6 +139,26 @@ nlohmann::json linkToJson(
             link.bandwidth_mbps
         },
         {
+            "queue_capacity",
+            link.queue_capacity
+        },
+        {
+            "queue_policy",
+            link.queue_policy
+        },
+        {
+            "red_min_threshold",
+            link.red_min_threshold
+        },
+        {
+            "red_max_threshold",
+            link.red_max_threshold
+        },
+        {
+            "red_max_drop_probability",
+            link.red_max_drop_probability
+        },
+        {
             "bridge",
             link.bridge
         },
