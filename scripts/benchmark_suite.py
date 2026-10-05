@@ -142,6 +142,8 @@ def write_metrics(rows: list[dict], out: Path) -> None:
         "packets_sent",
         "packets_delivered",
         "packets_lost",
+        "queue_overflow_drops",
+        "red_early_drops",
         "delivery_rate",
         "loss_rate",
         "throughput_pps",
@@ -266,6 +268,8 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
     aggregates = [
         ("Delivery rate", "delivery_rate"),
         ("Loss rate", "loss_rate"),
+        ("Queue overflow drops", "queue_overflow_drops"),
+        ("RED early drops", "red_early_drops"),
         ("Throughput (pps)", "throughput_pps"),
         ("Average latency (s)", "avg_latency_s"),
         ("Simulation duration (s)", "simulation_duration_s"),
@@ -275,7 +279,7 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
         mean = sum(values) / len(values) if values else None
         lines.append(f"| {label} | {_format_number(mean)} |")
 
-    lines += ["", "## Cases", "", "| Case | Status | Delivery | Loss | Throughput pps | Latency s | Sim duration s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+    lines += ["", "## Cases", "", "| Case | Status | Delivery | Loss | Queue overflow | RED early | Throughput pps | Latency s | Sim duration s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for row in rows:
         lines.append(
             "| {case} | {status} | {delivery} | {loss} | {throughput} | {latency} | {duration} |".format(
