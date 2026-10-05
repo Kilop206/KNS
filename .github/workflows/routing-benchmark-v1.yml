@@ -62,6 +62,17 @@ jobs:
           )
           PY
 
+      - name: Publish benchmark summary
+        if: always()
+        shell: bash
+        run: |
+          REPORT="results/benchmarks/routing-baseline-v1/${GITHUB_SHA}/report.md"
+          if [ -f "$REPORT" ]; then
+            cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Benchmark report unavailable" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload benchmark artifacts
         if: always()
         uses: actions/upload-artifact@v4
