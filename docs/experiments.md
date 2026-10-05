@@ -250,3 +250,22 @@ This baseline characterizes the implemented simulator model; it is not a claim
 that RED universally outperforms drop-tail. In particular, KNS RED v1 uses
 instantaneous directional queue occupancy rather than the EWMA average used by
 many classic RED formulations.
+
+
+## AQM drop attribution
+
+Stats CSV schema version 1 now carries two additive counters:
+
+- `queue_overflow_drops`: packets rejected because the selected link queue had
+  no remaining admission capacity;
+- `red_early_drops`: packets rejected by RED before queue admission.
+
+Both counters are subsets of `packets_lost`; their sum must never exceed the
+total loss count. Other loss causes such as configured random link loss, invalid
+forwarding state, device-role rejection, or topology failure remain represented
+only in `packets_lost`.
+
+These fields are additive to CSV schema version 1. Historical v1 CSV files that
+do not contain them are interpreted by the runner as zero. This preserves old
+experiment readability while allowing AQM experiments to distinguish queue
+overflow from RED's intended early-drop behavior.
