@@ -174,6 +174,8 @@ def parse_stats(csv_file: Path) -> dict:
         result = {key: int(raw[key]) for key in (
             "packets_sent", "packets_delivered", "packets_lost",
             "packets_in_transit", "total_sessions", "data_packets_delivered", "seed")}
+        result["queue_overflow_drops"] = int(raw.get("queue_overflow_drops", "0") or 0)
+        result["red_early_drops"] = int(raw.get("red_early_drops", "0") or 0)
         result.update({key: float(raw[key]) for key in (
             "total_latency", "avg_latency", "simulation_duration_s")})
         if any(not math.isfinite(value) or value < 0 for value in result.values()):
