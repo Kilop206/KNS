@@ -3,7 +3,7 @@ file(GLOB_RECURSE KNS_TEST_SOURCES CONFIGURE_DEPENDS
 )
 
 if(NOT KNS_BUILD_APP)
-    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/(ChatServiceTests|IntelligenceConfigLoaderTests|TopologyCanvasTests|DeviceConsoleTests|NetworkServicesPanelTests).cpp$")
+    list(FILTER KNS_TEST_SOURCES EXCLUDE REGEX "/app/[^/]+\\.cpp$")
 endif()
 
 add_executable(kns_tests ${KNS_TEST_SOURCES})

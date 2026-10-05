@@ -32,18 +32,18 @@ void count(const std::vector<std::string>& words, std::size_t size) {
 }
 }
 
-std::string DeviceCLI::help() {
-    return "help\nshow services\nshow requests\n"
-        "service add <http|dns> <name> <port>\n"
-        "service remove <name>\nservice start <name>\nservice stop <name>\n"
-        "service delay <name> <milliseconds>\n"
-        "service page <name> <path> <status> \"body\"\n"
-        "service unpage <name> <path>\n"
-        "service record <name> <hostname> <IPv4>\n"
-        "service unrecord <name> <hostname>\n"
-        "http get <device-id> <port> <path>\n"
-        "dns query <device-id> <port> <hostname>\n"
+std::string DeviceCLI::help(DeviceType type) {
+    const auto caps = deviceCapabilities(type);
+    std::string result = std::string(deviceRoleDescription(type)) + "\nhelp\nshow role\nshow interfaces\nshow routes\nshow services\nshow requests\n";
+    if (caps.http_server || caps.dns_server) {
+        result += std::string("service add ") + (caps.http_server && caps.dns_server ? "<http|dns>" : caps.http_server ? "http" : "dns") + " <name> <port>\n";
+        result += "service remove <name>\nservice start <name>\nservice stop <name>\nservice delay <name> <milliseconds>\n";
+    }
+    if (caps.http_server) result += "service page <name> <path> <status> \"body\"\nservice unpage <name> <path>\n";
+    if (caps.dns_server) result += "service record <name> <hostname> <IPv4>\nservice unrecord <name> <hostname>\n";
+    if (caps.service_client) result += "http get <device-id> <port> <path>\ndns query <device-id> <port> <hostname>\n"
         "Requests run on simulated time: use Resume/Step in the GUI, or run in the stdin CLI.\n";
+    return result;
 }
 
 DeviceCommandResult DeviceCLI::execute(SimulationEngine& engine, int device, const std::string& command) {
@@ -52,11 +52,22 @@ DeviceCommandResult DeviceCLI::execute(SimulationEngine& engine, int device, con
         if (words.empty()) return {true, false, {}};
         const auto* node = engine.getTopology().getNode(device);
         if (!node || !node->isActive()) throw std::invalid_argument("Select an active device");
-        if (words[0] == "help") { count(words, 1); return {true, false, help()}; }
+        if (words[0] == "help") { count(words, 1); return {true, false, help(node->getDeviceInfo().type)}; }
         if (words[0] == "show") {
             count(words, 2);
             std::ostringstream output;
-            if (words[1] == "services") {
+            if (words[1] == "role") {
+                output << toString(node->getDeviceInfo().type) << ": " << deviceRoleDescription(node->getDeviceInfo().type) << '\n';
+            } else if (words[1] == "interfaces") {
+                for (const auto& link : engine.getTopology().getLinksFromNode(device))
+                    output << "link " << link->getId() << " peer=" << link->getOtherNode(device)
+                        << (link->isUp() ? " up" : " down") << " bandwidth=" << link->getBandwidthMbps() << "Mbps\n";
+            } else if (words[1] == "routes") {
+                for (const auto& route : engine.getRoutingTable(device)) {
+                    if (route.next_hop < 0) continue;
+                    output << "destination=" << route.destination << " via=" << route.next_hop << " link=" << *route.link_id << '\n';
+                }
+            } else if (words[1] == "services") {
                 for (const auto& service : node->getServices()) {
                     output << service.name << ' ' << serviceKindName(service.kind) << ':' << service.port
                         << (service.enabled ? " running" : " stopped") << " delay=" << service.delay_ms << "ms\n";
@@ -76,7 +87,7 @@ DeviceCommandResult DeviceCLI::execute(SimulationEngine& engine, int device, con
                             << "ms " << std::quoted(request.response);
                     output << '\n';
                 }
-            } else throw std::invalid_argument("Use show services or show requests");
+            } else throw std::invalid_argument("Use show role, interfaces, routes, services or requests");
             return {true, false, output.str()};
         }
         if (words[0] == "http" || words[0] == "dns") {
@@ -88,6 +99,8 @@ DeviceCommandResult DeviceCLI::execute(SimulationEngine& engine, int device, con
             return {true, true, "Request #" + std::to_string(id) + " queued; advance simulation to receive the result\n"};
         }
         if (words[0] != "service" || words.size() < 3) throw std::invalid_argument("Unknown command; enter help");
+        const auto caps = deviceCapabilities(node->getDeviceInfo().type);
+        if (!caps.http_server && !caps.dns_server) throw std::invalid_argument("This device role cannot host services; use show role");
         auto services = node->getServices();
         if (words[1] == "add") {
             count(words, 5);

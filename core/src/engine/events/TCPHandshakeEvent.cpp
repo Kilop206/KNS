@@ -26,6 +26,7 @@ namespace kns {
 
     void TCPHandshakeEvent::execute(SimulationEngine& engine)
     {
+        if (!engine.hasTCPSession(session_id_)) return;
         KNS_DEBUG_LOG(
             "[TCP] Handshake session "
             << session_id_

@@ -13,6 +13,7 @@ namespace kns {
 
     class Topology {
     public:
+        static constexpr int MAX_NODES = 4096;
         using LinkPtr = std::shared_ptr<Link>;
 
         explicit Topology(int nodes = 0);

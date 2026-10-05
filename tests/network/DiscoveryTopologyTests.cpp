@@ -82,7 +82,8 @@ TEST_CASE("Live discovery preserves active identities and unchanged link queues"
 TEST_CASE("Removed discovery devices never recycle in-flight numeric identities", "[network][discovery][dynamic]")
 {
     SimulationEngine engine(TopologyLoader::fromJson(discoverySnapshot()));
-    auto& session = engine.createTCPSession(0, 2);
+    // The gateway may initiate diagnostics; it cannot act as a TCP listener.
+    auto& session = engine.createTCPSession(2, 0);
     Packet packet(0, 2, 0, engine.now(), 1000, session.getSession_id());
     packet.packet_type = PacketType::DATA;
     REQUIRE(PacketUtils::sendPacketThroughTopology(engine, packet));

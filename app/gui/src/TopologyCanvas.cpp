@@ -317,7 +317,10 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
             selectedNode=hit; selectedLink_.reset();
             if (source_<0) { source_=hit; routeEndpoints_.reset(); }
             else if (hit!=source_ || tool_==Tool::Route) {
-                if (tool_==Tool::TCP) connection=std::pair{source_,hit};
+                if (tool_==Tool::TCP) {
+                    if (engine.canStartTCPConnection(source_,hit)) connection=std::pair{source_,hit};
+                    else error_="Device roles do not permit this TCP client/listener pair.";
+                }
                 else if (tool_==Tool::Route) {
                     routeEndpoints_=std::pair{source_,hit}; routeRevision_.reset();
                 }
@@ -362,12 +365,17 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
             if (ImGui::BeginCombo(tr.translate("Type").c_str(),tr.translate(deviceDisplayName(static_cast<kns::DeviceType>(type))).c_str())) {
                 for (int i=0;i<10;++i) if (ImGui::Selectable(tr.translate(deviceDisplayName(static_cast<kns::DeviceType>(i))).c_str(),i==type)) {
                     auto info=topology.getNode(selectedNode)->getDeviceInfo(); info.type=static_cast<kns::DeviceType>(i);
-                    info.evidence="user_override"; topology.setNodeDeviceInfo(selectedNode,std::move(info));
+                    info.evidence="user_override";
+                    try { topology.setNodeDeviceInfo(selectedNode,std::move(info)); error_.clear(); }
+                    catch (const std::exception& error) { error_=error.what(); }
                 }
                 ImGui::EndCombo();
             }
             if (ImGui::MenuItem(tr.translate("Connect cable from here").c_str())) { source_=selectedNode; tool_=Tool::Cable; placing_.reset(); routeEndpoints_.reset(); }
-            if (ImGui::MenuItem(tr.translate("Start TCP from here").c_str())) { source_=selectedNode; tool_=Tool::TCP; placing_.reset(); routeEndpoints_.reset(); }
+            if (ImGui::MenuItem(tr.translate("Start TCP from here").c_str(), nullptr, false,
+                kns::deviceCapabilities(topology.getNode(selectedNode)->getDeviceInfo().type).tcp_client)) {
+                source_=selectedNode; tool_=Tool::TCP; placing_.reset(); routeEndpoints_.reset();
+            }
             if (ImGui::MenuItem(tr.translate("Inspect route from here").c_str())) { source_=selectedNode; tool_=Tool::Route; placing_.reset(); routeEndpoints_.reset(); }
             if (ImGui::MenuItem(tr.translate("Delete device").c_str())) remove=true;
         } else if (selectedLink_) {

@@ -60,7 +60,6 @@ class StatsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             runner.parse_stats(self.path)
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
     def test_build_command_carries_experiment_parameters(self):
         command = runner.build_command(
             Path("KNS"),
@@ -86,6 +85,7 @@ class StatsTests(unittest.TestCase):
             ["--link-event", "0.5:0:1:down", "--link-event", "2.5:0:1:up"],
         )
 
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
     def test_engine_csv(self):
         root = Path(__file__).resolve().parent.parent
         subprocess.run(runner.build_command(Path(os.environ["KNS_TEST_EXE"]),

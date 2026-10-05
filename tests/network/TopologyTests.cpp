@@ -1,8 +1,38 @@
 #include <catch2/catch_test_macros.hpp>
 #include "network/Topology.hpp"
 #include "network/Link.hpp"
+#include <limits>
 
 using namespace kns;
+
+TEST_CASE("Topology preserves copied link configuration", "[topology][audit]") {
+    Topology topology(2);
+    Link source(0, 1, 10, 5);
+    source.setUp(false);
+    source.setDiscoveryMetadata(true, "inferred subnet");
+    topology.addLink(source);
+    const auto& copy = topology.getLinks().front();
+    REQUIRE_FALSE(copy->isUp());
+    REQUIRE(copy->isInferred());
+    REQUIRE(copy->getEvidence() == source.getEvidence());
+    REQUIRE(copy->getId() != source.getId());
+}
+
+TEST_CASE("Topology validates capacity before allocation or mutation", "[topology][audit]") {
+    REQUIRE_THROWS_AS(Topology(4097), std::invalid_argument);
+    Topology topology(4096);
+    const auto revision = topology.getRoutingRevision();
+    REQUIRE_THROWS_AS(topology.addNode(), std::invalid_argument);
+    REQUIRE_THROWS_AS(topology.addLink(0, 4096, 10, 5), std::invalid_argument);
+    REQUIRE_THROWS_AS(topology.addLink(0, std::numeric_limits<int>::max(), 10, 5), std::invalid_argument);
+    REQUIRE(topology.size() == 4096);
+    REQUIRE(topology.getLinks().empty());
+    REQUIRE(topology.getRoutingRevision() == revision);
+    REQUIRE(topology.removeNode(2));
+    const auto deleted_revision = topology.getRoutingRevision();
+    REQUIRE_FALSE(topology.removeNode(2));
+    REQUIRE(topology.getRoutingRevision() == deleted_revision);
+}
 
 TEST_CASE("Topology add/remove nodes and links", "[network][topology]") {
     Topology topo(2);

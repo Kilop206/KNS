@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "network/DeviceType.hpp"
 
 namespace kns {
 class SimulationEngine;
@@ -13,6 +14,6 @@ struct DeviceCommandResult {
 class DeviceCLI {
 public:
     static DeviceCommandResult execute(SimulationEngine& engine, int device, const std::string& command);
-    static std::string help();
+    static std::string help(DeviceType type = DeviceType::Unknown);
 };
 } // namespace kns

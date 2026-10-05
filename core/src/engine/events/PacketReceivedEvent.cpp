@@ -60,8 +60,8 @@ namespace kns
 
         packet.packet_type = inferPacketType(packet.tcp);
 
-        // Bound application datagrams even if runtime routing changes form a loop.
-        if (packet.service && packet.hop_count > 4096) {
+        // All traffic must remain bounded if topology changes create a forwarding loop.
+        if (packet.current_node != packet.destination && packet.hop_count >= 4096) {
             engine.getStats().packets_lost++;
             return;
         }

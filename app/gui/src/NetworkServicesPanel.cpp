@@ -26,10 +26,20 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
     if (device_ != device) {
         device_ = device;
         selected_.clear();
+        editing_service_.clear();
         status_.clear();
         command_[0] = '\0';
+        scroll_terminal_ = true;
     }
     ImGui::Text("Device %d - %s", device, node->getLabel().c_str());
+    const auto type = node->getDeviceInfo().type;
+    const auto caps = kns::deviceCapabilities(type);
+    const bool hosts_services = caps.http_server || caps.dns_server;
+    ImGui::TextWrapped("%s", translations.translate(kns::deviceRoleDescription(type)).c_str());
+    if (hosts_services && !kns::canHostService(type, kind_ == 0 ? kns::ServiceKind::Http : kns::ServiceKind::Dns)) {
+        kind_ = caps.http_server ? 0 : 1;
+        port_ = kind_ == 0 ? 80 : 53;
+    }
     const auto mutate = [&](auto operation) {
         try {
             auto services = engine.getTopology().getNode(device)->getServices();
@@ -39,9 +49,22 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
         } catch (const std::exception& error) { status_ = error.what(); }
     };
     if (ImGui::BeginTabBar("service-tabs")) {
+        // Keep draft values current before adjacent Apply/Send buttons read them.
+        ImGui::PushItemFlag(ImGuiItemFlags_LiveEditOnInputScalar, true);
         if (ImGui::BeginTabItem(label("Services").c_str())) {
+            if (!hosts_services) ImGui::TextWrapped("%s", translations.translate("This device role cannot host application services.").c_str());
+            ImGui::BeginDisabled(!hosts_services);
             ImGui::InputText(label("Name").c_str(), name_, sizeof(name_));
-            if (ImGui::Combo(label("Protocol").c_str(), &kind_, "HTTP\0DNS\0")) port_ = kind_ == 0 ? 80 : 53;
+            if (ImGui::BeginCombo(label("Protocol").c_str(), kind_ == 0 ? "HTTP" : "DNS")) {
+                for (int candidate = 0; candidate < 2; ++candidate) {
+                    if (!kns::canHostService(type, candidate == 0 ? kns::ServiceKind::Http : kns::ServiceKind::Dns)) continue;
+                    if (ImGui::Selectable(candidate == 0 ? "HTTP" : "DNS", kind_ == candidate)) {
+                        kind_ = candidate;
+                        port_ = kind_ == 0 ? 80 : 53;
+                    }
+                }
+                ImGui::EndCombo();
+            }
             ImGui::InputInt(label("Port").c_str(), &port_);
             if (ImGui::Button(label("Add service").c_str())) {
                 mutate([&](auto& services) {
@@ -59,11 +82,32 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
                 const auto title = service.name + " (" + kns::serviceKindName(service.kind) + ':' + std::to_string(service.port) + ')';
                 if (ImGui::Selectable(title.c_str(), selected_ == service.name)) {
                     selected_ = service.name;
-                    std::snprintf(key_, sizeof(key_), "%s", service.kind == kns::ServiceKind::Http ? "/" : "server.example");
                 }
             }
             const auto selected = std::find_if(services.begin(), services.end(), [&](const auto& service) { return service.name == selected_; });
             if (selected != services.end()) {
+                const auto revision = engine.getTopology().getNode(device)->getServiceRevision(selected_);
+                const bool new_selection = editing_service_ != selected_;
+                if (new_selection || editing_revision_ != revision) {
+                    editing_service_ = selected_;
+                    editing_revision_ = revision;
+                    editing_port_ = selected->port;
+                    editing_delay_ = selected->delay_ms;
+                    if (new_selection) {
+                        std::snprintf(key_, sizeof(key_), "%s", selected->kind == kns::ServiceKind::Http
+                            ? (selected->pages.empty() ? "/" : selected->pages.begin()->first.c_str())
+                            : (selected->records.empty() ? "server.example" : selected->records.begin()->first.c_str()));
+                        std::snprintf(body_, sizeof(body_), "%s", "Hello from KNS");
+                        std::snprintf(address_, sizeof(address_), "%s", "192.0.2.1");
+                        http_status_ = 200;
+                    }
+                    if (const auto page = selected->pages.find(key_); page != selected->pages.end()) {
+                        std::snprintf(body_, sizeof(body_), "%s", page->second.body.c_str());
+                        http_status_ = page->second.status;
+                    }
+                    if (const auto record = selected->records.find(key_); record != selected->records.end())
+                        std::snprintf(address_, sizeof(address_), "%s", record->second.c_str());
+                }
                 const auto update = [&](auto operation) {
                     mutate([&](auto& entries) {
                         auto found = std::find_if(entries.begin(), entries.end(), [&](const auto& service) { return service.name == selected_; });
@@ -72,13 +116,12 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
                 };
                 bool enabled = selected->enabled;
                 if (ImGui::Checkbox(label("Running").c_str(), &enabled)) update([&](auto& service) { service.enabled = enabled; });
-                int port = selected->port;
-                if (ImGui::InputInt(label("Listen port").c_str(), &port, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue))
-                    update([&](auto& service) { service.port = port; });
-                double delay = selected->delay_ms;
-                if (ImGui::InputDouble(label("Processing delay (ms)").c_str(), &delay, 0, 0, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue))
-                    update([&](auto& service) { service.delay_ms = delay; });
-                ImGui::TextDisabled("%s", translations.translate("Press Enter to apply port or delay.").c_str());
+                ImGui::InputInt(label("Listen port").c_str(), &editing_port_, 0, 0);
+                bool apply = ImGui::IsItemDeactivatedAfterEdit() && ImGui::IsKeyPressed(ImGuiKey_Enter);
+                ImGui::InputDouble(label("Processing delay (ms)").c_str(), &editing_delay_, 0, 0, "%.1f");
+                apply |= ImGui::IsItemDeactivatedAfterEdit() && ImGui::IsKeyPressed(ImGuiKey_Enter);
+                apply |= ImGui::Button(label("Apply settings").c_str());
+                if (apply) update([&](auto& service) { service.port = editing_port_; service.delay_ms = editing_delay_; });
                 for (const auto& [path, page] : selected->pages) {
                     if (ImGui::Selectable((path + " - " + std::to_string(page.status)).c_str())) {
                         std::snprintf(key_, sizeof(key_), "%s", path.c_str());
@@ -103,16 +146,22 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
                 });
                 ImGui::SameLine();
                 if (ImGui::Button(label("Remove entry").c_str())) update([&](auto& service) {
-                    if (service.kind == kns::ServiceKind::Http) service.pages.erase(key_);
-                    else service.records.erase(kns::normalizeDnsName(key_));
+                    const auto removed = service.kind == kns::ServiceKind::Http ? service.pages.erase(key_)
+                        : service.records.erase(kns::normalizeDnsName(key_));
+                    if (!removed) throw std::invalid_argument("Entry not found");
                 });
                 if (ImGui::Button(label("Remove service").c_str())) mutate([&](auto& entries) {
                     std::erase_if(entries, [&](const auto& service) { return service.name == selected_; });
+                    selected_.clear();
+                    editing_service_.clear();
                 });
             }
+            ImGui::EndDisabled();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem(label("Client").c_str())) {
+            if (!caps.service_client) ImGui::TextWrapped("%s", translations.translate("This device role cannot originate HTTP/DNS requests.").c_str());
+            ImGui::BeginDisabled(!caps.service_client);
             ImGui::InputInt(label("Destination device").c_str(), &destination_);
             if (ImGui::Combo(label("Request protocol").c_str(), &request_kind_, "HTTP GET\0DNS A\0")) {
                 request_port_ = request_kind_ == 0 ? 80 : 53;
@@ -128,6 +177,7 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
                     scheduled = true;
                 } catch (const std::exception& error) { status_ = error.what(); }
             }
+            ImGui::EndDisabled();
             ImGui::Separator();
             for (const auto& [id, request] : engine.networkServices().requests()) {
                 if (request.source != device) continue;
@@ -145,18 +195,24 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
             auto& history = terminal_[device];
             ImGui::BeginChild("terminal-output", ImVec2(0, 200), ImGuiChildFlags_Borders);
             ImGui::TextUnformatted(history.c_str());
+            if (scroll_terminal_) { ImGui::SetScrollHereY(1.0f); scroll_terminal_ = false; }
             ImGui::EndChild();
             const bool enter = ImGui::InputText(label("Command").c_str(), command_, sizeof(command_), ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::SameLine();
             if (ImGui::Button(label("Execute").c_str()) || enter) {
                 const auto result = kns::DeviceCLI::execute(engine, device, command_);
                 history += "device-" + std::to_string(device) + "> " + command_ + '\n' + result.output;
-                if (history.size() > 32768) history.erase(0, history.size() - 32768);
+                if (history.size() > 32768) {
+                    const auto newline = history.find('\n', history.size() - 32768);
+                    history.erase(0, newline == std::string::npos ? history.size() : newline + 1);
+                }
+                scroll_terminal_ = true;
                 scheduled |= result.scheduled;
                 command_[0] = '\0';
             }
             ImGui::EndTabItem();
         }
+        ImGui::PopItemFlag();
         ImGui::EndTabBar();
     }
     if (!status_.empty()) ImGui::TextWrapped("%s", status_.c_str());

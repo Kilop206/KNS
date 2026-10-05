@@ -11,6 +11,9 @@ and congestion-control state.
 
 ## Highlights
 
+- enforced [device roles](docs/device-roles.md) for forwarding, TCP endpoints,
+  service hosting and client operations across GUI, CLI and topology files;
+
 - configurable HTTP and DNS services on simulated devices, with a GUI editor,
   per-device CLI, routed requests and saved configuration
   ([guide and simulation scope](docs/network-services.md));

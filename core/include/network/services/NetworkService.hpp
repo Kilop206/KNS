@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "network/DeviceType.hpp"
 
 namespace kns {
 enum class ServiceKind { Http, Dns };
@@ -29,4 +30,6 @@ struct NetworkService {
 
 std::string normalizeDnsName(std::string name);
 void validateServices(const std::vector<NetworkService>& services);
+bool canHostService(DeviceType type, ServiceKind kind) noexcept;
+void validateDeviceServices(DeviceType type, const std::vector<NetworkService>& services);
 } // namespace kns

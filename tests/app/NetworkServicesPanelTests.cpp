@@ -13,6 +13,10 @@ struct ServicesUI {
     int device = 0;
     bool scheduled = false;
     ServicesUI() {
+        kns::DeviceInfo server;
+        server.type = kns::DeviceType::Server;
+        engine.getTopology().setNodeDeviceInfo(0, server);
+        engine.getTopology().setNodeDeviceInfo(1, server);
         ImGui::CreateContext();
         auto& io = ImGui::GetIO();
         io.IniFilename = nullptr;
@@ -49,7 +53,51 @@ struct ServicesUI {
         tabs->NextSelectedTabId = tabs->Tabs[index].ID;
         frame(); frame();
     }
+    void replaceInput(const char* label, const char* value) {
+        activate(label);
+        auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
+        const auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
+        INFO(label);
+        REQUIRE(ImGui::GetActiveID() == ImHashStr(label, 0, tabs->SelectedTabId));
+        auto* state = ImGui::GetInputTextState(ImGui::GetActiveID());
+        REQUIRE(state != nullptr);
+        state->SelectAll();
+        ImGui::GetIO().AddInputCharactersUTF8(value);
+        frame();
+    }
 };
+}
+
+TEST_CASE("Service editor loads saved entries without overwriting their content", "[services-ui][audit]") {
+    ServicesUI ui;
+    kns::NetworkService first;
+    first.name = "first";
+    first.pages["/health"] = {201, "saved content"};
+    kns::NetworkService second;
+    second.name = "second";
+    second.port = 8080;
+    second.pages["/status"] = {202, "different content"};
+    ui.engine.getTopology().setNodeServices(0, {first, second});
+    ui.frame();
+    ui.activate("first (http:80)");
+    ui.activate("Save entry###Save entry");
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[0] == first);
+    ui.activate("second (http:8080)");
+    ui.activate("second (http:8080)");
+    ui.activate("Save entry###Save entry");
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[1] == second);
+}
+
+TEST_CASE("Service editor applies numeric settings after focus changes", "[services-ui][audit]") {
+    ServicesUI ui;
+    ui.activate("Add service###Add service");
+    ui.activate("web (http:80)");
+    ui.replaceInput("Listen port###Listen port", "8080");
+    ui.replaceInput("Processing delay (ms)###Processing delay (ms)", "123.5");
+    ui.activate("Apply settings###Apply settings");
+    const auto& service = ui.engine.getTopology().getNode(0)->getServices()[0];
+    REQUIRE(service.port == 8080);
+    REQUIRE(service.delay_ms == 123.5);
 }
 
 TEST_CASE("Services GUI client schedules requests and embedded CLI shares service configuration", "[services][services-ui]") {
@@ -105,4 +153,26 @@ TEST_CASE("Services GUI creates edits stops and removes a service on the selecte
     ui.panel.reset();
     ui.device = -1;
     REQUIRE_NOTHROW(ui.frame());
+}
+
+TEST_CASE("Services GUI disables actions excluded by the selected device role", "[roles][services-ui]") {
+    ServicesUI ui;
+    auto profile = ui.engine.getTopology().getNode(0)->getDeviceInfo();
+    profile.type = kns::DeviceType::Switch;
+    ui.engine.getTopology().setNodeDeviceInfo(0, profile);
+    ui.frame();
+    ui.activate("Add service###Add service");
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices().empty());
+    ui.tab(1);
+    ui.activate("Send request###Send request");
+    REQUIRE_FALSE(ui.scheduled);
+    REQUIRE(ui.engine.networkServices().requests().empty());
+    ui.tab(0);
+    profile.type = kns::DeviceType::Router;
+    ui.engine.getTopology().setNodeDeviceInfo(0, profile);
+    ui.frame();
+    ui.activate("Add service###Add service");
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices().size() == 1);
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[0].kind == kns::ServiceKind::Dns);
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[0].port == 53);
 }

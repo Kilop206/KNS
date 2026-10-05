@@ -175,11 +175,13 @@ TEST_CASE("Canvas cable tool connects devices without starting TCP", "[canvas-ui
     REQUIRE(ui.engine.getTCPSessions().empty());
     ui.click(point(0)); ui.click(point(1));
     REQUIRE(ui.engine.getTopology().getLinks().size()==1);
-    // Switching explicitly to TCP emits a connection request, leaving the cable intact.
+    // TCP respects roles: the router is not a listener, but can run diagnostics as a client.
     const float cableWidth=ImGui::CalcTextSize("Cable").x+2*ImGui::GetStyle().FramePadding.x+ImGui::GetStyle().ItemSpacing.x;
     ui.click({start.x+firstWidth+cableWidth+12,start.y+10});
     ui.click(point(0)); ui.click(point(1));
-    REQUIRE(ui.connection==std::optional<std::pair<int,int>>{{0,1}});
+    REQUIRE_FALSE(ui.connection);
+    ui.click(point(1)); ui.click(point(0));
+    REQUIRE(ui.connection==std::optional<std::pair<int,int>>{{1,0}});
     ui.capture("canvas-connected");
 }
 
@@ -249,6 +251,9 @@ TEST_CASE("Canvas route inspection refreshes without creating traffic", "[canvas
         ui.click(ui.paletteTile(0)); ui.click({origin.x+point.x,origin.y+point.y});
     }
     auto direct=ui.engine.createLink(0,2,10,1);
+    kns::DeviceInfo router;
+    router.type=kns::DeviceType::Router;
+    ui.engine.getTopology().setNodeDeviceInfo(1,router);
     ui.engine.createLink(0,1,100,2);
     auto last=ui.engine.createLink(1,2,100,2);
     const auto revision=ui.engine.getTopology().getRoutingRevision();

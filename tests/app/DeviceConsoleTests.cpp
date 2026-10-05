@@ -6,6 +6,11 @@
 
 TEST_CASE("Device console configures HTTP DNS and executes client requests without GUI", "[services][cli]") {
     kns::Topology topology(2);
+    kns::DeviceInfo client, server;
+    client.type = kns::DeviceType::Computer;
+    server.type = kns::DeviceType::Server;
+    topology.setNodeDeviceInfo(0, client);
+    topology.setNodeDeviceInfo(1, server);
     topology.addLink(0, 1, 100, 1, 0);
     kns::SimulationEngine engine(topology);
     std::istringstream input(
@@ -29,6 +34,9 @@ TEST_CASE("Device console configures HTTP DNS and executes client requests witho
 
 TEST_CASE("Device console reports script errors without changing the selected device", "[services][cli]") {
     kns::SimulationEngine engine(kns::Topology(2));
+    kns::DeviceInfo server;
+    server.type = kns::DeviceType::Server;
+    engine.getTopology().setNodeDeviceInfo(0, server);
     std::istringstream input("device 1oops\ndevice 999\nservice add http web 80\nexit extra\nexit\n");
     std::ostringstream output;
     REQUIRE(kns::app::runDeviceConsole(engine, 0, input, output) == 1);

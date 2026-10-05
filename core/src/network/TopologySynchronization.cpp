@@ -69,12 +69,26 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         plan.push_back({incoming, match, from, to});
     }
 
+    // Validate retained local services against incoming roles before any mutation.
+    for (int source = 0; source < snapshot.size(); ++source) {
+        const int target = mapping[static_cast<std::size_t>(source)];
+        if (target < 0) continue;
+        const auto& incoming = *snapshot.getNode(source);
+        const auto* existing = getNode(target);
+        validateDeviceServices(incoming.getDeviceInfo().type,
+            incoming.hasServiceConfiguration() || !existing ? incoming.getServices() : existing->getServices());
+    }
+
     while (size() < next_id) addNode();
     for (int source = 0; source < snapshot.size(); ++source) {
         const int target = mapping[static_cast<std::size_t>(source)];
         if (target == -1) continue;
         const auto& incoming = *snapshot.getNode(source);
         setNodeLabel(target, incoming.getLabel());
+        if (incoming.hasServiceConfiguration() && incoming.getDeviceInfo().type != getNode(target)->getDeviceInfo().type) {
+            // A snapshot may atomically change the role and replace its services.
+            setNodeServices(target, {});
+        }
         setNodeDeviceInfo(target, incoming.getDeviceInfo());
         // Discovery without services preserves local programs. An explicit [] clears them.
         if (incoming.hasServiceConfiguration() &&

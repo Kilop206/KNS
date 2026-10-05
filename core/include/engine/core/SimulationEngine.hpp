@@ -49,6 +49,7 @@ namespace kns {
     private:
         Random random_;
         ServiceRuntime services_;
+        std::uint64_t device_roles_revision_ = 0;
         void untrackTCPListenerSession(const TCPSession& session) noexcept;
 
         double loss_prob = 0.01;
@@ -111,6 +112,7 @@ namespace kns {
         void configureRun(const RunConfig& config);
 
         void schedule(std::unique_ptr<Event> event);
+        bool cancelEvent(std::uint64_t id) { return event_queue_.cancel(id); }
 
         void run();
 
@@ -172,6 +174,7 @@ namespace kns {
         int getGlobalPacketSize() const;
 
         void startTCPConnection(int source, int dest);
+        bool canStartTCPConnection(int source, int destination) const noexcept;
         void startTCPConnection(
             int source,
             int dest,

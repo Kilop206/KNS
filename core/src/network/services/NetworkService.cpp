@@ -6,6 +6,21 @@
 #include <stdexcept>
 
 namespace kns {
+bool canHostService(DeviceType type, ServiceKind kind) noexcept {
+    const auto capabilities = deviceCapabilities(type);
+    return (kind == ServiceKind::Http && capabilities.http_server) ||
+           (kind == ServiceKind::Dns && capabilities.dns_server);
+}
+
+void validateDeviceServices(DeviceType type, const std::vector<NetworkService>& services) {
+    validateServices(services);
+    for (const auto& service : services) {
+        if (!canHostService(type, service.kind))
+            throw std::invalid_argument(std::string(toString(type)) + " cannot host " + serviceKindName(service.kind) +
+                " services; remove incompatible services before changing the device type");
+    }
+}
+
 const char* serviceKindName(ServiceKind kind) {
     switch (kind) {
         case ServiceKind::Http: return "http";
@@ -47,7 +62,8 @@ bool validIPv4(const std::string& value) {
         const auto end = value.find('.', start);
         if ((i == 3) != (end == std::string::npos)) return false;
         const auto length = (end == std::string::npos ? value.size() : end) - start;
-        if (length == 0 || length > 3 || (length > 1 && value[start] == '0')) return false;
+        if (length == 0 || length > 3 || value[start] < '0' || value[start] > '9' ||
+            (length > 1 && value[start] == '0')) return false;
         int part = 0;
         const auto result = std::from_chars(value.data() + start, value.data() + start + length, part);
         if (result.ec != std::errc{} || result.ptr != value.data() + start + length || part > 255) return false;

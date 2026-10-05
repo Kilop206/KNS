@@ -39,10 +39,12 @@ public:
     std::uint64_t request(SimulationEngine& engine, int source, int destination,
         ServiceKind kind, int port, std::string payload, double timeout_seconds = 5.0);
     void receive(SimulationEngine& engine, const Packet& packet);
-    void timeout(std::uint64_t id, double now);
+    void timeout(SimulationEngine& engine, std::uint64_t id);
     const std::map<std::uint64_t, ServiceRequest>& requests() const { return requests_; }
 private:
     std::uint64_t next_id_ = 1;
     std::map<std::uint64_t, ServiceRequest> requests_;
+    std::map<std::uint64_t, std::uint64_t> timeout_events_;
+    std::map<std::uint64_t, std::uint64_t> reply_events_;
 };
 } // namespace kns

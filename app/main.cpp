@@ -520,10 +520,28 @@ static void generatePackets(
         return;
     }
 
-    const auto plan = buildConnectionPlan(topo);
-
-    for (const auto& [from, to] : plan) {
-        engine->startTCPConnection(from, to);
+    bool typed = false;
+    for (int id = 0; id < topo.size(); ++id)
+        typed |= topo.getNode(id)->isActive() && topo.getNode(id)->getDeviceInfo().type != DeviceType::Unknown;
+    if (!typed) {
+        for (const auto& [from, to] : buildConnectionPlan(topo)) {
+            if (engine->canStartTCPConnection(from, to)) engine->startTCPConnection(from, to);
+        }
+        return;
+    }
+    // Typed networks generate traffic between endpoints, never on every cable.
+    // Choose one reachable peer per client, preferring servers in stable ID order.
+    for (int from = 0; from < topo.size(); ++from) {
+        const auto caps = deviceCapabilities(topo.getNode(from)->getDeviceInfo().type);
+        if (!caps.tcp_client || caps.forward) continue;
+        int destination = -1;
+        for (const auto& route : engine->getRoutingTable(from)) {
+            const int to = route.destination;
+            if (to == from || route.next_hop < 0 || !engine->canStartTCPConnection(from, to)) continue;
+            if (destination < 0) destination = to;
+            if (topo.getNode(to)->getDeviceInfo().type == DeviceType::Server) { destination = to; break; }
+        }
+        if (destination >= 0) engine->startTCPConnection(from, destination);
     }
 }
 
@@ -1571,6 +1589,9 @@ static void visualizeWindow(
             engine->hasEvents())
         {
             engine->processEvent();
+            visualTime = engine->now();
+            lastRealTime = glfwGetTime();
+            visualManager.update(visualTime);
 
             if (!engine->hasEvents())
             {

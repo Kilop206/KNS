@@ -121,7 +121,7 @@ TEST_CASE("Live snapshots update a running engine without resetting sessions tim
     auto initial = check(watcher);
     REQUIRE(initial.has_value());
     kns::SimulationEngine engine(*initial);
-    auto& session = engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(1, 0);
     const auto session_id = session.getSession_id();
     const auto link = engine.getTopology().getLinks().front();
     engine.scheduleLinkFailure(5.0, link->getId(), true);

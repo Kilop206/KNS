@@ -157,8 +157,10 @@ The collector reloads inventory on each collection; edits take effect without a
 restart in watch mode. Use `{}` to clear overrides. If the inventory becomes
 invalid or unavailable, the last published snapshot is preserved until corrected.
 The supported types are `unknown`, `computer`, `router`, `switch`, `access_point`,
-`server`, `phone`, `printer`, `iot` and `network_segment`. Types are descriptive
-metadata; all devices share the simulator's TCP implementation.
+`server`, `phone`, `printer`, `iot` and `network_segment`. Types enforce
+[device roles](device-roles.md): transit forwarding, TCP client/listener eligibility
+and HTTP/DNS service capabilities. The underlying TCP implementation is shared
+by eligible endpoints.
 
 A network segment represents inferred shared-network adjacency, not verified
 cabling. A gateway is classified as a router because of its routing role. The

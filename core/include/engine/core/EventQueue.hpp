@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <queue>
 #include <vector>
 
 #include "engine/core/Event.hpp"
@@ -10,13 +9,13 @@ namespace kns {
 
     class EventQueue {
     public:
-		// Adds an event to the queue. The event will be processed in the order it was scheduled.
+        // Adds an event, ordered by timestamp and then stable event ID.
         void schedule(std::unique_ptr<Event> event);
 
 		// Retrieves and removes the next event from the queue. The event with the earliest timestamp will be returned first.
         std::unique_ptr<kns::Event> next();
 
-		// Checks if the event queue is empty. Returns true if there are no events in the queue, false otherwise.
+        // Returns true when there are pending events.
         bool hasEvents() const noexcept;
 
 		// Returns the number of events currently in the queue.
@@ -27,6 +26,9 @@ namespace kns {
 
 		// Clears all events from the queue, resetting it to an empty state.
         void clear();
+
+        /// Remove a pending event without advancing the simulation clock.
+        bool cancel(std::uint64_t id);
 
     private:
 
@@ -39,11 +41,7 @@ namespace kns {
         };
 
 		// The priority queue that holds the events, ordered by their timestamps. The event with the earliest timestamp will be at the top of the queue.
-        std::priority_queue<
-            std::unique_ptr<Event>,
-            std::vector<std::unique_ptr<Event>>,
-            EventComparator
-        > event_list_;
+        std::vector<std::unique_ptr<Event>> event_list_;
     };
 
 }

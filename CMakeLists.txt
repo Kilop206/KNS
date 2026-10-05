@@ -26,7 +26,9 @@ if(POLICY CMP0077)
     cmake_policy(SET CMP0077 NEW)
 endif()
 
-find_package(OpenGL REQUIRED)
+if(KNS_BUILD_APP)
+    find_package(OpenGL REQUIRED)
+endif()
 find_package(Threads REQUIRED)
 
 # ==================================================
@@ -90,6 +92,7 @@ endif()
 # ==================================================
 # GLFW
 # ==================================================
+if(KNS_BUILD_APP)
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
@@ -147,6 +150,7 @@ target_compile_features(imgui_lib PUBLIC cxx_std_20)
 
 if(KNS_ENABLE_WARNINGS)
     kns_enable_warnings(imgui_lib)
+endif()
 endif()
 
 # ==================================================

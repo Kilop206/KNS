@@ -100,7 +100,8 @@ namespace gui {
                     auto device = node.getDeviceInfo();
                     device.type = static_cast<kns::DeviceType>(type);
                     device.evidence = "user_override";
-                    topology.setNodeDeviceInfo(id, std::move(device));
+                    try { topology.setNodeDeviceInfo(id, std::move(device)); error_.clear(); }
+                    catch (const std::exception& error) { error_=error.what(); }
                 }
                 ImGui::TableSetColumnIndex(3);
                 if (ImGui::SmallButton(translations.label("Remove", "remove-device").c_str())) remove_node = id;
@@ -124,7 +125,7 @@ namespace gui {
             }
         }
         if (!error_.empty()) ImGui::TextWrapped("%s", error_.c_str());
-        ImGui::TextWrapped("Device types describe the topology; TCP behavior is shared. Segment connections are inferred, with assumed simulation metrics.");
+        ImGui::TextWrapped("%s", translations.translate("Device roles control transit forwarding, TCP endpoints and application services. Remove incompatible services before changing a device type.").c_str());
         ImGui::Separator();
 
         const std::array<std::string, 4> metric_labels{

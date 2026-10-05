@@ -39,8 +39,8 @@ namespace kns {
     Topology::Topology(int nodes)
         : routing_revision_(std::make_shared<std::uint64_t>(0))
     {
-        if (nodes < 0) {
-            throw std::invalid_argument("Node count cannot be negative");
+        if (nodes < 0 || nodes > MAX_NODES) {
+            throw std::invalid_argument("Node count must be between 0 and 4096");
         }
         if (nodes > 0) {
             adjacency_list_.resize(static_cast<std::size_t>(nodes));
@@ -60,8 +60,8 @@ namespace kns {
         LinkMode mode,
         int queue_capacity
     ) {
-        if (a < 0 || b < 0) {
-            throw std::invalid_argument("Node indices cannot be negative");
+        if (a < 0 || b < 0 || a >= MAX_NODES || b >= MAX_NODES) {
+            throw std::invalid_argument("Node indices must be between 0 and 4095");
         }
         if (a == b) {
             throw std::invalid_argument("Self-loops are not supported");
@@ -110,7 +110,7 @@ namespace kns {
     }
 
     void Topology::addLink(const Link& link) {
-        addLinkPtr(
+        auto copy = addLinkPtr(
             link.getA(),
             link.getB(),
             link.getBandwidthMbps(),
@@ -119,6 +119,8 @@ namespace kns {
             link.getMode(),
             static_cast<int>(link.getQueueCapacity())
         );
+        copy->setUp(link.isUp());
+        copy->setDiscoveryMetadata(link.isInferred(), link.getEvidence());
     }
 
     void Topology::addLink(
@@ -172,6 +174,9 @@ namespace kns {
     }
 
     int Topology::addNode() {
+        if (adjacency_list_.size() >= MAX_NODES) {
+            throw std::invalid_argument("Topology supports at most 4096 nodes");
+        }
         const int id = static_cast<int>(adjacency_list_.size());
         adjacency_list_.push_back({});
         nodes_.emplace_back(id);
@@ -180,7 +185,7 @@ namespace kns {
     }
 
     bool Topology::removeNode(int id) {
-        if (id < 0 || static_cast<std::size_t>(id) >= adjacency_list_.size()) {
+        if (id < 0 || static_cast<std::size_t>(id) >= adjacency_list_.size() || !nodes_[id].isActive()) {
             return false;
         }
 

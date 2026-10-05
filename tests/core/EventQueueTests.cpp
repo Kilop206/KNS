@@ -11,6 +11,30 @@ namespace kns {
         void execute(SimulationEngine&) override {}
     };
 
+    TEST_CASE("Canceling events preserves timestamp and ID order without phantom work", "[core][event-queue][audit]") {
+        EventQueue queue;
+        auto first = std::make_unique<TestEvent>(1);
+        auto removed = std::make_unique<TestEvent>(2);
+        const auto first_id = first->getId();
+        const auto removed_id = removed->getId();
+        queue.schedule(std::move(first));
+        queue.schedule(std::move(removed));
+        queue.schedule(std::make_unique<TestEvent>(3));
+        REQUIRE(queue.cancel(removed_id));
+        REQUIRE_FALSE(queue.cancel(removed_id));
+        REQUIRE(queue.size() == 2);
+        REQUIRE(queue.next()->getId() == first_id);
+        REQUIRE(queue.peekTimestamp() == 3);
+        const auto last = queue.next();
+        REQUIRE_FALSE(queue.cancel(last->getId()));
+        REQUIRE_FALSE(queue.hasEvents());
+        auto only = std::make_unique<TestEvent>(4);
+        const auto only_id = only->getId();
+        queue.schedule(std::move(only));
+        REQUIRE(queue.cancel(only_id));
+        REQUIRE_FALSE(queue.hasEvents());
+    }
+
     TEST_CASE("EventQueue schedules and retrieves events in correct order", "[core][event-queue]")
     {
         EventQueue queue;

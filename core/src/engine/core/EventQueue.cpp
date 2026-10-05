@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <limits>
 #include <iostream>
+#include <algorithm>
 
 namespace kns {
     // Comparator for the priority queue to order events by timestamp and ID
@@ -26,7 +27,8 @@ namespace kns {
         }
 
         // Add the event to the priority queue
-        event_list_.push(std::move(event));
+        event_list_.push_back(std::move(event));
+        std::push_heap(event_list_.begin(), event_list_.end(), EventComparator{});
     }
 
     // Get the next event from the queue, or return nullptr if the queue is empty
@@ -34,9 +36,9 @@ namespace kns {
         if (event_list_.empty()) return nullptr;
 
         // Get the event with the earliest timestamp (and lowest ID if timestamps are equal)
-        auto ptr = std::move(const_cast<std::unique_ptr<Event>&>(event_list_.top()));
-
-        event_list_.pop();
+        std::pop_heap(event_list_.begin(), event_list_.end(), EventComparator{});
+        auto ptr = std::move(event_list_.back());
+        event_list_.pop_back();
         return ptr;
     }
 
@@ -59,15 +61,22 @@ namespace kns {
             return std::numeric_limits<double>::infinity();
         }
 
-        return event_list_.top()->getTimestamp();
+        return event_list_.front()->getTimestamp();
     }
 
 
     // Clear all events from the queue
     void EventQueue::clear()
     {
-        while (!event_list_.empty()) {
-            event_list_.pop();
-        }
+        event_list_.clear();
+    }
+
+    bool EventQueue::cancel(std::uint64_t id) {
+        const auto found = std::find_if(event_list_.begin(), event_list_.end(),
+            [id](const auto& event) { return event->getId() == id; });
+        if (found == event_list_.end()) return false;
+        event_list_.erase(found);
+        std::make_heap(event_list_.begin(), event_list_.end(), EventComparator{});
+        return true;
     }
 }

@@ -115,12 +115,18 @@ namespace kns {
 
 			const auto& adjacency = topology.getLinksFromNode(u);
 
+			const auto* node = topology.getNode(u);
+			if (!node || !node->isActive() ||
+			    (u != src && !deviceCapabilities(node->getDeviceInfo().type).forward)) continue;
+
 			for (const auto& link : adjacency) {
 				if (!link || !link->isUp()) {
 					continue;
 				}
 
 				int v = link->getOtherNode(u);
+				const auto* next = topology.getNode(v);
+				if (!next || !next->isActive()) continue;
 				if (!link->allowsTransmission(u, v)) {
 					continue;
 				}

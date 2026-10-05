@@ -127,18 +127,23 @@ namespace kns {
     }
 
     void SimulationEngine::run() {
-        while (event_queue_.hasEvents()) {
-            auto event = event_queue_.next();
-            if (!event) {
-                break;
-            }
-
-            clock_.setTime(event->getTimestamp());
-            event->execute(*this);
-        }
+        while (processEvent()) {}
     }
 
     bool SimulationEngine::processEvent() {
+        // Type changes through GUI, discovery or core APIs invalidate incompatible sessions.
+        if (device_roles_revision_ != topology_.getRoutingRevision()) {
+            for (auto it = sessions.begin(); it != sessions.end();) {
+                const auto& session = it->second;
+                const auto* source = topology_.getNode(session.getSource());
+                const auto* destination = topology_.getNode(session.getDestination());
+                const auto id = (it++)->first;
+                if (source && destination &&
+                    (!deviceCapabilities(source->getDeviceInfo().type).tcp_client ||
+                     !deviceCapabilities(destination->getDeviceInfo().type).tcp_listener)) cancelTCPSession(id);
+            }
+            device_roles_revision_ = topology_.getRoutingRevision();
+        }
         if (!event_queue_.hasEvents()) {
             return false;
         }
@@ -182,6 +187,20 @@ namespace kns {
     )
     {
         Packet pkt = packet;
+        const auto* current = topology_.getNode(pkt.current_node);
+        if (current && pkt.current_node == pkt.source) {
+            const auto type = current->getDeviceInfo().type;
+            const auto caps = deviceCapabilities(type);
+            const bool allowed = pkt.service
+                ? (pkt.service->response ? canHostService(type, pkt.service->kind) : caps.service_client)
+                : (caps.tcp_client || caps.tcp_listener);
+            if (!allowed) { stats_.packets_lost++; return false; }
+        }
+        if (pkt.current_node != pkt.source &&
+            (!current || !current->isActive() || !deviceCapabilities(current->getDeviceInfo().type).forward)) {
+            stats_.packets_lost++;
+            return false;
+        }
         pkt.packet_size_bytes = packet.serializedSize();
         if (!std::isfinite(now) || now < this->now()) {
             throw std::invalid_argument("Packet time must be finite and not in the past");
@@ -382,6 +401,14 @@ namespace kns {
         }
     }
 
+    bool SimulationEngine::canStartTCPConnection(int source, int destination) const noexcept {
+        const auto* client = topology_.getNode(source);
+        const auto* server = topology_.getNode(destination);
+        return client && server && client->isActive() && server->isActive() &&
+            deviceCapabilities(client->getDeviceInfo().type).tcp_client &&
+            deviceCapabilities(server->getDeviceInfo().type).tcp_listener;
+    }
+
     TCPSession& SimulationEngine::createTCPSession(
         int source,
         int destination
@@ -397,6 +424,8 @@ namespace kns {
     ) {
         requireActiveTCPNode(source);
         requireActiveTCPNode(destination);
+        if (!canStartTCPConnection(source, destination))
+            throw std::invalid_argument("Device roles do not permit this TCP client/listener pair");
         const std::uint64_t id = next_session_id++;
 
         sessions.emplace(
@@ -514,6 +543,8 @@ namespace kns {
         int backlog
     ) {
         requireActiveTCPNode(node_id);
+        if (!deviceCapabilities(topology_.getNode(node_id)->getDeviceInfo().type).tcp_listener)
+            throw std::invalid_argument("This device role cannot listen for TCP connections");
         auto [it, _] = listeners_.emplace(
             std::make_pair(node_id, port),
             TCPListener(node_id, port, backlog)
@@ -522,6 +553,8 @@ namespace kns {
     }
 
     bool SimulationEngine::hasListener(int node_id) const noexcept {
+        const auto* node = topology_.getNode(node_id);
+        if (!node || !node->isActive() || !deviceCapabilities(node->getDeviceInfo().type).tcp_listener) return false;
         return std::any_of(
             listeners_.begin(),
             listeners_.end(),
@@ -535,6 +568,8 @@ namespace kns {
         int node_id,
         std::uint16_t port
     ) const noexcept {
+        const auto* node = topology_.getNode(node_id);
+        if (!node || !node->isActive() || !deviceCapabilities(node->getDeviceInfo().type).tcp_listener) return false;
         const auto it = listeners_.find(std::make_pair(node_id, port));
         return it != listeners_.end() && it->second.isListening();
     }
@@ -563,7 +598,7 @@ namespace kns {
         const auto* listener_node = topology_.getNode(listening_node);
         const auto* peer_node = topology_.getNode(connecting_node);
         if (!listener_node || !listener_node->isActive() ||
-            !peer_node || !peer_node->isActive()) {
+            !peer_node || !peer_node->isActive() || !canStartTCPConnection(connecting_node, listening_node)) {
             return TCPListener::INVALID_SESSION_ID;
         }
         auto it = listeners_.find(

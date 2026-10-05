@@ -10,6 +10,13 @@ using namespace kns;
 namespace {
 Topology serviceTopology() {
     Topology topology(3);
+    DeviceInfo client, router, server;
+    client.type = DeviceType::Computer;
+    router.type = DeviceType::Router;
+    server.type = DeviceType::Server;
+    topology.setNodeDeviceInfo(0, client);
+    topology.setNodeDeviceInfo(1, router);
+    topology.setNodeDeviceInfo(2, server);
     topology.addLink(0, 1, 100, 10, 0);
     topology.addLink(1, 2, 100, 10, 0);
     NetworkService http;
@@ -24,6 +31,42 @@ Topology serviceTopology() {
     topology.setNodeServices(2, {http, dns});
     return topology;
 }
+}
+
+TEST_CASE("Completed service requests do not keep an idle simulation running until timeout", "[services][audit]") {
+    SimulationEngine engine(serviceTopology());
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
+    engine.run();
+    REQUIRE(engine.now() == engine.networkServices().requests().at(id).finished_at);
+}
+
+TEST_CASE("DNS records reject signed IPv4 octets atomically", "[services][audit]") {
+    SimulationEngine engine(serviceTopology());
+    const auto before = engine.getTopology().getNode(2)->getServices();
+    for (const auto* address : {"-1.2.3.4", "1.-2.3.4", "1.2.-0.4", "1.2.3.-1", "+1.2.3.4"}) {
+        INFO(address);
+        REQUIRE_FALSE(DeviceCLI::execute(engine, 2, std::string("service record names bad.example ") + address).ok);
+        REQUIRE(engine.getTopology().getNode(2)->getServices() == before);
+    }
+}
+
+TEST_CASE("Timed out service processing never emits a late response", "[services][audit]") {
+    SimulationEngine engine(serviceTopology());
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.04);
+    engine.run();
+    REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::TimedOut);
+    REQUIRE(engine.getStats().packets_sent == 1);
+    REQUIRE(engine.now() == 0.04);
+}
+
+TEST_CASE("Editing DNS does not cancel a different service's pending HTTP response", "[services][audit]") {
+    SimulationEngine engine(serviceTopology());
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
+    engine.processEvent();
+    engine.processEvent();
+    REQUIRE(DeviceCLI::execute(engine, 2, "service record names other.example 192.0.2.10").ok);
+    engine.run();
+    REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Complete);
 }
 
 TEST_CASE("HTTP and DNS services traverse routed links and return measured responses", "[services]") {
@@ -112,6 +155,9 @@ TEST_CASE("Late replies cannot overwrite a timeout and local queries are support
 
 TEST_CASE("Device commands configure services atomically and reject malformed inputs", "[services][cli]") {
     SimulationEngine engine(Topology(2));
+    DeviceInfo server;
+    server.type = DeviceType::Server;
+    engine.getTopology().setNodeDeviceInfo(1, server);
     REQUIRE(DeviceCLI::execute(engine, 1, "service add http web 8080").ok);
     REQUIRE(DeviceCLI::execute(engine, 1, R"(service page web / 201 "hello world")").ok);
     REQUIRE(DeviceCLI::execute(engine, 1, "service add dns names 53").ok);

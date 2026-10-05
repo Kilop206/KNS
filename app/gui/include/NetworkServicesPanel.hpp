@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <cstdint>
 #include <string>
 
 namespace kns { class SimulationEngine; }
@@ -26,7 +27,12 @@ private:
     char query_[513] = "/";
     char command_[8193] = {};
     std::string selected_;
+    std::string editing_service_;
+    std::uint64_t editing_revision_ = 0;
+    int editing_port_ = 80;
+    double editing_delay_ = 0;
     std::string status_;
     std::map<int, std::string> terminal_;
+    bool scroll_terminal_ = false;
 };
 } // namespace gui

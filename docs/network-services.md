@@ -3,13 +3,16 @@
 KNS devices can host configurable HTTP and DNS application services. Both the
 GUI and the device CLI edit the same configuration, saved with the topology.
 Open `app/topologies/services-lab.json` for a client, router and server example.
+Service availability follows [device roles](device-roles.md): servers host HTTP
+and DNS, routers host DNS, printers/IoT expose HTTP, and computers/phones are clients.
+Switches, APs and passive segments only forward traffic.
 
 ## GUI
 
 Select a device on the topology canvas and open **Device Services**:
 
 - **Services**: add an HTTP or DNS service, select it, start/stop it, change its
-  port and processing delay (press Enter to apply), and add, edit or remove entries.
+  port and processing delay (click **Apply settings** or press Enter), and add, edit or remove entries.
   HTTP entries contain a path, status and text body. DNS entries contain a name
   and IPv4 address. Select an existing entry to edit it.
 - **Client**: enter a destination device ID and port, then send an HTTP GET or
@@ -54,6 +57,9 @@ The GUI CLI provides these commands:
 
 ```text
 help
+show role
+show interfaces
+show routes
 show services
 show requests
 service add <http|dns> <name> <port>
@@ -70,6 +76,7 @@ dns query <device-id> <port> <hostname>
 ```
 
 The stdin console additionally supports `device`, `run`, `save` and `exit`.
+`help` filters service and client commands according to the selected device's role.
 Input can be piped from a text file for repeatable labs. Invalid commands print
 an error, preserve configuration, and make the console exit with status 1.
 Timeouts and HTTP/DNS error responses are simulation results, not command errors.
@@ -94,11 +101,10 @@ not HTTP/DNS wire encoding. Existing TCP experiments are independent.
 
 Absent/stopped services, lost packets and missing return routes time out after
 five simulated seconds (configurable through the core API). Local queries also
-work. Response latency includes both paths and server processing delay. Pending
-timeout events remain queued after successful replies, so running until the
-queue is empty may advance the clock to a deadline later than response arrival.
-Editing a device's service configuration invalidates its queued processing
-replies; packets already transmitted continue through the network. Deleting an
+work. Response latency includes both paths and server processing delay. Successful
+replies cancel their timeout events; expired requests cancel pending server
+processing. Editing a service invalidates only that service's queued processing
+replies; other services remain unaffected. Packets already transmitted continue through the network. Deleting an
 endpoint prevents new responses, and late replies cannot overwrite a timeout.
 
 Limits: 32 services per device, unique names and protocol/port pairs, ports

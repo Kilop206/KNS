@@ -16,6 +16,7 @@ bool active(const SimulationEngine& engine, int id) {
 
 const NetworkService* findService(const SimulationEngine& engine, int node, ServiceKind kind, int port) {
     if (!active(engine, node)) return nullptr;
+    if (!canHostService(engine.getTopology().getNode(node)->getDeviceInfo().type, kind)) return nullptr;
     for (const auto& service : engine.getTopology().getNode(node)->getServices())
         if (service.kind == kind && service.port == port && service.enabled) return &service;
     return nullptr;
@@ -36,20 +37,25 @@ class ServiceTimeoutEvent final : public Event {
     std::uint64_t id_;
 public:
     ServiceTimeoutEvent(double time, std::uint64_t id) : Event(time), id_(id) {}
-    void execute(SimulationEngine& engine) override { engine.networkServices().timeout(id_, engine.now()); }
+    void execute(SimulationEngine& engine) override { engine.networkServices().timeout(engine, id_); }
     const char* getName() const noexcept override { return "ServiceTimeout"; }
 };
 
 class ServiceReplyEvent final : public Event {
     Packet packet_;
     std::uint64_t revision_;
+    std::string service_name_;
 public:
-    ServiceReplyEvent(double time, Packet packet, std::uint64_t revision)
-        : Event(time), packet_(std::move(packet)), revision_(revision) {}
+    ServiceReplyEvent(double time, Packet packet, std::uint64_t revision, std::string name)
+        : Event(time), packet_(std::move(packet)), revision_(revision), service_name_(std::move(name)) {}
     void execute(SimulationEngine& engine) override {
         const auto* current = findService(engine, packet_.source, packet_.service->kind, packet_.service->port);
         // Stopping, removing or editing a service invalidates its queued replies.
-        if (current && engine.getTopology().getNode(packet_.source)->getServicesRevision() == revision_)
+        const auto& requests = engine.networkServices().requests();
+        const auto request = requests.find(packet_.service->request_id);
+        if (request == requests.end() || request->second.state != ServiceRequestState::Pending) return;
+        if (current && current->name == service_name_ &&
+            engine.getTopology().getNode(packet_.source)->getServiceRevision(service_name_) == revision_)
             send(engine, std::move(packet_));
     }
     const char* getName() const noexcept override { return "ServiceReply"; }
@@ -69,6 +75,8 @@ std::uint64_t ServiceRuntime::request(SimulationEngine& engine, int source, int 
     ServiceKind kind, int port, std::string payload, double timeout_seconds) {
     (void)serviceKindName(kind);
     if (!active(engine, source) || !active(engine, destination)) throw std::invalid_argument("Device is missing or inactive");
+    if (!deviceCapabilities(engine.getTopology().getNode(source)->getDeviceInfo().type).service_client)
+        throw std::invalid_argument("This device role cannot originate HTTP/DNS requests");
     if (port < 1 || port > 65535) throw std::invalid_argument("Port must be in [1, 65535]");
     if (payload.empty() || payload.size() > 512) throw std::invalid_argument("Request must contain 1-512 bytes");
     if (kind == ServiceKind::Dns) payload = normalizeDnsName(std::move(payload));
@@ -86,18 +94,25 @@ std::uint64_t ServiceRuntime::request(SimulationEngine& engine, int source, int 
     const auto id = next_id_++;
     requests_.emplace(id, ServiceRequest{id, source, destination, kind, port, engine.now(), 0,
         ServiceRequestState::Pending, 0, {}});
-    engine.schedule(std::make_unique<ServiceTimeoutEvent>(engine.now() + timeout_seconds, id));
+    auto timeout = std::make_unique<ServiceTimeoutEvent>(engine.now() + timeout_seconds, id);
+    timeout_events_[id] = timeout->getId();
+    engine.schedule(std::move(timeout));
     Packet packet(source, destination, source, engine.now(), 28 + static_cast<int>(payload.size()), 0);
     packet.service = ServiceMessage{id, kind, port, false, 0, std::move(payload)};
     send(engine, std::move(packet));
     return id;
 }
 
-void ServiceRuntime::timeout(std::uint64_t id, double now) {
+void ServiceRuntime::timeout(SimulationEngine& engine, std::uint64_t id) {
+    timeout_events_.erase(id);
+    if (const auto reply = reply_events_.find(id); reply != reply_events_.end()) {
+        engine.cancelEvent(reply->second);
+        reply_events_.erase(reply);
+    }
     const auto found = requests_.find(id);
     if (found != requests_.end() && found->second.state == ServiceRequestState::Pending) {
         found->second.state = ServiceRequestState::TimedOut;
-        found->second.finished_at = now;
+        found->second.finished_at = engine.now();
         found->second.response = "No response before the simulated timeout";
     }
 }
@@ -108,9 +123,16 @@ void ServiceRuntime::receive(SimulationEngine& engine, const Packet& packet) {
     const auto found = requests_.find(message.request_id);
     if (found == requests_.end() || found->second.state != ServiceRequestState::Pending) return;
     auto& request = found->second;
+    const auto* client = engine.getTopology().getNode(request.source);
+    if (!client || !client->isActive() || !deviceCapabilities(client->getDeviceInfo().type).service_client) return;
     if (request.kind != message.kind || request.port != message.port) return;
     if (message.response) {
         if (packet.source != request.destination || packet.destination != request.source) return;
+        if (const auto timeout = timeout_events_.find(message.request_id); timeout != timeout_events_.end()) {
+            engine.cancelEvent(timeout->second);
+            timeout_events_.erase(timeout);
+        }
+        reply_events_.erase(message.request_id);
         request.state = ServiceRequestState::Complete;
         request.finished_at = engine.now();
         request.status = message.status;
@@ -118,6 +140,7 @@ void ServiceRuntime::receive(SimulationEngine& engine, const Packet& packet) {
         return;
     }
     if (packet.source != request.source || packet.destination != request.destination) return;
+    if (reply_events_.contains(message.request_id)) return;
     const auto* service = findService(engine, packet.destination, message.kind, message.port);
     if (!service) return;
     ServiceMessage reply{message.request_id, message.kind, message.port, true, 0, {}};
@@ -133,7 +156,9 @@ void ServiceRuntime::receive(SimulationEngine& engine, const Packet& packet) {
     Packet response(packet.destination, packet.source, packet.destination, engine.now(),
         28 + static_cast<int>(reply.payload.size()), 0);
     response.service = std::move(reply);
-    engine.schedule(std::make_unique<ServiceReplyEvent>(engine.now() + service->delay_ms / 1000.0,
-        std::move(response), engine.getTopology().getNode(packet.destination)->getServicesRevision()));
+    auto event = std::make_unique<ServiceReplyEvent>(engine.now() + service->delay_ms / 1000.0,
+        std::move(response), engine.getTopology().getNode(packet.destination)->getServiceRevision(service->name), service->name);
+    reply_events_[message.request_id] = event->getId();
+    engine.schedule(std::move(event));
 }
 } // namespace kns

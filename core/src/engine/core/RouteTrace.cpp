@@ -19,6 +19,8 @@ RouteTrace SimulationEngine::traceRoute(int source, int destination) const {
     int current = source;
     visited[current] = true;
     while (current != destination) {
+        if (current != source && !deviceCapabilities(topology_.getNode(current)->getDeviceInfo().type).forward)
+            return result;
         const auto table = getRoutingTable(current);
         if (static_cast<std::size_t>(destination) >= table.size()) return result;
         const auto& entry = table[destination];
