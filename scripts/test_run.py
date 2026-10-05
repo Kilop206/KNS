@@ -173,6 +173,7 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(report["run_config"]["routing_metric"], "delay")
         self.assertEqual(report["run_config"]["seed"], 42)
         self.assertEqual(report["run_config"]["packet_size"], 1500)
+        self.assertEqual(report["run_config"]["congestion_control"], "reno")
         self.assertTrue(all(run["status"] == "timeout" for run in report["runs"]))
         self.assertTrue((self.root / "metrics.csv").exists())
         self.assertTrue((self.root / "run_config.json").exists())
