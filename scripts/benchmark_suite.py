@@ -37,6 +37,11 @@ def load_suite(path: Path) -> dict:
         raise ValueError("Benchmark seeds must fit unsigned 64-bit integers")
     if any(not isinstance(size, int) or size <= 0 for size in data["packet_sizes"]):
         raise ValueError("Benchmark packet sizes must be positive integers")
+    controls = data.get("congestion_controls", ["reno"])
+    valid_controls = {"tahoe", "reno", "newreno", "cubic"}
+    if not controls or not set(controls).issubset(valid_controls):
+        raise ValueError("Benchmark suite contains an unsupported congestion control")
+    data["congestion_controls"] = controls
     for topology in data["topologies"]:
         path_value = ROOT / topology
         if not path_value.is_file():
@@ -46,17 +51,19 @@ def load_suite(path: Path) -> dict:
 
 def expand_cases(suite: dict) -> list[dict]:
     cases = []
-    for topology, metric, seed, packet_size in itertools.product(
+    for topology, metric, seed, packet_size, congestion_control in itertools.product(
         suite["topologies"],
         suite["routing_metrics"],
         suite["seeds"],
         suite["packet_sizes"],
+        suite["congestion_controls"],
     ):
         cases.append({
             "topology": topology,
             "routing_metric": metric,
             "seed": seed,
             "packet_size": packet_size,
+            "congestion_control": congestion_control,
         })
     return cases
 
@@ -76,7 +83,7 @@ def git_commit() -> str:
 def safe_case_id(case: dict, index: int) -> str:
     stem = Path(case["topology"]).stem
     metric = case["routing_metric"].replace("-", "_")
-    return f"{index:03d}-{stem}-{metric}-s{case['seed']}-p{case['packet_size']}"
+    return f"{index:03d}-{stem}-{metric}-{case['congestion_control']}-s{case['seed']}-p{case['packet_size']}"
 
 
 def write_metrics(rows: list[dict], out: Path) -> None:
@@ -86,6 +93,7 @@ def write_metrics(rows: list[dict], out: Path) -> None:
         "routing_metric",
         "seed",
         "packet_size",
+        "congestion_control",
         "status",
         "returncode",
         "wall_clock_duration_s",
@@ -161,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
             case["routing_metric"],
             case["seed"],
             case["packet_size"],
+            case["congestion_control"],
         )
 
         started = time.perf_counter()
