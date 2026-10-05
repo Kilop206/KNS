@@ -20,6 +20,16 @@ namespace gui {
             stats.packets_delivered
         );
         ImGui::Text("%s: %d", translations.translate("Packets lost").c_str(), stats.packets_lost);
+        ImGui::Text(
+            "%s: %d",
+            translations.translate("Queue overflow drops").c_str(),
+            stats.queue_overflow_drops
+        );
+        ImGui::Text(
+            "%s: %d",
+            translations.translate("RED early drops").c_str(),
+            stats.red_early_drops
+        );
 
         ImGui::Separator();
 
