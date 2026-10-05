@@ -43,6 +43,11 @@ void ChatService::clear()
     // Keep polling an outstanding worker; clearing a std::async future would block.
 }
 
+void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::string question)
+{
+    send(analysis, kns::Stats{}, std::move(question));
+}
+
 void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question)
 {
     if (busy() || failed_request_) return;
