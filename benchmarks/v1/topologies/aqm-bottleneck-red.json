@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "name": "aqm-bottleneck-red",
+  "nodes": [
+    {
+      "id": 0,
+      "active": true,
+      "label": "Client A",
+      "type": "computer",
+      "external_id": "aqm:client-a",
+      "addresses": [],
+      "mac": "",
+      "evidence": "benchmark",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 1,
+      "active": true,
+      "label": "Edge A",
+      "type": "router",
+      "external_id": "aqm:edge-a",
+      "addresses": [],
+      "mac": "",
+      "evidence": "benchmark",
+      "position": {
+        "x": 180,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "active": true,
+      "label": "Edge B",
+      "type": "router",
+      "external_id": "aqm:edge-b",
+      "addresses": [],
+      "mac": "",
+      "evidence": "benchmark",
+      "position": {
+        "x": 360,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "active": true,
+      "label": "Client B",
+      "type": "computer",
+      "external_id": "aqm:client-b",
+      "addresses": [],
+      "mac": "",
+      "evidence": "benchmark",
+      "position": {
+        "x": 540,
+        "y": 0
+      }
+    }
+  ],
+  "links": [
+    {
+      "from": 0,
+      "to": 1,
+      "bandwidth": 100,
+      "delay": 1,
+      "loss": 0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
+      "queue_policy": "drop_tail",
+      "up": true,
+      "inferred": false,
+      "evidence": "benchmark"
+    },
+    {
+      "from": 1,
+      "to": 2,
+      "bandwidth": 1,
+      "delay": 5,
+      "loss": 0,
+      "mode": "full_duplex",
+      "queue_capacity": 8,
+      "queue_policy": "red",
+      "red_min_threshold": 2,
+      "red_max_threshold": 6,
+      "red_max_drop_probability": 0.25,
+      "up": true,
+      "inferred": false,
+      "evidence": "benchmark_bottleneck"
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "bandwidth": 100,
+      "delay": 1,
+      "loss": 0,
+      "mode": "full_duplex",
+      "queue_capacity": 32,
+      "queue_policy": "drop_tail",
+      "up": true,
+      "inferred": false,
+      "evidence": "benchmark"
+    }
+  ]
+}
