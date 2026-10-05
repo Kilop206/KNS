@@ -110,7 +110,7 @@ namespace kns {
     }
 
     void Topology::addLink(const Link& link) {
-        addLinkPtr(
+        auto copy = addLinkPtr(
             link.getA(),
             link.getB(),
             link.getBandwidthMbps(),
@@ -119,6 +119,13 @@ namespace kns {
             link.getMode(),
             static_cast<int>(link.getQueueCapacity())
         );
+        if (link.getQueueDiscipline() == Link::QueueDiscipline::RED) {
+            copy->configureRed(
+                static_cast<int>(link.getRedMinThreshold()),
+                static_cast<int>(link.getRedMaxThreshold()),
+                link.getRedMaxDropProbability()
+            );
+        }
     }
 
     void Topology::addLink(

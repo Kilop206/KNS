@@ -19,6 +19,10 @@ class Topology;
 class Link {
     mutable Random random_;
     public:
+        enum class QueueDiscipline {
+            DROP_TAIL,
+            RED
+        };
         Link(
             int a,
             int b,
@@ -91,6 +95,18 @@ class Link {
         /// Cannot shrink below the current occupancy of any queue.
         void setQueueCapacity(int capacity);
 
+        QueueDiscipline getQueueDiscipline() const noexcept { return queue_discipline_; }
+        void setDropTail() noexcept { queue_discipline_ = QueueDiscipline::DROP_TAIL; }
+        void configureRed(
+            int min_threshold,
+            int max_threshold,
+            double max_drop_probability
+        );
+        std::size_t getRedMinThreshold() const noexcept { return red_min_threshold_; }
+        std::size_t getRedMaxThreshold() const noexcept { return red_max_threshold_; }
+        double getRedMaxDropProbability() const noexcept { return red_max_drop_probability_; }
+        double earlyDropProbability(int from, int to) const noexcept;
+
         // Up/down state for GUI toggling
         bool isUp() const noexcept;
         void setUp(bool up) noexcept;
@@ -157,6 +173,10 @@ class Link {
         std::deque<LinkTransmission> queue_shared_;
 
         std::size_t queue_capacity_ = 32;
+        QueueDiscipline queue_discipline_ = QueueDiscipline::DROP_TAIL;
+        std::size_t red_min_threshold_ = 0;
+        std::size_t red_max_threshold_ = 0;
+        double red_max_drop_probability_ = 0.0;
 
         bool up_ = true;
         bool inferred_ = false;
