@@ -227,7 +227,9 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
         if (mode == "invalid") { res.set_content("not json", "application/json"); return; }
         auto reply = nlohmann::json({{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
             {"topologyRevision", body.at("topologyRevision")}, {"message", "Reply"}});
-        if (mode != "success" && mode != "stale") reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
+        if (mode != "success" && mode != "stale" && mode != "bad-quota") {
+            reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
+        }
         res.set_header("X-Sentient-Plan", "PRO");
         res.set_header("X-Daily-Quota-Remaining", mode == "bad-quota" ? "NaN" : "98");
         res.set_content(reply.dump(), "application/json");
