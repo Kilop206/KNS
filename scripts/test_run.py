@@ -177,6 +177,58 @@ class BenchmarkSuiteTests(unittest.TestCase):
 
 
 
+
+    def test_markdown_report_summarizes_cases_and_fault_deltas(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            metadata = {
+                "suite": {"name": "resilience-baseline-v1"},
+                "kns_version": "1.1.0",
+                "kns_commit": "abc123",
+                "generated_at": "2026-10-05T12:00:00+00:00",
+                "platform": "test",
+                "case_count": 2,
+                "successful_cases": 2,
+                "failed_cases": 0,
+                "cases": [
+                    {
+                        "case_id": "baseline",
+                        "status": "success",
+                        "returncode": 0,
+                        "delivery_rate": 1.0,
+                        "loss_rate": 0.0,
+                        "throughput_pps": 10.0,
+                        "avg_latency_s": 0.1,
+                        "simulation_duration_s": 5.0,
+                    },
+                    {
+                        "case_id": "fault",
+                        "status": "success",
+                        "returncode": 0,
+                        "delivery_rate": 0.9,
+                        "loss_rate": 0.1,
+                        "throughput_pps": 8.0,
+                        "avg_latency_s": 0.15,
+                        "simulation_duration_s": 6.0,
+                    },
+                ],
+            }
+            comparisons = [{
+                "fault_scenario": "link01-outage",
+                "seed": 42,
+                "delivery_rate_delta": -0.1,
+                "loss_rate_delta": 0.1,
+                "throughput_pps_delta": -2.0,
+                "avg_latency_s_delta": 0.05,
+                "simulation_duration_s_delta": 1.0,
+            }]
+            benchmark_suite.write_markdown_report(metadata, root, comparisons)
+            report = (root / "report.md").read_text(encoding="utf-8")
+            self.assertIn("# resilience-baseline-v1", report)
+            self.assertIn("Fault vs baseline", report)
+            self.assertIn("link01-outage", report)
+            self.assertIn("-2.0000", report)
+
 class ProcessTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()

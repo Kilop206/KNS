@@ -3,6 +3,7 @@
 #include <httplib.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <stdexcept>
 #include <string_view>
@@ -65,6 +66,20 @@ void addRequestIdHeader(
     }
 }
 
+std::optional<int> parseOptionalQuotaHeader(const httplib::Response& response)
+{
+    const auto value = response.get_header_value("X-Daily-Quota-Remaining");
+    if (value.empty()) {
+        return std::nullopt;
+    }
+    int parsed = 0;
+    const auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
+    if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || parsed < 0) {
+        throw std::runtime_error("Sentient returned invalid quota metadata");
+    }
+    return parsed;
+}
+
 } // namespace
 
 IntelligenceClient::IntelligenceClient(
@@ -112,7 +127,9 @@ ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
         }
         omitted = value.get<std::size_t>();
     }
-    return {std::move(message), omitted};
+    const auto plan = result->get_header_value("X-Sentient-Plan");
+    const auto quota = parseOptionalQuotaHeader(*result);
+    return {std::move(message), omitted, plan, quota};
 }
 
 kns::intelligence::IntelligenceResponse

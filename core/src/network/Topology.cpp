@@ -121,6 +121,13 @@ namespace kns {
         );
         copy->setUp(link.isUp());
         copy->setDiscoveryMetadata(link.isInferred(), link.getEvidence());
+        if (link.getQueueDiscipline() == Link::QueueDiscipline::RED) {
+            copy->configureRed(
+                static_cast<int>(link.getRedMinThreshold()),
+                static_cast<int>(link.getRedMaxThreshold()),
+                link.getRedMaxDropProbability()
+            );
+        }
     }
 
     void Topology::addLink(

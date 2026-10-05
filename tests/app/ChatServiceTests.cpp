@@ -202,6 +202,19 @@ TEST_CASE("KiWi transcript identifies pending and failed questions without inven
     REQUIRE(chat.transcript().empty());
 }
 
+
+TEST_CASE("chat exposes last successful plan and quota metadata", "[chat][entitlement]")
+{
+    ChatService chat([](const nlohmann::json&) {
+        return ChatReply{"Reply", 0, "PRO", 99};
+    });
+    chat.send({}, "Question");
+    complete(chat);
+    REQUIRE(chat.last_plan() == "PRO");
+    REQUIRE(chat.last_quota_remaining().has_value());
+    REQUIRE(*chat.last_quota_remaining() == 99);
+}
+
 TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][http]")
 {
     httplib::Server server;
@@ -214,7 +227,11 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
         if (mode == "invalid") { res.set_content("not json", "application/json"); return; }
         auto reply = nlohmann::json({{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
             {"topologyRevision", body.at("topologyRevision")}, {"message", "Reply"}});
-        if (mode != "success" && mode != "stale") reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
+        if (mode != "success" && mode != "stale" && mode != "bad-quota") {
+            reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
+        }
+        res.set_header("X-Sentient-Plan", "PRO");
+        res.set_header("X-Daily-Quota-Remaining", mode == "bad-quota" ? "NaN" : "98");
         res.set_content(reply.dump(), "application/json");
     });
     const int port = server.bind_to_any_port("127.0.0.1");
@@ -231,14 +248,20 @@ TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][h
         {"messages", {{{"role", "user"}, {"content", "Earlier"}},
                       {{"role", "assistant"}, {"content", "Reply"}},
                       {{"role", "user"}, {"content", "Now?"}}}}};
-    REQUIRE(client.chat(request).message == "Reply");
-    REQUIRE(client.chat(request).history_turns_omitted == 0);
+    const auto successReply = client.chat(request);
+    REQUIRE(successReply.message == "Reply");
+    REQUIRE(successReply.history_turns_omitted == 0);
+    REQUIRE(successReply.plan == "PRO");
+    REQUIRE(successReply.daily_quota_remaining.has_value());
+    REQUIRE(*successReply.daily_quota_remaining == 98);
     mode = "1";
     REQUIRE(client.chat(request).history_turns_omitted == 1);
     for (const auto* value : {"-1", "2", "1.5", "1.0", "true", "null", "\"1\"", "4294967296"}) {
         mode = value;
         REQUIRE_THROWS(client.chat(request));
     }
+    mode = "bad-quota";
+    REQUIRE_THROWS(client.chat(request));
     mode = "stale";
     REQUIRE_THROWS(client.chat(request));
     mode = "invalid";

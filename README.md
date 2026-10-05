@@ -212,6 +212,27 @@ half-duplex links share it. The topology panel can edit this value. Reducing it
 below current occupancy is rejected. SIMPLEX routes only from `from` to `to`.
 Changing a link's mode requires its pending transmissions to finish first.
 
+Queue admission defaults to `"queue_policy": "drop_tail"`. A link can instead
+use the first RED/AQM model with:
+
+```json
+{
+  "queue_capacity": 32,
+  "queue_policy": "red",
+  "red_min_threshold": 8,
+  "red_max_threshold": 24,
+  "red_max_drop_probability": 0.1
+}
+```
+
+RED uses the current directional queue occupancy. At or below the minimum
+threshold it does not early-drop; between thresholds the probability grows
+linearly to `red_max_drop_probability`; at or above the maximum threshold the
+packet is dropped before queue admission. The simulation engine owns the random
+draw, so the same topology, seed and run configuration remain reproducible.
+This first RED model uses instantaneous occupancy rather than an EWMA queue
+average.
+
 Run configuration is applied before scheduling traffic, including after a GUI
 restart. The same seed, topology, configuration, and build reproduce sequential
 runs. Packet loss alone does not invalidate a run: validation checks completed

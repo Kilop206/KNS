@@ -229,6 +229,13 @@ namespace kns {
             return false;
         }
 
+        const double early_drop_probability =
+            link.earlyDropProbability(pkt.current_node, next_node);
+        if (early_drop_probability > 0.0 && random() < early_drop_probability) {
+            stats_.packets_lost++;
+            return false;
+        }
+
         const double transmission_time =
             (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
             (link.getBandwidthMbps() * 1e6);

@@ -97,7 +97,10 @@ constant and preserve the raw rows for every packet-size condition.
 Use `--seed 42 --packet-size 1500` to make those parameters explicit. Repeat the
 same command and topology with the same build when comparing results; a new
 run reseeds the generator. Configure `queue_capacity` in each JSON link when
-studying buffer size. A recovered loss is valid if the TCP workload completes
+studying buffer size. Queue-management experiments must also record
+`queue_policy` and, for RED, the min/max thresholds and maximum early-drop
+probability. The current RED implementation uses instantaneous directional queue
+occupancy rather than EWMA occupancy. A recovered loss is valid if the TCP workload completes
 and no pending events, packets, buffers, or link queue entries remain.
 
 - record the Git commit and build type;
@@ -196,3 +199,15 @@ All reported deltas use **fault scenario minus baseline**:
 
 Failed cases are not paired into a numeric comparison; their process/status
 evidence remains available in `benchmark.json`.
+
+
+### Human-readable benchmark report
+
+Every official benchmark execution writes `report.md` next to
+`benchmark.json` and `metrics.csv`. The report is derived from the same
+recorded case data and includes the KNS version/commit, aggregate successful-case
+metrics, per-case results, fault-vs-baseline deltas when applicable, and explicit
+failed-case evidence.
+
+The official GitHub Actions workflows append this Markdown report to the job
+summary while still uploading the full machine-readable artifact directory.

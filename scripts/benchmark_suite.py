@@ -236,6 +236,97 @@ def write_comparisons(rows: list[dict], output: Path) -> None:
         writer.writerows(comparisons)
 
 
+
+def _format_number(value, digits: int = 4) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, int):
+        return str(value)
+    return f"{value:.{digits}f}"
+
+
+def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict]) -> None:
+    rows = metadata["cases"]
+    successful = [row for row in rows if row.get("returncode") == 0]
+    lines = [
+        f"# {metadata['suite']['name']}",
+        "",
+        f"- KNS version: `{metadata['kns_version']}`",
+        f"- KNS commit: `{metadata['kns_commit']}`",
+        f"- Generated: {metadata['generated_at']}",
+        f"- Platform: {metadata['platform']}",
+        f"- Cases: {metadata['case_count']} total, {metadata['successful_cases']} successful, {metadata['failed_cases']} failed",
+        "",
+        "## Aggregate metrics",
+        "",
+        "| Metric | Mean across successful cases |",
+        "| --- | ---: |",
+    ]
+
+    aggregates = [
+        ("Delivery rate", "delivery_rate"),
+        ("Loss rate", "loss_rate"),
+        ("Throughput (pps)", "throughput_pps"),
+        ("Average latency (s)", "avg_latency_s"),
+        ("Simulation duration (s)", "simulation_duration_s"),
+    ]
+    for label, field in aggregates:
+        values = [row[field] for row in successful if row.get(field) is not None]
+        mean = sum(values) / len(values) if values else None
+        lines.append(f"| {label} | {_format_number(mean)} |")
+
+    lines += ["", "## Cases", "", "| Case | Status | Delivery | Loss | Throughput pps | Latency s | Sim duration s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+    for row in rows:
+        lines.append(
+            "| {case} | {status} | {delivery} | {loss} | {throughput} | {latency} | {duration} |".format(
+                case=row["case_id"],
+                status=row["status"],
+                delivery=_format_number(row.get("delivery_rate")),
+                loss=_format_number(row.get("loss_rate")),
+                throughput=_format_number(row.get("throughput_pps")),
+                latency=_format_number(row.get("avg_latency_s")),
+                duration=_format_number(row.get("simulation_duration_s")),
+            )
+        )
+
+    if comparisons:
+        lines += [
+            "",
+            "## Fault vs baseline",
+            "",
+            "All deltas are fault scenario minus the matching baseline.",
+            "",
+            "| Scenario | Seed | Delivery Δ | Loss Δ | Throughput Δ | Latency Δ s | Duration Δ s |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+        for row in comparisons:
+            lines.append(
+                "| {scenario} | {seed} | {delivery} | {loss} | {throughput} | {latency} | {duration} |".format(
+                    scenario=row["fault_scenario"],
+                    seed=row["seed"],
+                    delivery=_format_number(row.get("delivery_rate_delta")),
+                    loss=_format_number(row.get("loss_rate_delta")),
+                    throughput=_format_number(row.get("throughput_pps_delta")),
+                    latency=_format_number(row.get("avg_latency_s_delta")),
+                    duration=_format_number(row.get("simulation_duration_s_delta")),
+                )
+            )
+
+    if metadata["failed_cases"]:
+        lines += [
+            "",
+            "## Failures",
+            "",
+            "Failed cases are retained as evidence and are excluded from numeric aggregates/comparisons.",
+            "",
+        ]
+        for row in rows:
+            if row.get("returncode") != 0:
+                lines.append(f"- `{row['case_id']}`: {row['status']} (return code {row['returncode']})")
+
+    (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a versioned KNS benchmark suite")
     parser.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
@@ -371,8 +462,14 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     write_metrics(records, output / "metrics.csv")
+    comparisons = (
+        compare_fault_scenarios(records)
+        if len(suite["link_event_scenarios"]) > 1
+        else []
+    )
     if len(suite["link_event_scenarios"]) > 1:
         write_comparisons(records, output)
+    write_markdown_report(metadata, output, comparisons)
     (output / "suite.json").write_text(
         json.dumps(suite, indent=2, ensure_ascii=False),
         encoding="utf-8",
