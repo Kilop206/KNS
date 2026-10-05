@@ -87,6 +87,7 @@ namespace kns {
 
         /// Routing metric used by Dijkstra.
         RoutingMetric routing_metric_ = RoutingMetric::Delay;
+        CongestionControlType congestion_control_ = CongestionControlType::RENO;
 
         /// Passive TCP listeners keyed by their (node id, TCP port).
         std::map<std::pair<int, std::uint16_t>, TCPListener> listeners_;
