@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import benchmark_suite
+import release_preflight
 import run as runner
 
 
@@ -176,6 +177,16 @@ class BenchmarkSuiteTests(unittest.TestCase):
         self.assertAlmostEqual(row["simulation_duration_s_delta"], 1.0)
 
 
+
+
+    def test_release_preflight_allows_software_before_model_promotion(self):
+        report = release_preflight.evaluate_release(ROOT)
+        self.assertTrue(report["software_ready"])
+        self.assertEqual(report["model_status"], "pipeline_ready")
+        self.assertFalse(report["model_ready"])
+        text = release_preflight.markdown(report)
+        self.assertIn("Software ready: **yes**", text)
+        self.assertIn("KiWi Model v1 ready: **no**", text)
 
 class ProcessTests(unittest.TestCase):
     def setUp(self):
