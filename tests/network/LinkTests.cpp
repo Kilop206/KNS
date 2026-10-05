@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include "network/Link.hpp"
 #include "network/Topology.hpp"
 #include "enums/LinkMode.hpp"
