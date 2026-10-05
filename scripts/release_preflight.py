@@ -84,7 +84,7 @@ def markdown(report: dict) -> str:
         "",
     ]
     for name, passed in report["checks"].items():
-        lines.append(f"- {'✅' if passed else '❌'} {name}")
+        lines.append(f"- {'PASS' if passed else 'FAIL'} {name}")
     if report["blockers"]:
         lines += ["", "## Blockers", ""]
         lines += [f"- {item}" for item in report["blockers"]]
