@@ -121,6 +121,45 @@ class BenchmarkSuiteTests(unittest.TestCase):
         )
         self.assertEqual({case["fault_scenario"] for case in cases}, {"baseline"})
 
+    def test_aqm_baseline_pairs_only_queue_policy_on_same_bottleneck(self):
+        root = Path(__file__).resolve().parent.parent
+        suite = benchmark_suite.load_suite(root / "benchmarks/v1/aqm-baseline.json")
+        cases = benchmark_suite.expand_cases(suite)
+        self.assertEqual(suite["name"], "aqm-baseline-v1")
+        self.assertEqual(len(cases), 10)
+        self.assertEqual({case["seed"] for case in cases}, {42, 43, 44, 45, 46})
+        self.assertEqual({case["congestion_control"] for case in cases}, {"reno"})
+
+        import json
+        drop = json.loads(
+            (root / "benchmarks/v1/topologies/aqm-bottleneck-drop-tail.json").read_text()
+        )
+        red = json.loads(
+            (root / "benchmarks/v1/topologies/aqm-bottleneck-red.json").read_text()
+        )
+        self.assertEqual(drop["nodes"], red["nodes"])
+        self.assertEqual(len(drop["links"]), len(red["links"]))
+        for index, (control, candidate) in enumerate(zip(drop["links"], red["links"])):
+            if index != 1:
+                self.assertEqual(control, candidate)
+                continue
+            self.assertEqual(control["queue_policy"], "drop_tail")
+            self.assertEqual(candidate["queue_policy"], "red")
+            stripped = dict(candidate)
+            for key in (
+                "queue_policy",
+                "red_min_threshold",
+                "red_max_threshold",
+                "red_max_drop_probability",
+            ):
+                stripped.pop(key, None)
+            baseline = dict(control)
+            baseline.pop("queue_policy", None)
+            self.assertEqual(baseline, stripped)
+            self.assertEqual(candidate["red_min_threshold"], 2)
+            self.assertEqual(candidate["red_max_threshold"], 6)
+            self.assertEqual(candidate["red_max_drop_probability"], 0.25)
+
     def test_resilience_baseline_expands_control_and_outage(self):
         root = Path(__file__).resolve().parent.parent
         suite = benchmark_suite.load_suite(root / "benchmarks/v1/resilience-baseline.json")
