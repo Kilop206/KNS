@@ -153,6 +153,89 @@ def write_metrics(rows: list[dict], out: Path) -> None:
         writer.writerows(rows)
 
 
+
+def comparison_key(row: dict) -> tuple:
+    return (
+        row["topology"],
+        row["routing_metric"],
+        row["seed"],
+        row["packet_size"],
+        row["congestion_control"],
+    )
+
+
+def compare_fault_scenarios(rows: list[dict]) -> list[dict]:
+    baseline = {
+        comparison_key(row): row
+        for row in rows
+        if row.get("fault_scenario") == "baseline" and row.get("returncode") == 0
+    }
+    comparisons = []
+    for row in rows:
+        scenario = row.get("fault_scenario")
+        if scenario == "baseline" or row.get("returncode") != 0:
+            continue
+        control = baseline.get(comparison_key(row))
+        if control is None:
+            continue
+
+        def delta(field: str):
+            left, right = row.get(field), control.get(field)
+            if left is None or right is None:
+                return None
+            return left - right
+
+        comparisons.append({
+            "topology": row["topology"],
+            "routing_metric": row["routing_metric"],
+            "seed": row["seed"],
+            "packet_size": row["packet_size"],
+            "congestion_control": row["congestion_control"],
+            "fault_scenario": scenario,
+            "baseline_case_id": control["case_id"],
+            "fault_case_id": row["case_id"],
+            "delivery_rate_delta": delta("delivery_rate"),
+            "loss_rate_delta": delta("loss_rate"),
+            "throughput_pps_delta": delta("throughput_pps"),
+            "avg_latency_s_delta": delta("avg_latency_s"),
+            "simulation_duration_s_delta": delta("simulation_duration_s"),
+        })
+    return comparisons
+
+
+def write_comparisons(rows: list[dict], output: Path) -> None:
+    comparisons = compare_fault_scenarios(rows)
+    payload = {
+        "schema_version": "1.0",
+        "comparison": "fault-minus-baseline",
+        "case_count": len(comparisons),
+        "cases": comparisons,
+    }
+    (output / "scenario-comparison.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    fields = [
+        "topology",
+        "routing_metric",
+        "seed",
+        "packet_size",
+        "congestion_control",
+        "fault_scenario",
+        "baseline_case_id",
+        "fault_case_id",
+        "delivery_rate_delta",
+        "loss_rate_delta",
+        "throughput_pps_delta",
+        "avg_latency_s_delta",
+        "simulation_duration_s_delta",
+    ]
+    with (output / "scenario-comparison.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(comparisons)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a versioned KNS benchmark suite")
     parser.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
@@ -288,6 +371,8 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     write_metrics(records, output / "metrics.csv")
+    if len(suite["link_event_scenarios"]) > 1:
+        write_comparisons(records, output)
     (output / "suite.json").write_text(
         json.dumps(suite, indent=2, ensure_ascii=False),
         encoding="utf-8",
