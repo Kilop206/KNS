@@ -54,6 +54,12 @@ jobs:
       - name: Validate coordinated release train
         run: python scripts/validate_release_train.py
 
+      - name: Run ecosystem release preflight
+        run: |
+          python scripts/release_preflight.py \
+            --json-output build/release-preflight.json \
+            --markdown-output build/release-preflight.md
+
       - name: Validate benchmark suite
         run: python scripts/benchmark_suite.py --dry-run
 
