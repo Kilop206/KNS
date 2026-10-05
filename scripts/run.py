@@ -72,8 +72,9 @@ def build_command(
     seed: int = 42,
     packet_size: int = 1500,
     congestion_control: str = "reno",
+    link_events: list[str] | None = None,
 ) -> list[str]:
-    return [
+    command = [
         str(exe),
         "--headless",
         "--topology",
@@ -89,6 +90,9 @@ def build_command(
         "--congestion-control",
         congestion_control,
     ]
+    for event in link_events or []:
+        command.extend(["--link-event", event])
+    return command
 
 
 def run_silent(
@@ -100,6 +104,7 @@ def run_silent(
     seed: int = 42,
     packet_size: int = 1500,
     congestion_control: str = "reno",
+    link_events: list[str] | None = None,
 ) -> tuple[subprocess.Popen, float, TextIO]:
     cmd = build_command(
         exe,
@@ -109,6 +114,7 @@ def run_silent(
         seed,
         packet_size,
         congestion_control,
+        link_events,
     )
 
     log_handle = open(log_file, "w", encoding="utf-8")
@@ -470,6 +476,12 @@ def main(argv: list[str] | None = None) -> int:
         default="reno",
         help="TCP congestion control passed to every simulation (default: reno)",
     )
+    parser.add_argument(
+        "--link-event",
+        action="append",
+        default=[],
+        help="Repeatable headless event time:nodeA:nodeB:down|up",
+    )
     args = parser.parse_args(argv)
 
     if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
@@ -530,6 +542,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.seed,
                 args.packet_size,
                 args.congestion_control,
+                args.link_event,
             )
             pending.append((proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
@@ -576,6 +589,7 @@ def main(argv: list[str] | None = None) -> int:
         "seed": args.seed,
         "packet_size": args.packet_size,
         "congestion_control": args.congestion_control,
+        "link_events": args.link_event,
         "platform": platform.platform(),
     }
 
