@@ -529,6 +529,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.routing_metric,
                 args.seed,
                 args.packet_size,
+                args.congestion_control,
             )
             pending.append((proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
@@ -574,6 +575,7 @@ def main(argv: list[str] | None = None) -> int:
         "routing_metric": args.routing_metric,
         "seed": args.seed,
         "packet_size": args.packet_size,
+        "congestion_control": args.congestion_control,
         "platform": platform.platform(),
     }
 
