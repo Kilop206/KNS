@@ -361,3 +361,25 @@ TEST_CASE("RED rejects invalid configuration and incompatible capacity shrink", 
     link.setDropTail();
     REQUIRE_NOTHROW(link.setQueueCapacity(5));
 }
+
+
+TEST_CASE("Topology link copies preserve RED queue discipline", "[network][topology][queue][red]")
+{
+    Link configured(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 12);
+    configured.configureRed(3, 9, 0.4);
+
+    Topology topology(2);
+    topology.addLink(configured);
+
+    const auto copied = topology.getLinks().front();
+    REQUIRE(copied->getQueueDiscipline() == Link::QueueDiscipline::RED);
+    REQUIRE(copied->getRedMinThreshold() == 3);
+    REQUIRE(copied->getRedMaxThreshold() == 9);
+    REQUIRE(copied->getRedMaxDropProbability() == Catch::Approx(0.4));
+
+    const auto run = topology.cloneForRun();
+    const auto runLink = run.getLinks().front();
+    REQUIRE(runLink->getQueueDiscipline() == Link::QueueDiscipline::RED);
+    REQUIRE(runLink->getRedMinThreshold() == 3);
+    REQUIRE(runLink->getRedMaxThreshold() == 9);
+}
