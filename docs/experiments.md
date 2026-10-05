@@ -177,3 +177,22 @@ The first official resilience baseline uses `mesh4`, Reno, delay routing and
 seeds 42–44. It compares a control run with a link 0–1 outage from t=0.5 to
 t=2.5. This benchmark measures simulator behavior under a controlled transient
 failure; it is not a claim about real-world physical failure rates.
+
+
+### Fault scenario comparison output
+
+Suites with more than one `link_event_scenarios` entry also emit
+`scenario-comparison.json` and `scenario-comparison.csv`. Each non-baseline
+case is paired only with the baseline case that has the same topology, routing
+metric, seed, packet size and congestion-control algorithm.
+
+All reported deltas use **fault scenario minus baseline**:
+
+- negative `delivery_rate_delta` means the failure reduced delivery rate;
+- positive `loss_rate_delta` means the failure increased loss;
+- negative `throughput_pps_delta` means the failure reduced logical throughput;
+- positive `avg_latency_s_delta` means the failure increased delivered-packet latency;
+- positive `simulation_duration_s_delta` means the workload took longer in simulated time.
+
+Failed cases are not paired into a numeric comparison; their process/status
+evidence remains available in `benchmark.json`.
