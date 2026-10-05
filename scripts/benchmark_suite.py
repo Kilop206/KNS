@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import itertools
+import math
 import json
 import os
 import platform
@@ -42,6 +43,36 @@ def load_suite(path: Path) -> dict:
     if not controls or not set(controls).issubset(valid_controls):
         raise ValueError("Benchmark suite contains an unsupported congestion control")
     data["congestion_controls"] = controls
+
+    scenarios = data.get("link_event_scenarios", [{"name": "baseline", "events": []}])
+    if not isinstance(scenarios, list) or not scenarios:
+        raise ValueError("Benchmark link_event_scenarios must be a non-empty list")
+    seen_scenarios = set()
+    for scenario in scenarios:
+        if not isinstance(scenario, dict) or set(scenario) != {"name", "events"}:
+            raise ValueError("Each link event scenario must contain exactly name and events")
+        name = scenario["name"]
+        events = scenario["events"]
+        if not isinstance(name, str) or not name or any(
+            not (ch.isalnum() or ch in "-_") for ch in name
+        ):
+            raise ValueError("Benchmark link event scenario name is invalid")
+        if name in seen_scenarios:
+            raise ValueError("Duplicate benchmark link event scenario")
+        seen_scenarios.add(name)
+        if not isinstance(events, list):
+            raise ValueError("Benchmark link event scenario events must be a list")
+        for event in events:
+            if not isinstance(event, dict) or set(event) != {"time", "from", "to", "state"}:
+                raise ValueError("Link events must contain exactly time, from, to and state")
+            if not isinstance(event["time"], (int, float)) or not math.isfinite(event["time"]) or event["time"] < 0:
+                raise ValueError("Link event time must be finite and nonnegative")
+            if not isinstance(event["from"], int) or not isinstance(event["to"], int) or event["from"] < 0 or event["to"] < 0:
+                raise ValueError("Link event endpoints must be nonnegative integers")
+            if event["from"] == event["to"] or event["state"] not in {"down", "up"}:
+                raise ValueError("Link event endpoints/state are invalid")
+    data["link_event_scenarios"] = scenarios
+
     for topology in data["topologies"]:
         path_value = ROOT / topology
         if not path_value.is_file():
@@ -51,12 +82,13 @@ def load_suite(path: Path) -> dict:
 
 def expand_cases(suite: dict) -> list[dict]:
     cases = []
-    for topology, metric, seed, packet_size, congestion_control in itertools.product(
+    for topology, metric, seed, packet_size, congestion_control, scenario in itertools.product(
         suite["topologies"],
         suite["routing_metrics"],
         suite["seeds"],
         suite["packet_sizes"],
         suite["congestion_controls"],
+        suite["link_event_scenarios"],
     ):
         cases.append({
             "topology": topology,
@@ -64,6 +96,11 @@ def expand_cases(suite: dict) -> list[dict]:
             "seed": seed,
             "packet_size": packet_size,
             "congestion_control": congestion_control,
+            "fault_scenario": scenario["name"],
+            "link_events": [
+                f'{event["time"]}:{event["from"]}:{event["to"]}:{event["state"]}'
+                for event in scenario["events"]
+            ],
         })
     return cases
 
@@ -83,7 +120,10 @@ def git_commit() -> str:
 def safe_case_id(case: dict, index: int) -> str:
     stem = Path(case["topology"]).stem
     metric = case["routing_metric"].replace("-", "_")
-    return f"{index:03d}-{stem}-{metric}-{case['congestion_control']}-s{case['seed']}-p{case['packet_size']}"
+    return (
+        f"{index:03d}-{stem}-{metric}-{case['congestion_control']}-"
+        f"{case['fault_scenario']}-s{case['seed']}-p{case['packet_size']}"
+    )
 
 
 def write_metrics(rows: list[dict], out: Path) -> None:
@@ -94,6 +134,7 @@ def write_metrics(rows: list[dict], out: Path) -> None:
         "seed",
         "packet_size",
         "congestion_control",
+        "fault_scenario",
         "status",
         "returncode",
         "wall_clock_duration_s",
@@ -170,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
             case["seed"],
             case["packet_size"],
             case["congestion_control"],
+            case["link_events"],
         )
 
         started = time.perf_counter()
