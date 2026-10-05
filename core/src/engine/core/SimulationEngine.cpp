@@ -517,6 +517,9 @@ namespace kns {
             (r.packets_delivered >= 0) &&
             (r.packets_delivered <= r.packets_sent) &&
             (r.packets_lost >= 0) &&
+            (stats_.queue_overflow_drops >= 0) &&
+            (stats_.red_early_drops >= 0) &&
+            (stats_.queue_overflow_drops + stats_.red_early_drops <= r.packets_lost) &&
             // Rejected sends also count as losses without incrementing sent.
             (r.packets_sent - r.packets_delivered <= r.packets_lost) &&
             !hasEvents() && packets_in_transit.empty() &&
