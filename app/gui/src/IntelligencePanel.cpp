@@ -165,6 +165,16 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
     ImGui::TextWrapped("Converse com a KiWi sobre esta topologia.");
     ImGui::TextDisabled("Contexto: análise da topologia, sem telemetria ao vivo.");
     ImGui::TextDisabled("Memória: até 10 interações recentes.");
+    if (!chat_.last_plan().empty()) {
+        ImGui::TextDisabled("Última resposta: plano %s", chat_.last_plan().c_str());
+        if (chat_.last_quota_remaining().has_value()) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("· quota restante: %d", *chat_.last_quota_remaining());
+        } else if (chat_.last_plan() == "INTERNAL") {
+            ImGui::SameLine();
+            ImGui::TextDisabled("· quota: ilimitada");
+        }
+    }
     if (ImGui::Button("Nova conversa")) {
         chat_.clear();
         chat_input_.fill(0);

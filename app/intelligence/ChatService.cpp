@@ -131,6 +131,8 @@ void ChatService::update()
             throw std::runtime_error("KiWi returned invalid chat history metadata");
         }
         const auto omitted = messages_.size() / 2 - sentTurns + response.history_turns_omitted;
+        last_plan_ = std::move(response.plan);
+        last_quota_remaining_ = response.daily_quota_remaining;
         messages_.push_back({"assistant", std::move(response.message), omitted});
         failed_request_.reset();
         error_.clear();
