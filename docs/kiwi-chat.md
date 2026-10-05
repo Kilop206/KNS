@@ -85,3 +85,18 @@ This keeps local/development deployments backward compatible while allowing the
 production flow `KNS desktop → Sentient KNS → Topology Hub entitlement` to use
 one revocable user identity. The explicit intelligence token remains available
 for deployments that intentionally use a separate gateway credential.
+
+
+## Plan and quota status
+
+When Sentient KNS resolves a Topology Hub entitlement, successful chat responses
+may include product metadata in HTTP headers. The desktop keeps this metadata
+outside the KiWi JSON contract and displays it only as the status of the latest
+successful chat response:
+
+- `X-Sentient-Plan` identifies the resolved plan;
+- `X-Daily-Quota-Remaining` identifies the remaining finite daily quota.
+
+An absent quota header does not imply a numeric value. The UI labels unlimited
+quota only for the `INTERNAL` plan. Malformed numeric quota metadata is rejected
+instead of being shown as trusted product state.
