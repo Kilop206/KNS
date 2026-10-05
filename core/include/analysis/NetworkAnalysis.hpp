@@ -41,6 +41,12 @@ struct LinkMetrics {
     double delay_ms = 0.0;
     double bandwidth_mbps = 0.0;
 
+    std::size_t queue_capacity = 0;
+    std::string queue_policy = "drop_tail";
+    std::size_t red_min_threshold = 0;
+    std::size_t red_max_threshold = 0;
+    double red_max_drop_probability = 0.0;
+
     bool bridge = false;
 
     std::size_t routes_using_link = 0;

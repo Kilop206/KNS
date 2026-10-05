@@ -1191,6 +1191,18 @@ NetworkAnalysis NetworkAnalyzer::analyze(
             metrics.bandwidth_mbps =
                 link->getBandwidthMbps();
 
+            metrics.queue_capacity =
+                link->getQueueCapacity();
+
+            if (link->getQueueDiscipline() == Link::QueueDiscipline::RED) {
+                metrics.queue_policy = "red";
+                metrics.red_min_threshold = link->getRedMinThreshold();
+                metrics.red_max_threshold = link->getRedMaxThreshold();
+                metrics.red_max_drop_probability = link->getRedMaxDropProbability();
+            } else {
+                metrics.queue_policy = "drop_tail";
+            }
+
             break;
         }
 

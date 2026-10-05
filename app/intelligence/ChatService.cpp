@@ -65,8 +65,17 @@ void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::stri
         if (analysis.links.size() == analysis.link_count) {
             auto links = nlohmann::json::array();
             for (const auto& link : analysis.links) {
-                links.push_back({{"from", link.from}, {"to", link.to},
-                                 {"delay_ms", link.delay_ms}, {"bandwidth_mbps", link.bandwidth_mbps}});
+                links.push_back({
+                    {"from", link.from},
+                    {"to", link.to},
+                    {"delay_ms", link.delay_ms},
+                    {"bandwidth_mbps", link.bandwidth_mbps},
+                    {"queue_capacity", link.queue_capacity},
+                    {"queue_policy", link.queue_policy},
+                    {"red_min_threshold", link.red_min_threshold},
+                    {"red_max_threshold", link.red_max_threshold},
+                    {"red_max_drop_probability", link.red_max_drop_probability}
+                });
             }
             snapshot["context"]["network"]["links"] = std::move(links);
         }
