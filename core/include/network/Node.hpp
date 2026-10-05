@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "network/DeviceType.hpp"
+#include "network/services/NetworkService.hpp"
 
 namespace kns {
 
@@ -56,6 +57,16 @@ namespace kns {
         const std::optional<NodePosition>& getPosition() const noexcept { return position_; }
         void setPosition(NodePosition position) noexcept { position_ = position; }
 
+        const std::vector<NetworkService>& getServices() const noexcept { return services_; }
+        bool hasServiceConfiguration() const noexcept { return services_configured_; }
+        std::uint64_t getServicesRevision() const noexcept { return services_revision_; }
+        void setServices(std::vector<NetworkService> services) {
+            validateServices(services);
+            if (services != services_) ++services_revision_;
+            services_ = std::move(services);
+            services_configured_ = true;
+        }
+
         /// Whether this node is considered active. A node that has been
         /// removed from the topology is marked inactive but its ID is not
         /// recycled (preserving referential integrity of in-flight packets).
@@ -68,6 +79,9 @@ namespace kns {
         bool active_ = true;
         DeviceInfo device_;
         std::optional<NodePosition> position_;
+        std::vector<NetworkService> services_;
+        bool services_configured_ = false;
+        std::uint64_t services_revision_ = 0;
     };
 
 } // namespace kns

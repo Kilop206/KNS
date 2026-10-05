@@ -60,6 +60,12 @@ namespace kns
 
         packet.packet_type = inferPacketType(packet.tcp);
 
+        // Bound application datagrams even if runtime routing changes form a loop.
+        if (packet.service && packet.hop_count > 4096) {
+            engine.getStats().packets_lost++;
+            return;
+        }
+
         assert(packet.current_node >= 0);
 
         if (packet.current_node != packet.destination) {
@@ -76,6 +82,11 @@ namespace kns
             const double latency = engine.now() - packet.creation_time;
             stats.total_latency += latency;
             engine.notifyLatencyDelivered(latency);
+        }
+
+        if (packet.service) {
+            engine.networkServices().receive(engine, packet);
+            return;
         }
 
         // A packet must match both its correlation ID and the session's

@@ -6,6 +6,12 @@
 
 namespace kns {
 
+    void Topology::setNodeServices(int id, std::vector<NetworkService> services) {
+        const auto* node = getNode(id);
+        if (!node || !node->isActive()) throw std::invalid_argument("Device is missing or inactive");
+        nodes_[static_cast<std::size_t>(id)].setServices(std::move(services));
+    }
+
     Topology Topology::cloneForRun() const {
         Topology result;
         result.nodes_ = nodes_;

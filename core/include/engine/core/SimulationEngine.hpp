@@ -48,6 +48,7 @@ namespace kns {
     class SimulationEngine {
     private:
         Random random_;
+        ServiceRuntime services_;
         void untrackTCPListenerSession(const TCPSession& session) noexcept;
 
         double loss_prob = 0.01;
@@ -97,6 +98,8 @@ namespace kns {
         void requireActiveTCPNode(int node_id) const;
 
     public:
+        ServiceRuntime& networkServices() noexcept { return services_; }
+        const ServiceRuntime& networkServices() const noexcept { return services_; }
         double random();
         std::uint32_t randomSequence() { return random_.nextUint32(); }
 

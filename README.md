@@ -11,6 +11,10 @@ and congestion-control state.
 
 ## Highlights
 
+- configurable HTTP and DNS services on simulated devices, with a GUI editor,
+  per-device CLI, routed requests and saved configuration
+  ([guide and simulation scope](docs/network-services.md));
+
 - deterministic event ordering by simulation timestamp and event ID;
 - Dijkstra routing with delay, bandwidth, hop-count, and combined metrics;
 - full-duplex, half-duplex, and simplex links with bounded queues;

@@ -12,6 +12,7 @@ endif()
 
 target_sources(KNS PRIVATE
     main.cpp
+    cli/DeviceConsole.cpp
     intelligence/IntelligenceClient.cpp
     intelligence/IntelligenceConfigLoader.cpp
     intelligence/IntelligenceService.cpp
@@ -27,6 +28,7 @@ target_sources(KNS PRIVATE
     gui/src/ThemeManager.cpp
     gui/src/TcpCongestionPanel.cpp
     gui/src/TcpConnectionPanel.cpp
+    gui/src/NetworkServicesPanel.cpp
     gui/src/TcpTimelinePanel.cpp
     gui/src/TopologyPannel.cpp
     gui/src/TopologyCanvas.cpp

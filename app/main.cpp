@@ -52,6 +52,9 @@
 #include "gui/include/PacketRenderer.hpp"
 #include "gui/include/TcpCongestionPanel.hpp"
 #include "gui/include/TcpConnectionPanel.hpp"
+#include "gui/include/NetworkServicesPanel.hpp"
+#include "network/services/DeviceCLI.hpp"
+#include "cli/DeviceConsole.hpp"
 #include "gui/include/TopologyPannel.hpp"
 #include "gui/include/TopologyCanvas.hpp"
 #include "gui/include/VisualPacketManager.hpp"
@@ -82,10 +85,12 @@ namespace {
         output
             << "Usage:\n"
             << "  KNS [topology.json]\n"
+            << "  KNS --topology <file> --device-cli <device-id>\n"
             << "  KNS --hub-topology <id>\n"
             << "  KNS --headless (--topology <file> | --hub-topology <id>) [--output <csv>] "
             << "[--routing-metric <metric>]\n\n"
             << "Options:\n"
+            << "  --device-cli <device-id>   Open a simulated device terminal on stdin (no GUI)\n"
             << "  --headless                 Run without the graphical interface\n"
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
@@ -1007,6 +1012,7 @@ static void SetupDockingLayout()
     );
     ImGui::DockBuilderDockWindow("Topology###topology-window", dock_right);
     ImGui::DockBuilderDockWindow("TCP Connections###tcp-connections-window", dock_right);
+    ImGui::DockBuilderDockWindow("Device Services###device-services-window", dock_right);
     ImGui::DockBuilderDockWindow("TCP Sessions###tcp-sessions-window", dock_left);
     ImGui::DockBuilderDockWindow("Event Log###event-log-window", dock_left);
     ImGui::DockBuilderDockWindow("TCP Congestion Control###tcp-congestion-window", dock_left);
@@ -1356,8 +1362,10 @@ static void visualizeWindow(
                     << from
                     << " -> "
                     << to
-                    << " session="
-                    << session_id;
+                    << (p.service ? " service-request=" : " session=")
+                    << (p.service ? p.service->request_id : session_id);
+                if (p.service) oss << ' ' << serviceKindName(p.service->kind)
+                    << (p.service->response ? " response" : " request");
 
                 eventLog.add(
                     departureTime,
@@ -1397,11 +1405,13 @@ static void visualizeWindow(
     int selected_node = -1;
 
     TcpConnectionPanel tcpConnectionPanel;
+    NetworkServicesPanel networkServicesPanel;
     TopologyPanel topologyPanel;
     TopologyCanvas topologyCanvas;
 
     auto restartSimulation = [&]()
     {
+        networkServicesPanel.reset();
         topo = engine->getTopology().cloneForRun();
         visualTime = 0.0;
         lastRealTime = glfwGetTime();
@@ -1625,6 +1635,9 @@ static void visualizeWindow(
             translations
         );
 
+        if (networkServicesPanel.render(*engine, selected_node, translations) && state != SimulationState::Running)
+            state = SimulationState::Paused;
+
         // --------------------------------------------------
         // Topology loading
         // --------------------------------------------------
@@ -1818,6 +1831,7 @@ static void shutdownWindow(
 int main(int argc, char* argv[])
 {
     bool headless = false;
+    std::optional<int> cliDevice;
     bool watchTopology = false;
 
     int topologyPathIndex = -1;
@@ -1843,6 +1857,19 @@ int main(int argc, char* argv[])
         if (arg == "--headless")
         {
             headless = true;
+            continue;
+        }
+
+        if (arg == "--device-cli") {
+            if (i + 1 >= argc) { std::cerr << "Missing device ID\n"; return 1; }
+            const std::string_view value = argv[++i];
+            int id = -1;
+            const auto result = std::from_chars(value.data(), value.data() + value.size(), id);
+            if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || id < 0) {
+                std::cerr << "Device ID must be a non-negative integer\n";
+                return 1;
+            }
+            cliDevice = id;
             continue;
         }
 
@@ -2008,6 +2035,23 @@ int main(int argc, char* argv[])
         printUsage(std::cerr);
 
         return 1;
+    }
+
+    if (cliDevice) {
+        if (topologyPathIndex < 0 || headless || hubTopologyId || watchTopology || topologyDiffPathIndex >= 0 ||
+            outputPathIndex >= 0 || !headlessLinkEvents.empty()) {
+            std::cerr << "--device-cli requires a local --topology and cannot be combined with headless, Hub, watch, output or link-event options\n";
+            return 1;
+        }
+        try {
+            SimulationEngine engine(TopologyLoader::load_topology(argv[topologyPathIndex]));
+            engine.configureRun(runConfig);
+            engine.setRoutingMetric(routingMetric.value_or(RoutingMetric::Delay));
+            return kns::app::runDeviceConsole(engine, *cliDevice, std::cin, std::cout);
+        } catch (const std::exception& error) {
+            std::cerr << "Device CLI error: " << error.what() << '\n';
+            return 1;
+        }
     }
 
     if (hubTopologyId && topologyPathIndex >= 0) {

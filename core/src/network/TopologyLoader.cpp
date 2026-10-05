@@ -67,6 +67,43 @@ namespace kns {
                 device.evidence = node.value("evidence", "");
                 topology.setNodeDeviceInfo(id, std::move(device));
                 topology.setNodeLabel(id, node.value("label", ""));
+                if (node.contains("services")) {
+                    const auto& entries = node.at("services");
+                    if (!entries.is_array() || entries.size() > 32)
+                        throw std::invalid_argument("services must be an array with at most 32 entries");
+                    std::vector<NetworkService> services;
+                    for (const auto& entry : entries) {
+                        NetworkService service;
+                        service.name = entry.at("name").get<std::string>();
+                        service.kind = parseServiceKind(entry.at("kind").get<std::string>());
+                        const auto& port = entry.at("port");
+                        if (!port.is_number_integer() || port < 1 || port > 65535)
+                            throw std::invalid_argument("Service port must be an integer in [1, 65535]");
+                        service.port = port.get<int>();
+                        service.enabled = entry.value("enabled", true);
+                        service.delay_ms = entry.value("delay_ms", 0.0);
+                        if (entry.contains("pages")) {
+                            if (!entry.at("pages").is_object() || entry.at("pages").size() > 128)
+                                throw std::invalid_argument("pages must be an object with at most 128 entries");
+                            for (const auto& [path, page] : entry.at("pages").items()) {
+                                const auto& status = page.at("status");
+                                if (!status.is_number_integer() || status < 200 || status > 599)
+                                    throw std::invalid_argument("HTTP status must be an integer in [200, 599]");
+                                service.pages.emplace(path, HttpPage{status.get<int>(), page.at("body").get<std::string>()});
+                            }
+                        }
+                        if (entry.contains("records")) {
+                            if (!entry.at("records").is_object() || entry.at("records").size() > 128)
+                                throw std::invalid_argument("records must be an object with at most 128 entries");
+                            for (const auto& [name, address] : entry.at("records").items()) {
+                                if (!service.records.emplace(normalizeDnsName(name), address.get<std::string>()).second)
+                                    throw std::invalid_argument("Duplicate DNS name after normalization");
+                            }
+                        }
+                        services.push_back(std::move(service));
+                    }
+                    topology.setNodeServices(id, std::move(services));
+                }
                 if (node.contains("position")) {
                     const auto& position = node.at("position");
                     if (!position.is_object() || !position.contains("x") || !position.contains("y") ||
@@ -162,6 +199,19 @@ namespace kns {
             if (node.getPosition()) {
                 result["nodes"].back()["position"] = {
                     {"x", node.getPosition()->x}, {"y", node.getPosition()->y}};
+            }
+            if (node.hasServiceConfiguration()) {
+                auto& services = result["nodes"].back()["services"] = json::array();
+                for (const auto& service : node.getServices()) {
+                    json entry = {{"name", service.name}, {"kind", serviceKindName(service.kind)},
+                        {"port", service.port}, {"enabled", service.enabled}, {"delay_ms", service.delay_ms}};
+                    if (service.kind == ServiceKind::Http) {
+                        entry["pages"] = json::object();
+                        for (const auto& [path, page] : service.pages)
+                            entry["pages"][path] = {{"status", page.status}, {"body", page.body}};
+                    } else entry["records"] = service.records;
+                    services.push_back(std::move(entry));
+                }
             }
         }
         for (const auto& link : topology.getLinks()) {

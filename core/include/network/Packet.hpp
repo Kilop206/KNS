@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
+#include <optional>
+#include "network/services/ServiceRuntime.hpp"
 
 #include "enums/PacketType.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
@@ -39,6 +41,10 @@ namespace kns {
         static constexpr int TCP_IPV4_HEADER_BYTES = 40;
 
         int serializedSize() const {
+            if (service) {
+                if (service->payload.size() > 4096) throw std::invalid_argument("Service payload exceeds 4096 bytes");
+                return 28 + static_cast<int>(service->payload.size());
+            }
             if (tcp.flags == TCPFlag::None && tcp.payload.empty()) {
                 return packet_size_bytes;
             }
@@ -72,6 +78,7 @@ namespace kns {
         std::uint64_t link_id = 0;
 
         TCPSegment tcp;
+        std::optional<ServiceMessage> service;
 
         Packet() = default;
 

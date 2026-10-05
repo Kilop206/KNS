@@ -76,6 +76,12 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         const auto& incoming = *snapshot.getNode(source);
         setNodeLabel(target, incoming.getLabel());
         setNodeDeviceInfo(target, incoming.getDeviceInfo());
+        // Discovery without services preserves local programs. An explicit [] clears them.
+        if (incoming.hasServiceConfiguration() &&
+            (!getNode(target)->hasServiceConfiguration() || incoming.getServices() != getNode(target)->getServices())) {
+            setNodeServices(target, incoming.getServices());
+            layout_changed = true;
+        }
         // Discovery snapshots omit positions; keep the user's canvas layout.
         if (incoming.getPosition() && incoming.getPosition() != getNode(target)->getPosition()) {
             setNodePosition(target, *incoming.getPosition());

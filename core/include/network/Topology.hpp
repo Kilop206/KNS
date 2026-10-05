@@ -109,6 +109,8 @@ namespace kns {
         bool setNodeDeviceInfo(int id, DeviceInfo device);
         /// Canvas coordinates do not affect routing or simulation state.
         bool setNodePosition(int id, NodePosition position);
+        /// Atomically validate and replace the device's service configuration.
+        void setNodeServices(int id, std::vector<NetworkService> services);
 
         /// Reconcile an authoritative snapshot on the simulation thread. Stable
         /// external IDs preserve active nodes; removed IDs are never recycled.

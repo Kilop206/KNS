@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "name": "HTTP and DNS lab",
+  "nodes": [
+    {"id": 0, "label": "Client", "type": "computer", "position": {"x": 100, "y": 200}},
+    {"id": 1, "label": "Router", "type": "router", "position": {"x": 350, "y": 200}},
+    {
+      "id": 2, "label": "Services", "type": "server", "addresses": ["192.0.2.20"],
+      "position": {"x": 600, "y": 200},
+      "services": [
+        {"name": "web", "kind": "http", "port": 80, "enabled": true, "delay_ms": 10,
+         "pages": {"/": {"status": 200, "body": "Welcome to the KNS services lab"},
+                   "/health": {"status": 200, "body": "ok"}}},
+        {"name": "names", "kind": "dns", "port": 53, "enabled": true, "delay_ms": 1,
+         "records": {"web.example": "192.0.2.20"}}
+      ]
+    }
+  ],
+  "links": [
+    {"from": 0, "to": 1, "bandwidth": 100, "delay": 5, "loss": 0},
+    {"from": 1, "to": 2, "bandwidth": 100, "delay": 5, "loss": 0}
+  ]
+}
