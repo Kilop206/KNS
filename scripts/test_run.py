@@ -71,8 +71,9 @@ class StatsTests(unittest.TestCase):
             4096,
         )
         self.assertEqual(
-            command[-6:],
-            ["--routing-metric", "hop-count", "--seed", "123", "--packet-size", "4096"],
+            command[-8:],
+            ["--routing-metric", "hop-count", "--seed", "123", "--packet-size", "4096",
+             "--congestion-control", "reno"],
         )
 
     def test_engine_csv(self):
@@ -96,6 +97,18 @@ class BenchmarkSuiteTests(unittest.TestCase):
             {"delay", "bandwidth", "hop-count", "delay-bandwidth"},
         )
         self.assertEqual({case["seed"] for case in cases}, {42, 43, 44})
+        self.assertEqual({case["congestion_control"] for case in cases}, {"reno"})
+
+    def test_tcp_congestion_baseline_expands_all_algorithms(self):
+        root = Path(__file__).resolve().parent.parent
+        suite = benchmark_suite.load_suite(root / "benchmarks/v1/tcp-congestion-baseline.json")
+        cases = benchmark_suite.expand_cases(suite)
+        self.assertEqual(suite["name"], "tcp-congestion-baseline-v1")
+        self.assertEqual(len(cases), 24)
+        self.assertEqual(
+            {case["congestion_control"] for case in cases},
+            {"tahoe", "reno", "newreno", "cubic"},
+        )
 
 
 class ProcessTests(unittest.TestCase):
@@ -167,7 +180,7 @@ class ProcessTests(unittest.TestCase):
     def test_mixed_batch_exit_and_reports(self):
         for name in ("ok", "bad"):
             (self.root / f"{name}.json").write_text("{}")
-        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500):
+        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500, congestion_control="reno"):
             if topo.stem == "bad":
                 return [sys.executable, "-c", "raise SystemExit(7)"]
             content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
