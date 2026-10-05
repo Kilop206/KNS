@@ -432,7 +432,64 @@ namespace kns {
         if (value < std::max({queue_ab_.size(), queue_ba_.size(), queue_shared_.size()})) {
             throw std::invalid_argument("Link queue capacity cannot be smaller than its occupancy");
         }
+        if (queue_discipline_ == QueueDiscipline::RED && value < red_max_threshold_) {
+            throw std::invalid_argument("Link queue capacity cannot be smaller than RED max threshold");
+        }
         queue_capacity_ = value;
+    }
+
+    void Link::configureRed(
+        int min_threshold,
+        int max_threshold,
+        double max_drop_probability
+    )
+    {
+        if (
+            min_threshold < 0 ||
+            max_threshold <= min_threshold ||
+            static_cast<std::size_t>(max_threshold) > queue_capacity_
+        ) {
+            throw std::invalid_argument(
+                "RED thresholds must satisfy 0 <= min < max <= queue capacity"
+            );
+        }
+        if (
+            !std::isfinite(max_drop_probability) ||
+            max_drop_probability < 0.0 ||
+            max_drop_probability > 1.0
+        ) {
+            throw std::invalid_argument(
+                "RED max drop probability must be finite and between 0.0 and 1.0"
+            );
+        }
+
+        red_min_threshold_ = static_cast<std::size_t>(min_threshold);
+        red_max_threshold_ = static_cast<std::size_t>(max_threshold);
+        red_max_drop_probability_ = max_drop_probability;
+        queue_discipline_ = QueueDiscipline::RED;
+    }
+
+    double Link::earlyDropProbability(int from, int to) const noexcept
+    {
+        if (queue_discipline_ != QueueDiscipline::RED) {
+            return 0.0;
+        }
+
+        const auto occupancy = estimatedQueueSize(0.0, from, to);
+        if (occupancy <= red_min_threshold_) {
+            return 0.0;
+        }
+        if (occupancy >= red_max_threshold_) {
+            return 1.0;
+        }
+
+        const double span = static_cast<double>(
+            red_max_threshold_ - red_min_threshold_
+        );
+        const double position = static_cast<double>(
+            occupancy - red_min_threshold_
+        );
+        return red_max_drop_probability_ * (position / span);
     }
 
     bool Link::isUp() const noexcept
