@@ -211,3 +211,22 @@ TEST_CASE(
     REQUIRE(link.canQueue(0, 1));
     REQUIRE_FALSE(link.canQueue(1, 0));
 }
+
+
+TEST_CASE("RED deterministically drops at max threshold", "[network][link][queue][red][integration]")
+{
+    Topology topology(2);
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 4);
+    link->configureRed(0, 1, 1.0);
+
+    SimulationEngine engine(topology);
+    link = engine.getTopology().getLinks().front();
+
+    Packet packet(0, 1, 0, 0.0, 100, 999);
+    REQUIRE(engine.sendPacket(packet, *link, 0.0));
+    REQUIRE(link->getQueueSize() == 1);
+
+    REQUIRE_FALSE(engine.sendPacket(packet, *link, 0.0));
+    REQUIRE(engine.getStats().packets_lost == 1);
+    REQUIRE(link->getQueueSize() == 1);
+}
