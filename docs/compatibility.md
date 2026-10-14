@@ -22,8 +22,11 @@ contracts are the stable boundary.
 - Release notes must call out contract changes explicitly.
 - KNS, Discovery, Hub, Sentient and KiWi tags are independent; matching tag
   numbers are not required.
-- A release candidate is considered ecosystem-compatible only after each
-  repository's own CI passes and the KNS contract-validation job passes.
+- A release candidate is ecosystem-compatible only after component CI and the
+  private five-component acceptance workflow pass for the exact candidate commits.
+- KNS and Discovery are public. Hub, Sentient and KiWi are private; their source,
+  execution logs and artifacts must stay in authorized private storage.
+- Public contract validation proves schema structure, not private integration.
 
 ## Current KNS line
 
@@ -38,8 +41,9 @@ A coordinated ecosystem release does not require matching version numbers.
 It requires compatible contracts and green component pipelines.
 
 1. Merge all contract changes into KNS `main`.
-2. Wait for the KNS ecosystem contract integration workflow to pass against the
-   current `main` branches of Discovery, Topology Hub, Sentient KNS and KiWi.
+2. Run the private acceptance workflow in Sentient against exact commits of all
+   five repositories. The public KNS workflow checks only public contracts and
+   Discovery; it has no private repository credentials.
 3. Tag producer/consumer components only after their repository CI is green.
 4. Publish KNS Discovery before KNS when a topology producer change is involved.
 5. Publish KiWi before Sentient KNS when an intelligence/chat behavior change is
@@ -53,6 +57,12 @@ It requires compatible contracts and green component pipelines.
    version.
 10. Treat any breaking contract change as a new contract version, even when the
     product change would otherwise look like a patch release.
+
+The preflight distinguishes `structural_ready` from `software_ready`. Public CI
+uses `--structural-only`; a coordinated release requires `--evidence` with a
+fresh private execution bundle, passing component/integration/restore results,
+clean source commits and verified artifact hashes. Keep that bundle private.
+Independent component releases do not constitute an accepted ecosystem release.
 
 ### Suggested first coordinated line
 

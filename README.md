@@ -322,7 +322,8 @@ The main remaining integration and extension areas are:
 - expand simultaneous-open/close and general RST behavior;
 - add TCP options such as SACK and timestamps;
 - implement dynamic routing protocols rather than centralized table rebuilds;
-- add active queue-management policies such as RED.
+- extend the existing instantaneous-occupancy RED model with averaged-queue
+  behavior and additional queue-management policies.
 
 ## Contributing
 

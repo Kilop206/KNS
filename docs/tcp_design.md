@@ -186,7 +186,8 @@ are closed, any listener backlog slot is released.
 Implemented mechanisms should not be confused with full RFC conformance. The
 current model still has these deliberate limitations:
 
-- no IP, Ethernet, ARP, checksum, fragmentation, or application protocol layer;
+- no wire-level IP, Ethernet, ARP, checksum or fragmentation model; HTTP/DNS
+  application-service simulation is available separately (see network-services.md);
 - no TCP option negotiation, SACK, timestamps, persist timer, keepalive, Nagle,
   or silly-window avoidance;
 - generated application traffic is client-to-server and uses a fixed engine
