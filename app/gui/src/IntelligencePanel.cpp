@@ -65,6 +65,7 @@ void IntelligencePanel::render(
     const std::optional<
         kns::analysis::NetworkAnalysis
     >& analysis,
+    const kns::Stats& stats,
     std::uint64_t topologyRevision
 )
 {
@@ -85,7 +86,7 @@ void IntelligencePanel::render(
 
     if (ImGui::BeginTabBar("intelligence_tabs")) {
         if (ImGui::BeginTabItem("KiWi Chat")) {
-            renderChat(analysis);
+            renderChat(analysis, stats);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Analysis")) {
@@ -160,7 +161,7 @@ void IntelligencePanel::renderAnalysis(
 
 }
 
-void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis)
+void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis, const kns::Stats& stats)
 {
     ImGui::TextWrapped("Converse com a KiWi sobre esta topologia.");
     ImGui::TextDisabled("Contexto: análise da topologia, sem telemetria ao vivo.");
@@ -304,7 +305,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
     const bool clicked = ImGui::Button("Enviar");
     ImGui::EndDisabled();
     if ((submitted || clicked) && !empty && analysis && !chat_.busy() && !chat_.canRetry()) {
-        chat_.send(*analysis, chat_input_.data());
+        chat_.send(*analysis, stats, chat_input_.data());
         if (chat_.busy() || chat_.canRetry()) {
             chat_input_.fill(0);
             chat_scroll_to_latest_ = true;

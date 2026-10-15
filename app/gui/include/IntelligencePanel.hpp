@@ -4,6 +4,7 @@
 #include <array>
 
 #include "analysis/NetworkAnalysis.hpp"
+#include "engine/core/Stats.hpp"
 #include "intelligence/IntelligenceService.hpp"
 #include "intelligence/ChatService.hpp"
 
@@ -19,13 +20,14 @@ public:
         const std::optional<
             kns::analysis::NetworkAnalysis
         >& analysis,
+        const kns::Stats& stats,
         std::uint64_t topologyRevision
     );
 
 private:
     void renderAnalysis(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
                         std::uint64_t topologyRevision);
-    void renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis);
+    void renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis, const kns::Stats& stats);
     intelligence::ChatService chat_;
     std::array<char, 4097> chat_input_{};
     std::uint64_t chat_revision_ = 0;
