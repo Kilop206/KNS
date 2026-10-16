@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0",
   "name": "tcp-congestion-baseline-v1",
+  "allow_transport_failures": true,
   "description": "Baseline comparison of Tahoe, Reno, NewReno and CUBIC under identical bundled topologies, routing, payload size and deterministic seeds.",
   "topologies": [
     "app/topologies/mesh4.json",

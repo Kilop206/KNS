@@ -25,6 +25,8 @@ def load_suite(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("schema_version") != "1.0":
         raise ValueError("Unsupported benchmark suite schema_version")
+    if not isinstance(data.get("allow_transport_failures", False), bool):
+        raise ValueError("allow_transport_failures must be a boolean")
     required = {"name", "topologies", "routing_metrics", "seeds", "packet_sizes"}
     missing = required - set(data)
     if missing:
@@ -282,11 +284,13 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
     lines += ["", "## Cases", "", "| Case | Status | Delivery | Loss | Queue overflow | RED early | Throughput pps | Latency s | Sim duration s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for row in rows:
         lines.append(
-            "| {case} | {status} | {delivery} | {loss} | {throughput} | {latency} | {duration} |".format(
+            "| {case} | {status} | {delivery} | {loss} | {overflow} | {red} | {throughput} | {latency} | {duration} |".format(
                 case=row["case_id"],
                 status=row["status"],
                 delivery=_format_number(row.get("delivery_rate")),
                 loss=_format_number(row.get("loss_rate")),
+                overflow=_format_number(row.get("queue_overflow_drops")),
+                red=_format_number(row.get("red_early_drops")),
                 throughput=_format_number(row.get("throughput_pps")),
                 latency=_format_number(row.get("avg_latency_s")),
                 duration=_format_number(row.get("simulation_duration_s")),
@@ -327,6 +331,9 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
         for row in rows:
             if row.get("returncode") != 0:
                 lines.append(f"- `{row['case_id']}`: {row['status']} (return code {row['returncode']})")
+        if metadata["suite"].get("allow_transport_failures", False):
+            lines += ["", "This loss suite accepts orderly transport retry exhaustion (exit 2). "
+                      "These cases remain failed transport outcomes above; process, timeout and stats errors still fail the benchmark."]
 
     (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -409,7 +416,9 @@ def main(argv: list[str] | None = None) -> int:
                     check=False,
                 )
                 returncode = completed.returncode
-                if returncode != 0:
+                if returncode == 2:
+                    status = "transport_failure"
+                elif returncode != 0:
                     status = "process_error"
             except subprocess.TimeoutExpired:
                 status = "timeout"
@@ -417,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
 
         wall = time.perf_counter() - started
         stats = None
-        if returncode == 0:
+        if returncode in (0, 2):
             try:
                 stats = runner.parse_stats(csv_path)
             except (OSError, ValueError) as exc:
@@ -440,6 +449,8 @@ def main(argv: list[str] | None = None) -> int:
             "packets_sent": derived["packets_sent"],
             "packets_delivered": derived["packets_delivered"],
             "packets_lost": derived["packets_lost"],
+            "queue_overflow_drops": (stats or {}).get("queue_overflow_drops"),
+            "red_early_drops": (stats or {}).get("red_early_drops"),
             "delivery_rate": derived["delivery_rate"],
             "loss_rate": derived["loss_rate"],
             "throughput_pps": derived["throughput_pps"],
@@ -459,6 +470,7 @@ def main(argv: list[str] | None = None) -> int:
         "case_count": len(records),
         "successful_cases": sum(1 for row in records if row["returncode"] == 0),
         "failed_cases": sum(1 for row in records if row["returncode"] != 0),
+        "transport_failed_cases": sum(1 for row in records if row["status"] == "transport_failure"),
         "cases": records,
     }
     (output / "benchmark.json").write_text(
@@ -479,7 +491,10 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    return 1 if metadata["failed_cases"] else 0
+    accepted = {"success"}
+    if suite.get("allow_transport_failures", False):
+        accepted.add("transport_failure")
+    return int(any(row["status"] not in accepted for row in records))
 
 
 if __name__ == "__main__":

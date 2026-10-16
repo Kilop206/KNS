@@ -2212,9 +2212,23 @@ int main(int argc, char* argv[])
         const ValidationReport report =
             engine->validateSimulation();
 
+        if (!report.passed()) {
+            std::cerr << "Simulation validation failed: completed_sessions="
+                      << report.completed_sessions << '/' << report.total_sessions
+                      << ", traffic_ok=" << report.traffic_ok << '\n';
+            for (const auto& [id, session] : engine->getTCPSessions()) {
+                std::cerr << "  session=" << id
+                          << " client_state=" << static_cast<int>(session.getClientConnection().getTcpState())
+                          << " server_state=" << static_cast<int>(session.getServerConnection().getTcpState())
+                          << " failure=" << static_cast<int>(session.getFailureReason())
+                          << " generated=" << session.hasGeneratedTraffic()
+                          << " complete=" << session.isComplete() << '\n';
+            }
+        }
+
         return report.passed()
             ? 0
-            : 1;
+            : (report.transportFailed() ? 2 : 1);
     }
 
     // --------------------------------------------------

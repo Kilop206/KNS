@@ -297,6 +297,35 @@ class ProcessTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
+    def test_benchmark_transport_outcomes_preserve_metrics_and_do_not_hide_errors(self):
+        import json
+        suite = benchmark_suite.load_suite(benchmark_suite.ROOT / "benchmarks/v1/tcp-congestion-baseline.json")
+        suite.update(topologies=["app/topologies/mesh5.json"], seeds=[42], congestion_controls=["reno"])
+        content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
+                   "packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,"
+                   "red_early_drops,schema_version,simulation_duration_s,seed\n10,8,2,0,0,0,1,4,1,1,1,2,42\n")
+        for allow, code, output_csv, expected, status in (
+            (True, 2, True, 0, "transport_failure"),
+            (False, 2, True, 1, "transport_failure"),
+            (True, 1, True, 1, "process_error"),
+            (True, 2, False, 1, "stats_error"),
+        ):
+            with self.subTest(allow=allow, code=code, output_csv=output_csv):
+                suite["allow_transport_failures"] = allow
+                output = self.root / f"{allow}-{code}-{output_csv}"
+                def command(exe, topo, csv_path, *args):
+                    script = f"from pathlib import Path; Path({str(csv_path)!r}).write_text({content!r}); " if output_csv else ""
+                    return [sys.executable, "-c", script + f"raise SystemExit({code})"]
+                with patch.object(benchmark_suite, "load_suite", return_value=suite), \
+                     patch.object(runner, "build_command", side_effect=command):
+                    self.assertEqual(benchmark_suite.main(["--exe", sys.executable, "--output", str(output)]), expected)
+                report = json.loads((output / "benchmark.json").read_text())
+                self.assertEqual(report["failed_cases"], 1)
+                self.assertEqual(report["cases"][0]["status"], status)
+                if status == "transport_failure":
+                    self.assertEqual(report["cases"][0]["packets_lost"], 2)
+                    self.assertEqual(report["cases"][0]["red_early_drops"], 1)
+
     def launch(self, code, name):
         topo = self.root / f"{name}.json"
         log = self.root / f"{name}.log"
