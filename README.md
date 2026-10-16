@@ -56,7 +56,7 @@ On Debian or Ubuntu, the graphical build commonly needs:
 ```bash
 sudo apt-get update
 sudo apt-get install -y \
-  build-essential cmake git \
+  build-essential cmake git libssl-dev \
   libgl1-mesa-dev xorg-dev \
   libwayland-dev wayland-protocols \
   libxkbcommon-dev extra-cmake-modules
@@ -78,6 +78,28 @@ Useful configuration options:
 | `KNS_BUILD_APP` | `ON` | Build the GUI/headless executable. |
 | `KNS_BUILD_TESTS` | `ON` | Build and register the test suite. |
 | `KNS_ENABLE_WARNINGS` | `ON` | Enable the project's compiler warnings. |
+| `KNS_WARNINGS_AS_ERRORS` | `OFF` | Treat warnings in KNS targets as build errors. |
+| `KNS_ENABLE_SANITIZERS` | `OFF` | Enable ASan and UBSan with GCC/Clang on Linux/macOS. Unsupported toolchains fail configuration. |
+| `KNS_ENABLE_TLS` | `ON` | Require OpenSSL for verified HTTPS in desktop service clients. |
+
+Desktop builds require OpenSSL development libraries from the same toolchain.
+Set `OPENSSL_ROOT_DIR` when CMake cannot locate them. Windows CI uses vcpkg's
+`openssl:x64-windows-static-md`; MinGW builds need a matching MinGW OpenSSL.
+TLS libraries are linked statically. Certificate and hostname verification stay
+enabled. `-DKNS_ENABLE_TLS=OFF` is an explicit HTTP-only development build.
+Linux CTest includes `desktop_https`, which creates temporary certificates and
+checks trusted HTTPS, rejection of an unknown issuer and hostname mismatch.
+
+Chat requests include the simulation counters available when the user sends
+the question, including RED early drops and queue overflow drops. Retries keep
+that same snapshot; callers without statistics omit simulation measurements.
+
+Headless exit codes are `0` for completed sessions, `2` for orderly transport
+retry exhaustion, and `1` for invalid input or execution. The TCP congestion
+benchmark explicitly allows code `2` as a loss experiment outcome and keeps it
+marked `transport_failure`, with metrics and diagnostics. It still rejects
+crashes, timeouts, malformed statistics and unfinished sessions. Other suites
+remain strict unless `allow_transport_failures` is explicitly enabled.
 
 For a multi-config generator such as Visual Studio, select the configuration
 explicitly when needed:
