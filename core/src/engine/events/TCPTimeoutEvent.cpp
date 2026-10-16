@@ -60,7 +60,8 @@ namespace kns {
                 << '\n'
             );
 
-            client.failRetransmission();
+            session.failData();
+            engine.releaseTCPListenerSession(session_id_);
             return;
         }
 

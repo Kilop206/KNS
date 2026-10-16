@@ -1,6 +1,12 @@
 #include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns {
+    void TCPSession::failData() noexcept
+    {
+        failure_reason_ = FailureReason::DataRetriesExhausted;
+        client_connection.failRetransmission();
+        server_connection.failRetransmission();
+    }
     void TCPSession::failClose() noexcept {
         failure_reason_ = FailureReason::CloseRetriesExhausted;
         client_connection.failRetransmission();
@@ -8,8 +14,12 @@ namespace kns {
     }
     bool TCPSession::failHandshake() noexcept
     {
-        if (client_connection.getTcpState() != TCPState::SYN_SENT ||
-            client_connection.canRetrySyn()) {
+        const bool client_exhausted = client_connection.getTcpState() == TCPState::SYN_SENT &&
+            !client_connection.canRetrySyn();
+        const bool server_exhausted = client_connection.getTcpState() == TCPState::ESTABLISHED &&
+            server_connection.getTcpState() == TCPState::SYN_RECEIVED &&
+            !server_connection.canRetrySyn();
+        if (!client_exhausted && !server_exhausted) {
             return false;
         }
         failure_reason_ = FailureReason::SynRetriesExhausted;

@@ -6,6 +6,61 @@
 
 using namespace kns;
 
+TEST_CASE("Duplicate SYN-ACK is acknowledged without resetting established state", "[tcp][handshake][loss]")
+{
+    TCPConnection client(TCPState::SYN_SENT, 1000, 0, 0, 1);
+    REQUIRE(client.receive_syn_ack(500, 1001));
+    REQUIRE_FALSE(client.receive_syn_ack(501, 1001));
+    REQUIRE_FALSE(client.receive_syn_ack(500, 1002));
+    REQUIRE(client.receive_syn_ack(500, 1001));
+    REQUIRE(client.getSeqNum() == 1001);
+    REQUIRE(client.getExpectedAckNum() == 501);
+    REQUIRE(client.getTcpState() == TCPState::ESTABLISHED);
+}
+
+TEST_CASE("Lost final handshake ACK is recovered or terminates within its retry budget", "[tcp][handshake][loss]")
+{
+    Topology topology(2);
+    topology.addLink(0, 1, 100.0, 1.0, 0.0);
+    SimulationEngine engine(topology);
+    auto& listener = engine.startTCPListen(1, 1);
+    const auto id = engine.acceptOnListener(1, 0, 1000);
+    REQUIRE(id != TCPListener::INVALID_SESSION_ID);
+    auto& session = engine.getTCPSession(id);
+    auto& client = session.getClientConnection();
+    auto& server = session.getServerConnection();
+    client = TCPConnection(TCPState::SYN_SENT, 1000, 0, 0, 1);
+    REQUIRE(server.receive_syn(1000));
+    const auto syn_ack = server.buildSynAck();
+    REQUIRE(client.receive_syn_ack(syn_ack.seq, syn_ack.ack));
+    // The final ACK never reaches the server. The original handshake timer
+    // must remain responsible for the half-open session.
+    REQUIRE(server.getTcpState() == TCPState::SYN_RECEIVED);
+    engine.schedule(std::make_unique<TCPHandshakeTimeoutEvent>(1.0, id));
+    SECTION("Connectivity returns") {
+        engine.run();
+        REQUIRE(session.hasGeneratedTraffic());
+        REQUIRE(session.isDataAcknowledged());
+        REQUIRE(session.getFailureReason() == TCPSession::FailureReason::None);
+        REQUIRE(engine.validateSimulation().passed());
+    }
+    SECTION("Permanent loss") {
+        engine.getTopology().getLinks()[0]->setLossProb(1.0);
+        int events = 0;
+        while (engine.hasEvents() && events < 100) {
+            engine.processEvent();
+            ++events;
+        }
+        REQUIRE(events < 100);
+        REQUIRE_FALSE(engine.hasEvents());
+        REQUIRE(client.getTcpState() == TCPState::CLOSED);
+        REQUIRE(server.getTcpState() == TCPState::CLOSED);
+        REQUIRE(session.getFailureReason() == TCPSession::FailureReason::SynRetriesExhausted);
+        REQUIRE_FALSE(engine.validateSimulation().sessions_ok);
+    }
+    REQUIRE(listener.getActiveConnections() == 0);
+}
+
 TEST_CASE("Duplicate SYN preserves sequence state and rejects a different SYN", "[tcp][handshake][loss]")
 {
     TCPConnection server(TCPState::LISTEN, 500, 0, 1, 0);

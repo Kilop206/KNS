@@ -29,12 +29,16 @@ namespace kns {
 
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
+        auto& server = session.getServerConnection();
+        const bool awaiting_final_ack = client.getTcpState() == TCPState::ESTABLISHED &&
+            server.getTcpState() == TCPState::SYN_RECEIVED;
 
-        if (client.getTcpState() != TCPState::SYN_SENT) {
+        if (client.getTcpState() != TCPState::SYN_SENT && !awaiting_final_ack) {
             return;
         }
 
-        if (!client.canRetrySyn()) {
+        auto& sender = awaiting_final_ack ? server : client;
+        if (!sender.canRetrySyn()) {
             if (session.failHandshake()) {
                 engine.releaseTCPListenerSession(session_id_);
             }
@@ -45,25 +49,25 @@ namespace kns {
             return;
         }
 
-        client.incrementSynRetries();
+        sender.incrementSynRetries();
 
         KNS_DEBUG_LOG(
             "[TCP][SESSION "
             << session_id_
             << "] SYN_TIMEOUT retry="
-            << client.getSynRetries()
+            << sender.getSynRetries()
             << '\n');
 
         Packet syn(
-            client.getLocalNode(),
-            client.getRemoteNode(),
-            client.getLocalNode(),
+            sender.getLocalNode(),
+            sender.getRemoteNode(),
+            sender.getLocalNode(),
             engine.now(),
             engine.getGlobalPacketSize(),
             session_id_
         );
 
-        syn.tcp = client.buildSyn();
+        syn.tcp = awaiting_final_ack ? sender.buildSynAck() : sender.buildSyn();
         syn.packet_type = inferPacketType(syn.tcp);
         syn.departure_time = engine.now();
 

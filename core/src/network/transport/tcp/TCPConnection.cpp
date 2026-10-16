@@ -284,6 +284,11 @@ namespace kns {
             << '\n'
         );
 
+        // The last handshake ACK may have been lost. Re-ACK only the matching
+        // SYN-ACK; do not establish again or reset any connection state.
+        if (getTcpState() == TCPState::ESTABLISHED) {
+            return remote_seq + 1 == expected_ack_num_ && remote_ack == seq_num_;
+        }
         if (getTcpState() != TCPState::SYN_SENT) {
             return false;
         }

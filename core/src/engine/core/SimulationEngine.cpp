@@ -499,7 +499,14 @@ namespace kns {
             const auto& session = pair.second;
             const auto& client = session.getClientConnection();
             const auto& server = session.getServerConnection();
-            if (client.getTcpState() == TCPState::CLOSED &&
+            const bool drained = client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
+                client.getReceiveBufferSize() == 0 && server.getReceiveBufferSize() == 0;
+            const bool failed = session.getFailureReason() != TCPSession::FailureReason::None;
+            if (failed && drained && client.getTcpState() == TCPState::CLOSED &&
+                server.getTcpState() == TCPState::CLOSED) {
+                r.failed_sessions++;
+            }
+            if (!failed && client.getTcpState() == TCPState::CLOSED &&
                 server.getTcpState() == TCPState::CLOSED &&
                 session.hasGeneratedTraffic() && session.isComplete() &&
                 client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&

@@ -31,6 +31,7 @@ namespace kns {
     struct ValidationReport {
         std::size_t total_sessions = 0;
         std::size_t completed_sessions = 0;
+        std::size_t failed_sessions = 0;
         int expected_data_packets = 0;
         int packets_sent = 0;
         int packets_delivered = 0;
@@ -42,6 +43,10 @@ namespace kns {
 
         bool passed() const noexcept {
             return sessions_ok && traffic_ok;
+        }
+        bool transportFailed() const noexcept {
+            return traffic_ok && failed_sessions > 0 &&
+                completed_sessions + failed_sessions == total_sessions;
         }
     };
 

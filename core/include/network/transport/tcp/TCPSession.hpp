@@ -14,7 +14,8 @@ namespace kns
             enum class FailureReason {
                 None,
                 SynRetriesExhausted,
-                CloseRetriesExhausted
+                CloseRetriesExhausted,
+                DataRetriesExhausted
             };
 
         private:
@@ -34,6 +35,7 @@ namespace kns
             FailureReason getFailureReason() const noexcept { return failure_reason_; }
             bool failHandshake() noexcept;
             void failClose() noexcept;
+            void failData() noexcept;
             TCPSession();
 
             TCPSession(std::uint64_t session_id,
