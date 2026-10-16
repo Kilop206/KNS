@@ -8,6 +8,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "analysis/NetworkAnalysis.hpp"
+#include "engine/core/Stats.hpp"
 #include "intelligence/ChatReply.hpp"
 
 namespace kns::app::intelligence {
@@ -26,6 +27,7 @@ public:
     void synchronizeTopology(std::uint64_t revision);
     void clear();
     void send(const kns::analysis::NetworkAnalysis& analysis, std::string question);
+    void send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question);
     void retry();
     void discardFailedQuestion();
     void update();
@@ -38,6 +40,7 @@ public:
     [[nodiscard]] const std::optional<int>& last_quota_remaining() const { return last_quota_remaining_; }
 
 private:
+    void sendSnapshot(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats* stats, std::string question);
     void launch(nlohmann::json request);
     Transport transport_;
     std::future<ChatReply> future_;

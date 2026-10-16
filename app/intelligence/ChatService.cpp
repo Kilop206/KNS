@@ -45,6 +45,16 @@ void ChatService::clear()
 
 void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::string question)
 {
+    sendSnapshot(analysis, nullptr, std::move(question));
+}
+
+void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question)
+{
+    sendSnapshot(analysis, &stats, std::move(question));
+}
+
+void ChatService::sendSnapshot(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats* stats, std::string question)
+{
     if (busy() || failed_request_) return;
     const auto begin = question.find_first_not_of(" \t\r\n");
     if (begin == std::string::npos) return;
@@ -78,6 +88,16 @@ void ChatService::send(const kns::analysis::NetworkAnalysis& analysis, std::stri
                 });
             }
             snapshot["context"]["network"]["links"] = std::move(links);
+        }
+        if (stats) {
+            snapshot["context"]["simulation"] = {
+                {"source", "simulation_snapshot"},
+                {"packets_sent", stats->packets_sent},
+                {"packets_delivered", stats->packets_delivered},
+                {"packets_lost", stats->packets_lost},
+                {"queue_overflow_drops", stats->queue_overflow_drops},
+                {"red_early_drops", stats->red_early_drops}
+            };
         }
         auto history = nlohmann::json::array();
         // Bound both number and bytes, dropping only complete oldest turns.

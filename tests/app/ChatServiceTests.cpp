@@ -49,6 +49,66 @@ TEST_CASE("KiWi chat sends topology and bounded alternating history", "[chat]")
     REQUIRE(chat.messages().back().history_turns_omitted == 1);
 }
 
+TEST_CASE("KiWi chat exposes measured simulation loss attribution", "[chat][aqm]")
+{
+    nlohmann::json captured;
+    ChatService chat([&](const nlohmann::json& request) {
+        captured = request;
+        return ChatReply{"Measured reply"};
+    });
+
+    kns::Stats stats;
+    stats.packets_sent = 20;
+    stats.packets_delivered = 14;
+    stats.packets_lost = 6;
+    stats.queue_overflow_drops = 2;
+    stats.red_early_drops = 3;
+
+    chat.send({}, stats, "What caused the queue losses?");
+    complete(chat);
+
+    const auto& simulation = captured.at("context").at("simulation");
+    REQUIRE(simulation.at("packets_sent") == 20);
+    REQUIRE(simulation.at("packets_delivered") == 14);
+    REQUIRE(simulation.at("packets_lost") == 6);
+    REQUIRE(simulation.at("queue_overflow_drops") == 2);
+    REQUIRE(simulation.at("red_early_drops") == 3);
+}
+
+TEST_CASE("KiWi chat omits measurements when no stats were supplied", "[chat][aqm]")
+{
+    nlohmann::json captured;
+    ChatService chat([&](const nlohmann::json& request) {
+        captured = request;
+        return ChatReply{"Reply"};
+    });
+    chat.send({}, "Describe this topology");
+    complete(chat);
+    REQUIRE_FALSE(captured.at("context").contains("simulation"));
+}
+
+TEST_CASE("KiWi retry keeps the original measured counters", "[chat][aqm]")
+{
+    nlohmann::json first;
+    nlohmann::json retried;
+    int calls = 0;
+    ChatService chat([&](const nlohmann::json& request) -> ChatReply {
+        if (++calls == 1) { first = request; throw std::runtime_error("offline"); }
+        retried = request;
+        return ChatReply{"Reply"};
+    });
+    kns::Stats stats;
+    stats.red_early_drops = 3;
+    chat.send({}, stats, "Explain the drops");
+    complete(chat);
+    stats.red_early_drops = 99;
+    chat.retry();
+    complete(chat);
+    REQUIRE(first.at("context").at("simulation").at("red_early_drops") == 3);
+    REQUIRE(calls == 2);
+    REQUIRE(retried == first);
+}
+
 TEST_CASE("KiWi chat keeps failed turn for retry without duplicate messages", "[chat]")
 {
     int calls = 0;
