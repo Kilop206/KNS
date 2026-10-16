@@ -1,4 +1,5 @@
 add_executable(KNS)
+kns_configure_target(KNS)
 
 if(WIN32)
     target_link_libraries(KNS PRIVATE ole32 shell32 uuid)

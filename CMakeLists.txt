@@ -12,6 +12,9 @@ include(CTest)
 option(KNS_BUILD_TESTS "Build unit tests" ON)
 option(KNS_BUILD_APP "Build application" ON)
 option(KNS_ENABLE_WARNINGS "Enable compiler warnings" ON)
+option(KNS_WARNINGS_AS_ERRORS "Treat warnings in KNS targets as errors" OFF)
+option(KNS_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(KNS_ENABLE_TLS "Enable verified HTTPS for desktop services (requires OpenSSL)" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,6 +45,24 @@ function(kns_enable_warnings target)
     endif()
 endfunction()
 
+function(kns_configure_target target)
+    if(KNS_WARNINGS_AS_ERRORS)
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /WX)
+        else()
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+    if(KNS_ENABLE_SANITIZERS)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32)
+            target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+            target_link_options(${target} PUBLIC -fsanitize=address,undefined)
+        else()
+            message(FATAL_ERROR "KNS_ENABLE_SANITIZERS requires GCC/Clang on Linux or macOS")
+        endif()
+    endif()
+endfunction()
+
 # ==================================================
 # nlohmann/json
 # ==================================================
@@ -58,10 +79,11 @@ FetchContent_MakeAvailable(nlohmann_json)
 # HTTP client used by the optional desktop translation service
 # ==================================================
 if(KNS_BUILD_APP)
+    set(OPENSSL_USE_STATIC_LIBS TRUE)
     set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
     set(HTTPLIB_TEST OFF CACHE BOOL "" FORCE)
-    set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "" FORCE)
-    set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+    set(HTTPLIB_REQUIRE_OPENSSL ${KNS_ENABLE_TLS} CACHE BOOL "" FORCE)
+    set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE ${KNS_ENABLE_TLS} CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
         cpp_httplib

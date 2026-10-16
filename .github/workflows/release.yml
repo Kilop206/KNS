@@ -48,7 +48,19 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+          sudo apt-get install -y cmake build-essential libssl-dev libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+
+      - name: Install static OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows-static-md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "OPENSSL_ROOT_DIR=$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Locate OpenSSL (macOS)
+        if: runner.os == 'macOS'
+        run: echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
 
       - name: Configure
         run: cmake -S . -B build -DKNS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release

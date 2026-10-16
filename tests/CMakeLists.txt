@@ -7,6 +7,7 @@ if(NOT KNS_BUILD_APP)
 endif()
 
 add_executable(kns_tests ${KNS_TEST_SOURCES})
+kns_configure_target(kns_tests)
 
 target_link_libraries(kns_tests
     PRIVATE
@@ -61,5 +62,12 @@ if(Python3_Interpreter_FOUND)
         set_tests_properties(runner_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>"
         )
+        if(KNS_ENABLE_TLS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            find_program(KNS_OPENSSL_EXECUTABLE openssl REQUIRED)
+            add_test(NAME desktop_https
+                COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/test_https.py"
+                    "$<TARGET_FILE:KNS>" "${KNS_OPENSSL_EXECUTABLE}")
+            set_tests_properties(desktop_https PROPERTIES TIMEOUT 120)
+        endif()
     endif()
 endif()

@@ -258,7 +258,7 @@ TEST_CASE("Topology Hub client reports stale revisions and requires token for sa
 
     std::string missingTokenMessage;
     try {
-        TopologyHubClient{}.saveTopology(topology);
+        (void)TopologyHubClient{}.saveTopology(topology);
     } catch (const std::runtime_error& error) {
         missingTokenMessage = error.what();
     }
@@ -285,7 +285,7 @@ TEST_CASE("Topology Hub client reports stale revisions and requires token for sa
     config.bearer_token = "knsh_test-token";
     std::string staleRevisionMessage;
     try {
-        TopologyHubClient(config).saveTopology(topology);
+        (void)TopologyHubClient(config).saveTopology(topology);
     } catch (const std::runtime_error& error) {
         staleRevisionMessage = error.what();
     }

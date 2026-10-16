@@ -4,6 +4,7 @@ file(GLOB_RECURSE KNS_CORE_SOURCES CONFIGURE_DEPENDS
 
 add_library(kns STATIC)
 add_library(KNS::kns ALIAS kns)
+kns_configure_target(kns)
 
 target_sources(kns PRIVATE
     ${KNS_CORE_SOURCES}

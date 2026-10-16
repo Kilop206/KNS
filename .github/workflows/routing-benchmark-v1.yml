@@ -24,7 +24,7 @@ jobs:
       - name: Install KNS build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y             cmake build-essential libgl1-mesa-dev xorg-dev             libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
+          sudo apt-get install -y             cmake build-essential libssl-dev libgl1-mesa-dev xorg-dev             libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
 
       - name: Configure benchmark build
         run: cmake -S . -B build -DKNS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
