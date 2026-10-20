@@ -6,7 +6,7 @@ set -euo pipefail
 TOPOLOGY=""
 INDEX=0
 BANDWIDTH_NEW_VALUE=""
-NEW_TOPOLOGY="./results/topology.json"
+NEW_TOPOLOGY="./KNS Experiments/results/topology.json"
 
 usage() {
     printf 'Usage: %s -t <topology.json> -bw <bandwidth> [-i <index>] [-o <output.json>]\n' "$0"
