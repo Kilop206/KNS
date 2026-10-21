@@ -153,6 +153,12 @@
             "type": "integer",
             "minimum": 1
           },
+          "red_queue_weight": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "default": 1
+          },
           "red_max_drop_probability": {
             "type": "number",
             "minimum": 0,

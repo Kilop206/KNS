@@ -46,6 +46,7 @@ struct LinkMetrics {
     std::size_t red_min_threshold = 0;
     std::size_t red_max_threshold = 0;
     double red_max_drop_probability = 0.0;
+    double red_queue_weight = 1.0;
 
     bool bridge = false;
 

@@ -64,7 +64,13 @@ TEST_CASE("KiWi chat exposes measured simulation loss attribution", "[chat][aqm]
     stats.queue_overflow_drops = 2;
     stats.red_early_drops = 3;
 
-    chat.send({}, stats, "What caused the queue losses?");
+    kns::analysis::NetworkAnalysis analysis;
+    analysis.link_count = 1;
+    kns::analysis::LinkMetrics link;
+    link.queue_policy = "red";
+    link.red_queue_weight = 0.125;
+    analysis.links.push_back(link);
+    chat.send(analysis, stats, "What caused the queue losses?");
     complete(chat);
 
     const auto& simulation = captured.at("context").at("simulation");
@@ -73,6 +79,7 @@ TEST_CASE("KiWi chat exposes measured simulation loss attribution", "[chat][aqm]
     REQUIRE(simulation.at("packets_lost") == 6);
     REQUIRE(simulation.at("queue_overflow_drops") == 2);
     REQUIRE(simulation.at("red_early_drops") == 3);
+    REQUIRE(captured.at("context").at("network").at("links").at(0).at("red_queue_weight") == 0.125);
 }
 
 TEST_CASE("KiWi chat omits measurements when no stats were supplied", "[chat][aqm]")

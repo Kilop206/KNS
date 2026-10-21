@@ -1199,6 +1199,7 @@ NetworkAnalysis NetworkAnalyzer::analyze(
                 metrics.red_min_threshold = link->getRedMinThreshold();
                 metrics.red_max_threshold = link->getRedMaxThreshold();
                 metrics.red_max_drop_probability = link->getRedMaxDropProbability();
+                metrics.red_queue_weight = link->getRedQueueWeight();
             } else {
                 metrics.queue_policy = "drop_tail";
             }

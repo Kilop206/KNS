@@ -4,9 +4,27 @@
 #include <limits>
 #include <stdexcept>
 #include "network/Topology.hpp"
+#include "network/TopologyLoader.hpp"
+#include "network/Packet.hpp"
 #include "engine/core/SimulationEngine.hpp"
 
 using namespace kns;
+
+TEST_CASE("Saved RED weight drives engine admission samples", "[network][red][ewma][aqm]")
+{
+    auto topology = TopologyLoader::fromJson(nlohmann::json::parse(R"({
+      "nodes":2,"links":[{"from":0,"to":1,"bandwidth":10,"delay":1,"loss":0,
+      "queue_policy":"red","red_min_threshold":2,"red_max_threshold":8,
+      "red_max_drop_probability":0.5,"red_queue_weight":0.5}]})"));
+    SimulationEngine engine(topology);
+    const auto link = engine.getTopology().getLinks().front();
+    Packet packet(0, 1, 0, 0.0, 125, 999);
+    REQUIRE(engine.sendPacket(packet, *link, 0.0));
+    REQUIRE(engine.sendPacket(packet, *link, 0.0));
+    REQUIRE(link->getAverageQueueSize(0, 1) == 0.5);
+    REQUIRE(link->getQueueSize() == 2);
+    REQUIRE(engine.getStats().red_early_drops == 0);
+}
 
 TEST_CASE("RED EWMA smooths bursts without mutating on inspection", "[network][red][ewma]")
 {

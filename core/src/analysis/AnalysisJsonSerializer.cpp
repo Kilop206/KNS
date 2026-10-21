@@ -159,6 +159,10 @@ nlohmann::json linkToJson(
             link.red_max_drop_probability
         },
         {
+            "red_queue_weight",
+            link.red_queue_weight
+        },
+        {
             "bridge",
             link.bridge
         },

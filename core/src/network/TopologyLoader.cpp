@@ -190,10 +190,11 @@ namespace kns {
                 const auto& min_threshold = l.at("red_min_threshold");
                 const auto& max_threshold = l.at("red_max_threshold");
                 const auto& max_probability = l.at("red_max_drop_probability");
+                const auto queue_weight = l.value("red_queue_weight", json(1.0));
                 if (
                     !min_threshold.is_number_integer() ||
                     !max_threshold.is_number_integer() ||
-                    !max_probability.is_number() ||
+                    !max_probability.is_number() || !queue_weight.is_number() ||
                     min_threshold < 0 || min_threshold >= max_threshold ||
                     max_threshold > queue_capacity
                 ) {
@@ -202,7 +203,8 @@ namespace kns {
                 link->configureRed(
                     min_threshold.get<int>(),
                     max_threshold.get<int>(),
-                    max_probability.get<double>()
+                    max_probability.get<double>(),
+                    queue_weight.get<double>()
                 );
             } else if (queue_policy != "drop_tail") {
                 throw std::invalid_argument("Unknown queue_policy in " + filename);
@@ -260,6 +262,7 @@ namespace kns {
                 entry["red_min_threshold"] = link->getRedMinThreshold();
                 entry["red_max_threshold"] = link->getRedMaxThreshold();
                 entry["red_max_drop_probability"] = link->getRedMaxDropProbability();
+                entry["red_queue_weight"] = link->getRedQueueWeight();
             }
             result["links"].push_back(std::move(entry));
         }

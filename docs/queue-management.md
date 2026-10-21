@@ -28,3 +28,21 @@ Live snapshots preserve history when the configuration is unchanged.
 
 This is a deterministic simulation model with EWMA and idle decay. It does not
 implement RED's optional packet-count correction or adaptive parameter tuning.
+
+## Saved topologies and analysis
+
+RED links accept an optional `red_queue_weight` JSON number. Omission defaults
+to `1`, so existing topology files retain instantaneous RED. Saving emits the
+configured weight. Invalid weights, including strings and null, are rejected.
+The network analysis, intelligence context and chat snapshot include the weight.
+
+For example, a link may contain:
+
+```json
+{
+  "from": 0, "to": 1, "bandwidth": 10, "delay": 5, "loss": 0,
+  "queue_capacity": 32, "queue_policy": "red",
+  "red_min_threshold": 8, "red_max_threshold": 24,
+  "red_max_drop_probability": 0.1, "red_queue_weight": 0.125
+}
+```

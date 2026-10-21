@@ -86,6 +86,7 @@ nlohmann::json linkToContext(
         { "red_min_threshold", link.red_min_threshold },
         { "red_max_threshold", link.red_max_threshold },
         { "red_max_drop_probability", link.red_max_drop_probability },
+        { "red_queue_weight", link.red_queue_weight },
         { "bridge", link.bridge },
         { "reasons", link.risk_reasons }
     };

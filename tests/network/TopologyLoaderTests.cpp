@@ -169,6 +169,7 @@ TEST_CASE("Topology JSON loads and preserves RED queue policy", "[network][loade
     REQUIRE(link->getRedMinThreshold() == 4);
     REQUIRE(link->getRedMaxThreshold() == 12);
     REQUIRE(link->getRedMaxDropProbability() == Catch::Approx(0.25));
+    REQUIRE(link->getRedQueueWeight() == 1.0);
 
     const auto serialized = TopologyLoader::toJson(topology);
     const auto& saved = serialized.at("links").at(0);
@@ -176,6 +177,17 @@ TEST_CASE("Topology JSON loads and preserves RED queue policy", "[network][loade
     REQUIRE(saved.at("red_min_threshold") == 4);
     REQUIRE(saved.at("red_max_threshold") == 12);
     REQUIRE(saved.at("red_max_drop_probability").get<double>() == Catch::Approx(0.25));
+    REQUIRE(saved.at("red_queue_weight") == 1.0);
+
+    auto averaged = serialized;
+    averaged["links"][0]["red_queue_weight"] = 0.125;
+    const auto restored = TopologyLoader::fromJson(averaged);
+    REQUIRE(restored.getLinks().front()->getRedQueueWeight() == 0.125);
+    REQUIRE(TopologyLoader::toJson(restored)["links"][0]["red_queue_weight"] == 0.125);
+    for (const auto& weight : {json(0), json(-0.1), json(1.1), json(nullptr), json("0.5"), json(true)}) {
+        averaged["links"][0]["red_queue_weight"] = weight;
+        REQUIRE_THROWS_AS(TopologyLoader::fromJson(averaged), std::invalid_argument);
+    }
 }
 
 TEST_CASE("Topology JSON rejects malformed RED queue policies", "[network][loader][queue][red]")

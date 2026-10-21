@@ -11,7 +11,7 @@ TEST_CASE("Network analysis exposes queue-management facts to intelligence conte
 {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX, 16);
-    link->configureRed(4, 12, 0.25);
+    link->configureRed(4, 12, 0.25, 0.125);
 
     const auto analysis = analysis::NetworkAnalyzer{}.analyze(topology);
     REQUIRE(analysis.links.size() == 1);
@@ -22,6 +22,7 @@ TEST_CASE("Network analysis exposes queue-management facts to intelligence conte
     REQUIRE(metrics.red_min_threshold == 4);
     REQUIRE(metrics.red_max_threshold == 12);
     REQUIRE(metrics.red_max_drop_probability == 0.25);
+    REQUIRE(metrics.red_queue_weight == 0.125);
 
     analysis::AIContextOptions options;
     options.depth = analysis::AIContextDepth::Deep;
@@ -35,11 +36,13 @@ TEST_CASE("Network analysis exposes queue-management facts to intelligence conte
     REQUIRE(linkContext.at("red_min_threshold") == 4);
     REQUIRE(linkContext.at("red_max_threshold") == 12);
     REQUIRE(linkContext.at("red_max_drop_probability") == 0.25);
+    REQUIRE(linkContext.at("red_queue_weight") == 0.125);
 
     const auto serialized = analysis::AnalysisJsonSerializer::toJson(analysis);
     const auto& serializedLink = serialized.at("links").at(0);
     REQUIRE(serializedLink.at("queue_policy") == "red");
     REQUIRE(serializedLink.at("queue_capacity") == 16);
+    REQUIRE(serializedLink.at("red_queue_weight") == 0.125);
 }
 
 TEST_CASE("Drop-tail analysis uses explicit defaults", "[analysis][aqm]")
