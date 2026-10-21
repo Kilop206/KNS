@@ -54,6 +54,14 @@ python scripts/experiment_profile.py --exe build/app/KNS
 Pass `--generate-only` to prepare topologies without running the simulator.
 See the linked guide for profile fields, artifact layout and Windows paths.
 
+Profile runs also write paired `comparison.json`, `comparison.csv` and
+`comparison.md` reports. Variants are compared with a named `baseline` experiment
+(the first variant by default), matching seed, routing metric, payload and TCP
+algorithm. Summaries average experiment-minus-baseline deltas across seeds with
+per-metric sample counts; failed and missing cases remain explicitly unavailable.
+Use `python scripts/compare_experiments.py <artifact-directory>` to regenerate
+the analysis from recorded results without running the engine.
+
 Use the headless CLI directly:
 
 ```bash

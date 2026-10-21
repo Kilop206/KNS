@@ -12,6 +12,7 @@ import re
 import sys
 
 import benchmark_suite
+import compare_experiments
 import run as runner
 
 
@@ -27,7 +28,7 @@ def valid_name(value: object) -> bool:
 def load_profile(path: Path) -> tuple[dict, dict]:
     profile = json.loads(path.read_text(encoding="utf-8"))
     allowed = {"name", "topology", "index", "experiments", "seeds", "packet_sizes",
-               "routing_metrics", "congestion_controls", "allow_transport_failures"}
+               "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline"}
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
     if not valid_name(profile.get("name")):
@@ -91,6 +92,9 @@ def load_profile(path: Path) -> tuple[dict, dict]:
             raise ValueError(f"{field} must not contain duplicates; use distinct seeds for repetitions")
     if type(profile.setdefault("allow_transport_failures", False)) is not bool:
         raise ValueError("allow_transport_failures must be a boolean")
+    baseline = profile.setdefault("baseline", experiments[0]["name"])
+    if not isinstance(baseline, str) or baseline not in {experiment["name"] for experiment in experiments}:
+        raise ValueError("baseline must name an experiment in the profile")
     return profile, topology
 
 
@@ -147,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         suite = make_suite(profile, output)
         if args.dry_run:
             cases = benchmark_suite.expand_cases(suite)
-            print(json.dumps({"profile": profile["name"], "case_count": len(cases),
+            print(json.dumps({"profile": profile["name"], "baseline": profile["baseline"], "case_count": len(cases),
                               "cases": cases}, indent=2))
             return 0
         exe = None
@@ -159,8 +163,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Experiment artifacts: {output}")
         if args.generate_only:
             return 0
-        return benchmark_suite.main(["--suite", str(suite_path), "--exe", str(exe),
-                                     "--output", str(output / "runs"), "--timeout", str(args.timeout)])
+        result = benchmark_suite.main(["--suite", str(suite_path), "--exe", str(exe),
+                                       "--output", str(output / "runs"), "--timeout", str(args.timeout)])
+        comparison = compare_experiments.compare_artifacts(output)
+        print(f"Comparison: {output / 'comparison.md'} "
+              f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)")
+        return result
     except (OSError, ValueError, OverflowError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1

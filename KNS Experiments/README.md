@@ -47,6 +47,7 @@ other links, queue policies and metadata are retained.
 | `topology` | Input JSON path, relative to the **KNS repository root**, or absolute. |
 | `index` | Zero-based link array index; defaults to `0`. |
 | `experiments` | Non-empty list of named variants. Names must be unique ignoring case. |
+| `baseline` | Reference experiment name (exact spelling); defaults to the first variant. |
 | `bandwidth` | Per-variant link bandwidth in Mbps, greater than zero. |
 | `delay` | Per-variant link propagation delay in milliseconds, at least zero. |
 | `loss` | Per-variant loss probability, between zero and one. |
@@ -73,6 +74,42 @@ Each output directory contains:
 - `runs/benchmark.json`, `runs/metrics.csv`, `runs/report.md`: execution metadata,
   per-case metrics and a readable comparison table;
 - `runs/*.csv` and `runs/*.log`: raw simulator statistics and combined process logs.
+- `comparison.json`, `comparison.csv`, `comparison.md`: paired differences from
+  the reference experiment, with summaries across seeds and unavailable-pair evidence.
+
+## Compare variants
+
+Completed profile executions automatically compare each non-reference variant
+against `baseline` (the first experiment by default). Each pair uses the same seed,
+routing metric, payload size and congestion control. Every delta is **experiment
+minus baseline**. Positive latency deltas mean increased delivered-packet latency;
+negative throughput deltas mean lower logical throughput. Delivery/loss deltas
+are differences between aggregate counter ratios.
+
+Summaries average paired deltas across seeds separately for each variant, routing
+metric, payload size and TCP algorithm. They include contributing sample counts
+per metric; JSON also preserves minimum and maximum deltas. Undefined metrics are
+left empty in CSV and shown as N/A in Markdown. Failed, timed-out, transport-failed
+and missing cases remain explicitly unavailable and never enter numeric averages,
+including when the profile allows transport failures as execution outcomes.
+
+Rebuild the comparison from an existing artifact folder without running KNS:
+
+```powershell
+python scripts/compare_experiments.py "KNS Experiments/results/development-validation"
+```
+
+Choose another reference without changing the recorded profile:
+
+```powershell
+python scripts/compare_experiments.py "KNS Experiments/results/development-validation" --baseline high-bandwidth
+```
+
+Analysis reads only `profile.json` and `runs/benchmark.json`; it also supports
+older profile artifacts without an explicit baseline, and moved artifact folders.
+It regenerates the three comparison files and preserves the profile, raw results
+and logs. Successful analysis returns zero even if some pairs are unavailable;
+the original profile execution still returns the benchmark batch's failure code.
 
 Generated suites contain absolute paths to this artifact directory. To execute
 a prepared suite later on the same machine, choose a new run directory:

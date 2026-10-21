@@ -59,6 +59,7 @@ class ExperimentProfileTests(unittest.TestCase):
         self.assertEqual(json.loads((self.output / "source-topology.json").read_text()), self.topology)
         normalized = json.loads((self.output / "profile.json").read_text())
         self.assertEqual(normalized["seeds"], [42])
+        self.assertEqual(normalized["baseline"], "baseline")
 
     def test_dry_run_expands_repetitions_without_files_or_executable(self):
         self.profile.update(seeds=[42, 43], packet_sizes=[1500, 3000],
@@ -88,6 +89,7 @@ class ExperimentProfileTests(unittest.TestCase):
             {"seeds": [True]}, {"seeds": [2**64]}, {"seeds": [42, 42]},
             {"seeds": "42"}, {"packet_sizes": [0]}, {"routing_metrics": [[]]},
             {"congestion_controls": ["unknown"]}, {"allow_transport_failures": 1},
+            {"baseline": "missing"}, {"baseline": []},
         ]
         original = copy.deepcopy(self.profile)
         for changes in invalid:
@@ -130,6 +132,9 @@ class ExperimentProfileTests(unittest.TestCase):
             self.assertEqual(case["status"], "startup_error")
             self.assertEqual(case["error"], "cannot launch")
         self.assertTrue((self.output / "runs" / "report.md").is_file())
+        comparison = json.loads((self.output / "comparison.json").read_text())
+        self.assertEqual(comparison["matched_pairs"], 0)
+        self.assertEqual(comparison["unavailable_pairs"], 1)
 
     def test_timeout_and_malformed_stats_keep_reports_and_fail_batch(self):
         executable = self.root / "fake executable"
@@ -155,6 +160,9 @@ class ExperimentProfileTests(unittest.TestCase):
         report = json.loads((self.output / "runs" / "benchmark.json").read_text())
         self.assertEqual(report["successful_cases"], 3)
         self.assertTrue(all(case["packets_delivered"] > 0 for case in report["cases"]))
+        comparison = json.loads((self.output / "comparison.json").read_text())
+        self.assertEqual(comparison["matched_pairs"], 2)
+        self.assertEqual(comparison["unavailable_pairs"], 0)
 
 
 if __name__ == "__main__":
