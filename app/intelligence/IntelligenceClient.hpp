@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include "intelligence/ChatReply.hpp"
 
@@ -23,6 +24,7 @@ struct IntelligenceClientConfig {
     int connection_timeout_seconds = 5;
     int read_timeout_seconds = 30;
     int write_timeout_seconds = 10;
+    std::size_t max_response_bytes = 1024 * 1024;
 };
 
 class IntelligenceClient {

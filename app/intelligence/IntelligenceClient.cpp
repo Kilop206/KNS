@@ -87,6 +87,9 @@ IntelligenceClient::IntelligenceClient(
 )
     : config_(std::move(config))
 {
+    if (config_.max_response_bytes == 0) {
+        throw std::invalid_argument("Intelligence response limit must be positive");
+    }
 }
 
 ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
@@ -95,7 +98,7 @@ ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
     client.set_connection_timeout(config_.connection_timeout_seconds);
     client.set_read_timeout(config_.chat_timeout_seconds);
     client.set_write_timeout(config_.write_timeout_seconds);
-    client.set_payload_max_length(128 * 1024);
+    client.set_payload_max_length(std::min<std::size_t>(config_.max_response_bytes, 128 * 1024));
     httplib::Headers headers{{"Accept", "application/json"}, {"User-Agent", "KNS/1.0"}};
     if (!config_.bearer_token.empty()) {
         headers.emplace("Authorization", "Bearer " + config_.bearer_token);
@@ -107,6 +110,9 @@ ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
     }
     if (result->status < 200 || result->status >= 300) {
         throw std::runtime_error(httpErrorMessage(result->status, result->body.substr(0, 2048)));
+    }
+    if (result->body.size() > config_.max_response_bytes) {
+        throw std::runtime_error("KiWi chat response exceeds response size limit");
     }
     const auto response = nlohmann::json::parse(result->body);
     if (response.at("requestId") != request.at("requestId") ||
@@ -152,6 +158,7 @@ IntelligenceClient::analyze(
     client.set_write_timeout(
         config_.write_timeout_seconds
     );
+    client.set_payload_max_length(config_.max_response_bytes);
 
     httplib::Headers headers = {
         {
@@ -192,6 +199,10 @@ IntelligenceClient::analyze(
             "Could not connect to KNS Intelligence backend: " +
             httplib::to_string(result.error())
         );
+    }
+
+    if (result->body.size() > config_.max_response_bytes) {
+        throw std::runtime_error("Intelligence response exceeds response size limit");
     }
 
     if (

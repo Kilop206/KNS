@@ -53,3 +53,31 @@ TEST_CASE("Intelligence analyze forwards request id as HTTP correlation header",
     REQUIRE(observedRequestId == "analysis-req-42");
     REQUIRE(response.analysis_id == "analysis-1");
 }
+
+TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence][http]")
+{
+    httplib::Server server;
+    server.Post("/analyze", [](const httplib::Request&, httplib::Response& response) {
+        response.set_content(std::string(2048, 'x'), "application/json");
+    });
+
+    const int port = server.bind_to_any_port("127.0.0.1");
+    REQUIRE(port > 0);
+    auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+    struct StopServer {
+        httplib::Server& server;
+        ~StopServer() { server.stop(); }
+    } cleanup{server};
+    server.wait_until_ready();
+
+    kns::app::intelligence::IntelligenceClientConfig config;
+    config.base_url = "http://127.0.0.1:" + std::to_string(port);
+    config.analyze_endpoint = "/analyze";
+    config.max_response_bytes = 1024;
+
+    kns::intelligence::IntelligenceRequest request;
+    request.request_id = "analysis-size-limit";
+    request.context = nlohmann::json::object();
+
+    REQUIRE_THROWS(kns::app::intelligence::IntelligenceClient(config).analyze(request));
+}
