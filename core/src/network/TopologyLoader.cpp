@@ -193,7 +193,9 @@ namespace kns {
                 if (
                     !min_threshold.is_number_integer() ||
                     !max_threshold.is_number_integer() ||
-                    !max_probability.is_number()
+                    !max_probability.is_number() ||
+                    min_threshold < 0 || min_threshold >= max_threshold ||
+                    max_threshold > queue_capacity
                 ) {
                     throw std::invalid_argument("Invalid RED queue configuration");
                 }

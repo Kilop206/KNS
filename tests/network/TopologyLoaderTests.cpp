@@ -185,7 +185,11 @@ TEST_CASE("Topology JSON rejects malformed RED queue policies", "[network][loade
         R"("queue_policy":"magic")",
         R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":4,"red_max_drop_probability":0.2)",
         R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":20,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4,"red_max_drop_probability":2.0)"
+        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4,"red_max_drop_probability":2.0)",
+        R"("queue_policy":"red","red_min_threshold":4294967297,"red_max_threshold":4,"red_max_drop_probability":0.2)",
+        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4294967300,"red_max_drop_probability":0.2)",
+        R"("queue_policy":"red","red_min_threshold":-4294967295,"red_max_threshold":4,"red_max_drop_probability":0.2)",
+        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":18446744073709551615,"red_max_drop_probability":0.2)"
     }) {
         CAPTURE(linkConfig);
         const std::string content =
