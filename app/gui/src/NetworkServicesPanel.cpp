@@ -183,6 +183,11 @@ bool NetworkServicesPanel::render(kns::SimulationEngine& engine, int device, Tra
                 if (request.source != device) continue;
                 ImGui::Text("#%llu %s -> %d:%d %s", static_cast<unsigned long long>(id), kns::serviceKindName(request.kind),
                     request.destination, request.port, kns::serviceRequestStateName(request.state));
+                if (request.state == kns::ServiceRequestState::Pending) {
+                    ImGui::SameLine();
+                    if (ImGui::Button(translations.label("Cancel request", ("cancel-request-" + std::to_string(id)).c_str()).c_str()))
+                        engine.networkServices().cancel(engine, id);
+                }
                 if (request.state != kns::ServiceRequestState::Pending) {
                     ImGui::Text("Status: %d | %.3f ms", request.status, (request.finished_at - request.started_at) * 1000);
                     ImGui::TextWrapped("%s", request.response.c_str());

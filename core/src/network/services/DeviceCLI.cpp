@@ -34,7 +34,7 @@ void count(const std::vector<std::string>& words, std::size_t size) {
 
 std::string DeviceCLI::help(DeviceType type) {
     const auto caps = deviceCapabilities(type);
-    std::string result = std::string(deviceRoleDescription(type)) + "\nhelp\nshow role\nshow interfaces\nshow routes\nshow services\nshow requests\n";
+    std::string result = std::string(deviceRoleDescription(type)) + "\nhelp\nshow role\nshow interfaces\nshow routes\nshow services\nshow requests\nrequest cancel <id>\n";
     if (caps.http_server || caps.dns_server) {
         result += std::string("service add ") + (caps.http_server && caps.dns_server ? "<http|dns>" : caps.http_server ? "http" : "dns") + " <name> <port>\n";
         result += "service remove <name>\nservice start <name>\nservice stop <name>\nservice delay <name> <milliseconds>\n";
@@ -89,6 +89,22 @@ DeviceCommandResult DeviceCLI::execute(SimulationEngine& engine, int device, con
                 }
             } else throw std::invalid_argument("Use show role, interfaces, routes, services or requests");
             return {true, false, output.str()};
+        }
+        if (words[0] == "request") {
+            count(words, 3);
+            if (words[1] != "cancel") throw std::invalid_argument("Use request cancel <id>");
+            std::uint64_t id = 0;
+            const auto& text = words[2];
+            const auto parsed = std::from_chars(text.data(), text.data() + text.size(), id);
+            if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || id == 0)
+                throw std::invalid_argument("Request ID must be a positive integer");
+            const auto& requests = engine.networkServices().requests();
+            const auto found = requests.find(id);
+            if (found == requests.end() || found->second.source != device)
+                throw std::invalid_argument("Request not found for this device");
+            if (!engine.networkServices().cancel(engine, id))
+                throw std::invalid_argument("Request is no longer pending");
+            return {true, false, "Request #" + std::to_string(id) + " cancelled\n"};
         }
         if (words[0] == "http" || words[0] == "dns") {
             count(words, 5);

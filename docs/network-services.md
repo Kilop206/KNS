@@ -19,6 +19,8 @@ Select a device on the topology canvas and open **Device Services**:
   DNS A query. **Resume** or **Step** advances the simulation. Results show protocol
   status, response and elapsed simulated time. HTTP uses 404 for unknown paths;
   DNS uses 0 for NOERROR and 3 for NXDOMAIN.
+  **Cancel request** stops a pending request for the selected device without
+  advancing simulated time.
 - **CLI**: execute the commands below in the selected device's context. Terminal
   history is separate per device. `show requests` displays asynchronous results.
 
@@ -67,6 +69,7 @@ show interfaces
 show routes
 show services
 show requests
+request cancel <id>
 service add <http|dns> <name> <port>
 service remove <name>
 service start <name>
@@ -82,6 +85,8 @@ dns query <device-id> <port> <hostname>
 
 The stdin console additionally supports `device`, `run`, `save` and `exit`.
 `help` filters service and client commands according to the selected device's role.
+`request cancel <id>` cancels only a request originated by that device. It reports
+an error for missing, already completed, timed-out or cancelled requests.
 Input can be piped from a text file for repeatable labs. Invalid commands print
 an error, preserve configuration, and make the console exit with status 1.
 Timeouts and HTTP/DNS error responses are simulation results, not command errors.

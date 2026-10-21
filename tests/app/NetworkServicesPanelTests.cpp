@@ -125,6 +125,28 @@ TEST_CASE("Services GUI client schedules requests and embedded CLI shares servic
     REQUIRE(ImGui::GetDrawData()->TotalVtxCount > 0);
 }
 
+TEST_CASE("Services GUI cancels pending requests of the selected device", "[services-ui][cancel]") {
+    ServicesUI ui;
+    const auto own = ui.engine.networkServices().request(ui.engine, 0, 0, kns::ServiceKind::Http, 80, "/");
+    const auto other = ui.engine.networkServices().request(ui.engine, 1, 1, kns::ServiceKind::Http, 80, "/");
+    ui.tab(1);
+    const auto ownLabel = "Cancel request###cancel-request-" + std::to_string(own);
+    const auto otherLabel = "Cancel request###cancel-request-" + std::to_string(other);
+    ui.activate(otherLabel.c_str());
+    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Pending);
+    ui.activate(ownLabel.c_str());
+    REQUIRE(ui.engine.networkServices().requests().at(own).state == kns::ServiceRequestState::Cancelled);
+    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Pending);
+    REQUIRE(ui.engine.now() == 0);
+    ui.device = 1; ui.frame();
+    ui.activate(otherLabel.c_str());
+    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Cancelled);
+    ui.engine.run();
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.now() == 0);
+    REQUIRE_FALSE(ui.scheduled);
+}
+
 TEST_CASE("Services GUI creates edits stops and removes a service on the selected device", "[services][services-ui]") {
     ServicesUI ui;
     ui.activate("Add service###Add service");

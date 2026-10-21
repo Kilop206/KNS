@@ -82,6 +82,28 @@ TEST_CASE("Service cancellation is harmless for missing and terminal requests", 
     REQUIRE_FALSE(engine.hasEvents());
 }
 
+TEST_CASE("Device CLI cancels only its own pending requests", "[services][cancel][cli]") {
+    SimulationEngine engine(serviceTopology());
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
+    const auto command = "request cancel " + std::to_string(id);
+    REQUIRE_FALSE(DeviceCLI::execute(engine, 2, command).ok);
+    REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Pending);
+    for (const auto* invalid : {"request cancel", "request cancel 0", "request cancel -1",
+            "request cancel 1.0", "request cancel 18446744073709551616", "request cancel 999", "request cancel 1 extra"}) {
+        INFO(invalid);
+        REQUIRE_FALSE(DeviceCLI::execute(engine, 0, invalid).ok);
+        REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Pending);
+    }
+    const auto result = DeviceCLI::execute(engine, 0, command);
+    REQUIRE(result.ok);
+    REQUIRE_FALSE(result.scheduled);
+    REQUIRE_FALSE(DeviceCLI::execute(engine, 0, command).ok);
+    REQUIRE(DeviceCLI::execute(engine, 0, "show requests").output.find("cancelled") != std::string::npos);
+    engine.run();
+    REQUIRE(engine.now() < 1.0);
+    REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Cancelled);
+}
+
 TEST_CASE("DNS records reject signed IPv4 octets atomically", "[services][audit]") {
     SimulationEngine engine(serviceTopology());
     const auto before = engine.getTopology().getNode(2)->getServices();
