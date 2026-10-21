@@ -24,6 +24,11 @@ Select a device on the topology canvas and open **Device Services**:
 
 **Settings > Save topology** persists services alongside nodes and links.
 Restart keeps configuration but clears requests, timers and terminal history.
+The runtime supports cancelling pending requests with `ServiceRuntime::cancel`.
+Cancellation records the current simulated time and removes timeout and queued
+reply events. Packets already in flight still drain their links; late arrivals
+cannot overwrite the cancelled result or trigger a new reply. Other requests
+continue normally. Cancelling a terminal or missing request returns `false`.
 Discovery snapshots without a `services` property preserve local configuration;
 an explicit `"services": []` clears it.
 

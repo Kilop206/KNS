@@ -18,7 +18,7 @@ struct ServiceMessage {
     std::string payload;
 };
 
-enum class ServiceRequestState { Pending, Complete, TimedOut };
+enum class ServiceRequestState { Pending, Complete, TimedOut, Cancelled };
 const char* serviceRequestStateName(ServiceRequestState state);
 
 struct ServiceRequest {
@@ -40,6 +40,9 @@ public:
         ServiceKind kind, int port, std::string payload, double timeout_seconds = 5.0);
     void receive(SimulationEngine& engine, const Packet& packet);
     void timeout(SimulationEngine& engine, std::uint64_t id);
+    /// Cancel a pending request and its timers. In-flight packets still drain.
+    /// Returns false for missing or already-terminal requests.
+    bool cancel(SimulationEngine& engine, std::uint64_t id);
     const std::map<std::uint64_t, ServiceRequest>& requests() const { return requests_; }
 private:
     std::uint64_t next_id_ = 1;

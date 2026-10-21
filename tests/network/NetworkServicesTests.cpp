@@ -40,6 +40,48 @@ TEST_CASE("Completed service requests do not keep an idle simulation running unt
     REQUIRE(engine.now() == engine.networkServices().requests().at(id).finished_at);
 }
 
+TEST_CASE("Service cancellation removes pending work without advancing time", "[services][cancel]") {
+    SimulationEngine engine(serviceTopology());
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 60);
+    const auto other = engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "web.example");
+    SECTION("cancel before request delivery") {}
+    SECTION("cancel during server processing") {
+        while (engine.now() < 0.02) REQUIRE(engine.processEvent());
+    }
+    SECTION("cancel with reply already in flight") {
+        while (engine.getStats().packets_sent < 4) REQUIRE(engine.processEvent());
+    }
+    const double cancelled_at = engine.now();
+    REQUIRE(engine.networkServices().cancel(engine, id));
+    REQUIRE(engine.now() == cancelled_at);
+    REQUIRE_FALSE(engine.networkServices().cancel(engine, id));
+    engine.run();
+    const auto& result = engine.networkServices().requests().at(id);
+    REQUIRE(result.state == ServiceRequestState::Cancelled);
+    REQUIRE(result.finished_at == cancelled_at);
+    REQUIRE(result.response == "Cancelled by user");
+    REQUIRE(std::string(serviceRequestStateName(result.state)) == "cancelled");
+    REQUIRE(engine.networkServices().requests().at(other).state == ServiceRequestState::Complete);
+    REQUIRE(engine.now() < 1.0);
+    REQUIRE(engine.getPacketsInTransit().empty());
+    for (const auto& link : engine.getTopology().getLinks()) REQUIRE(link->getQueueSize() == 0);
+    REQUIRE(engine.validateSimulation().passed());
+}
+
+TEST_CASE("Service cancellation is harmless for missing and terminal requests", "[services][cancel]") {
+    SimulationEngine engine(serviceTopology());
+    REQUIRE_FALSE(engine.networkServices().cancel(engine, 999));
+    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.001);
+    engine.run();
+    const auto before = engine.networkServices().requests().at(id);
+    REQUIRE_FALSE(engine.networkServices().cancel(engine, id));
+    const auto& after = engine.networkServices().requests().at(id);
+    REQUIRE(after.state == ServiceRequestState::TimedOut);
+    REQUIRE(after.finished_at == before.finished_at);
+    REQUIRE(after.response == before.response);
+    REQUIRE_FALSE(engine.hasEvents());
+}
+
 TEST_CASE("DNS records reject signed IPv4 octets atomically", "[services][audit]") {
     SimulationEngine engine(serviceTopology());
     const auto before = engine.getTopology().getNode(2)->getServices();

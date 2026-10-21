@@ -67,6 +67,7 @@ const char* serviceRequestStateName(ServiceRequestState state) {
         case ServiceRequestState::Pending: return "pending";
         case ServiceRequestState::Complete: return "complete";
         case ServiceRequestState::TimedOut: return "timeout";
+        case ServiceRequestState::Cancelled: return "cancelled";
     }
     return "unknown";
 }
@@ -101,6 +102,23 @@ std::uint64_t ServiceRuntime::request(SimulationEngine& engine, int source, int 
     packet.service = ServiceMessage{id, kind, port, false, 0, std::move(payload)};
     send(engine, std::move(packet));
     return id;
+}
+
+bool ServiceRuntime::cancel(SimulationEngine& engine, std::uint64_t id) {
+    const auto found = requests_.find(id);
+    if (found == requests_.end() || found->second.state != ServiceRequestState::Pending) return false;
+    if (const auto timeout = timeout_events_.find(id); timeout != timeout_events_.end()) {
+        engine.cancelEvent(timeout->second);
+        timeout_events_.erase(timeout);
+    }
+    if (const auto reply = reply_events_.find(id); reply != reply_events_.end()) {
+        engine.cancelEvent(reply->second);
+        reply_events_.erase(reply);
+    }
+    found->second.state = ServiceRequestState::Cancelled;
+    found->second.finished_at = engine.now();
+    found->second.response = "Cancelled by user";
+    return true;
 }
 
 void ServiceRuntime::timeout(SimulationEngine& engine, std::uint64_t id) {
