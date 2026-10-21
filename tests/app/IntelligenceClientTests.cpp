@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <future>
+#include <stdexcept>
 #include <string>
 
 #include <httplib.h>
@@ -58,7 +59,17 @@ TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence
 {
     httplib::Server server;
     server.Post("/analyze", [](const httplib::Request&, httplib::Response& response) {
-        response.set_content(std::string(2048, 'x'), "application/json");
+        response.set_content(nlohmann::json{
+            {"schema_version", "1.0"}, {"analysis_id", "bounded-analysis"},
+            {"status", "completed"}, {"network_score", 80.0},
+            {"summary", std::string(2048, 'x')},
+            {"findings", nlohmann::json::array()},
+            {"recommendations", nlohmann::json::array()}
+        }.dump(), "application/json");
+    });
+    server.Post("/error", [](const httplib::Request&, httplib::Response& response) {
+        response.status = 503;
+        response.set_content(std::string(8192, 'x'), "text/plain");
     });
 
     const int port = server.bind_to_any_port("127.0.0.1");
@@ -80,4 +91,18 @@ TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence
     request.context = nlohmann::json::object();
 
     REQUIRE_THROWS(kns::app::intelligence::IntelligenceClient(config).analyze(request));
+    // The same valid response succeeds with sufficient capacity, proving the
+    // earlier rejection was due to size rather than malformed response JSON.
+    config.max_response_bytes = 16384;
+    REQUIRE(kns::app::intelligence::IntelligenceClient(config).analyze(request).analysis_id == "bounded-analysis");
+    config.analyze_endpoint = "/error";
+    try {
+        (void)kns::app::intelligence::IntelligenceClient(config).analyze(request);
+        FAIL("Upstream HTTP error was accepted");
+    } catch (const std::runtime_error& error) {
+        const std::string message = error.what();
+        REQUIRE(message.starts_with("Intelligence backend returned HTTP 503"));
+        REQUIRE(message.size() < 2200);
+        REQUIRE(message.ends_with("[truncated]"));
+    }
 }

@@ -27,7 +27,9 @@ std::string httpErrorMessage(
         std::to_string(status);
 
     if (!body.empty()) {
-        message += ": " + body;
+        constexpr std::size_t max_error_detail = 2048;
+        message += ": " + body.substr(0, max_error_detail);
+        if (body.size() > max_error_detail) message += " [truncated]";
     }
 
     return message;
