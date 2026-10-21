@@ -1,0 +1,20 @@
+
+{
+  "name": "bandwidth-comparison",
+  "topology": "app/topologies/services-lab.json",
+  "index": 0,
+  "experiments": [
+    {
+      "name": "baseline",
+      "bandwidth": 100
+    },
+    {
+      "name": "high-bandwidth",
+      "bandwidth": 500
+    },
+    {
+      "name": "low-bandwidth",
+      "bandwidth": 25
+    }
+  ]
+}

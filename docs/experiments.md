@@ -41,6 +41,19 @@ network-throughput denominator.
 
 ## Running a controlled comparison
 
+For named bandwidth, delay and loss variants of a selected link, use
+[`KNS Experiments`](../KNS%20Experiments/README.md). Its Python profile runner
+validates the matrix, preserves the source topology, generates variants and
+executes them with the existing benchmark runner:
+
+```bash
+python scripts/experiment_profile.py --dry-run
+python scripts/experiment_profile.py --exe build/app/KNS
+```
+
+Pass `--generate-only` to prepare topologies without running the simulator.
+See the linked guide for profile fields, artifact layout and Windows paths.
+
 Use the headless CLI directly:
 
 ```bash
