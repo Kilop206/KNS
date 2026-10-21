@@ -423,6 +423,10 @@ def main(argv: list[str] | None = None) -> int:
             except subprocess.TimeoutExpired:
                 status = "timeout"
                 returncode = 124
+            except OSError as exc:
+                status = "startup_error"
+                returncode = 1
+                error = str(exc)
 
         wall = time.perf_counter() - started
         stats = None
