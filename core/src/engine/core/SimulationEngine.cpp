@@ -797,6 +797,9 @@ namespace kns {
     }
 
     void SimulationEngine::setRoutingMetric(RoutingMetric metric) {
+        if (routingMetricName(metric) == "unknown") {
+            throw std::invalid_argument("Unknown routing metric");
+        }
         routing_metric_ = metric;
         rebuildRoutingTables();
     }

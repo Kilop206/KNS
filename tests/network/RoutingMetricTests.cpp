@@ -7,12 +7,36 @@
 #include <array>
 #include <limits>
 #include <utility>
+#include <stdexcept>
 
 using kns::Topology;
 using kns::Routing;
 using kns::RoutingMetric;
 using kns::SimulationEngine;
 using kns::LinkMode;
+
+TEST_CASE("Routing validates public inputs in every build mode", "[network][routing][validation]")
+{
+    Routing routing;
+    Topology topology(2);
+    topology.addLink(0, 1, 100.0, 1.0);
+    for (int source : {-1, 2, std::numeric_limits<int>::max()}) {
+        CAPTURE(source);
+        REQUIRE_THROWS_AS(routing.buildDijkstra(topology, source), std::out_of_range);
+        REQUIRE_THROWS_AS(routing.buildRoutingTable(topology, source), std::out_of_range);
+    }
+    REQUIRE_THROWS_AS(routing.buildRoutingTable(Topology(0), 0), std::out_of_range);
+    const auto invalid = static_cast<RoutingMetric>(99);
+    REQUIRE_THROWS_AS(routing.buildDijkstra(topology, 0, invalid), std::invalid_argument);
+    REQUIRE_THROWS_AS(routing.buildRoutingTable(topology, 0, invalid), std::invalid_argument);
+
+    SimulationEngine engine(topology);
+    engine.setRoutingMetric(RoutingMetric::HopCount);
+    REQUIRE_THROWS_AS(engine.setRoutingMetric(invalid), std::invalid_argument);
+    REQUIRE(engine.getRoutingMetric() == RoutingMetric::HopCount);
+    REQUIRE(engine.getNextHop(0, 1) == 1);
+    REQUIRE(engine.getRoutingTable(0)[1].distance == 1.0);
+}
 
 TEST_CASE("Routing respects link direction for every metric", "[network][routing][simplex]")
 {

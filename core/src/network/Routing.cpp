@@ -2,7 +2,7 @@
 #include <array>
 #include <vector>
 #include <queue>
-#include <cassert>
+#include <stdexcept>
 #include <functional>
 #include <utility>
 
@@ -46,7 +46,12 @@ namespace kns {
 	Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
 	                                                 RoutingMetric metric) {
 		int n = topology.size();
-		assert(src >= 0 && src < n);
+		if (src < 0 || src >= n) {
+			throw std::out_of_range("Routing source node is out of bounds");
+		}
+		if (routingMetricName(metric) == "unknown") {
+			throw std::invalid_argument("Unknown routing metric");
+		}
 
 		const double inf = std::numeric_limits<double>::infinity();
 
@@ -147,7 +152,6 @@ namespace kns {
 	std::vector<Routing::RoutingEntry> Routing::buildRoutingTable(const Topology& topology, int src,
 	                                                               RoutingMetric metric) {
 		int n = topology.size();
-		assert(src >= 0 && src < n);
 
 		DijkstraResult result = buildDijkstra(topology, src, metric);
 
