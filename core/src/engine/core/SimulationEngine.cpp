@@ -39,6 +39,15 @@ namespace kns {
         if (hasEvents() || !sessions.empty() || now() != 0.0) {
             throw std::logic_error("Run configuration must be applied before scheduling work");
         }
+        switch (config.congestion_control) {
+            case CongestionControlType::TAHOE:
+            case CongestionControlType::RENO:
+            case CongestionControlType::NEW_RENO:
+            case CongestionControlType::CUBIC:
+                break;
+            default:
+                throw std::invalid_argument("Unsupported congestion control type");
+        }
         setGlobalPacketSize(config.packet_size);
         congestion_control_ = config.congestion_control;
         random_.seed(config.seed);
