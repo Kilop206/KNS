@@ -167,6 +167,7 @@ namespace kns {
         });
         busy_until_ab_ = busy_until_ba_ = busy_until_shared_ = reserved_until;
         mode_ = mode;
+        resetRedState();
         markRoutingChanged();
     }
 
@@ -404,6 +405,7 @@ namespace kns {
                 it->arrival_time == arrival_time
             ) {
                 queue.erase(it);
+                if (queue.empty()) redStateForSlot(slot).idle_since = arrival_time;
                 return true;
             }
         }
@@ -441,7 +443,8 @@ namespace kns {
     void Link::configureRed(
         int min_threshold,
         int max_threshold,
-        double max_drop_probability
+        double max_drop_probability,
+        double queue_weight
     )
     {
         if (
@@ -463,10 +466,56 @@ namespace kns {
             );
         }
 
+        if (!std::isfinite(queue_weight) || queue_weight <= 0.0 || queue_weight > 1.0) {
+            throw std::invalid_argument("RED queue weight must be finite and in (0, 1]");
+        }
+
         red_min_threshold_ = static_cast<std::size_t>(min_threshold);
         red_max_threshold_ = static_cast<std::size_t>(max_threshold);
         red_max_drop_probability_ = max_drop_probability;
+        red_queue_weight_ = queue_weight;
+        resetRedState();
         queue_discipline_ = QueueDiscipline::RED;
+    }
+
+    Link::RedState& Link::redStateForSlot(DirectionSlot slot) noexcept
+    {
+        if (slot == DirectionSlot::AB) return red_ab_;
+        if (slot == DirectionSlot::BA) return red_ba_;
+        return red_shared_;
+    }
+
+    const Link::RedState& Link::redStateForSlot(DirectionSlot slot) const noexcept
+    {
+        if (slot == DirectionSlot::AB) return red_ab_;
+        if (slot == DirectionSlot::BA) return red_ba_;
+        return red_shared_;
+    }
+
+    double Link::getAverageQueueSize(int from, int to) const noexcept
+    {
+        const auto slot = getQueueSlot(from, to);
+        if (slot == DirectionSlot::Invalid) return 0.0;
+        if (red_queue_weight_ == 1.0) return static_cast<double>(queueForSlot(slot).size());
+        return redStateForSlot(slot).average;
+    }
+
+    double Link::sampleEarlyDropProbability(int from, int to, double now, double transmission_seconds)
+    {
+        if (!std::isfinite(now) || now < 0.0 || !std::isfinite(transmission_seconds) || transmission_seconds <= 0.0) {
+            throw std::invalid_argument("RED sampling requires finite time and positive transmission duration");
+        }
+        const auto slot = getQueueSlot(from, to);
+        if (queue_discipline_ != QueueDiscipline::RED || slot == DirectionSlot::Invalid) return 0.0;
+        auto& state = redStateForSlot(slot);
+        const double occupancy = static_cast<double>(queueForSlot(slot).size());
+        if (occupancy == 0.0 && red_queue_weight_ < 1.0) {
+            const double idle_packets = std::max(0.0, now - state.idle_since) / transmission_seconds;
+            state.average *= std::pow(1.0 - red_queue_weight_, idle_packets);
+            state.idle_since = now;
+        }
+        state.average = (1.0 - red_queue_weight_) * state.average + red_queue_weight_ * occupancy;
+        return earlyDropProbability(from, to);
     }
 
     double Link::earlyDropProbability(int from, int to) const noexcept
@@ -475,7 +524,7 @@ namespace kns {
             return 0.0;
         }
 
-        const auto occupancy = estimatedQueueSize(0.0, from, to);
+        const double occupancy = getAverageQueueSize(from, to);
         if (occupancy <= red_min_threshold_) {
             return 0.0;
         }
@@ -486,9 +535,7 @@ namespace kns {
         const double span = static_cast<double>(
             red_max_threshold_ - red_min_threshold_
         );
-        const double position = static_cast<double>(
-            occupancy - red_min_threshold_
-        );
+        const double position = occupancy - static_cast<double>(red_min_threshold_);
         return red_max_drop_probability_ * (position / span);
     }
 

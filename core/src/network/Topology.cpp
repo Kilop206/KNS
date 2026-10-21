@@ -28,6 +28,7 @@ namespace kns {
             copy->busy_until_ba_ = 0.0;
             copy->busy_until_shared_ = 0.0;
             copy->random_ = Random{};
+            copy->resetRedState();
             copy->attachRoutingRevision(result.routing_revision_);
             result.links_.push_back(copy);
             result.adjacency_list_[static_cast<std::size_t>(copy->getA())].push_back(copy);
@@ -125,7 +126,8 @@ namespace kns {
             copy->configureRed(
                 static_cast<int>(link.getRedMinThreshold()),
                 static_cast<int>(link.getRedMaxThreshold()),
-                link.getRedMaxDropProbability()
+                link.getRedMaxDropProbability(),
+                link.getRedQueueWeight()
             );
         }
     }

@@ -96,15 +96,21 @@ class Link {
         void setQueueCapacity(int capacity);
 
         QueueDiscipline getQueueDiscipline() const noexcept { return queue_discipline_; }
-        void setDropTail() noexcept { queue_discipline_ = QueueDiscipline::DROP_TAIL; }
+        void setDropTail() noexcept { queue_discipline_ = QueueDiscipline::DROP_TAIL; resetRedState(); }
         void configureRed(
             int min_threshold,
             int max_threshold,
-            double max_drop_probability
+            double max_drop_probability,
+            double queue_weight = 1.0
         );
         std::size_t getRedMinThreshold() const noexcept { return red_min_threshold_; }
         std::size_t getRedMaxThreshold() const noexcept { return red_max_threshold_; }
         double getRedMaxDropProbability() const noexcept { return red_max_drop_probability_; }
+        double getRedQueueWeight() const noexcept { return red_queue_weight_; }
+        double getAverageQueueSize(int from, int to) const noexcept;
+        /// Update the EWMA once per admission attempt, decaying idle queues in
+        /// virtual packet-transmission intervals. Weight 1 preserves instantaneous RED.
+        double sampleEarlyDropProbability(int from, int to, double now, double transmission_seconds);
         double earlyDropProbability(int from, int to) const noexcept;
 
         // Up/down state for GUI toggling
@@ -177,6 +183,15 @@ class Link {
         std::size_t red_min_threshold_ = 0;
         std::size_t red_max_threshold_ = 0;
         double red_max_drop_probability_ = 0.0;
+        double red_queue_weight_ = 1.0;
+        struct RedState {
+            double average = 0.0;
+            double idle_since = 0.0;
+        };
+        RedState red_ab_, red_ba_, red_shared_;
+        RedState& redStateForSlot(DirectionSlot slot) noexcept;
+        const RedState& redStateForSlot(DirectionSlot slot) const noexcept;
+        void resetRedState() noexcept { red_ab_ = {}; red_ba_ = {}; red_shared_ = {}; }
 
         bool up_ = true;
         bool inferred_ = false;

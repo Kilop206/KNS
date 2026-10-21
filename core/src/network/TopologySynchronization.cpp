@@ -128,9 +128,11 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
             if (link->getQueueDiscipline() != Link::QueueDiscipline::RED ||
                 link->getRedMinThreshold() != incoming->getRedMinThreshold() ||
                 link->getRedMaxThreshold() != incoming->getRedMaxThreshold() ||
-                link->getRedMaxDropProbability() != incoming->getRedMaxDropProbability()) {
+                link->getRedMaxDropProbability() != incoming->getRedMaxDropProbability() ||
+                link->getRedQueueWeight() != incoming->getRedQueueWeight()) {
                 link->configureRed(static_cast<int>(incoming->getRedMinThreshold()),
-                    static_cast<int>(incoming->getRedMaxThreshold()), incoming->getRedMaxDropProbability());
+                    static_cast<int>(incoming->getRedMaxThreshold()), incoming->getRedMaxDropProbability(),
+                    incoming->getRedQueueWeight());
                 layout_changed = true;
             }
         } else if (link->getQueueDiscipline() != Link::QueueDiscipline::DROP_TAIL) {

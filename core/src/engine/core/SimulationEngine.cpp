@@ -172,8 +172,8 @@ namespace kns {
             throw std::invalid_argument("Packet size must be positive");
         }
         const double transmission =
-            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
-            (link.getBandwidthMbps() * 1e6);
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0 /
+                link.getBandwidthMbps()) / 1e6;
 
         const double propagation = link.getDelayMs() / 1000.0;
 
@@ -230,17 +230,16 @@ namespace kns {
             return false;
         }
 
+        const double transmission_time =
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
+            (link.getBandwidthMbps() * 1e6);
         const double early_drop_probability =
-            link.earlyDropProbability(pkt.current_node, next_node);
+            link.sampleEarlyDropProbability(pkt.current_node, next_node, now, transmission_time);
         if (early_drop_probability > 0.0 && random() < early_drop_probability) {
             stats_.packets_lost++;
             stats_.red_early_drops++;
             return false;
         }
-
-        const double transmission_time =
-            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
-            (link.getBandwidthMbps() * 1e6);
 
         const double propagation_time = link.getDelayMs() / 1000.0;
 
