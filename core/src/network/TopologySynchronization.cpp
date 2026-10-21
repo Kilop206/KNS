@@ -119,7 +119,23 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         } else {
             if (link->getBandwidthMbps() != incoming->getBandwidthMbps()) link->setBandwidthMbps(incoming->getBandwidthMbps());
             if (link->getDelayMs() != incoming->getDelayMs()) link->setDelayMs(incoming->getDelayMs());
-            if (link->getLossProb() != incoming->getLossProb()) link->setLossProb(incoming->getLossProb());
+            if (link->getLossProb() != incoming->getLossProb()) {
+                link->setLossProb(incoming->getLossProb());
+                layout_changed = true;
+            }
+        }
+        if (incoming->getQueueDiscipline() == Link::QueueDiscipline::RED) {
+            if (link->getQueueDiscipline() != Link::QueueDiscipline::RED ||
+                link->getRedMinThreshold() != incoming->getRedMinThreshold() ||
+                link->getRedMaxThreshold() != incoming->getRedMaxThreshold() ||
+                link->getRedMaxDropProbability() != incoming->getRedMaxDropProbability()) {
+                link->configureRed(static_cast<int>(incoming->getRedMinThreshold()),
+                    static_cast<int>(incoming->getRedMaxThreshold()), incoming->getRedMaxDropProbability());
+                layout_changed = true;
+            }
+        } else if (link->getQueueDiscipline() != Link::QueueDiscipline::DROP_TAIL) {
+            link->setDropTail();
+            layout_changed = true;
         }
         if (link->isUp() != incoming->isUp()) link->setUp(incoming->isUp());
         link->setDiscoveryMetadata(incoming->isInferred(), incoming->getEvidence());
