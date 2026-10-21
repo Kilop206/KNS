@@ -413,6 +413,8 @@ TEST_CASE("Canvas creates and atomically edits RED queue policies", "[canvas-ui]
     ui.input("RED max threshold","6");
     ui.input("Max drop probability","0.25");
     ui.input("Queue weight","0.125");
+    REQUIRE(ui.popup()->Pos.y >= 0);
+    REQUIRE(ui.popup()->Pos.y + ui.popup()->Size.y <= ImGui::GetIO().DisplaySize.y);
     ui.capture("canvas-red-settings");
     ui.activate("Done",ui.popup());
     ui.activate("Cable"); ui.click(first); ui.click(second);
@@ -445,6 +447,8 @@ TEST_CASE("Canvas creates and atomically edits RED queue policies", "[canvas-ui]
     REQUIRE(link->getRedQueueWeight()==0.5);
     REQUIRE(link->getQueueSize()==1);
     REQUIRE(link->getId()==id);
+    REQUIRE(ui.popup()->Pos.y >= 0);
+    REQUIRE(ui.popup()->Pos.y + ui.popup()->Size.y <= ImGui::GetIO().DisplaySize.y);
     ui.capture("canvas-red-edited");
     ui.activate("Drop tail",ui.popup());
     ui.activate("Apply queue policy",ui.popup());

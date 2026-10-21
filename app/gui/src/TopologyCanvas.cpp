@@ -61,13 +61,24 @@ void queueControls(bool& red, int& minimum, int& maximum, double& probability,
     ImGui::InputDouble(tr.translate("Queue weight").c_str(),&weight,0,0,"%.4f");
     ImGui::TextWrapped("%s",tr.translate("Weight 1 uses current occupancy; lower weights smooth short bursts.").c_str());
 }
+
+void cablePopupLayout() {
+    const auto* viewport=ImGui::GetWindowViewport();
+    const float width=std::max(1.0f,std::min(360.0f,viewport->WorkSize.x-16.0f));
+    const float height=std::max(1.0f,viewport->WorkSize.y-32.0f);
+    // RED adds fields after the popup opens. Reposition on growth as well as
+    // first appearance, and allow scrolling when the viewport is short.
+    ImGui::SetNextWindowPos(viewport->GetWorkCenter(),ImGuiCond_Always,{0.5f,0.5f});
+    ImGui::SetNextWindowSize({width,0},ImGuiCond_Always);
+    ImGui::SetNextWindowSizeConstraints({width,0},{width,height});
+}
 }
 
 void TopologyCanvas::reset() { *this = TopologyCanvas{}; }
 
 void TopologyCanvas::cableSettings(TranslationService& tr) {
     if (ImGui::SmallButton(tr.translate("Cable settings").c_str())) ImGui::OpenPopup("cable-settings");
-    ImGui::SetNextWindowSize({360,0},ImGuiCond_Always);
+    cablePopupLayout();
     if (ImGui::BeginPopup("cable-settings")) {
         ImGui::TextUnformatted(tr.translate("New cables").c_str());
         ImGui::TextWrapped("%s",tr.translate("Applies to the next cables you create with the Cable tool.").c_str());
@@ -389,6 +400,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
         ImGui::OpenPopup("canvas-context");
     }
     ImGui::SetNextWindowSize({360,0},ImGuiCond_Always);
+    if (selectedLink_) cablePopupLayout();
     if (ImGui::BeginPopup("canvas-context")) {
         if (active(selectedNode)) {
             ImGui::Text("%s #%d",tr.translate("Device").c_str(),selectedNode);
