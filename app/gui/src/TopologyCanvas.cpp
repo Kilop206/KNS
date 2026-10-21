@@ -42,6 +42,25 @@ bool modePicker(kns::LinkMode& mode, TranslationService& tr) {
     ImGui::TextWrapped("%s",tr.translate(description).c_str());
     return changed;
 }
+
+void queueControls(bool& red, int& minimum, int& maximum, double& probability,
+                   double& weight, TranslationService& tr) {
+    ImGui::Separator();
+    ImGui::TextUnformatted(tr.translate("Queue policy").c_str());
+    if (ImGui::RadioButton(tr.translate("Drop tail").c_str(),!red)) red=false;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("RED",red)) red=true;
+    if (!red) return;
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputInt(tr.translate("RED min threshold").c_str(),&minimum,0,0);
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputInt(tr.translate("RED max threshold").c_str(),&maximum,0,0);
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputDouble(tr.translate("Max drop probability").c_str(),&probability,0,0,"%.3f");
+    ImGui::SetNextItemWidth(140);
+    ImGui::InputDouble(tr.translate("Queue weight").c_str(),&weight,0,0,"%.4f");
+    ImGui::TextWrapped("%s",tr.translate("Weight 1 uses current occupancy; lower weights smooth short bursts.").c_str());
+}
 }
 
 void TopologyCanvas::reset() { *this = TopologyCanvas{}; }
@@ -62,6 +81,8 @@ void TopologyCanvas::cableSettings(TranslationService& tr) {
         ImGui::SetNextItemWidth(140);
         ImGui::InputInt(tr.translate("Queue capacity").c_str(),&cableOptions_.queueCapacity,0,0);
         modePicker(cableOptions_.mode,tr);
+        auto& queue=cableOptions_.queue;
+        queueControls(queue.red,queue.minThreshold,queue.maxThreshold,queue.maxDropProbability,queue.weight,tr);
         ImGui::Separator();
         if (ImGui::Button(tr.translate("Reset defaults").c_str())) cableOptions_=CableOptions{};
         ImGui::SameLine();
@@ -330,9 +351,19 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
                         if (std::any_of(links.begin(),links.end(),[&](const auto& l) { return l->getOtherNode(source_)==hit; })) {
                             throw std::invalid_argument("These devices are already connected. Edit the existing cable.");
                         }
-                        selectedLink_=engine.createLink(source_,hit,cableOptions_.bandwidthMbps,
+                        const auto& queue=cableOptions_.queue;
+                        if (queue.red) {
+                            // Validate the complete draft before the engine mutates topology.
+                            kns::Link draft(source_,hit,cableOptions_.bandwidthMbps,cableOptions_.delayMs,
+                                cableOptions_.lossPercent/100.0,cableOptions_.mode,cableOptions_.queueCapacity);
+                            draft.configureRed(queue.minThreshold,queue.maxThreshold,queue.maxDropProbability,queue.weight);
+                        }
+                        auto link=engine.createLink(source_,hit,cableOptions_.bandwidthMbps,
                             cableOptions_.delayMs,cableOptions_.lossPercent/100.0,
-                            cableOptions_.mode,cableOptions_.queueCapacity)->getId();
+                            cableOptions_.mode,cableOptions_.queueCapacity);
+                        if (queue.red) link->configureRed(queue.minThreshold,queue.maxThreshold,
+                            queue.maxDropProbability,queue.weight);
+                        selectedLink_=link->getId();
                     } catch (const std::exception& e) { error_=e.what(); }
                 }
                 source_=-1;
@@ -353,6 +384,7 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
     }
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
         selectedNode=hit; selectedLink_=hit<0 ? hitLink : std::nullopt;
+        queueEditingLink_.reset();
         if (hit>=0) std::snprintf(label_.data(),label_.size(),"%s",topology.getNode(hit)->getLabel().c_str());
         ImGui::OpenPopup("canvas-context");
     }
@@ -396,6 +428,29 @@ std::optional<std::pair<int,int>> TopologyCanvas::render(kns::SimulationEngine& 
                 if (modePicker(mode,tr)) {
                     try { link->setMode(mode); error_.clear(); }
                     catch (const std::exception& e) { error_=e.what(); }
+                }
+                if (queueEditingLink_!=selectedLink_) {
+                    queueEditingLink_=selectedLink_;
+                    queueEditor_.red=link->getQueueDiscipline()==kns::Link::QueueDiscipline::RED;
+                    queueEditor_.minThreshold=queueEditor_.red ? static_cast<int>(link->getRedMinThreshold()) : capacity/4;
+                    queueEditor_.maxThreshold=queueEditor_.red ? static_cast<int>(link->getRedMaxThreshold()) : std::max(1,capacity-capacity/4);
+                    queueEditor_.maxDropProbability=queueEditor_.red ? link->getRedMaxDropProbability() : 0.1;
+                    queueEditor_.weight=link->getRedQueueWeight();
+                }
+                auto& queue=queueEditor_;
+                queueControls(queue.red,queue.minThreshold,queue.maxThreshold,queue.maxDropProbability,queue.weight,tr);
+                if (ImGui::Button(tr.translate("Apply queue policy").c_str())) {
+                    try {
+                        if (queue.red) link->configureRed(queue.minThreshold,queue.maxThreshold,
+                            queue.maxDropProbability,queue.weight);
+                        else link->setDropTail();
+                        error_.clear();
+                    } catch (const std::exception& e) { error_=e.what(); }
+                }
+                if (link->getQueueDiscipline()==kns::Link::QueueDiscipline::RED) {
+                    ImGui::Text("%s: %.3f",tr.translate("Average queue (A to B)").c_str(),link->getAverageQueueSize(link->getA(),link->getB()));
+                    if (link->getMode()==kns::LinkMode::FULL_DUPLEX)
+                        ImGui::Text("%s: %.3f",tr.translate("Average queue (B to A)").c_str(),link->getAverageQueueSize(link->getB(),link->getA()));
                 }
                 if (!error_.empty()) ImGui::TextWrapped("%s",error_.c_str());
                 bool up=link->isUp(); if (ImGui::Checkbox(tr.translate("Up").c_str(),&up)) link->setUp(up);

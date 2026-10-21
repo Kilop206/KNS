@@ -38,12 +38,22 @@ private:
     bool fitPending_ = true;
     std::string error_;
     std::array<char, 256> label_{};
+    struct QueueOptions {
+        bool red = false;
+        int minThreshold = 8;
+        int maxThreshold = 24;
+        double maxDropProbability = 0.1;
+        double weight = 1.0;
+    };
+    QueueOptions queueEditor_;
+    std::optional<std::uint64_t> queueEditingLink_;
     struct CableOptions {
         double bandwidthMbps = 100.0;
         double delayMs = 1.0;
         double lossPercent = 0.0;
         int queueCapacity = 32;
         kns::LinkMode mode = kns::LinkMode::FULL_DUPLEX;
+        QueueOptions queue;
     } cableOptions_;
     void ensurePositions(kns::Topology& topology);
     void arrange(kns::Topology& topology);

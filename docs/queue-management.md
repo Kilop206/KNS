@@ -46,3 +46,16 @@ For example, a link may contain:
   "red_max_drop_probability": 0.1, "red_queue_weight": 0.125
 }
 ```
+
+## Canvas editor
+
+Use **Cable settings** to choose drop-tail or RED for new cables. RED exposes
+minimum/maximum thresholds, maximum drop probability and queue weight. All
+values are validated before adding a cable, so invalid drafts leave topology
+and interfaces unchanged.
+
+Right-click a cable to edit its queue policy. Draft values stay editable until
+**Apply queue policy** is pressed; invalid drafts preserve the active policy.
+Policy changes retain the cable identity and queued arrivals, and reset RED
+history. The editor displays the current average separately for each independent
+direction. Saving the topology preserves the complete policy.

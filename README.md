@@ -21,6 +21,9 @@ and congestion-control state.
 - deterministic event ordering by simulation timestamp and event ID;
 - Dijkstra routing with delay, bandwidth, hop-count, and combined metrics;
 - full-duplex, half-duplex, and simplex links with bounded queues;
+- configurable drop-tail/RED queue management, optional EWMA smoothing and idle
+  decay, saved topology parameters and canvas controls
+  ([queue management](docs/queue-management.md));
 - runtime link availability, delay, bandwidth, and topology changes;
 - live network discovery snapshots, typed devices and desktop topology editing
   ([setup and behavior](docs/discovery.md));

@@ -377,6 +377,12 @@ TEST_CASE("Canvas invalid cable settings do not partially create a link", "[canv
     SECTION("negative delay") { ui.input("Delay (ms)","-1"); }
     SECTION("excessive loss") { ui.input("Loss (%)","101"); }
     SECTION("invalid capacity") { ui.input("Queue capacity","0"); }
+    SECTION("invalid RED thresholds") {
+        ui.activate("RED",ui.popup()); ui.input("RED min threshold","25");
+    }
+    SECTION("invalid RED weight") {
+        ui.activate("RED",ui.popup()); ui.input("Queue weight","0");
+    }
     ui.activate("Done",ui.popup());
     ui.activate("Cable"); ui.click(first); ui.click(second);
     REQUIRE(ui.engine.getTopology().getLinks().empty());
@@ -392,6 +398,59 @@ TEST_CASE("Canvas invalid cable settings do not partially create a link", "[canv
     REQUIRE(link->getLossProb()==0);
     REQUIRE(link->getMode()==kns::LinkMode::FULL_DUPLEX);
     REQUIRE(link->getQueueCapacity()==32);
+}
+
+TEST_CASE("Canvas creates and atomically edits RED queue policies", "[canvas-ui][cable-settings][red]") {
+    CanvasHarness ui;
+    const auto origin=ui.child("canvas-region")->DC.CursorStartPos;
+    const ImVec2 first{origin.x+180,origin.y+180},second{origin.x+540,origin.y+320};
+    ui.click(ui.paletteTile(0)); ui.click(first);
+    ui.click(ui.paletteTile(1)); ui.click(second);
+    ui.activate("Cable settings");
+    ui.input("Queue capacity","8");
+    ui.activate("RED",ui.popup());
+    ui.input("RED min threshold","2");
+    ui.input("RED max threshold","6");
+    ui.input("Max drop probability","0.25");
+    ui.input("Queue weight","0.125");
+    ui.capture("canvas-red-settings");
+    ui.activate("Done",ui.popup());
+    ui.activate("Cable"); ui.click(first); ui.click(second);
+    REQUIRE(ui.engine.getTopology().getLinks().size()==1);
+    const auto link=ui.engine.getTopology().getLinks().front();
+    const auto id=link->getId();
+    REQUIRE(link->getQueueDiscipline()==kns::Link::QueueDiscipline::RED);
+    REQUIRE(link->getRedMinThreshold()==2);
+    REQUIRE(link->getRedMaxThreshold()==6);
+    REQUIRE(link->getRedMaxDropProbability()==0.25);
+    REQUIRE(link->getRedQueueWeight()==0.125);
+    const auto saved=kns::TopologyLoader::toJson(ui.engine.getTopology());
+    REQUIRE(saved["links"][0]["red_queue_weight"]==0.125);
+
+    link->enqueueTransmission(0,1,0,1);
+    const auto a=*ui.engine.getTopology().getNode(0)->getPosition();
+    const auto b=*ui.engine.getTopology().getNode(1)->getPosition();
+    ui.rightClick({origin.x+60+static_cast<float>((a.x+b.x)/2),origin.y+60+static_cast<float>((a.y+b.y)/2)});
+    // Invalid drafts remain editable without changing the active link.
+    ui.input("RED min threshold","7");
+    ui.activate("Apply queue policy",ui.popup());
+    REQUIRE(link->getRedMinThreshold()==2);
+    REQUIRE(link->getRedMaxThreshold()==6);
+    REQUIRE(link->getQueueSize()==1);
+    ui.input("RED max threshold","8");
+    ui.input("Queue weight","0.5");
+    ui.activate("Apply queue policy",ui.popup());
+    REQUIRE(link->getRedMinThreshold()==7);
+    REQUIRE(link->getRedMaxThreshold()==8);
+    REQUIRE(link->getRedQueueWeight()==0.5);
+    REQUIRE(link->getQueueSize()==1);
+    REQUIRE(link->getId()==id);
+    ui.capture("canvas-red-edited");
+    ui.activate("Drop tail",ui.popup());
+    ui.activate("Apply queue policy",ui.popup());
+    REQUIRE(link->getQueueDiscipline()==kns::Link::QueueDiscipline::DROP_TAIL);
+    REQUIRE(link->getQueueSize()==1);
+    REQUIRE_FALSE(ui.engine.hasEvents());
 }
 
 TEST_CASE("Canvas cable edits preserve identity and reject unsafe changes", "[canvas-ui][cable-settings]") {
