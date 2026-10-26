@@ -30,7 +30,9 @@ jobs:
         run: git clone --depth 1 https://github.com/Kilop206/KNS-Discovery.git discovery
 
       - name: Validate canonical KNS schemas
-        run: python kns/scripts/validate_contracts.py
+        run: |
+          python -m pip install -r kns/scripts/requirements-contracts.txt
+          python kns/scripts/validate_contracts.py
 
       - name: Validate public release train versions
         run: |

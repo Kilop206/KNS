@@ -1,0 +1,1 @@
+{"schema_version":"1.0","request_id":"fixture-1","analysis_mode":"quick","client":{"name":"KNS","version":"1.1.0"},"context":{},"score":{"overall":101,"resilience":50,"routing":50,"performance":50,"risk":50}}

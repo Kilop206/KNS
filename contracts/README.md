@@ -26,5 +26,9 @@ desktop contract.
 - consumers must reject unsupported major versions instead of guessing;
 - contract fixtures used in one repository must remain valid against this source.
 
-Run `python scripts/validate_contracts.py` to parse and sanity-check every JSON
-Schema in this directory.
+Install `python -m pip install -r scripts/requirements-contracts.txt`, then run
+`python scripts/validate_contracts.py` to validate every JSON Schema and its
+positive and negative fixture. Fixtures live in `contracts/fixtures/`; add both
+forms whenever a schema is added. JSON Schema cannot enforce every graph-wide
+invariant (for example, whether a link endpoint names an existing node), so
+consumers must retain their semantic topology validation.

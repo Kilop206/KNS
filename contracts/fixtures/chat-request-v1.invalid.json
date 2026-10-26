@@ -1,0 +1,1 @@
+{"requestId":"fixture-1","topologyRevision":"revision-1","analysisMode":"unsupported","context":{},"score":{"overall":50,"resilience":50,"routing":50,"performance":50,"risk":50},"messages":[{"role":"user","content":"Explain the topology"}]}
