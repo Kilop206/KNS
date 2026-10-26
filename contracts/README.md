@@ -31,6 +31,9 @@ carried separately by the intelligence request when available.
 fields emitted by the current Go collector. It does not invent timestamps for
 observations the collector has not recorded. The `observed_at` UTC field is an
 optional extension until a versioned producer migration supplies it.
+`discovery.snapshot.valid.traffic.json` is a synthetic three-node fixture for
+offline integration tests. Its nodes and inferred links are test data, not
+observations of a real network.
 
 ## Compatibility policy
 

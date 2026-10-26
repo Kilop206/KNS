@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "name": "Synthetic offline LAN",
+  "nodes": [
+    {"id": 0, "external_id": "host:fixture-a", "label": "Fixture A", "type": "computer", "evidence": "synthetic_fixture"},
+    {"id": 1, "external_id": "segment:fixture", "label": "Fixture segment", "type": "network_segment", "evidence": "synthetic_fixture"},
+    {"id": 2, "external_id": "host:fixture-b", "label": "Fixture B", "type": "computer", "evidence": "synthetic_fixture"}
+  ],
+  "links": [
+    {"from": 0, "to": 1, "bandwidth": 100, "delay": 1, "loss": 0, "inferred": true, "evidence": "shared_segment"},
+    {"from": 1, "to": 2, "bandwidth": 100, "delay": 1, "loss": 0, "inferred": true, "evidence": "shared_segment"}
+  ]
+}
