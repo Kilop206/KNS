@@ -19,7 +19,7 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TextIO
 
@@ -357,7 +357,7 @@ def write_summary_json(
         )
 
     summary = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "run_config": run_config,
         "topology_count": len(runs),
         "successful_runs": sum(1 for r in runs if r["returncode"] == 0),
