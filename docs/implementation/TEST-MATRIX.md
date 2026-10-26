@@ -14,11 +14,14 @@
 | KNS C++/integração local | `ctest --test-dir KNS/build -E 'runner_tests|experiment_profile_tests|experiment_comparison_tests' -j 8` | 403/403 PASS, build existente |
 | KNS recompilação incremental | `cmake -S KNS -B KNS/build -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DCMAKE_SUPPRESS_REGENERATION=ON`, depois `cmake --build KNS/build --parallel 6` | configuração PASS; Ninja `no work to do`; não é build limpo |
 | KNS CI hospedada | [CI 40361835152](https://github.com/Kilop206/KNS/actions/runs/40361835152) | macOS, Ubuntu e warnings-as-errors PASS; Windows MinGW64 compilou e passou 406/407 CTest, mas `desktop_https` rejeitou a CA confiável; sanitizers interrompido pelo runner na compilação (`exit 143`). `e308915` e `c67f03d` aguardam revalidação hospedada |
+| KNS CI após correções | [CI 40363759606](https://github.com/Kilop206/KNS/actions/runs/40363759606) | PASS nos cinco jobs: Windows MinGW64/Ninja 407/407 CTest inclusive `desktop_https`, 8 schemas/24 fixtures/4 topologias e contexto; Ubuntu, macOS, sanitizers e warnings PASS |
 | Sintaxe do cliente HTTPS KNS | `g++ -std=c++20 -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -fsyntax-only` sobre `app/http/ClientTrust.hpp`, com e sem `CPPHTTPLIB_OPENSSL_SUPPORT` | PASS nos dois modos; não substitui build/link e CTest HTTPS hospedados |
 | Windows MinGW CI/release | YAML parse de `ci.yml` e `release.yml`; `objdump -p KNS.exe`; smoke headless com apenas `KNS.exe` e DLLs MinGW em PATH isolado | parse PASS; binário local saiu 0 com `libgcc_s_seh-1`, `libstdc++-6` e `libwinpthread-1`; runner hospedado e pacote OpenSSL ainda não executados |
 | Configuração HTTPS desktop | `cmake -S KNS -B KNS/build -DKNS_ENABLE_TLS=ON -DOPENSSL_ROOT_DIR=C:/openssl-4.0.3/x64` | CMake PASS, OpenSSL 4.0.3 encontrado, macros HTTPS presentes; rebuild não concluiu; `test_https.py` falhou na criação de certificados por permissão de temporário, antes de testar o binário |
 | KNS Python experimentos | `ctest --test-dir KNS/build -j 6` | 3 falhas por temp inacessível |
 | Discovery Go | `go test ./...` | bloqueado por instalação Go incompleta |
+| Discovery CI preexistente | [Go validation](https://github.com/Kilop206/KNS-Discovery/actions/runs/39588666865) | PASS em Ubuntu/Windows: contratos de diff, `go test`, `go vet`, `go build`; serviu de baseline anterior ao gate de snapshot |
+| Discovery snapshot Go → schema | [CI 40365781532](https://github.com/Kilop206/KNS-Discovery/actions/runs/40365781532) | PASS em Ubuntu/Windows: fixture Go serializada validou `discovery.snapshot.schema.json`, fixture canônica inválida foi rejeitada; `go test ./...`, `go vet ./...` e `go build` PASS; não houve coleta real |
 | Hub frontend TS | `npm.cmd run typecheck` | PASS |
 | Hub frontend browser | `npm.cmd test` | 13 testes detectados, worker bloqueado por `spawn EPERM` |
 | Hub backend | Maven `compile -q` com mirror file e cache em `backend/target/audit-m2` | PASS; `test` bloqueado por `surefire-api` 3.5.4 ausente do cache |
