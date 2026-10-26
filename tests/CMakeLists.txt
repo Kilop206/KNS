@@ -75,7 +75,7 @@ if(Python3_Interpreter_FOUND)
         set_tests_properties(runner_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>"
         )
-        if(KNS_ENABLE_TLS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        if(KNS_ENABLE_TLS)
             find_program(KNS_OPENSSL_EXECUTABLE openssl REQUIRED)
             add_test(NAME desktop_https
                 COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/test_https.py"

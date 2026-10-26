@@ -116,6 +116,8 @@ jobs:
           cp /mingw64/bin/libgcc_s_seh-1.dll dist/kns/
           cp /mingw64/bin/libstdc++-6.dll dist/kns/
           cp /mingw64/bin/libwinpthread-1.dll dist/kns/
+          cp /mingw64/bin/libssl-3-x64.dll dist/kns/
+          cp /mingw64/bin/libcrypto-3-x64.dll dist/kns/
 
       - name: Archive Windows package
         if: runner.os == 'Windows'

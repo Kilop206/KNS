@@ -79,11 +79,11 @@ FetchContent_MakeAvailable(nlohmann_json)
 # HTTP client used by the optional desktop translation service
 # ==================================================
 if(KNS_BUILD_APP)
-    # OpenSSL is optional. TLS is disabled when KNS_ENABLE_TLS is OFF.
+    # HTTPS must be available whenever the desktop TLS option is enabled.
     set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
     set(HTTPLIB_TEST OFF CACHE BOOL "" FORCE)
-    set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "" FORCE)
-    set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+    set(HTTPLIB_REQUIRE_OPENSSL ${KNS_ENABLE_TLS} CACHE BOOL "" FORCE)
+    set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE ${KNS_ENABLE_TLS} CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
         cpp_httplib
