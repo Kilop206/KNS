@@ -13,6 +13,7 @@
 | Limites de interoperabilidade | `KNS.exe --headless --topology build/contract-boundaries/{sparse,oversize}.json` e validador JSON Schema | Schema aceitou ambos; KNS rejeitou IDs 10/20 e 4097 nós com exit code 1; comportamento Hub confirmado em `GraphsTest` por código, não executado |
 | KNS C++/integração local | `ctest --test-dir KNS/build -E 'runner_tests|experiment_profile_tests|experiment_comparison_tests' -j 8` | 403/403 PASS, build existente |
 | KNS recompilação incremental | `cmake -S KNS -B KNS/build -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DCMAKE_SUPPRESS_REGENERATION=ON`, depois `cmake --build KNS/build --parallel 6` | configuração PASS; Ninja `no work to do`; não é build limpo |
+| KNS CI hospedada | [CI 40361835152](https://github.com/Kilop206/KNS/actions/runs/40361835152) | macOS, Ubuntu e warnings-as-errors PASS; Windows MinGW64 ainda em build na consulta; sanitizers interrompido pelo runner na compilação (`exit 143`), sem erro de compilador identificado; `e308915` limita a próxima tentativa a dois compiladores |
 | Windows MinGW CI/release | YAML parse de `ci.yml` e `release.yml`; `objdump -p KNS.exe`; smoke headless com apenas `KNS.exe` e DLLs MinGW em PATH isolado | parse PASS; binário local saiu 0 com `libgcc_s_seh-1`, `libstdc++-6` e `libwinpthread-1`; runner hospedado e pacote OpenSSL ainda não executados |
 | Configuração HTTPS desktop | `cmake -S KNS -B KNS/build -DKNS_ENABLE_TLS=ON -DOPENSSL_ROOT_DIR=C:/openssl-4.0.3/x64` | CMake PASS, OpenSSL 4.0.3 encontrado, macros HTTPS presentes; rebuild não concluiu; `test_https.py` falhou na criação de certificados por permissão de temporário, antes de testar o binário |
 | KNS Python experimentos | `ctest --test-dir KNS/build -j 6` | 3 falhas por temp inacessível |
@@ -20,9 +21,12 @@
 | Hub frontend TS | `npm.cmd run typecheck` | PASS |
 | Hub frontend browser | `npm.cmd test` | 13 testes detectados, worker bloqueado por `spawn EPERM` |
 | Hub backend | Maven `compile -q` com mirror file e cache em `backend/target/audit-m2` | PASS; `test` bloqueado por `surefire-api` 3.5.4 ausente do cache |
+| Hub CI hospedada | [Validate Topology Hub](https://github.com/Kilop206/Topology-Hub/actions/runs/40324837376) | PASS: backend `mvn verify`, frontend typecheck/build e E2E com PostgreSQL e Playwright; esta execução não é o E2E dos cinco produtos |
 | Sentient | Maven `compile -q` com mirror file e cache em `target/audit-m2` | PASS; `test` bloqueado por `surefire-api`, `surefire-extensions-api` e `maven-surefire-common` 3.5.6 ausentes |
+| Sentient CI hospedada | [Validate Sentient KNS](https://github.com/Kilop206/sentient-KNS/actions/runs/40324844408) | PASS em Ubuntu e Windows: Maven `verify`, contratos canônicos e release train; não exercita Hub/KiWi reais juntos |
 | KiWi | `.venv/Scripts/python.exe -m unittest discover -s tests -q` | 129 casos, 75 erros de permissão em temp |
 | KiWi focado | `.venv/Scripts/python.exe -m unittest tests.test_chat tests.test_queue_weight -q` | 23 PASS |
+| KiWi CI hospedada | [KiWi evaluation regression](https://github.com/Kilop206/KiWi/actions/runs/40324848806) | PASS em Ubuntu/Windows e Python 3.12/3.14: unittest completo, contratos, gerador de candidatos e avaliação determinística |
 | KiWi avaliação determinística | `.venv/Scripts/python.exe -m evaluation.runner --fail-on-issues` | 30/30 casos limpos, 0 issues; relatórios gerados foram restaurados ao estado Git inicial após a verificação |
 | Compatibilidade chat KNS → KiWi | `ChatRequest`/`ChatResponse.model_validate` sobre quatro fixtures canônicas | 2 válidas aceitas, 2 inválidas rejeitadas |
 | Release preflight | `python KNS/scripts/validate_release_train.py` | PASS: candidato `kns-ecosystem-1`, modelo `pipeline_ready` |
