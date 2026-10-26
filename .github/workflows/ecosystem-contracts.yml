@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
+      - "app/topologies/**"
       - "contracts/**"
       - "scripts/validate_contracts.py"
       - ".github/workflows/ecosystem-contracts.yml"
