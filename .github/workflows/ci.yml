@@ -137,7 +137,7 @@ jobs:
         run: cmake -S . -B build-sanitizers -DKNS_BUILD_TESTS=ON -DKNS_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
       - name: Build (sanitizers)
-        run: cmake --build build-sanitizers --config RelWithDebInfo --parallel
+        run: cmake --build build-sanitizers --config RelWithDebInfo --parallel 2
 
       - name: Test (sanitizers)
         run: ctest --test-dir build-sanitizers --output-on-failure
