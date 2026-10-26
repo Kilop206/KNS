@@ -33,3 +33,6 @@ forms whenever a schema is added. Multiple negative fixtures may cover version,
 requiredness, units, and boundary errors. JSON Schema cannot enforce every graph-wide
 invariant (for example, whether a link endpoint names an existing node), so
 consumers must retain their semantic topology validation.
+The validator also checks every bundled topology in `app/topologies/` against
+the canonical topology v1 schema. The KNS loader still accepts legacy local
+topologies without `schema_version` for backward compatibility.

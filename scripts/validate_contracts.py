@@ -59,7 +59,19 @@ def main() -> int:
                     raise SystemExit(f"{fixture}: expected schema rejection")
                 fixture_count += 1
 
-    print(f"Validated {len(schemas)} ecosystem contract schemas and {fixture_count} fixtures.")
+    topology_schema = json.loads((CONTRACTS / "topology-v1.schema.json").read_text(encoding="utf-8"))
+    topology_validator = Draft202012Validator(topology_schema)
+    examples = sorted((ROOT / "app" / "topologies").glob("*.json"))
+    for path in examples:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        errors = list(topology_validator.iter_errors(payload))
+        if errors:
+            raise SystemExit(f"{path}: {errors[0].message}")
+
+    print(
+        f"Validated {len(schemas)} ecosystem contract schemas, "
+        f"{fixture_count} fixtures and {len(examples)} bundled topologies."
+    )
     return 0
 
 
