@@ -119,6 +119,21 @@ jobs:
           cp /mingw64/bin/libssl-3-x64.dll dist/kns/
           cp /mingw64/bin/libcrypto-3-x64.dll dist/kns/
 
+      - name: Smoke test packaged Windows binary without MSYS2 on PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = (Resolve-Path dist/kns).Path
+          $topology = (Resolve-Path app/topologies/mesh4.json).Path
+          $oldPath = $env:PATH
+          $env:PATH = "$package;$env:WINDIR\System32;$env:WINDIR"
+          try {
+            & "$package\KNS.exe" --headless --topology $topology --output "$env:RUNNER_TEMP\kns-release-smoke.csv"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            $env:PATH = $oldPath
+          }
+
       - name: Archive Windows package
         if: runner.os == 'Windows'
         shell: pwsh
