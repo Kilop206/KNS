@@ -12,10 +12,15 @@ components. Contracts are versioned independently from application releases.
 | `desktop-intelligence-request-v1.schema.json` | KNS desktop | Sentient KNS |
 | `chat-request-v1.schema.json` | KNS desktop | Sentient KNS, KiWi through the gateway |
 | `chat-response-v1.schema.json` | KiWi | Sentient KNS, KNS desktop |
+| `kiwi.analysis.schema.json` | KiWi `/api/v1/analyze` | Sentient KNS |
 
 Sentient KNS remains the public product gateway. KiWi's internal analysis adapter
 may use a different field naming convention, but that adapter is not a public
-desktop contract.
+desktop contract. `kiwi.analysis.schema.json` describes its current response
+body; `/api/v1/analyze` supplies the version because the body has no version field.
+It does not claim measurement authority or add request provenance absent from the
+existing response. Correlation and grounding evidence belong in the request and
+gateway envelope until a versioned response migration is agreed.
 
 ## Compatibility policy
 

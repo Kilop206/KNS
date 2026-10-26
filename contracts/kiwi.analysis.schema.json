@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/kiwi-analysis-v1.schema.json",
+  "title": "KiWi Analysis Response v1",
+  "description": "Response body of KiWi POST /api/v1/analyze. The endpoint path carries the API version; this legacy response has no schema_version field.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings", "recommendations"],
+  "properties": {
+    "summary": {"type": "string"},
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/recommendation"}
+    }
+  },
+  "$defs": {
+    "affectedLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"type": "integer", "minimum": 0},
+        "to": {"type": "integer", "minimum": 0}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "category", "title", "description"],
+      "properties": {
+        "id": {"type": "string"},
+        "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
+        "category": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "affectedNodes": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+        "affectedLinks": {"type": "array", "items": {"$ref": "#/$defs/affectedLink"}}
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "priority", "title", "description"],
+      "properties": {
+        "id": {"type": "string"},
+        "priority": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"}
+      }
+    }
+  }
+}
