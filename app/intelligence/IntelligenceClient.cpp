@@ -12,6 +12,7 @@
 
 #include "intelligence/IntelligenceRequestBuilder.hpp"
 #include "intelligence/IntelligenceResponseParser.hpp"
+#include "http/ClientTrust.hpp"
 
 namespace kns::app::intelligence {
 
@@ -97,6 +98,7 @@ IntelligenceClient::IntelligenceClient(
 ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
 {
     httplib::Client client(config_.base_url);
+    kns::app::http::configureClientTrust(client);
     client.set_connection_timeout(config_.connection_timeout_seconds);
     client.set_read_timeout(config_.chat_timeout_seconds);
     client.set_write_timeout(config_.write_timeout_seconds);
@@ -148,6 +150,7 @@ IntelligenceClient::analyze(
     httplib::Client client(
         config_.base_url
     );
+    kns::app::http::configureClientTrust(client);
 
     client.set_connection_timeout(
         config_.connection_timeout_seconds

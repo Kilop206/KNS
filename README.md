@@ -90,6 +90,9 @@ Set `OPENSSL_ROOT_DIR` when CMake cannot locate them. Windows CI and release
 builds use MSYS2 MinGW64, Ninja, and the matching MinGW64 OpenSSL package.
 Certificate and hostname verification are required for HTTPS desktop clients.
 `-DKNS_ENABLE_TLS=OFF` is an explicit HTTP-only development build.
+For a private CA, set `SSL_CERT_FILE` to a PEM bundle or `SSL_CERT_DIR` to a
+certificate directory before starting KNS. An explicit bundle replaces the
+default system trust selection for KNS desktop HTTP clients.
 TLS-enabled desktop CTest includes `desktop_https`, which creates temporary certificates and
 checks trusted HTTPS, rejection of an unknown issuer and hostname mismatch.
 

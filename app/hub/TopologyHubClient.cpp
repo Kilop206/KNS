@@ -7,6 +7,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include "http/ClientTrust.hpp"
 #include "network/TopologyLoader.hpp"
 
 namespace kns::app::hub {
@@ -48,6 +49,7 @@ httplib::Headers requestHeaders(
 
 void configureClient(httplib::Client& client, const TopologyHubClientConfig& config)
 {
+    kns::app::http::configureClientTrust(client);
     client.set_connection_timeout(config.connection_timeout_seconds);
     client.set_read_timeout(config.read_timeout_seconds);
     client.set_write_timeout(config.connection_timeout_seconds);

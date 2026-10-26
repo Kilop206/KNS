@@ -18,6 +18,8 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include "http/ClientTrust.hpp"
+
 namespace gui {
 namespace {
 
@@ -69,6 +71,7 @@ std::vector<std::string> requestTranslations(
 )
 {
     httplib::Client client(base_url);
+    kns::app::http::configureClientTrust(client);
     client.set_connection_timeout(3, 0);
     client.set_read_timeout(8, 0);
     client.set_write_timeout(3, 0);
