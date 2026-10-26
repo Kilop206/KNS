@@ -13,6 +13,7 @@ components. Contracts are versioned independently from application releases.
 | `chat-request-v1.schema.json` | KNS desktop | Sentient KNS, KiWi through the gateway |
 | `chat-response-v1.schema.json` | KiWi | Sentient KNS, KNS desktop |
 | `kiwi.analysis.schema.json` | KiWi `/api/v1/analyze` | Sentient KNS |
+| `analysis.context.schema.json` | KNS `AIContextBuilder` | Sentient KNS, KiWi |
 
 Sentient KNS remains the public product gateway. KiWi's internal analysis adapter
 may use a different field naming convention, but that adapter is not a public
@@ -21,6 +22,10 @@ body; `/api/v1/analyze` supplies the version because the body has no version fie
 It does not claim measurement authority or add request provenance absent from the
 existing response. Correlation and grounding evidence belong in the request and
 gateway envelope until a versioned response migration is agreed.
+`analysis.context.schema.json` describes KNS deterministic topology analysis.
+Its critical-node/link lists are bounded summaries, so missing entries must not
+be treated as proof that an entity is safe. Packet-level simulation counters are
+carried separately by the intelligence request when available.
 
 ## Compatibility policy
 
@@ -41,3 +46,7 @@ consumers must retain their semantic topology validation.
 The validator also checks every bundled topology in `app/topologies/` against
 the canonical topology v1 schema. The KNS loader still accepts legacy local
 topologies without `schema_version` for backward compatibility.
+After building the application, run `python scripts/validate_analysis_context.py`
+to check a context emitted by the actual headless engine. The script runs a
+bundled fixture topology and writes only into a temporary directory. Use
+`--work-dir <directory>` to retain the generated evidence locally.
