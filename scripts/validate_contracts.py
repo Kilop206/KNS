@@ -45,17 +45,19 @@ def main() -> int:
 
         Draft202012Validator.check_schema(schema)
         validator = Draft202012Validator(schema)
+        stem = path.name.removesuffix(".schema.json")
         for outcome in ("valid", "invalid"):
-            fixture = FIXTURES / f"{path.name.removesuffix('.schema.json')}.{outcome}.json"
-            if not fixture.is_file():
-                raise SystemExit(f"Missing {outcome} fixture: {fixture}")
-            payload = json.loads(fixture.read_text(encoding="utf-8"))
-            errors = list(validator.iter_errors(payload))
-            if outcome == "valid" and errors:
-                raise SystemExit(f"{fixture}: {errors[0].message}")
-            if outcome == "invalid" and not errors:
-                raise SystemExit(f"{fixture}: expected schema rejection")
-            fixture_count += 1
+            fixtures = sorted(FIXTURES.glob(f"{stem}.{outcome}*.json"))
+            if not fixtures:
+                raise SystemExit(f"Missing {outcome} fixture for {path}")
+            for fixture in fixtures:
+                payload = json.loads(fixture.read_text(encoding="utf-8"))
+                errors = list(validator.iter_errors(payload))
+                if outcome == "valid" and errors:
+                    raise SystemExit(f"{fixture}: {errors[0].message}")
+                if outcome == "invalid" and not errors:
+                    raise SystemExit(f"{fixture}: expected schema rejection")
+                fixture_count += 1
 
     print(f"Validated {len(schemas)} ecosystem contract schemas and {fixture_count} fixtures.")
     return 0

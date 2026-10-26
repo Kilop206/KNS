@@ -28,7 +28,8 @@ desktop contract.
 
 Install `python -m pip install -r scripts/requirements-contracts.txt`, then run
 `python scripts/validate_contracts.py` to validate every JSON Schema and its
-positive and negative fixture. Fixtures live in `contracts/fixtures/`; add both
-forms whenever a schema is added. JSON Schema cannot enforce every graph-wide
+positive and negative fixtures. Fixtures live in `contracts/fixtures/`; add both
+forms whenever a schema is added. Multiple negative fixtures may cover version,
+requiredness, units, and boundary errors. JSON Schema cannot enforce every graph-wide
 invariant (for example, whether a link endpoint names an existing node), so
 consumers must retain their semantic topology validation.
