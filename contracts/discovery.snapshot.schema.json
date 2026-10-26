@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/discovery.snapshot.schema.json",
+  "title": "KNS Discovery Snapshot v1",
+  "description": "Discovery's current topology-v1 export. Evidence records the source of each node and link; inferred links do not represent verified physical cables.",
+  "type": "object",
+  "allOf": [
+    {"$ref": "topology-v1.schema.json"}
+  ],
+  "required": ["schema_version", "name", "nodes", "links"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "name": {"type": "string"},
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "required": ["id", "external_id", "label", "type", "evidence"],
+        "properties": {
+          "id": {"type": "integer", "minimum": 0},
+          "external_id": {"type": "string", "minLength": 1},
+          "label": {"type": "string"},
+          "type": {"type": "string"},
+          "evidence": {"type": "string", "minLength": 1},
+          "addresses": {"type": "array", "items": {"type": "string"}},
+          "mac": {"type": "string"}
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "bandwidth", "delay", "loss", "inferred", "evidence"],
+        "properties": {
+          "inferred": {"type": "boolean"},
+          "evidence": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "observed_at": {"type": "string", "format": "date-time", "pattern": "Z$", "description": "Optional UTC collection timestamp for future producers; absent in the current Go snapshot."}
+  }
+}

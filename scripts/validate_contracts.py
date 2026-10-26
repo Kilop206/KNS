@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 
 try:
-    from jsonschema import Draft202012Validator
+    from jsonschema import Draft202012Validator, FormatChecker
+    from referencing import Registry, Resource
 except ImportError as exc:
     raise SystemExit(
         "Install contract validation dependencies: "
@@ -23,7 +24,7 @@ def main() -> int:
         raise SystemExit("No contract schemas found")
 
     ids: set[str] = set()
-    fixture_count = 0
+    documents: dict[Path, dict] = {}
     for path in schemas:
         with path.open("r", encoding="utf-8") as handle:
             schema = json.load(handle)
@@ -44,7 +45,15 @@ def main() -> int:
             raise SystemExit(f"{path}: top-level contract must be an object")
 
         Draft202012Validator.check_schema(schema)
-        validator = Draft202012Validator(schema)
+        documents[path] = schema
+
+    registry = Registry().with_resources(
+        (schema["$id"], Resource.from_contents(schema))
+        for schema in documents.values()
+    )
+    fixture_count = 0
+    for path, schema in documents.items():
+        validator = Draft202012Validator(schema, registry=registry, format_checker=FormatChecker())
         stem = path.name.removesuffix(".schema.json")
         for outcome in ("valid", "invalid"):
             fixtures = sorted(FIXTURES.glob(f"{stem}.{outcome}*.json"))
@@ -60,7 +69,7 @@ def main() -> int:
                 fixture_count += 1
 
     topology_schema = json.loads((CONTRACTS / "topology-v1.schema.json").read_text(encoding="utf-8"))
-    topology_validator = Draft202012Validator(topology_schema)
+    topology_validator = Draft202012Validator(topology_schema, registry=registry, format_checker=FormatChecker())
     examples = sorted((ROOT / "app" / "topologies").glob("*.json"))
     for path in examples:
         payload = json.loads(path.read_text(encoding="utf-8"))

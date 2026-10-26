@@ -1,0 +1,1 @@
+{"schema_version":"1.0","name":"Fixture LAN","nodes":[{"id":0,"external_id":"host:fixture","label":"Host","type":"computer","evidence":"local_interface"}],"links":[],"observed_at":"2026-10-26T12:00:00Z"}

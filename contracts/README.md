@@ -14,6 +14,7 @@ components. Contracts are versioned independently from application releases.
 | `chat-response-v1.schema.json` | KiWi | Sentient KNS, KNS desktop |
 | `kiwi.analysis.schema.json` | KiWi `/api/v1/analyze` | Sentient KNS |
 | `analysis.context.schema.json` | KNS `AIContextBuilder` | Sentient KNS, KiWi |
+| `discovery.snapshot.schema.json` | KNS Discovery | Topology Hub, KNS |
 
 Sentient KNS remains the public product gateway. KiWi's internal analysis adapter
 may use a different field naming convention, but that adapter is not a public
@@ -26,6 +27,10 @@ gateway envelope until a versioned response migration is agreed.
 Its critical-node/link lists are bounded summaries, so missing entries must not
 be treated as proof that an entity is safe. Packet-level simulation counters are
 carried separately by the intelligence request when available.
+`discovery.snapshot.schema.json` refines topology v1 with the evidence-bearing
+fields emitted by the current Go collector. It does not invent timestamps for
+observations the collector has not recorded. The `observed_at` UTC field is an
+optional extension until a versioned producer migration supplies it.
 
 ## Compatibility policy
 
