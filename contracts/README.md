@@ -28,9 +28,10 @@ Its critical-node/link lists are bounded summaries, so missing entries must not
 be treated as proof that an entity is safe. Packet-level simulation counters are
 carried separately by the intelligence request when available.
 `discovery.snapshot.schema.json` refines topology v1 with the evidence-bearing
-fields emitted by the current Go collector. It does not invent timestamps for
-observations the collector has not recorded. The `observed_at` UTC field is an
-optional extension until a versioned producer migration supplies it.
+fields emitted by the Go collector. Since Discovery `9f693a3`, successful OS
+collections include `observed_at` in UTC. The field remains optional for older
+producers and synthetic fixtures without a collection time. An unchanged graph
+retains its last published observation time so watch mode does not reload KNS.
 `discovery.snapshot.valid.traffic.json` is a synthetic three-node fixture for
 offline integration tests. Its nodes and inferred links are test data, not
 observations of a real network.

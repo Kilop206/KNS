@@ -2,7 +2,7 @@
 
 | Camada | Comando | Resultado em 2026-10-26 |
 | --- | --- | --- |
-| KNS schemas e instâncias | `python KNS/scripts/validate_contracts.py` | 8 schemas, 24 fixtures e 4 topologias empacotadas PASS; produtor Go não executado |
+| KNS schemas e instâncias | `python KNS/scripts/validate_contracts.py` | 8 schemas, 24 fixtures e 4 topologias empacotadas PASS; produtor Go validado em CI Discovery |
 | Snapshot Discovery existente | JSON Schema com registry local sobre `KNS-Discovery/output/network.json` | PASS; arquivo preexistente lido sem coleta nova ou exposição do conteúdo |
 | Discovery → KNS offline | `KNS.exe --headless --topology ../KNS-Discovery/output/network.json` em diretório isolado | exit 0; contexto gerado validou `analysis.context.schema.json`; não testou Hub ou coleta nova |
 | Fluxo sintético de três produtos | `KiWi/.venv/Scripts/python.exe sentient-KNS/ops/offline_contract.py --work-dir KNS/build` | PASS: fixture de descoberta, KNS headless, contexto real e resposta KiWi validados; gate privado atualizado |
@@ -22,6 +22,7 @@
 | Discovery Go | `go test ./...` | bloqueado por instalação Go incompleta |
 | Discovery CI preexistente | [Go validation](https://github.com/Kilop206/KNS-Discovery/actions/runs/39588666865) | PASS em Ubuntu/Windows: contratos de diff, `go test`, `go vet`, `go build`; serviu de baseline anterior ao gate de snapshot |
 | Discovery snapshot Go → schema | [CI 40365781532](https://github.com/Kilop206/KNS-Discovery/actions/runs/40365781532) | PASS em Ubuntu/Windows: fixture Go serializada validou `discovery.snapshot.schema.json`, fixture canônica inválida foi rejeitada; `go test ./...`, `go vet ./...` e `go build` PASS; não houve coleta real |
+| Discovery `observed_at` UTC | [CI 40367388593](https://github.com/Kilop206/KNS-Discovery/actions/runs/40367388593) | PASS em Ubuntu/Windows: produtor de fixture com offset convertido para UTC, publicação retém horário em grafo idêntico, contrato canônico, `go test ./...`, `go vet ./...`, `go build`; coleta real não executada |
 | Hub frontend TS | `npm.cmd run typecheck` | PASS |
 | Hub frontend browser | `npm.cmd test` | 13 testes detectados, worker bloqueado por `spawn EPERM` |
 | Hub backend | Maven `compile -q` com mirror file e cache em `backend/target/audit-m2` | PASS; `test` bloqueado por `surefire-api` 3.5.4 ausente do cache |

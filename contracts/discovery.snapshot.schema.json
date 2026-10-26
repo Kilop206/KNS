@@ -41,6 +41,6 @@
       }
     },
     "warnings": {"type": "array", "items": {"type": "string"}},
-    "observed_at": {"type": "string", "format": "date-time", "pattern": "Z$", "description": "Optional UTC collection timestamp for future producers; absent in the current Go snapshot."}
+    "observed_at": {"type": "string", "format": "date-time", "pattern": "Z$", "description": "Optional UTC time of the collection that last changed the published topology; omitted by older producers and synthetic fixtures without a collection time."}
   }
 }
