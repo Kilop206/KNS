@@ -50,26 +50,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libssl-dev libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
 
-      - name: Install static OpenSSL (Windows)
+      - name: Set up MSYS2 MinGW64 (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows-static-md
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "OPENSSL_ROOT_DIR=$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-openssl
 
       - name: Locate OpenSSL (macOS)
         if: runner.os == 'macOS'
         run: echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
 
       - name: Configure
+        if: runner.os != 'Windows'
         run: cmake -S . -B build -DKNS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
+        if: runner.os != 'Windows'
         run: cmake --build build --config Release --parallel
 
       - name: Test
+        if: runner.os != 'Windows'
         run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Configure, build and test Windows with MinGW64
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build-mingw -G Ninja -DCMAKE_BUILD_TYPE=Release -DKNS_BUILD_TESTS=ON -DOPENSSL_ROOT_DIR=/mingw64
+          cmake --build build-mingw --parallel 2
+          ctest --test-dir build-mingw --output-on-failure
 
       - name: Package Unix
         if: runner.os != 'Windows'
@@ -88,10 +104,23 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist/kns | Out-Null
-          Copy-Item build/app/Release/KNS.exe dist/kns/KNS.exe
-          Copy-Item build/app/Release/assets dist/kns/assets -Recurse
-          Copy-Item build/app/Release/topologies dist/kns/topologies -Recurse
+          Copy-Item build-mingw/app/KNS.exe dist/kns/KNS.exe
+          Copy-Item build-mingw/app/assets dist/kns/assets -Recurse
+          Copy-Item build-mingw/app/topologies dist/kns/topologies -Recurse
           Copy-Item README.md,LICENSE dist/kns/
+
+      - name: Include MinGW64 runtime in Windows package
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cp /mingw64/bin/libgcc_s_seh-1.dll dist/kns/
+          cp /mingw64/bin/libstdc++-6.dll dist/kns/
+          cp /mingw64/bin/libwinpthread-1.dll dist/kns/
+
+      - name: Archive Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
           Compress-Archive -Path dist/kns/* -DestinationPath "dist/${{ matrix.artifact }}"
           $hash = (Get-FileHash "dist/${{ matrix.artifact }}" -Algorithm SHA256).Hash.ToLower()
           "$hash  ${{ matrix.artifact }}" | Set-Content "dist/${{ matrix.artifact }}.sha256"

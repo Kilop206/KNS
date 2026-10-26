@@ -86,10 +86,10 @@ Useful configuration options:
 | `KNS_ENABLE_TLS` | `ON` | Require OpenSSL for verified HTTPS in desktop service clients. |
 
 Desktop builds require OpenSSL development libraries from the same toolchain.
-Set `OPENSSL_ROOT_DIR` when CMake cannot locate them. Windows CI uses vcpkg's
-`openssl:x64-windows-static-md`; MinGW builds need a matching MinGW OpenSSL.
-TLS libraries are linked statically. Certificate and hostname verification stay
-enabled. `-DKNS_ENABLE_TLS=OFF` is an explicit HTTP-only development build.
+Set `OPENSSL_ROOT_DIR` when CMake cannot locate them. Windows CI and release
+builds use MSYS2 MinGW64, Ninja, and the matching MinGW64 OpenSSL package.
+Certificate and hostname verification are required for HTTPS desktop clients.
+`-DKNS_ENABLE_TLS=OFF` is an explicit HTTP-only development build.
 Linux CTest includes `desktop_https`, which creates temporary certificates and
 checks trusted HTTPS, rejection of an unknown issuer and hostname mismatch.
 
@@ -104,11 +104,13 @@ marked `transport_failure`, with metrics and diagnostics. It still rejects
 crashes, timeouts, malformed statistics and unfinished sessions. Other suites
 remain strict unless `allow_transport_failures` is explicitly enabled.
 
-For a multi-config generator such as Visual Studio, select the configuration
-explicitly when needed:
+On Windows, install the MSYS2 MinGW64 toolchain, CMake, Ninja, and OpenSSL,
+then run these commands from an MSYS2 MinGW64 shell:
 
-```powershell
-cmake --build build --config Debug
+```bash
+cmake -S . -B build-mingw -G Ninja -DCMAKE_BUILD_TYPE=Release -DKNS_BUILD_TESTS=ON -DOPENSSL_ROOT_DIR=/mingw64
+cmake --build build-mingw --parallel 2
+ctest --test-dir build-mingw --output-on-failure
 ```
 
 ## Run the GUI
@@ -116,8 +118,8 @@ cmake --build build --config Debug
 The GUI accepts an optional topology file:
 
 ```powershell
-# Windows with the Visual Studio generator
-.\build\app\Debug\KNS.exe app\topologies\mesh4.json
+# Windows with MinGW64/Ninja
+.\build-mingw\app\KNS.exe app\topologies\mesh4.json
 ```
 
 ```bash
@@ -141,7 +143,7 @@ configuration and privacy details.
 Headless mode requires a topology and writes aggregate statistics to CSV:
 
 ```powershell
-.\build\app\Debug\KNS.exe `
+.\build-mingw\app\KNS.exe `
   --headless `
   --topology app\topologies\mesh4.json `
   --routing-metric delay `

@@ -15,8 +15,6 @@ jobs:
         include:
           - os: ubuntu-latest
             build_tests: ON
-          - os: windows-latest
-            build_tests: ON
           - os: macos-latest
             build_tests: OFF
     steps:
@@ -33,19 +31,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libssl-dev libgl1-mesa-dev xorg-dev libwayland-dev wayland-protocols libxkbcommon-dev extra-cmake-modules
-      - name: Install prerequisites (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install -y cmake visualstudio2019-buildtools || true
-
-      - name: Install static OpenSSL (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows-static-md
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "OPENSSL_ROOT_DIR=$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
-
       - name: Locate OpenSSL (macOS)
         if: runner.os == 'macOS'
         run: echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
@@ -86,6 +71,53 @@ jobs:
 
       - name: Validate benchmark suite
         run: python scripts/benchmark_suite.py --dry-run
+
+  windows-mingw:
+    name: Build and Test (Windows MinGW64/Ninja)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 MinGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-python
+
+      - name: Configure, build and test with MinGW64
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build-mingw -G Ninja -DCMAKE_BUILD_TYPE=Release -DKNS_BUILD_TESTS=ON -DOPENSSL_ROOT_DIR=/mingw64
+          cmake --build build-mingw --parallel 2
+          ctest --test-dir build-mingw --output-on-failure
+
+      - name: Stage MinGW64 runtime for native contract validation
+        shell: msys2 {0}
+        run: |
+          cp /mingw64/bin/libgcc_s_seh-1.dll build-mingw/app/
+          cp /mingw64/bin/libstdc++-6.dll build-mingw/app/
+          cp /mingw64/bin/libwinpthread-1.dll build-mingw/app/
+
+      - name: Set up Python for contract validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate contracts and emitted context
+        shell: pwsh
+        run: |
+          python -m pip install -r scripts/requirements-contracts.txt
+          python scripts/validate_contracts.py
+          python scripts/validate_analysis_context.py --work-dir build-mingw
 
   sanitizers:
     name: Sanitizers (ubuntu-latest)

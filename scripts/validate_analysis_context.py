@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def find_executable() -> Path:
     for relative in (
+        "build-mingw/app/KNS.exe",
+        "build-mingw/app/Release/KNS.exe",
         "build/app/KNS.exe",
         "build/app/Release/KNS.exe",
         "build/app/KNS",
