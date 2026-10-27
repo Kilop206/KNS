@@ -29,6 +29,7 @@
 | Hub frontend browser | `npm.cmd test` | 13 testes detectados, worker bloqueado por `spawn EPERM` |
 | Hub backend | Maven `compile -q` com mirror file e cache em `backend/target/audit-m2` | PASS; `test` bloqueado por `surefire-api` 3.5.4 ausente do cache |
 | Hub CI hospedada | [Validate Topology Hub](https://github.com/Kilop206/Topology-Hub/actions/runs/40324837376) | PASS: backend `mvn verify`, frontend typecheck/build e E2E com PostgreSQL e Playwright; esta execução não é o E2E dos cinco produtos |
+| Hub consome snapshot Discovery UTC | [CI 40485072350](https://github.com/Kilop206/Topology-Hub/actions/runs/40485072350) | PASS: fixture canônica positiva/negativa, `mvn verify` com 30 testes (incluindo timestamp e revisão), frontend e 13 Playwright com PostgreSQL; gate local Python com contratos irmãos PASS, Maven local indisponível |
 | Sentient | Maven `compile -q` com mirror file e cache em `target/audit-m2` | PASS; `test` bloqueado por `surefire-api`, `surefire-extensions-api` e `maven-surefire-common` 3.5.6 ausentes |
 | Sentient CI hospedada | [Validate Sentient KNS](https://github.com/Kilop206/sentient-KNS/actions/runs/40324844408) | PASS em Ubuntu e Windows: Maven `verify`, contratos canônicos e release train; não exercita Hub/KiWi reais juntos |
 | KiWi | `.venv/Scripts/python.exe -m unittest discover -s tests -q` | 129 casos, 75 erros de permissão em temp |
