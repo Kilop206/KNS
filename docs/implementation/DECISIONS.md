@@ -22,8 +22,12 @@ Data: 2026-10-26. `kiwi.analysis`, `analysis.context` e `discovery.snapshot` des
 
 ## DEC-006 — Windows usa MinGW64 e TLS deve falhar sem OpenSSL
 
-Data: 2026-10-26. CI e release Windows foram alinhados ao MinGW64/Ninja, com OpenSSL da mesma toolchain. A opção `KNS_ENABLE_TLS=ON` antes não ativava OpenSSL em cpp-httplib, apesar da documentação e do teste Linux; agora a configuração exige a biblioteca e registra o teste HTTPS em Windows. Não declarar o milestone concluído até build limpo, testes de certificados e execução do pacote no runner hospedado. O build local com TLS travou, e `test_https.py` não conseguiu criar certificados no temporário deste ambiente.
+Data: 2026-10-26. CI e release Windows foram alinhados ao MinGW64/Ninja, com OpenSSL da mesma toolchain. A opção `KNS_ENABLE_TLS=ON` antes não ativava OpenSSL em cpp-httplib, apesar da documentação e do teste Linux; agora a configuração exige a biblioteca e registra o teste HTTPS em Windows. TLS-001 exige build limpo e teste de certificados nos desktops suportados; a execução do pacote pertence ao checklist de release. O build local com TLS travou, e `test_https.py` não conseguiu criar certificados no temporário deste ambiente. A CI posterior `40369024451` verificou TLS em macOS, Windows e Ubuntu.
 
 ## DEC-007 — Trust store explícita para clientes HTTPS do desktop
 
 Data: 2026-10-26. O cpp-httplib usa o repositório de certificados do Windows por padrão; o teste hospedado mostrou que `SSL_CERT_FILE` não era aplicado automaticamente à CA do servidor de teste. KNS agora configura `SSL_CERT_FILE` ou `SSL_CERT_DIR` explicitamente nos clientes Hub, inteligência e tradução quando definidos, preservando o trust store do sistema na ausência dessas variáveis. Verificação de certificado e hostname permanece ativa. `desktop_https` passou no runner MinGW64 após `c67f03d` em [CI 40363759606](https://github.com/Kilop206/KNS/actions/runs/40363759606).
+
+## DEC-008 — Remapear IDs numéricos na entrada tipada do KNS
+
+Data: 2026-10-27. IDs numéricos em topologia v1 são locais ao snapshot; `external_id` é a identidade estável de descoberta. O KNS importa IDs tipados esparsos do Hub e os remapeia em ordem numérica para índices internos densos. A exportação usa os índices internos, portanto não preserva os números originais. O limite de 4096 nós do motor permanece; o Hub aceita até 5000 e essa diferença exige plano próprio de compatibilidade antes de alterar contratos ou restringir sua API.

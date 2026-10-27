@@ -2,7 +2,7 @@
 
 | Fluxo | Contrato atual | Prova local | Pendência |
 | --- | --- | --- | --- |
-| Discovery → KNS | `topology-v1.schema.json` | Testes CTest de importação e live snapshot aprovados | Go suite e fixture cross-repo |
+| Discovery → KNS | `topology-v1.schema.json` | Testes CTest de importação e live snapshot aprovados; Discovery `9f693a3` passou contrato do produtor Go em CI Ubuntu/Windows | E2E com coleta autorizada |
 | Discovery → Hub | Topologia v1 + `discovery-diff-v1` | Código e testes de publicação/API presentes | E2E PostgreSQL |
 | Hub → KNS | API de topologia/revisões | Testes de cliente KNS aprovados | E2E com Hub real |
 | KNS → Sentient | `desktop-intelligence-request-v1`, `chat-request-v1` | Testes do cliente KNS aprovados | Maven e fixture compartilhada |
@@ -12,8 +12,8 @@ O smoke test sintético versionado em `sentient-KNS/ops/offline_contract.py` cob
 
 ## Divergência confirmada de topologia v1
 
-`KNS/core/src/network/TopologyLoader.cpp` limita nós a 4096 e, em lista tipada, exige IDs únicos no intervalo `[0, nodes.size())`. `KNS-Discovery/internal/discovery/build.go` usa `MaxNodes = 4096`. `Topology-Hub/backend/src/main/java/com/userex/hub/Graphs.java` aceita de 1 a 5000 nós e IDs inteiros únicos não negativos sem exigir densidade. O schema canônico atual aceita zero nós e não expressa limite superior ou densidade de IDs. Portanto um documento pode passar no Hub e no JSON Schema mas falhar ao importar no KNS; outro pode passar no KNS e no schema mas falhar no Hub. Essa divergência exige uma decisão de migração antes de alterar contratos públicos ou limitar a API do Hub.
+`KNS/core/src/network/TopologyLoader.cpp` limita nós a 4096. A entrada tipada agora remapeia IDs numéricos esparsos, únicos e não negativos para índices locais densos, em ordem numérica; `external_id` continua sendo a identidade estável quando presente. A exportação KNS usa os índices locais, portanto os números originais não são preservados no round trip. `KNS-Discovery/internal/discovery/build.go` usa `MaxNodes = 4096`. `Topology-Hub/backend/src/main/java/com/userex/hub/Graphs.java` aceita de 1 a 5000 nós e IDs inteiros únicos não negativos. O schema canônico aceita zero nós e não expressa limite superior. Ainda há documentos que passam no Hub e no schema, mas excedem o limite KNS; reduzir o limite público do Hub exigiria migração e não foi feito.
 
-Verificação executada: dois documentos sintéticos (`nodes: 4097` e IDs tipados `10,20`) passaram no JSON Schema e foram rejeitados pelo executável headless KNS com código 1. `GraphsTest.java` contém aceitação explícita de 5000 nós e IDs esparsos, mas a suíte Maven não rodou neste ambiente. O schema recebeu descrições de unidades/identidade em `1dc9ec7`; nenhum limite foi alterado.
+Baseline anterior: dois documentos sintéticos (`nodes: 4097` e IDs tipados `10,20`) passaram no JSON Schema e foram rejeitados pelo executável headless KNS com código 1. Após o remapeamento, um programa local compilado com o novo `TopologyLoader.cpp` e a biblioteca KNS passou a importação `10,20`, exportou `0,1` e rejeitou link para ID ausente. O build Ninja local ficou parado antes de iniciar o compilador; o teste Catch2 adicionado aguarda CI. O caso de 4097 nós continua rejeitado e exige plano de migração para interoperar com o Hub. `GraphsTest.java` contém aceitação de 5000 nós e IDs esparsos; Hub `mvn verify` passou em CI hospedada. O schema recebeu descrições de unidades/identidade em `1dc9ec7`; nenhum limite foi alterado.
 
 Versões observadas: KNS CMake 1.1.0 com tag existente `v1.1`; Discovery, Hub, Sentient e KiWi têm `VERSION` 0.1.0 e nenhuma tag local listada. Hub Maven e KiWi pyproject declaram 0.1.0; Sentient Maven ainda declara 0.0.1-SNAPSHOT. O candidato `kns-ecosystem-1` passa em `KNS/scripts/validate_release_train.py`. Nenhuma versão foi alterada nesta sessão.
