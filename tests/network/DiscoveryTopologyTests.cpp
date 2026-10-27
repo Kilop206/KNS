@@ -5,6 +5,9 @@
 #include "network/TopologyLoader.hpp"
 #include "network/utils/PacketUtils.hpp"
 
+#include <stdexcept>
+#include <string>
+
 using namespace kns;
 
 namespace {
@@ -35,6 +38,39 @@ TEST_CASE("Device topology JSON round trips metadata and tombstones", "[network]
     const auto document = TopologyLoader::toJson(topology);
     REQUIRE(TopologyLoader::toJson(TopologyLoader::fromJson(document)) == document);
     REQUIRE(topology.cloneForRun().getNode(0)->getDeviceInfo() == topology.getNode(0)->getDeviceInfo());
+}
+
+TEST_CASE("Typed topology imports sparse Hub IDs as deterministic local indices", "[network][discovery][loader]")
+{
+    const auto source = nlohmann::json::parse(R"({
+        "schema_version":"1.0",
+        "nodes":[
+            {"id":20,"external_id":"device:b","label":"Second"},
+            {"id":10,"external_id":"device:a","label":"First"}
+        ],
+        "links":[{"from":10,"to":20,"bandwidth":100,"delay":1,"loss":0}]
+    })");
+    const auto topology = TopologyLoader::fromJson(source);
+    REQUIRE(topology.size() == 2);
+    REQUIRE(topology.getNode(0)->getDeviceInfo().external_id == "device:a");
+    REQUIRE(topology.getNode(1)->getDeviceInfo().external_id == "device:b");
+    REQUIRE(topology.getLinksFromNode(0).size() == 1);
+    const auto local = TopologyLoader::toJson(topology);
+    REQUIRE(local["nodes"][0]["id"] == 0);
+    REQUIRE(local["nodes"][1]["id"] == 1);
+    REQUIRE(local["links"][0]["from"] == 0);
+    REQUIRE(local["links"][0]["to"] == 1);
+    REQUIRE(TopologyLoader::toJson(TopologyLoader::fromJson(local)) == local);
+
+    for (const auto& invalid : {"duplicate", "missing", "negative", "overflow"}) {
+        CAPTURE(invalid);
+        auto document = source;
+        if (std::string(invalid) == "duplicate") document["nodes"][0]["id"] = 10;
+        if (std::string(invalid) == "missing") document["links"][0]["to"] = 30;
+        if (std::string(invalid) == "negative") document["nodes"][0]["id"] = -1;
+        if (std::string(invalid) == "overflow") document["nodes"][0]["id"] = 2147483648LL;
+        REQUIRE_THROWS_AS(TopologyLoader::fromJson(document), std::invalid_argument);
+    }
 }
 
 TEST_CASE("Typed topology rejects invalid identities before replacing live state", "[network][discovery]")

@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <limits>
-#include <set>
+#include <map>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -49,16 +49,23 @@ namespace kns {
             }
             count = value.get<int>();
         }
-        Topology topology(count);
+        std::map<int, int> node_ids;
         if (typed) {
-            std::set<int> ids;
             for (const auto& node : j.at("nodes")) {
                 if (!node.is_object() || !node.contains("id") || !node.at("id").is_number_integer() ||
-                    node.at("id") < 0 || node.at("id") >= count) {
-                    throw std::invalid_argument("Node IDs must be unique integers in [0, nodes.size())");
+                    node.at("id") < 0 || node.at("id") > std::numeric_limits<int>::max()) {
+                    throw std::invalid_argument("Node IDs must be nonnegative 32-bit integers");
                 }
-                const int id = node.at("id").get<int>();
-                if (!ids.insert(id).second) throw std::invalid_argument("Duplicate node ID");
+                if (!node_ids.emplace(node.at("id").get<int>(), 0).second)
+                    throw std::invalid_argument("Duplicate node ID");
+            }
+            int next_id = 0;
+            for (auto& entry : node_ids) entry.second = next_id++;
+        }
+        Topology topology(count);
+        if (typed) {
+            for (const auto& node : j.at("nodes")) {
+                const int id = node_ids.at(node.at("id").get<int>());
                 DeviceInfo device;
                 device.type = deviceTypeFromString(node.value("type", "unknown"));
                 device.external_id = node.value("external_id", "");
@@ -128,12 +135,22 @@ namespace kns {
             }
 
             if (!l.at("from").is_number_integer() || !l.at("to").is_number_integer() ||
-                l.at("from") < 0 || l.at("from") >= 4096 || l.at("to") < 0 || l.at("to") >= 4096) {
-                throw std::invalid_argument("Link endpoints must be integers in [0, 4096)");
+                l.at("from") < 0 || l.at("from") > std::numeric_limits<int>::max() ||
+                l.at("to") < 0 || l.at("to") > std::numeric_limits<int>::max()) {
+                throw std::invalid_argument("Link endpoints must be nonnegative 32-bit integers");
             }
             int from = l["from"].get<int>();
             int to = l["to"].get<int>();
-            if (typed && (from >= count || to >= count)) throw std::invalid_argument("Link references missing node");
+            if (typed) {
+                const auto source = node_ids.find(from);
+                const auto target = node_ids.find(to);
+                if (source == node_ids.end() || target == node_ids.end())
+                    throw std::invalid_argument("Link references missing node");
+                from = source->second;
+                to = target->second;
+            } else if (from >= 4096 || to >= 4096) {
+                throw std::invalid_argument("Link endpoints must be integers in [0, 4096)");
+            }
             double bandwidth = l["bandwidth"].get<double>();
             double delay = l["delay"].get<double>();
             double loss = l["loss"].get<double>();
