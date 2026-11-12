@@ -14,11 +14,13 @@ import sys
 import benchmark_suite
 import compare_experiments
 import run as runner
+import experiment_manifest as manifests
+import experiment_sweep
 
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE = ROOT / "KNS Experiments" / "experiment-profile.json"
-PARAMETERS = {"bandwidth", "delay", "loss"}
+PARAMETERS = experiment_sweep.PARAMETERS
 
 
 def valid_name(value: object) -> bool:
@@ -27,15 +29,34 @@ def valid_name(value: object) -> bool:
 
 def load_profile(path: Path) -> tuple[dict, dict]:
     profile = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(profile, dict):
+        raise ValueError("Profile must be an object")
+    topology_path = profile.get("topology")
+    if not isinstance(topology_path, str) or not topology_path:
+        raise ValueError("Profile topology must be a non-empty path relative to the KNS root")
+    topology = json.loads((ROOT / topology_path).read_text(encoding="utf-8"))
+    return validate_profile(profile, topology)
+
+
+def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
     allowed = {"name", "topology", "index", "experiments", "seeds", "packet_sizes",
-               "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline"}
+               "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline",
+               "schema_version", "max_cases", "sweep"}
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
     if not valid_name(profile.get("name")):
         raise ValueError("Profile name must use letters, digits, hyphens or underscores")
     if not isinstance(profile.get("topology"), str) or not profile["topology"]:
         raise ValueError("Profile topology must be a non-empty path relative to the KNS root")
-    topology = json.loads((ROOT / profile["topology"]).read_text(encoding="utf-8"))
+    if profile.setdefault("schema_version", "1.0") != "1.0":
+        raise ValueError("Unsupported experiment profile schema_version; expected 1.0")
+    max_cases = profile.setdefault("max_cases", 1000)
+    if type(max_cases) is not int or not 1 <= max_cases <= 10000:
+        raise ValueError("max_cases must be an integer in [1, 10000]")
+    if "sweep" in profile:
+        if "experiments" in profile:
+            raise ValueError("Specify experiments or sweep, not both")
+        profile["experiments"] = experiment_sweep.expand(profile.pop("sweep"), max_cases)
     if not isinstance(topology, dict) or not isinstance(topology.get("links"), list):
         raise ValueError("Topology must contain a links array")
     index = profile.setdefault("index", 0)
@@ -60,14 +81,15 @@ def load_profile(path: Path) -> tuple[dict, dict]:
             raise ValueError(f"Experiment {name} must modify at least one link parameter")
         for field in changes:
             value = experiment[field]
-            if field not in link:
+            if field not in link and field != "queue_capacity":
                 raise ValueError(f"Selected link has no {field} field")
             if type(value) not in (int, float) or not math.isfinite(value):
                 raise ValueError(f"{field} must be a finite number")
             if (field == "bandwidth" and value <= 0
                     or field == "delay" and value < 0
-                    or field == "loss" and not 0 <= value <= 1):
-                raise ValueError(f"Invalid {field}: bandwidth > 0, delay >= 0, loss in [0, 1]")
+                    or field == "loss" and not 0 <= value <= 1
+                    or field == "queue_capacity" and (type(value) is not int or not 1 <= value <= 2**31 - 1)):
+                raise ValueError(f"Invalid {field}: bandwidth > 0, delay >= 0, loss in [0, 1], positive integer queue capacity")
 
     dimensions = {
         "seeds": [42], "packet_sizes": [1500],
@@ -81,7 +103,7 @@ def load_profile(path: Path) -> tuple[dict, dict]:
             if field == "seeds":
                 valid = type(value) is int and 0 <= value <= 2**64 - 1
             elif field == "packet_sizes":
-                valid = type(value) is int and value > 0
+                valid = type(value) is int and 0 < value <= 2**31 - 1
             else:
                 choices = ({"delay", "bandwidth", "hop-count", "delay-bandwidth"}
                            if field == "routing_metrics" else {"tahoe", "reno", "newreno", "cubic"})
@@ -95,6 +117,9 @@ def load_profile(path: Path) -> tuple[dict, dict]:
     baseline = profile.setdefault("baseline", experiments[0]["name"])
     if not isinstance(baseline, str) or baseline not in {experiment["name"] for experiment in experiments}:
         raise ValueError("baseline must name an experiment in the profile")
+    case_count = len(experiments) * math.prod(len(profile[key]) for key in dimensions)
+    if case_count > max_cases:
+        raise ValueError(f"Experiment matrix has {case_count} cases, exceeding max_cases={max_cases}")
     return profile, topology
 
 
@@ -134,18 +159,34 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--profile", type=Path, default=None)
+    source.add_argument("--replay", type=Path, help="Replay a saved manifest in a new directory")
     parser.add_argument("--output", type=Path, help="New artifact directory (must not exist)")
     parser.add_argument("--exe", type=Path, help="Built KNS executable")
-    parser.add_argument("--timeout", type=float, default=60.0, help="Seconds per case")
+    parser.add_argument("--timeout", type=float, default=None, help="Seconds per case (default: 60; replay preserves saved value)")
+    parser.add_argument("--allow-executable-change", action="store_true",
+                        help="Explicitly allow replay with a different binary; recorded in the manifest")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="Validate and print cases without writing files")
     mode.add_argument("--generate-only", action="store_true", help="Write variants and suite without running KNS")
     args = parser.parse_args(argv)
+    manifest = None
+    output = None
+    artifacts_created = False
     try:
-        if not math.isfinite(args.timeout) or args.timeout <= 0:
+        previous = manifests.load(args.replay) if args.replay else None
+        timeout = args.timeout if args.timeout is not None else (
+            previous["configuration"]["timeout_seconds"] if previous else 60.0)
+        if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("--timeout must be finite and positive")
-        profile, topology = load_profile(args.profile.resolve())
+        if args.allow_executable_change and not args.replay:
+            raise ValueError("--allow-executable-change requires --replay")
+        if previous:
+            config = copy.deepcopy(previous["configuration"])
+            profile, topology = validate_profile(config["profile"], config["topology"])
+        else:
+            profile, topology = load_profile((args.profile or DEFAULT_PROFILE).resolve())
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         output = (args.output or ROOT / "KNS Experiments" / "results" / profile["name"] / timestamp).resolve()
         suite = make_suite(profile, output)
@@ -159,17 +200,27 @@ def main(argv: list[str] | None = None) -> int:
             exe = args.exe.resolve() if args.exe else runner.find_executable(ROOT / "build")
             if not exe or not exe.is_file():
                 raise ValueError("KNS executable not found; build KNS or pass --exe")
+        manifest = manifests.create(profile, topology, timeout, exe, ROOT,
+                                    previous, args.allow_executable_change)
         suite_path = generate(profile, topology, output)
+        artifacts_created = True
+        manifests.save(output, manifest)
         print(f"Experiment artifacts: {output}")
         if args.generate_only:
             return 0
+        manifest["status"] = "running"
+        manifests.save(output, manifest)
         result = benchmark_suite.main(["--suite", str(suite_path), "--exe", str(exe),
-                                       "--output", str(output / "runs"), "--timeout", str(args.timeout)])
+                                       "--output", str(output / "runs"), "--timeout", str(timeout)])
         comparison = compare_experiments.compare_artifacts(output)
         print(f"Comparison: {output / 'comparison.md'} "
               f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)")
+        manifests.finish(output, manifest, result)
         return result
     except (OSError, ValueError, OverflowError) as exc:
+        if artifacts_created and manifest is not None and output is not None:
+            manifest.update(status="failed", error=str(exc))
+            manifests.save(output, manifest)
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
 

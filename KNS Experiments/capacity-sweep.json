@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "name": "capacity-probe",
+  "topology": "app/topologies/services-lab.json",
+  "index": 0,
+  "max_cases": 24,
+  "seeds": [42, 43],
+  "sweep": {
+    "bandwidth": [25, 100],
+    "delay": {"start": 1, "stop": 3, "step": 1},
+    "queue_capacity": [8, 32]
+  }
+}

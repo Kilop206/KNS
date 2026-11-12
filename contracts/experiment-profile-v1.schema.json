@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/experiment-profile-v1.schema.json",
+  "title": "KNS Experiment Profile v1",
+  "description": "Legacy omitted version normalizes to 1.0. Runtime also checks case-insensitive names, baseline references, link indices, interval bounds and total matrix size.",
+  "type": "object",
+  "required": ["name", "topology"],
+  "additionalProperties": false,
+  "oneOf": [{"required": ["experiments"]}, {"required": ["sweep"]}],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "name": {"$ref": "#/$defs/name"},
+    "topology": {"type": "string", "minLength": 1},
+    "index": {"type": "integer", "minimum": 0, "default": 0},
+    "max_cases": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 1000},
+    "baseline": {"$ref": "#/$defs/name"},
+    "allow_transport_failures": {"type": "boolean", "default": false},
+    "seeds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}},
+    "packet_sizes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}},
+    "routing_metrics": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["delay", "bandwidth", "hop-count", "delay-bandwidth"]}},
+    "congestion_controls": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["tahoe", "reno", "newreno", "cubic"]}},
+    "experiments": {
+      "type": "array", "minItems": 1, "maxItems": 10000,
+      "items": {
+        "type": "object", "required": ["name"], "additionalProperties": false,
+        "anyOf": [{"required": ["bandwidth"]}, {"required": ["delay"]}, {"required": ["loss"]}, {"required": ["queue_capacity"]}],
+        "properties": {
+          "name": {"$ref": "#/$defs/name"},
+          "bandwidth": {"type": "number", "exclusiveMinimum": 0},
+          "delay": {"type": "number", "minimum": 0},
+          "loss": {"type": "number", "minimum": 0, "maximum": 1},
+          "queue_capacity": {"type": "integer", "minimum": 1, "maximum": 2147483647}
+        }
+      }
+    },
+    "sweep": {
+      "type": "object", "minProperties": 1, "additionalProperties": false,
+      "properties": {
+        "bandwidth": {"$ref": "#/$defs/dimension"},
+        "delay": {"$ref": "#/$defs/dimension"},
+        "loss": {"$ref": "#/$defs/dimension"},
+        "queue_capacity": {"$ref": "#/$defs/dimension"}
+      }
+    }
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
+    "dimension": {
+      "oneOf": [
+        {"type": "array", "minItems": 1, "maxItems": 10000, "uniqueItems": true, "items": {"type": "number"}},
+        {
+          "type": "object", "required": ["start", "stop", "step"], "additionalProperties": false,
+          "properties": {"start": {"type": "number"}, "stop": {"type": "number"}, "step": {"type": "number", "exclusiveMinimum": 0}}
+        }
+      ]
+    }
+  }
+}

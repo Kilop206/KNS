@@ -40,6 +40,14 @@ model of distributed routing convergence.
 See [ROADMAP.md](ROADMAP.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)
 for acceptance gates and local evidence.
 
+The first milestone 2 increment uses the existing Python orchestration boundary:
+`experiment_profile` validates/normalizes inputs, `experiment_sweep` bounds and
+expands link variants, `experiment_manifest` persists portable inputs and hashes,
+and `benchmark_suite` runs the actual CLI and records each case. Comparison remains
+in `compare_experiments`. The engine and aggregate CSV contract are unchanged.
+Replay reconstructs a new suite from embedded manifest configuration; it never
+executes a command supplied by the manifest or depends on its old absolute paths.
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:

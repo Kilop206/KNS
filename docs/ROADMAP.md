@@ -7,7 +7,7 @@ No milestone below is certified complete by the existence of an interface.
 | Milestone | Dependencies | Acceptance evidence | Audited state |
 | --- | --- | --- | --- |
 | 1 Core reliability | baseline build/tests | deterministic replay, bounded execution, analytical link/queue tests, reconciled packet/byte metrics | Partial: clock, ordering, cancellation, seeded RNG, duplex/RED and TCP exist; execution control and metrics need expansion |
-| 2 Experiments | 1 | versioned scenarios, bounded sweeps, replayable hashed manifests | Partial: Python profiles, seed matrices, persisted results exist |
+| 2 Experiments | 1 | versioned scenarios, bounded sweeps, replayable hashed manifests | Partial: versioned profiles, bounded list/range sweeps, queue variants, hashed portable replay, per-case identity/provenance implemented; full scenario contract pending |
 | 3 Fault Lab | 1, 2 | scheduled failures, explicit in-flight policy, before/during/after results | Partial: link failure/recovery events and rerouting exist |
 | 4 Compare | 2, 3 | paired equivalent workloads, variability, JSON/CSV/HTML | Partial: paired JSON/CSV/Markdown comparison exists |
 | 5 Analytics | 1, 2 | stable statistics, retained time series, evidence-based rules | Partial: topology analysis and TCP histories exist |
@@ -38,3 +38,8 @@ No milestone below is certified complete by the existence of an interface.
 
 Work proceeds in this dependency order; later partial implementations are not
 evidence that earlier acceptance criteria have passed.
+
+On 2026-11-12 the user explicitly requested committing the initial core stage and
+moving to milestone 2. Commit `3b22167` contains that tested stage. Experiment
+reproducibility now advances without changing metric meanings or claiming that
+the outstanding milestone 1 metric/model requirements are complete.

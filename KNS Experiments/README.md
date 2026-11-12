@@ -43,6 +43,8 @@ other links, queue policies and metadata are retained.
 
 | Field | Meaning / default |
 | --- | --- |
+| `schema_version` | `"1.0"`; omitted legacy versions normalize to this version. Other versions are rejected. |
+| `max_cases` | Complete matrix budget, default `1000`, configurable from `1` to `10000`. Checked before expansion/output. |
 | `name` | Profile name; letters, digits, hyphens and underscores. |
 | `topology` | Input JSON path, relative to the **KNS repository root**, or absolute. |
 | `index` | Zero-based link array index; defaults to `0`. |
@@ -51,17 +53,77 @@ other links, queue policies and metadata are retained.
 | `bandwidth` | Per-variant link bandwidth in Mbps, greater than zero. |
 | `delay` | Per-variant link propagation delay in milliseconds, at least zero. |
 | `loss` | Per-variant loss probability, between zero and one. |
+| `queue_capacity` | Positive integer capacity (at most 2147483647); may introduce the optional topology field. |
+| `sweep` | Parameter lists or `{start, stop, step}` intervals; mutually exclusive with `experiments`. |
 | `seeds` | Distinct unsigned 64-bit seeds; defaults to `[42]`. |
 | `packet_sizes` | Positive payload sizes in bytes; defaults to `[1500]`. |
 | `routing_metrics` | Defaults to `["delay"]`; also supports `bandwidth`, `hop-count`, `delay-bandwidth`. |
 | `congestion_controls` | Defaults to `["reno"]`; also supports `tahoe`, `newreno`, `cubic`. |
 | `allow_transport_failures` | Accept orderly retry exhaustion as an experiment outcome; defaults to `false`. |
 
-Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`.
+Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`,
+`queue_capacity`.
 Dimensions expand as a Cartesian product: three variants with three seeds and
 two payload sizes produce eighteen cases. Use distinct seeds for repetitions.
 Relative `--profile`, `--output` and `--exe` arguments resolve against the caller's
 working directory. Topology paths inside profiles always resolve against KNS.
+
+## Bounded sweeps and replay
+
+[The v1 JSON Schema](../contracts/experiment-profile-v1.schema.json) describes the
+profile shape; runtime validation also checks baseline references, link indices,
+parameter domains, interval bounds, case-insensitive variant names and the total
+matrix budget. No schema library is needed to run experiments. The existing
+contract validator checks the schema and its positive/negative fixtures in CI.
+
+`capacity-sweep.json` explores bandwidth, propagation and queue capacity over two
+seeds (24 runs). To evaluate which changes affect congestion, run it and inspect
+the paired differences; combinations changing several parameters do not isolate
+causality. This sweep is not a certified maximum-capacity estimator.
+
+```powershell
+python scripts/experiment_profile.py --profile "KNS Experiments/capacity-sweep.json" --dry-run
+python scripts/experiment_profile.py --profile "KNS Experiments/capacity-sweep.json" --exe build-core-mingw/app/KNS.exe --output results/capacity
+python scripts/experiment_profile.py --replay results/capacity/manifest.json --exe build-core-mingw/app/KNS.exe --output "results/capacity replay"
+```
+
+Sweeps accept discrete lists and ascending inclusive-grid intervals (positive
+step, stop >= start). Decimal arithmetic avoids binary increment accumulation;
+the stop is included only when it lies on the grid. Keys expand in sorted order,
+with names `sweep-0001`, etc.; the first variant is the default reference. Saved
+profiles contain explicit expanded variants so replay need not expand a range
+again. Seed, payload, routing and TCP algorithm dimensions multiply that count.
+Unsupported traffic/device sweep dimensions are rejected.
+
+Every generated bundle includes `manifest.json`, even in `--generate-only` mode.
+It embeds the normalized profile, original topology and per-case wall timeout,
+plus a SHA-256 of canonical UTF-8 JSON (sorted keys, compact separators, finite
+numbers). Original input paths and artifact paths are excluded from the canonical
+configuration, so moving a bundle preserves its hash. Timestamps, run UUIDs and
+execution durations are provenance, not deterministic simulation outputs.
+
+The manifest records source revision/version, binary SHA-256, runner source-file
+hashes and Python/OS/machine details. Source version is read from CMake and is not
+a claim about the identity of an arbitrary executable; the binary hash is the
+identity check. No environment secrets are collected. Each benchmark case also
+records a unique run UUID, UTC start/end, status, command and virtual/real duration.
+Metrics and errors remain in `runs/benchmark.json` and raw CSV/logs.
+
+Replay validates the manifest's version and configuration hash and reconstructs
+topologies from embedded inputs. It works after moving artifacts or deleting the
+original profile/topology. It creates a new output directory and run ID and records
+`replay_of`. A binary differing from the recorded hash is rejected unless
+`--allow-executable-change` is explicit; that change is recorded. A prepared
+bundle without a binary hash has no previous binary identity to enforce.
+`--timeout` overrides the saved timeout and changes the configuration hash.
+
+The status progresses `prepared` -> `running` -> `completed`/`failed`. Abnormal
+process termination can leave `running`, which is not a success. Completion means
+the configured outcome policy passed; accepted transport failures remain visible
+in case status/counts. Hashes detect input edits, not malicious re-signing, and do
+not imply authentication. Equivalent environment/model conditions are still
+required; cross-platform floating-point identity is not guaranteed. This is
+configuration replay from the beginning, not restoration of engine state.
 
 ## Artifacts and failures
 

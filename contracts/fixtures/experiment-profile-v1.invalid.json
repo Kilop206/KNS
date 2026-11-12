@@ -1,0 +1,6 @@
+{
+  "schema_version": "2.0",
+  "name": "unsupported-version",
+  "topology": "app/topologies/services-lab.json",
+  "experiments": [{"name": "baseline", "bandwidth": 100}]
+}

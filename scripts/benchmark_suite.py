@@ -11,6 +11,7 @@ import platform
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -400,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         started = time.perf_counter()
+        started_at = datetime.now(timezone.utc).isoformat()
         status = "success"
         returncode = 0
         error = None
@@ -441,6 +443,9 @@ def main(argv: list[str] | None = None) -> int:
         derived = runner.compute_stats(stats, wall)
         records.append({
             "case_id": case_id,
+            "run_id": str(uuid.uuid4()),
+            "started_at": started_at,
+            "finished_at": datetime.now(timezone.utc).isoformat(),
             **case,
             "status": status,
             "returncode": returncode,

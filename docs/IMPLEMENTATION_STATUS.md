@@ -90,3 +90,62 @@ Next dependency: finish metric conservation and byte/goodput definitions, link
 jitter/cost, packet metadata and seed/stream reporting, before certifying milestone
 1 or expanding the existing experiment runner. All later milestones retain their
 audited partial/pending status; no scaffolding has been counted as completion.
+
+## Milestone 2 increment — 2026-11-12
+
+The user explicitly requested committing the initial stage and moving to the
+next milestone. Commit `3b22167` preserves that verified core/CLI work. The
+remaining milestone 1 issues above are still open; this increment does not
+change aggregate metric meanings or certify the core milestone.
+
+Implemented on the existing Python experiment runner:
+
+- Version 1.0 profiles, with backward-compatible version omission; explicit
+  unsupported-version rejection and a published JSON Schema with CI fixtures.
+- Full matrix preflight: default 1000 cases, configurable up to 10000. Lists and
+  ascending decimal-grid ranges support bandwidth, delay, loss and queue capacity;
+  combinations are bounded before materialization. Seeds/payload/routing/TCP
+  settings multiply the matrix. Signed-int payload/queue size limits are enforced.
+- Portable `manifest.json` embeds normalized variants/topology/timeout, canonical
+  configuration SHA-256, binary hash, runner hashes, source revision/version,
+  platform/Python details, UUID, timestamps, status and result references.
+- `--replay` reconstructs inputs in a new directory from the manifest, independent
+  of deleted/moved original inputs. Hash/version validation rejects corrupted
+  inputs; a changed binary needs explicit override and remains recorded.
+- Existing-directory evidence is preserved, including prior manifests. Manifest
+  writes use atomic replacement; failures remain distinguishable from completion.
+  Individual benchmark cases also receive UUIDs and UTC start/end timestamps.
+- A documented 24-case bandwidth/delay/queue example and replay commands.
+
+Changed files: `scripts/experiment_profile.py`, new `experiment_manifest.py` and
+`experiment_sweep.py`, `benchmark_suite.py`, expanded profile tests, experiment
+guide/example, profile schema/fixtures, architecture, experiment notes, roadmap
+and this status. No C++ engine or CSV metric contract changes in this increment.
+
+Executed evidence:
+
+- `cmake --build build-core-mingw --parallel 2` succeeded (no native rebuild needed).
+- CTest: 416/416 passed; `build-core-mingw/milestone2-ctest.log`.
+- Python unittest discovery with the current KNS executable: 45/45 passed, no
+  skips. The profile suite now has 17 tests, including actual engine replay,
+  deleted sources, moved bundles, tamper detection, changed-binary rejection,
+  failure manifests and matrix/range limits.
+- Contract validation: 9 schemas, 26 fixtures, 4 topologies passed. Existing
+  `requirements-contracts.txt` dependencies were installed into the ignored build
+  directory; validation needed unsandboxed read access to their installed ACLs.
+  No new mandatory runner dependency was introduced.
+- Executed `KNS Experiments/capacity-sweep.json`: 24/24 successful cases and 22/22
+  paired comparisons. Replayed its saved manifest in `milestone2 replay`:
+  24/24 successful cases. Verified all 24 simulator CSVs byte-for-byte, equal
+  configuration hashes and distinct case UUIDs. Evidence lives under ignored
+  `build-core-mingw/milestone2-capacity` and `build-core-mingw/milestone2 replay`.
+- `git diff --check` passed.
+
+Milestone 2 remains partial: a complete scenario contract with configurable
+traffic, virtual duration, requested metrics/assertions/output policy is pending.
+Traffic-rate/device-count sweeps and complete build/toolchain provenance also
+remain pending. Profiles currently run the established workload to completion;
+wall timeout is distinct from virtual duration. Replay is from configuration,
+not a saved engine checkpoint. Source version/revision describes the checkout;
+the recorded binary hash identifies the executable. Existing core metric/model
+limitations and local TLS/Linux/GUI verification limits continue to apply.

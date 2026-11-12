@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import benchmark_suite
 import experiment_profile as experiments
+import experiment_manifest as manifests
 
 
 class ExperimentProfileTests(unittest.TestCase):
@@ -60,6 +61,132 @@ class ExperimentProfileTests(unittest.TestCase):
         normalized = json.loads((self.output / "profile.json").read_text())
         self.assertEqual(normalized["seeds"], [42])
         self.assertEqual(normalized["baseline"], "baseline")
+
+    def test_version_and_matrix_bounds_are_validated_before_expansion(self):
+        for update in ({"schema_version": "2.0"}, {"schema_version": 1},
+                       {"max_cases": True}, {"max_cases": 0}, {"max_cases": 10001},
+                       {"max_cases": 1}, {"packet_sizes": [2**31]},
+                       {"seeds": list(range(501))}):
+            with self.subTest(update=update):
+                self.profile.update(update)
+                self.save_profile()
+                self.assertEqual(self.invoke("--generate-only"), 1)
+                self.assertFalse(self.output.exists())
+                for key in update:
+                    self.profile.pop(key, None)
+        self.profile["max_cases"] = 2
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 0)
+        manifest = manifests.load(self.output / "manifest.json")
+        self.assertEqual(manifest["status"], "prepared")
+        self.assertEqual(manifest["configuration"]["profile"]["schema_version"], "1.0")
+
+    def test_replay_survives_deleted_sources_and_moved_artifacts(self):
+        self.assertEqual(self.invoke("--generate-only", "--timeout", "12"), 0)
+        original = manifests.load(self.output / "manifest.json")
+        self.profile_path.unlink()
+        self.topology_path.unlink()
+        moved = self.root / "moved artifacts"
+        self.output.rename(moved)
+        with redirect_stdout(io.StringIO()):
+            code = experiments.main(["--replay", str(moved / "manifest.json"),
+                                     "--output", str(self.output), "--generate-only"])
+        self.assertEqual(code, 0)
+        replay = manifests.load(self.output / "manifest.json")
+        self.assertEqual(replay["configuration_sha256"], original["configuration_sha256"])
+        self.assertEqual(replay["replay_of"], original["run_id"])
+        self.assertNotEqual(replay["run_id"], original["run_id"])
+        self.assertEqual(replay["configuration"]["timeout_seconds"], 12)
+        self.assertEqual(json.loads((self.output / "source-topology.json").read_text()), self.topology)
+        first = json.loads((moved / "topologies/001-baseline.json").read_text())
+        second = json.loads((self.output / "topologies/001-baseline.json").read_text())
+        self.assertEqual(first, second)
+
+    def test_tampered_manifest_and_unknown_versions_do_not_create_output(self):
+        profile, topology = experiments.load_profile(self.profile_path)
+        manifest = manifests.create(profile, topology, 60, None, experiments.ROOT)
+        path = self.root / "manifest.json"
+        for mutate in (
+            lambda x: x.update(schema_version="2.0"),
+            lambda x: x["configuration"]["topology"].update(nodes=99),
+            lambda x: x.update(run_id="invalid"),
+            lambda x: x.update(executable_sha256="invalid"),
+        ):
+            broken = copy.deepcopy(manifest)
+            mutate(broken)
+            experiments.write_json(path, broken)
+            with redirect_stderr(io.StringIO()):
+                code = experiments.main(["--replay", str(path), "--output", str(self.output),
+                                         "--generate-only"])
+            self.assertEqual(code, 1)
+            self.assertFalse(self.output.exists())
+
+    def test_replay_binary_changes_require_explicit_override(self):
+        profile, topology = experiments.load_profile(self.profile_path)
+        binary = self.root / "kns binary"
+        binary.write_bytes(b"original")
+        original = manifests.create(profile, topology, 60, binary, experiments.ROOT)
+        binary.write_bytes(b"changed")
+        with self.assertRaisesRegex(ValueError, "executable SHA-256 differs"):
+            manifests.create(profile, topology, 60, binary, experiments.ROOT, original)
+        changed = manifests.create(profile, topology, 60, binary, experiments.ROOT, original, True)
+        self.assertTrue(changed["executable_changed"])
+        self.assertNotEqual(changed["executable_sha256"], original["executable_sha256"])
+        self.assertEqual(changed["configuration_sha256"], original["configuration_sha256"])
+
+    def test_existing_manifest_is_never_overwritten_on_generation_failure(self):
+        self.output.mkdir()
+        sentinel = self.output / "manifest.json"
+        sentinel.write_text("prior evidence")
+        self.assertEqual(self.invoke("--generate-only"), 1)
+        self.assertEqual(sentinel.read_text(), "prior evidence")
+
+    def test_hash_ignores_key_order_but_tracks_model_and_seed_changes(self):
+        profile, topology = experiments.load_profile(self.profile_path)
+        first = manifests.create(profile, topology, 60, None, experiments.ROOT)
+        reordered = manifests.create(dict(reversed(list(profile.items()))), topology, 60, None, experiments.ROOT)
+        self.assertEqual(first["configuration_sha256"], reordered["configuration_sha256"])
+        profile["seeds"] = [99]
+        different = manifests.create(profile, topology, 60, None, experiments.ROOT)
+        self.assertNotEqual(first["configuration_sha256"], different["configuration_sha256"])
+
+    def test_sweep_ranges_and_lists_expand_stably_and_preserve_source(self):
+        del self.profile["experiments"]
+        self.profile["sweep"] = {"bandwidth": [10, 100], "delay": {"start": 0.1, "stop": 0.3, "step": 0.1},
+                                 "queue_capacity": [2, 4]}
+        self.profile["seeds"] = [1, 2]
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 0)
+        saved = json.loads((self.output / "profile.json").read_text())
+        self.assertNotIn("sweep", saved)
+        self.assertEqual(len(saved["experiments"]), 12)
+        self.assertEqual(saved["experiments"][0], {"name": "sweep-0001", "bandwidth": 10,
+                                                   "delay": 0.1, "queue_capacity": 2})
+        self.assertEqual(saved["experiments"][-1]["delay"], 0.3)
+        suite = benchmark_suite.load_suite(self.output / "suite.json")
+        self.assertEqual(len(benchmark_suite.expand_cases(suite)), 24)
+        self.assertNotIn("queue_capacity", self.topology["links"][0])
+        generated = json.loads(Path(suite["topologies"][0]).read_text())
+        self.assertEqual(generated["links"][0]["queue_capacity"], 2)
+
+    def test_invalid_and_explosive_sweeps_are_rejected_before_writing(self):
+        original = copy.deepcopy(self.profile)
+        for sweep in ({}, {"unknown": [1]}, {"delay": []}, {"delay": [True]},
+                      {"delay": [1, 1]}, {"delay": {"start": 0, "stop": 1, "step": 0}},
+                      {"delay": {"start": 2, "stop": 1, "step": 1}},
+                      {"delay": {"start": 0, "stop": 1e20, "step": 1e-10}},
+                      {"delay": list(range(40)), "bandwidth": list(range(1, 41))},
+                      {"queue_capacity": [1.5]}, {"loss": [1.1]}):
+            with self.subTest(sweep=sweep):
+                self.profile = {key: value for key, value in original.items() if key != "experiments"}
+                self.profile["sweep"] = sweep
+                self.save_profile()
+                self.assertEqual(self.invoke("--generate-only"), 1)
+                self.assertFalse(self.output.exists())
+        self.profile = original
+        self.profile["sweep"] = {"delay": [1]}
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 1)
 
     def test_dry_run_expands_repetitions_without_files_or_executable(self):
         self.profile.update(seeds=[42, 43], packet_sizes=[1500, 3000],
@@ -135,6 +262,9 @@ class ExperimentProfileTests(unittest.TestCase):
         comparison = json.loads((self.output / "comparison.json").read_text())
         self.assertEqual(comparison["matched_pairs"], 0)
         self.assertEqual(comparison["unavailable_pairs"], 1)
+        manifest = manifests.load(self.output / "manifest.json")
+        self.assertEqual(manifest["status"], "failed")
+        self.assertEqual(manifest["failed_cases"], 2)
 
     def test_timeout_and_malformed_stats_keep_reports_and_fail_batch(self):
         executable = self.root / "fake executable"
@@ -163,6 +293,18 @@ class ExperimentProfileTests(unittest.TestCase):
         comparison = json.loads((self.output / "comparison.json").read_text())
         self.assertEqual(comparison["matched_pairs"], 2)
         self.assertEqual(comparison["unavailable_pairs"], 0)
+        manifest = manifests.load(self.output / "manifest.json")
+        self.assertEqual(manifest["status"], "completed")
+        replay_output = self.root / "replayed"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(experiments.main(["--replay", str(self.output / "manifest.json"),
+                                               "--output", str(replay_output),
+                                               "--exe", os.environ["KNS_TEST_EXE"]]), 0)
+        replay = manifests.load(replay_output / "manifest.json")
+        self.assertEqual(manifest["configuration_sha256"], replay["configuration_sha256"])
+        for source_csv in (self.output / "runs").glob("*.csv"):
+            if source_csv.name != "metrics.csv":
+                self.assertEqual(source_csv.read_bytes(), (replay_output / "runs" / source_csv.name).read_bytes())
 
 
 if __name__ == "__main__":

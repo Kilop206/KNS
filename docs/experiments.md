@@ -42,6 +42,11 @@ network-throughput denominator.
 
 ## Running a controlled comparison
 
+Profiles now support versioned bounded sweeps and self-contained configuration
+replay with executable/configuration SHA-256. See the
+[profile, sweep and manifest guide](../KNS%20Experiments/README.md#bounded-sweeps-and-replay).
+This does not change the meanings or limitations of the metrics above.
+
 For named bandwidth, delay and loss variants of a selected link, use
 [`KNS Experiments`](../KNS%20Experiments/README.md). Its Python profile runner
 validates the matrix, preserves the source topology, generates variants and
