@@ -136,10 +136,63 @@ namespace kns {
     }
 
     void SimulationEngine::run() {
+        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
         while (processEvent()) {}
     }
 
+    void SimulationEngine::pause() noexcept {
+        if (execution_state_ == ExecutionState::Ready) execution_state_ = ExecutionState::Paused;
+    }
+
+    void SimulationEngine::resume() {
+        if (execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed) {
+            throw std::logic_error("A terminal simulation requires a new engine");
+        }
+        execution_state_ = ExecutionState::Ready;
+    }
+
+    void SimulationEngine::cancel() noexcept {
+        if (execution_state_ != ExecutionState::Failed) execution_state_ = ExecutionState::Cancelled;
+    }
+
+    RunResult SimulationEngine::runUntil(double horizon_s, std::uint64_t max_events) {
+        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
+        if (!std::isfinite(horizon_s) || horizon_s < now()) {
+            throw std::invalid_argument("Run horizon must be finite and not in the past");
+        }
+        std::uint64_t processed = 0;
+        const auto result = [&](StopReason reason) {
+            return RunResult{reason, processed, now(), pendingEventCount()};
+        };
+        for (;;) {
+            if (execution_state_ == ExecutionState::Cancelled) return result(StopReason::Cancelled);
+            if (execution_state_ == ExecutionState::Failed) return result(StopReason::Failed);
+            if (execution_state_ == ExecutionState::Paused) return result(StopReason::Paused);
+            // Do not jump to the horizon after the workload has drained.
+            if (!hasEvents()) return result(StopReason::QueueEmpty);
+            if (peekNextEventTime() > horizon_s) {
+                advanceTime(horizon_s);
+                return result(StopReason::TimeLimit);
+            }
+            if (processed == max_events) return result(StopReason::EventBudget);
+            if (!processEvent()) return result(StopReason::QueueEmpty);
+            ++processed;
+        }
+    }
+
     bool SimulationEngine::processEvent() {
+        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
+        if (execution_state_ != ExecutionState::Ready) return false;
+        return dispatchEvent();
+    }
+
+    bool SimulationEngine::step() {
+        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
+        if (execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed) return false;
+        return dispatchEvent();
+    }
+
+    bool SimulationEngine::dispatchEvent() {
         // Type changes through GUI, discovery or core APIs invalidate incompatible sessions.
         if (device_roles_revision_ != topology_.getRoutingRevision()) {
             for (auto it = sessions.begin(); it != sessions.end();) {
@@ -164,7 +217,18 @@ namespace kns {
 
         // Debug logging macro removed to avoid build issues in environments without the macro
         clock_.setTime(event->getTimestamp());
-        event->execute(*this);
+        ++execution_statistics_.events_dispatched;
+        executing_event_ = true;
+        try {
+            event->execute(*this);
+            ++execution_statistics_.events_completed;
+            executing_event_ = false;
+        } catch (...) {
+            ++execution_statistics_.events_failed;
+            executing_event_ = false;
+            execution_state_ = ExecutionState::Failed;
+            throw;
+        }
         return true;
     }
 
@@ -369,6 +433,12 @@ namespace kns {
     }
 
     void SimulationEngine::schedule(std::unique_ptr<Event> event) {
+        // Cooperative cancellation lets the current callback finish its model
+        // bookkeeping, including follow-up work retained in the snapshot.
+        if ((execution_state_ == ExecutionState::Cancelled && !executing_event_) ||
+            execution_state_ == ExecutionState::Failed) {
+            throw std::logic_error("Cannot schedule work on a terminal simulation");
+        }
         if (!event || event->getTimestamp() < now()) {
             throw std::invalid_argument("Event must exist and not be scheduled in the past");
         }
@@ -528,6 +598,8 @@ namespace kns {
             (r.completed_sessions == r.total_sessions);
 
         r.traffic_ok =
+            (execution_state_ != ExecutionState::Cancelled) &&
+            (execution_state_ != ExecutionState::Failed) &&
             (r.packets_sent > 0) &&
             (r.packets_delivered >= 0) &&
             (r.packets_delivered <= r.packets_sent) &&

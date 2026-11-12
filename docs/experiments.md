@@ -16,7 +16,7 @@ number of repetitions, and raw CSV alongside any plot.
 
 | Field | Meaning |
 | --- | --- |
-| `packets_sent` | Packets accepted for transmission by a link. |
+| `packets_sent` | Packets admitted to their first hop, including modeled random loss on that hop; forwarding does not increment this counter. |
 | `packets_delivered` | Packets that reached their final destination. |
 | `packets_lost` | Packets rejected or dropped by the modeled network path. |
 | `total_latency` | Sum of delivered DATA latency in simulated seconds. |
@@ -30,9 +30,10 @@ number of repetitions, and raw CSV alongside any plot.
 
 Average latency includes DATA only. The runner derives delivery and loss rates
 by dividing their counters by `packets_sent` (zero when no packets were sent).
-Because sent counts link transmissions and delivered counts final arrivals,
-these ratios are aggregate counter ratios, not end-to-end delivery probabilities
-for a multihop workload.
+Source-side queue rejection and missing routes can increase lost without
+increasing sent. These ratios are aggregate counter ratios, not unconditional
+end-to-end delivery probabilities. Multihop forwarding itself does not increase
+sent. A generated-packet ledger is still required to define those probabilities.
 
 Network throughput is `packets_delivered / simulation_duration_s`, including
 control packets; it is undefined when simulated duration is zero. Host execution

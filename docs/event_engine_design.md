@@ -3,8 +3,8 @@
 ## Time model
 
 KNS uses discrete-event simulation. `SimulationClock` stores a `double` value in
-simulated seconds. Time advances only when the engine removes an event from the
-queue and sets the clock to that event's timestamp. The core never sleeps or
+simulated seconds. Dispatch moves the clock to the event's timestamp; a bounded
+run can also advance to its horizon without skipping a pending event. The core never sleeps or
 uses wall-clock time to decide protocol behavior.
 
 The GUI may pace rendering against real time, but that presentation concern does
@@ -45,13 +45,14 @@ queue. `peekTimestamp()` returns positive infinity when no event is pending.
 
 `processEvent()` performs one iteration and is used by the interactive
 application. `hasEvents()` and `peekNextEventTime()` support external control.
-Pausing and resuming are application states; the queue itself has no background
-worker and no pause primitive.
+The core also supports cooperative pause/resume, explicit stepping, terminal
+cancellation and bounded execution. See [simulation-model.md](simulation-model.md)
+for exact horizon, budget, failure and pending-work semantics.
 
 ## Cancellation and stale events
 
-The engine generally does not remove arbitrary events from the priority queue.
-Instead, events carry stable IDs such as a TCP session ID and validate current
+`cancelEvent(id)` removes a pending event without advancing the clock. In addition,
+events carry stable IDs such as a TCP session ID and validate current
 state when executed. Examples include:
 
 - timeout events returning after their segment was acknowledged;
@@ -73,9 +74,9 @@ break that guarantee and should not be introduced into core event execution.
 
 - execution is single-threaded;
 - timestamps use floating-point seconds;
-- `run()` drains the queue rather than stopping at a supplied time boundary;
+- legacy `run()` drains the queue; `runUntil()` supplies a horizon and event budget;
 - event IDs are process-wide and monotonic;
-- there is no general-purpose cancellation handle or queue search API.
+- cancellation is cooperative and execution must stay on one owner thread.
 
 These constraints favor a small, predictable engine. Features such as bounded
 runs should be added as explicit engine APIs with ordering and ownership tests.

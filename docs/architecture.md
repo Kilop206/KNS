@@ -1,5 +1,45 @@
 # KNS Architecture and Design Decisions
 
+## Platform evolution (2026-11-12)
+
+The target dependency direction is applications (Studio, independent CLI,
+optional local API) -> experiments/validation/reporting -> analytics/traffic/
+industrial models -> core engine/network models. Infrastructure provides
+serialization and diagnostics. Optional Linux emulation is a separate adapter,
+never an implicit execution path of the discrete-event engine.
+
+Preserve the existing `KNS::kns` library, `KNS` application and `kns_tests`
+targets. Currently headless execution shares the graphical application's build
+dependencies; splitting its target remains necessary. `SimulationEngine` also
+owns TCP lifecycle and network services, so adding all platform orchestration
+there would worsen existing coupling. Experiment runners should own engines,
+feed configuration before scheduling, and consume observations afterward.
+
+Execution contracts: all engine mutations occur on one owner thread; virtual
+time uses seconds and never follows wall time. A bounded run includes events
+at its horizon, leaves later events pending, and has an event budget to stop
+zero-time recurrence. Pause preserves pending work; terminal cancellation
+preserves a diagnostic snapshot rather than pretending packets were delivered.
+Exception failures must be observable and cannot be resumed as successful runs.
+Scheduler counts describe dispatched/completed/failed events separately from
+packet metrics. Existing event IDs order equal timestamps by construction order,
+not necessarily scheduling order when callers construct events in advance.
+
+Future scenario contracts must include format version, topology, seed, traffic,
+duration, failures, assertions and output policy. Reuse existing JSON topology
+loaders and Python profile/comparison tooling. Version result schemas before
+changing counter meanings. Distinguish simulated packets from unique application
+payload: TCP retransmissions and control traffic cannot be counted as goodput.
+
+The current link queue retains slots until arrival (including propagation),
+which is a model assumption requiring explicit review before claims about
+physical waiting-buffer occupancy. Existing accepted in-flight packets finish
+their hop after link removal. Routing refresh is synchronous; this is not a
+model of distributed routing convergence.
+
+See [ROADMAP.md](ROADMAP.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)
+for acceptance gates and local evidence.
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:
@@ -22,7 +62,7 @@ the library so it can be tested without creating a window.
 
 `EventQueue` is a priority queue of `std::unique_ptr<Event>`. Events are ordered
 first by their `double` timestamp in simulated seconds and then by a monotonic
-64-bit event ID. The ID preserves insertion order when timestamps match.
+64-bit event ID. The ID preserves construction order when timestamps match.
 
 A priority queue avoids scanning a list for every dispatch and gives the
 expected `O(log n)` insertion/removal behavior. Exclusive ownership also makes

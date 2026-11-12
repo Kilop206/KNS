@@ -44,6 +44,11 @@ and congestion-control state.
 KNS is a simulation model rather than a production TCP/IP stack. See
 [TCP design](docs/tcp_design.md#current-limitations) for the exact boundary.
 
+Platform evolution is tracked in [the roadmap](docs/ROADMAP.md) and
+[implementation status](docs/IMPLEMENTATION_STATUS.md). The core's bounded
+execution, pause/step/resume and cancellation APIs are documented in
+[the simulation model](docs/simulation-model.md).
+
 ## Requirements
 
 - CMake 3.20 or newer;
@@ -76,6 +81,18 @@ cmake --build build
 
 Useful configuration options:
 
+The core library and its C++ tests can be built without OpenGL, GLFW or OpenSSL:
+
+```bash
+cmake -S . -B build-core -DKNS_BUILD_APP=OFF -DKNS_BUILD_TESTS=ON
+cmake --build build-core --parallel 2
+ctest --test-dir build-core --output-on-failure
+```
+
+This builds `KNS::kns` and `kns_tests`. The existing headless executable currently
+belongs to the application target, so building that CLI still needs
+`KNS_BUILD_APP=ON` and the desktop build dependencies.
+
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `KNS_BUILD_APP` | `ON` | Build the GUI/headless executable. |
@@ -101,7 +118,8 @@ the question, including RED early drops and queue overflow drops. Retries keep
 that same snapshot; callers without statistics omit simulation measurements.
 
 Headless exit codes are `0` for completed sessions, `2` for orderly transport
-retry exhaustion, and `1` for invalid input or execution. The TCP congestion
+retry exhaustion, `3` for a run stopped by an explicit time/event limit with
+pending work, and `1` for invalid input or execution. The TCP congestion
 benchmark explicitly allows code `2` as a loss experiment outcome and keeps it
 marked `transport_failure`, with metrics and diagnostics. It still rejects
 crashes, timeouts, malformed statistics and unfinished sessions. Other suites
@@ -178,6 +196,8 @@ KNS --headless --topology <file> [--output <csv>]
 | `--routing-metric <metric>` | Select the routing metric before traffic is scheduled. |
 | `--seed <integer>` | Set the unsigned 64-bit random seed (default: `42`). |
 | `--packet-size <bytes>` | Set a positive packet size (default: `1500`). |
+| `--until <seconds>` | Inclusive virtual-time horizon; preserves an incomplete CSV snapshot and returns `3` if work remains. |
+| `--max-events <integer>` | Bound dispatched events; zero is allowed. With `--until` alone the budget defaults to one million. |
 | `-h`, `--help` | Print usage and exit. |
 
 Accepted routing metrics:

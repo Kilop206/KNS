@@ -102,6 +102,8 @@ namespace {
             << "  --link-event <t:a:b:s>     Schedule headless link state (s=down|up)\n"
             << "  --seed <integer>           Random seed (default: 42)\n"
             << "  --packet-size <bytes>      Positive packet size (default: 1500)\n"
+            << "  --until <seconds>          Inclusive virtual-time limit (headless only)\n"
+            << "  --max-events <integer>     Event budget (headless only, zero allowed)\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
             << "  delay (default), bandwidth, hop-count, delay-bandwidth\n"
@@ -1853,6 +1855,8 @@ static void shutdownWindow(
 int main(int argc, char* argv[])
 {
     bool headless = false;
+    std::optional<double> runHorizon;
+    std::optional<std::uint64_t> eventBudget;
     std::optional<int> cliDevice;
     bool watchTopology = false;
 
@@ -1957,7 +1961,24 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--seed" || arg == "--packet-size") {
+        if (arg == "--until") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --until\n";
+                return 1;
+            }
+            const std::string_view value = argv[++i];
+            double parsed = 0;
+            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            if (error != std::errc{} || end != value.data() + value.size() ||
+                !std::isfinite(parsed) || parsed < 0) {
+                std::cerr << "Invalid value for --until: " << value << '\n';
+                return 1;
+            }
+            runHorizon = parsed;
+            continue;
+        }
+
+        if (arg == "--seed" || arg == "--packet-size" || arg == "--max-events") {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for " << arg << '\n';
                 return 1;
@@ -1972,6 +1993,8 @@ int main(int argc, char* argv[])
             }
             if (arg == "--seed") {
                 runConfig.seed = parsed;
+            } else if (arg == "--max-events") {
+                eventBudget = parsed;
             } else {
                 runConfig.packet_size = static_cast<int>(parsed);
             }
@@ -2059,6 +2082,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    if ((runHorizon || eventBudget) && !headless) {
+        std::cerr << "--until and --max-events require --headless\n";
+        return 1;
+    }
     if (cliDevice) {
         if (topologyPathIndex < 0 || headless || hubTopologyId || watchTopology || topologyDiffPathIndex >= 0 ||
             outputPathIndex >= 0 || !headlessLinkEvents.empty()) {
@@ -2180,9 +2207,18 @@ int main(int argc, char* argv[])
             );
         }
 
-        while (engine->hasEvents())
-        {
-            engine->processEvent();
+        std::optional<RunResult> boundedResult;
+        try {
+            if (runHorizon || eventBudget) {
+                boundedResult = engine->runUntil(
+                    runHorizon.value_or(std::numeric_limits<double>::max()),
+                    eventBudget.value_or(1000000));
+            } else {
+                engine->run();
+            }
+        } catch (const std::exception& error) {
+            std::cerr << "Simulation execution failed: " << error.what() << '\n';
+            return 1;
         }
 
         if (outputPathIndex >= 0 &&
@@ -2209,6 +2245,14 @@ int main(int argc, char* argv[])
             return 1;
         }
 
+        if (boundedResult && boundedResult->reason != StopReason::QueueEmpty) {
+            const char* reason = boundedResult->reason == StopReason::TimeLimit ? "time_limit" : "event_budget";
+            std::cerr << "{\"status\":\"incomplete\",\"reason\":\"" << reason
+                      << "\",\"simulation_time_s\":" << std::setprecision(17) << engine->now()
+                      << ",\"events_processed\":" << boundedResult->events_processed
+                      << ",\"pending_events\":" << boundedResult->pending_events << "}\n";
+            return 3;
+        }
         const ValidationReport report =
             engine->validateSimulation();
 

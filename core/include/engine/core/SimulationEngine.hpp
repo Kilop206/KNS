@@ -20,6 +20,7 @@
 #include "engine/core/Stats.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/EventQueue.hpp"
+#include "engine/core/ExecutionControl.hpp"
 #include "engine/core/SimulationClock.hpp"
 #include "network/Packet.hpp"
 #include "network/Link.hpp"
@@ -73,6 +74,10 @@ namespace kns {
 
         // Event queue for managing scheduled events
         EventQueue event_queue_;
+        ExecutionState execution_state_ = ExecutionState::Ready;
+        ExecutionStatistics execution_statistics_;
+        bool executing_event_ = false;
+        bool dispatchEvent();
 
         //Vector with info about the packets
         std::vector<PacketTravelInfo> packets_in_transit;
@@ -120,6 +125,19 @@ namespace kns {
         bool cancelEvent(std::uint64_t id) { return event_queue_.cancel(id); }
 
         void run();
+
+        /// Inclusive horizon in virtual seconds. A finite event budget also
+        /// bounds zero-time recurrence. Later events remain pending.
+        RunResult runUntil(double horizon_s, std::uint64_t max_events = 1000000);
+        void pause() noexcept;
+        void resume();
+        /// Terminal cooperative cancellation; retain pending work for diagnosis.
+        void cancel() noexcept;
+        ExecutionState executionState() const noexcept { return execution_state_; }
+        const ExecutionStatistics& executionStatistics() const noexcept { return execution_statistics_; }
+        std::size_t pendingEventCount() const noexcept { return event_queue_.size(); }
+        /// Execute one event even while paused; preserve the pause state.
+        bool step();
 
         bool processEvent();
 
