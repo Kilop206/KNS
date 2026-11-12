@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import run as runner
+import fault_plan
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -80,6 +81,14 @@ def load_suite(path: Path) -> dict:
         path_value = ROOT / topology
         if not path_value.is_file():
             raise ValueError(f"Benchmark topology does not exist: {topology}")
+    plans = data.get("fault_plans", {})
+    if not isinstance(plans, dict) or set(plans) - set(data["topologies"]):
+        raise ValueError("fault_plans must map suite topology paths to plan paths")
+    for topology, plan in plans.items():
+        if not isinstance(plan, str):
+            raise ValueError("Fault plan path must be a string")
+        fault_plan.validate(json.loads((ROOT / plan).read_text(encoding="utf-8")),
+                            json.loads((ROOT / topology).read_text(encoding="utf-8")))
     return data
 
 
@@ -105,6 +114,8 @@ def expand_cases(suite: dict) -> list[dict]:
                 for event in scenario["events"]
             ],
         })
+        if topology in suite.get("fault_plans", {}):
+            cases[-1]["fault_plan"] = suite["fault_plans"][topology]
     return cases
 
 
@@ -399,6 +410,8 @@ def main(argv: list[str] | None = None) -> int:
             case["congestion_control"],
             case["link_events"],
         )
+        if case.get("fault_plan"):
+            command.extend(["--fault-plan", str((ROOT / case["fault_plan"]).resolve())])
 
         started = time.perf_counter()
         started_at = datetime.now(timezone.utc).isoformat()
@@ -435,6 +448,9 @@ def main(argv: list[str] | None = None) -> int:
         if returncode in (0, 2):
             try:
                 stats = runner.parse_stats(csv_path)
+                if case.get("fault_plan"):
+                    plan = json.loads((ROOT / case["fault_plan"]).read_text(encoding="utf-8"))
+                    fault_plan.validate_report(json.loads(Path(str(csv_path) + ".faults.json").read_text(encoding="utf-8")), plan)
             except (OSError, ValueError) as exc:
                 status = "stats_error"
                 returncode = 1
@@ -453,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
             "command": command,
             "log": str(log_path),
             "csv": str(csv_path) if csv_path.exists() else None,
+            "fault_report": str(csv_path) + ".faults.json" if case.get("fault_plan") and Path(str(csv_path) + ".faults.json").exists() else None,
             "wall_clock_duration_s": derived["wall_clock_duration_s"],
             "simulation_duration_s": derived["simulation_duration_s"],
             "packets_sent": derived["packets_sent"],

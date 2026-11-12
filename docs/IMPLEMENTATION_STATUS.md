@@ -149,3 +149,68 @@ wall timeout is distinct from virtual duration. Replay is from configuration,
 not a saved engine checkpoint. Source version/revision describes the checkout;
 the recorded binary hash identifies the executable. Existing core metric/model
 limitations and local TLS/Linux/GUI verification limits continue to apply.
+
+## Milestone 3 increment — 2026-11-12
+
+Advanced to Fault Lab at the user's explicit request. This increment remains
+simulation-only and retains the existing LinkFailureEvent and legacy CLI syntax.
+
+Implemented:
+
+- `engine/experiments/FaultLab` validates versioned plans before scheduling link
+  down/up, bandwidth, propagation-delay and loss changes as normal owned events.
+  Repeated events support flapping. Targets resolve from original link-array
+  index to stable runtime identity, so parallel links are supported safely.
+- Explicit `complete_accepted_hops` policy: accepted/queued reservations retain
+  timing. New sends use current configuration and synchronous routing refresh.
+  Missing runtime targets fail execution instead of claiming applied faults.
+- Observations at start, every fault timestamp and user-supplied times capture
+  counters, pending packets, queue occupancy, link state/parameters and route
+  traces. Reports derive interval deltas/throughput/DATA latency and separate
+  sampled link availability from probe connectivity outage intervals. Open
+  intervals are censored; application service recovery remains null/unmeasured.
+- `--fault-plan <json>` on headless CLI, with a 4 MiB input limit and adjacent
+  `<output>.faults.json`. Bounded runs retain pending-work diagnostics.
+- Profiles embed per-variant plans; generation, manifests, replay, benchmark
+  execution and paired comparisons retain fault context. The benchmark runner
+  requires matching applied-event and observation evidence before accepting a
+  completed case. Runtime/snapshot limits prevent accidental huge retained logs.
+- Fault plan JSON Schema/fixtures, a three-treatment/two-seed example, a detailed
+  model guide and eight native plus three Python regression/integration cases.
+
+Changed files: new Core FaultLab header/source and native tests; application CLI;
+Python plan preflight/report validation, profile/benchmark/comparison/manifest
+integration and profile tests; fault/profile schemas and fixtures; `fault-lab.json`;
+README, experiment guide, architecture, roadmap, `fault-injection.md` and this log.
+No new dependency, actual network mutation or inert Studio control was added.
+
+Executed evidence:
+
+- MinGW GNU 16.2 / C++20 application, Core and tests compiled successfully.
+- `ctest --test-dir build-core-mingw --output-on-failure --parallel 2
+  --output-log build-core-mingw/milestone3-ctest.log`: 424/424 passed, including
+  all eight Fault Lab cases. Cases cover accepted/queued timing across failure
+  and degradation, alternate routes, parallel links, restoration, invalid-plan
+  rejection, same-time ordering, censoring, flapping and missing runtime targets.
+- Python discovery with the built KNS: 48/48 passed, no skips. Actual CLI tests
+  include invalid-plan rejection, plan evidence checks and byte-identical replay.
+- Contract validator: 10 schemas, 28 fixtures and four topologies passed using
+  the existing isolated build dependencies with required unsandboxed ACL access.
+- Final bundled profile: six successful runs, four matched pairs. The first
+  trial revealed traffic had already drained before the fault; the shipped
+  example was corrected to inject at 0.025 s and restore at 0.08 s. Final control
+  dropped zero packets; outage runs each dropped 21, including drops observed
+  during the fault; degraded runs dropped 4/3 for seeds 42/43. These are simulation
+  counters under this workload, not estimates for a physical deployment.
+- Replayed final manifest in another directory: six successful runs. Verified
+  all six simulator CSVs and six fault JSON reports byte-for-byte. Artifacts:
+  `build-core-mingw/milestone3-active` and `build-core-mingw/milestone3 active replay`.
+- `git diff --check` passed. Local TLS remains explicitly disabled; Linux,
+  sanitizers and interactive Studio verification were not executed in this session.
+
+Milestone 3 remains partial: node/device failure and recovery, overload and
+dedicated gateway models, conditional/random triggers, per-flow impacts, measured
+service recovery and Studio scheduling UI are pending. Route recomputation is
+synchronous and does not measure distributed convergence. Observation windows
+are sampled callback intervals and retain the earlier packet metric limitations;
+they do not establish unique-payload goodput or unconditional delivery probability.

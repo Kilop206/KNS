@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "name": "link-resilience",
+  "topology": "app/topologies/services-lab.json",
+  "seeds": [42, 43],
+  "experiments": [
+    {"name": "control", "bandwidth": 100,
+      "fault_plan": {
+        "schema_version": "1.0", "in_flight_policy": "complete_accepted_hops",
+        "events": [], "probes": [{"source": 0, "destination": 2}],
+        "observe_at": [0, 0.01, 0.025, 0.04, 0.06, 0.08, 0.1, 0.2, 0.5, 1, 2]
+      }
+    },
+    {
+      "name": "outage",
+      "fault_plan": {
+        "schema_version": "1.0",
+        "in_flight_policy": "complete_accepted_hops",
+        "probes": [{"source": 0, "destination": 2}],
+        "observe_at": [0, 0.01, 0.025, 0.04, 0.06, 0.08, 0.1, 0.2, 0.5, 1, 2],
+        "events": [
+          {"at": 0.025, "type": "link_down", "link_index": 0},
+          {"at": 0.08, "type": "link_up", "link_index": 0}
+        ]
+      }
+    },
+    {
+      "name": "degradation",
+      "fault_plan": {
+        "schema_version": "1.0",
+        "in_flight_policy": "complete_accepted_hops",
+        "probes": [{"source": 0, "destination": 2}],
+        "observe_at": [0, 0.01, 0.025, 0.04, 0.06, 0.08, 0.1, 0.2, 0.5, 1, 2],
+        "events": [
+          {"at": 0.025, "type": "bandwidth_mbps", "link_index": 0, "value": 1},
+          {"at": 0.025, "type": "delay_ms", "link_index": 0, "value": 30},
+          {"at": 0.025, "type": "loss_probability", "link_index": 0, "value": 0.1},
+          {"at": 0.08, "type": "bandwidth_mbps", "link_index": 0, "value": 100},
+          {"at": 0.08, "type": "delay_ms", "link_index": 0, "value": 5},
+          {"at": 0.08, "type": "loss_probability", "link_index": 0, "value": 0}
+        ]
+      }
+    }
+  ]
+}

@@ -48,6 +48,8 @@ Platform evolution is tracked in [the roadmap](docs/ROADMAP.md) and
 [implementation status](docs/IMPLEMENTATION_STATUS.md). The core's bounded
 execution, pause/step/resume and cancellation APIs are documented in
 [the simulation model](docs/simulation-model.md).
+Scheduled link outages, degradation and reproducible observation reports are
+documented in [Fault Lab](docs/fault-injection.md).
 
 ## Requirements
 
@@ -198,6 +200,7 @@ KNS --headless --topology <file> [--output <csv>]
 | `--packet-size <bytes>` | Set a positive packet size (default: `1500`). |
 | `--until <seconds>` | Inclusive virtual-time horizon; preserves an incomplete CSV snapshot and returns `3` if work remains. |
 | `--max-events <integer>` | Bound dispatched events; zero is allowed. With `--until` alone the budget defaults to one million. |
+| `--fault-plan <json>` | Apply a versioned link fault plan headlessly; write an observation report beside the CSV as `<output>.faults.json`. |
 | `-h`, `--help` | Print usage and exit. |
 
 Accepted routing metrics:

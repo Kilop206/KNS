@@ -45,6 +45,7 @@
 #include "engine/core/SimulationState.hpp"
 #include "engine/core/Stats.hpp"
 #include "engine/core/RunConfig.hpp"
+#include "engine/experiments/FaultLab.hpp"
 #include "gui/include/GUIFormat.hpp"
 #include "gui/include/IntelligencePanel.hpp"
 #include "gui/include/LatencyChart.hpp"
@@ -104,6 +105,7 @@ namespace {
             << "  --packet-size <bytes>      Positive packet size (default: 1500)\n"
             << "  --until <seconds>          Inclusive virtual-time limit (headless only)\n"
             << "  --max-events <integer>     Event budget (headless only, zero allowed)\n"
+            << "  --fault-plan <json>        Scheduled link faults; writes <output>.faults.json\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
             << "  delay (default), bandwidth, hop-count, delay-bandwidth\n"
@@ -1855,6 +1857,7 @@ static void shutdownWindow(
 int main(int argc, char* argv[])
 {
     bool headless = false;
+    std::optional<fs::path> faultPlanPath;
     std::optional<double> runHorizon;
     std::optional<std::uint64_t> eventBudget;
     std::optional<int> cliDevice;
@@ -1961,6 +1964,12 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (arg == "--fault-plan") {
+            if (i + 1 >= argc) { std::cerr << "Missing value for --fault-plan\n"; return 1; }
+            if (faultPlanPath) { std::cerr << "Duplicate --fault-plan\n"; return 1; }
+            faultPlanPath = argv[++i];
+            continue;
+        }
         if (arg == "--until") {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for --until\n";
@@ -2082,8 +2091,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if ((runHorizon || eventBudget) && !headless) {
-        std::cerr << "--until and --max-events require --headless\n";
+    if ((runHorizon || eventBudget || faultPlanPath) && !headless) {
+        std::cerr << "--until, --max-events and --fault-plan require --headless\n";
         return 1;
     }
     if (cliDevice) {
@@ -2194,6 +2203,20 @@ int main(int argc, char* argv[])
             );
         }
 
+        std::shared_ptr<FaultReport> faultReport;
+        if (faultPlanPath) {
+            try {
+                if (fs::file_size(*faultPlanPath) > 4 * 1024 * 1024) throw std::invalid_argument("Fault plan exceeds 4 MiB");
+                std::ifstream input(*faultPlanPath);
+                if (!input) throw std::runtime_error("Cannot open fault plan");
+                nlohmann::json plan;
+                input >> plan;
+                faultReport = FaultLab::schedule(*engine, plan);
+            } catch (const std::exception& error) {
+                std::cerr << "Invalid fault plan: " << error.what() << '\n';
+                return 1;
+            }
+        }
         const bool headless_auto_start =
             autoStartFromEnvironment(
                 runConfig.auto_start
@@ -2239,6 +2262,16 @@ int main(int argc, char* argv[])
                 fs::create_directories(dir);
             }
             engine->exportStatsCSV(runConfig);
+            if (faultReport) {
+                std::ofstream faults(runConfig.filename + ".faults.json");
+                if (!faults) throw std::runtime_error("Cannot open fault report output");
+                auto report = faultReport->toJson();
+                report["execution_state"] = engine->executionState() == ExecutionState::Ready ? "ready" : "stopped";
+                report["simulation_time_s"] = engine->now();
+                report["pending_events"] = engine->pendingEventCount();
+                faults << report.dump(2) << '\n';
+                if (!faults) throw std::runtime_error("Fault report write failed");
+            }
         } catch (const std::exception& error) {
             std::cerr << "CSV export failed for " << runConfig.filename
                       << ": " << error.what() << '\n';

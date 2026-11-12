@@ -188,6 +188,60 @@ class ExperimentProfileTests(unittest.TestCase):
         self.save_profile()
         self.assertEqual(self.invoke("--generate-only"), 1)
 
+    def test_invalid_fault_plans_do_not_create_artifacts(self):
+        plan = {"schema_version": "1.0", "in_flight_policy": "complete_accepted_hops",
+                "events": [], "probes": [{"source": 0, "destination": 2}], "observe_at": [0, 1]}
+        for update in ({"in_flight_policy": "discard_all"}, {"schema_version": "2.0"},
+                       {"observe_at": [True]}, {"probes": [{"source": 0, "destination": 0}]},
+                       {"events": [{"at": 0, "type": "node_down", "link_index": 0}]},
+                       {"events": [{"at": 0, "type": "link_down", "link_index": True}]},
+                       {"events": [{"at": 0, "type": "link_down", "link_index": 9}]},
+                       {"events": [{"at": 0, "type": "loss_probability", "link_index": 0, "value": 2}]}):
+            self.profile["experiments"][1]["fault_plan"] = {**plan, **update}
+            self.save_profile()
+            with self.subTest(update=update):
+                self.assertEqual(self.invoke("--generate-only"), 1)
+                self.assertFalse(self.output.exists())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_real_fault_plan_reports_outage_and_replays_identical_observations(self):
+        plan = {"schema_version": "1.0", "in_flight_policy": "complete_accepted_hops",
+                "events": [{"at": 0.02, "type": "link_down", "link_index": 0},
+                           {"at": 0.06, "type": "link_up", "link_index": 0}],
+                "probes": [{"source": 0, "destination": 2}], "observe_at": [0, 0.01, 0.02, 0.04, 0.06, 0.1]}
+        self.profile["experiments"][0]["fault_plan"] = {**plan, "events": []}
+        self.profile["experiments"][1] = {"name": "outage", "fault_plan": plan}
+        self.save_profile()
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        benchmark = json.loads((self.output / "runs/benchmark.json").read_text())
+        reports = [json.loads(Path(case["fault_report"]).read_text()) for case in benchmark["cases"]]
+        self.assertEqual(reports[0]["sampled_connectivity_outages"], [])
+        self.assertEqual(len(reports[1]["changes"]), 2)
+        self.assertAlmostEqual(reports[1]["sampled_connectivity_outages"][0]["duration_s"], 0.04)
+        self.assertIsNone(reports[1]["service_recovery_s"])
+        broken = copy.deepcopy(reports[1])
+        broken["changes"] = []
+        with self.assertRaisesRegex(ValueError, "missing applied events"):
+            experiments.fault_plan.validate_report(broken, plan)
+        replay = self.root / "fault replay"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(experiments.main(["--replay", str(self.output / "manifest.json"),
+                "--exe", os.environ["KNS_TEST_EXE"], "--output", str(replay)]), 0)
+        for original in (self.output / "runs").glob("*.faults.json"):
+            self.assertEqual(original.read_bytes(), (replay / "runs" / original.name).read_bytes())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_cli_rejects_invalid_fault_plan_without_export(self):
+        path = self.root / "bad fault plan.json"
+        path.write_text('{"schema_version":"1.0"}')
+        csv_path = self.root / "must not exist.csv"
+        result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(self.topology_path),
+                                 "--fault-plan", str(path), "--output", str(csv_path)],
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Invalid fault plan", result.stderr)
+        self.assertFalse(csv_path.exists())
+
     def test_dry_run_expands_repetitions_without_files_or_executable(self):
         self.profile.update(seeds=[42, 43], packet_sizes=[1500, 3000],
                             routing_metrics=["delay", "bandwidth"])

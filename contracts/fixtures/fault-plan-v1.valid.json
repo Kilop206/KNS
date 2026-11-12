@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "in_flight_policy": "complete_accepted_hops",
+  "probes": [{"source": 0, "destination": 1}],
+  "observe_at": [0, 0.5, 1, 2, 3],
+  "events": [
+    {"at": 1, "type": "link_down", "link_index": 0},
+    {"at": 2, "type": "link_up", "link_index": 0}
+  ]
+}

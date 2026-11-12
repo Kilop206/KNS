@@ -127,6 +127,13 @@ configuration replay from the beginning, not restoration of engine state.
 
 ## Artifacts and failures
 
+Named variants can also embed a `fault_plan` for link outages, parameter degradation
+or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the
+`fault-lab.json` example, in-flight policy, observations and recovery limitations.
+These plans generate `fault-plans/` inputs and per-case `.csv.faults.json` reports;
+the manifest embeds them for portable replay. Missing/incomplete execution
+evidence fails the case even if aggregate statistics exist.
+
 Each output directory contains:
 
 - `profile.json`: validated profile with explicit defaults;

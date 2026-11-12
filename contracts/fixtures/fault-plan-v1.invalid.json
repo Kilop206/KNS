@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "in_flight_policy": "complete_accepted_hops",
+  "probes": [],
+  "observe_at": [0, 1],
+  "events": [{"at": 0.5, "type": "loss_probability", "link_index": 0, "value": 1.5}]
+}

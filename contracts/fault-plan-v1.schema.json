@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/fault-plan-v1.schema.json",
+  "title": "KNS Fault Lab link plan v1",
+  "type": "object",
+  "required": ["schema_version", "in_flight_policy", "events", "probes", "observe_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "in_flight_policy": {"const": "complete_accepted_hops"},
+    "observe_at": {"type": "array", "maxItems": 10000, "items": {"type": "number", "minimum": 0}},
+    "probes": {
+      "type": "array", "maxItems": 64,
+      "items": {"type": "object", "required": ["source", "destination"], "additionalProperties": false,
+        "properties": {"source": {"type": "integer", "minimum": 0}, "destination": {"type": "integer", "minimum": 0}}}
+    },
+    "events": {
+      "type": "array", "maxItems": 10000,
+      "items": {
+        "type": "object", "required": ["at", "type", "link_index"], "additionalProperties": false,
+        "properties": {
+          "at": {"type": "number", "minimum": 0},
+          "link_index": {"type": "integer", "minimum": 0},
+          "type": {"enum": ["link_down", "link_up", "bandwidth_mbps", "delay_ms", "loss_probability"]},
+          "value": {"type": "number", "minimum": 0}
+        },
+        "allOf": [
+          {"if": {"properties": {"type": {"enum": ["link_down", "link_up"]}}}, "then": {"not": {"required": ["value"]}}, "else": {"required": ["value"]}},
+          {"if": {"properties": {"type": {"const": "bandwidth_mbps"}}}, "then": {"properties": {"value": {"exclusiveMinimum": 0}}}},
+          {"if": {"properties": {"type": {"const": "loss_probability"}}}, "then": {"properties": {"value": {"maximum": 1}}}}
+        ]
+      }
+    }
+  }
+}

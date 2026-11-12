@@ -85,6 +85,8 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
                 raise ValueError("Benchmark seed and packet_size must be integers")
             if key not in expected or row.get("fault_scenario") != "baseline" or row.get("link_events") != []:
                 raise ValueError("Benchmark contains a case outside the profile matrix")
+            if row.get("fault_plan") != suite.get("fault_plans", {}).get(row["topology"]):
+                raise ValueError("Benchmark fault plan does not match its suite topology")
             if key in indexed:
                 raise ValueError("Benchmark contains duplicate cases for the same workload")
             indexed[key] = row

@@ -16,6 +16,7 @@ import compare_experiments
 import run as runner
 import experiment_manifest as manifests
 import experiment_sweep
+import fault_plan
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,14 +71,16 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         raise ValueError("Profile experiments must be a non-empty list")
     names = set()
     for experiment in experiments:
-        if not isinstance(experiment, dict) or set(experiment) - ({"name"} | PARAMETERS):
+        if not isinstance(experiment, dict) or set(experiment) - ({"name", "fault_plan"} | PARAMETERS):
             raise ValueError("Each experiment must contain name and supported link parameters")
         name = experiment.get("name")
         if not valid_name(name) or name.casefold() in names:
             raise ValueError("Experiment names must be valid and unique (case-insensitive)")
         names.add(name.casefold())
         changes = set(experiment) & PARAMETERS
-        if not changes:
+        if "fault_plan" in experiment:
+            fault_plan.validate(experiment["fault_plan"], topology)
+        if not changes and "fault_plan" not in experiment:
             raise ValueError(f"Experiment {name} must modify at least one link parameter")
         for field in changes:
             value = experiment[field]
@@ -124,7 +127,7 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
 
 
 def make_suite(profile: dict, output: Path) -> dict:
-    return {
+    suite = {
         "schema_version": "1.0",
         "name": profile["name"],
         "topologies": [str(output / "topologies" / f"{index:03d}-{experiment['name']}.json")
@@ -133,6 +136,12 @@ def make_suite(profile: dict, output: Path) -> dict:
                                         "congestion_controls", "allow_transport_failures")},
         "link_event_scenarios": [{"name": "baseline", "events": []}],
     }
+    plans = {path: str(output / "fault-plans" / f"{index:03d}.json")
+             for index, (path, experiment) in enumerate(zip(suite["topologies"], profile["experiments"]), 1)
+             if "fault_plan" in experiment}
+    if plans:
+        suite["fault_plans"] = plans
+    return suite
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -145,11 +154,15 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     output.mkdir(parents=True, exist_ok=False)
     (output / "topologies").mkdir()
     suite = make_suite(profile, output)
+    if "fault_plans" in suite:
+        (output / "fault-plans").mkdir()
     for experiment, filename in zip(profile["experiments"], suite["topologies"]):
         variant = copy.deepcopy(topology)
         variant["links"][profile["index"]].update(
             {key: experiment[key] for key in PARAMETERS if key in experiment})
         write_json(Path(filename), variant)
+        if "fault_plan" in experiment:
+            write_json(Path(suite["fault_plans"][filename]), experiment["fault_plan"])
     write_json(output / "profile.json", profile)
     write_json(output / "source-topology.json", topology)
     suite_path = output / "suite.json"

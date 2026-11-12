@@ -48,6 +48,15 @@ in `compare_experiments`. The engine and aggregate CSV contract are unchanged.
 Replay reconstructs a new suite from embedded manifest configuration; it never
 executes a command supplied by the manifest or depends on its old absolute paths.
 
+`engine/experiments/FaultLab` schedules validated link changes and observations as
+ordinary owned events. It retains a shared per-run report, never wall-clock timers
+or UI state. Existing link setters invalidate routing; accepted packet events keep
+their timing. Probe route traces use original link indices in reports so process
+global identities do not leak into deterministic replay artifacts. Python plans
+are preflighted before generation and the native Core validates them independently
+before scheduling. The benchmark runner verifies applied events and observations
+before accepting a fault case's output. See [fault-injection.md](fault-injection.md).
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:
