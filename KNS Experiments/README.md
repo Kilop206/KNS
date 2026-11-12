@@ -148,6 +148,12 @@ Each output directory contains:
 
 ## Compare variants
 
+The [Compare guide](../docs/compare.md) covers offline HTML/SVG output, side values,
+percentages, seed variability, conditional confidence intervals and comparison of
+independent topology bundles using `--against`. Comparison output is version 1.1;
+the raw simulator CSV contract is unchanged. New outputs include `comparison.html`
+and `comparison-summary.csv` alongside the existing JSON, paired CSV and Markdown.
+
 Completed profile executions automatically compare each non-reference variant
 against `baseline` (the first experiment by default). Each pair uses the same seed,
 routing metric, payload size and congestion control. Every delta is **experiment

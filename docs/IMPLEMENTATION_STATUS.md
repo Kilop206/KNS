@@ -214,3 +214,72 @@ service recovery and Studio scheduling UI are pending. Route recomputation is
 synchronous and does not measure distributed convergence. Observation windows
 are sampled callback intervals and retain the earlier packet metric limitations;
 they do not establish unique-payload goodput or unconditional delivery probability.
+
+## Milestone 4 increment — 2026-11-12
+
+Advanced to Compare at the user's explicit request, extending the existing
+recorded-artifact comparator without changing native simulation or metric meaning.
+
+Implemented:
+
+- Per-pair reference/candidate values, absolute and percentage deltas and observed
+  direction. Percentage deltas remain null at zero baseline; their summary averages
+  defined paired percentages with an explicit contributing count.
+- Per-workload-group seed mean/median/min/max, sample standard deviation, side
+  means and conditional nominal 95% paired Student-t intervals. Normality/seed
+  independence are assumptions, not established facts. Critical values use the
+  NIST table rounded to three decimals, with degrees of freedom capped at 30.
+  Single samples and constant observed deltas have no asserted interval.
+- Offline self-contained HTML with inline CSS/SVG delta distributions, means and
+  conditional intervals, text/color directions and explicit limitations. Existing
+  paired CSV/Markdown remain; JSON comparison version is 1.1 and a long-form
+  summary CSV records uncertainty/relative sample counts.
+- `--against` compares selected variants from independent bundles in a required
+  new output directory, retaining source configuration/provenance and unavailable
+  pairs. Explicit reference/candidate routing selections are supported; all other
+  workload dimensions still pair exactly. Source bundles remain untouched.
+- Bounded case-matrix preflight, escaped artifact content, restrictive HTML CSP,
+  no scripts/external chart assets, and documented differences between observed
+  direction, conditional uncertainty, statistical significance and causal claims.
+- A reproducible five-seed comparison of a three-node chain with an added direct
+  redundant link, under identical endpoint roles/TCP settings/fault schedule and
+  observation times. This combined treatment changes redundancy and path delay;
+  it does not isolate a redundancy-only causal effect.
+
+Changed files: comparator and its new statistics/artifact/HTML modules; expanded
+comparison tests; runner source-hash manifest list; four topology/profile example
+files; README/experiment guide, architecture, roadmap, `compare.md` and this log.
+
+Executed evidence:
+
+- `cmake --build build-core-mingw --parallel 2` succeeded; no native rebuild was
+  required. CTest: 424/424 passed (`build-core-mingw/milestone4-ctest.log`).
+- Python discovery with the actual KNS executable: 55/55 passed, no skips. The
+  comparator suite now contains 17 tests, including known paired interval solution,
+  zero-reference and per-pair percentage semantics, missing seeds, failed cases,
+  conditional-interval absence, preflight bounds, explicit routing pairs, preserved
+  source/destination evidence and escaped offline HTML/SVG.
+- Contract validator: 10 schemas, 28 fixtures, four bundled app topologies passed;
+  required unsandboxed access to existing contract-dependency ACLs was reused.
+- Six real fault-profile executions succeeded, producing HTML and four matched
+  variant pairs in `build-core-mingw/milestone4-compare`.
+- Chain and redundant topology profiles each executed five real cases successfully.
+  Cross-bundle comparison matched 5/5 workload pairs. Final derived report is
+  `build-core-mingw/milestone4-topologies-final/comparison.html`, alongside JSON,
+  paired/summary CSV and Markdown. Structural checks verified seven embedded SVGs,
+  CSP, no external assets/scripts and unavailable intervals for constant deltas.
+  Case diagnostics remain in `milestone4-chain` and `milestone4-redundant`.
+- Visual browser QA was attempted twice (including runtime reset) but the CUA
+  tool failed before opening the file: `failed to write kernel assets: ...
+  (os error 3)`. No screenshot/layout approval is claimed. HTML content/escaping
+  and structural behavior were checked; actual rendered layouts remain unverified.
+- `git diff --check` passed. TLS/Linux/sanitizer/interactive Studio limits from
+  earlier stages remain unchanged.
+
+Milestone 4 remains partial: aggregate inputs do not supply unique goodput, packet
+latency median/p95/p99, jitter, utilization or service-recovery metrics. General
+traffic-model comparisons, additional routing algorithms, fault time-series/recovery
+comparison and Studio Compare View remain pending. Different bundle parameters do
+not establish identical offered load; reports retain that limitation and do not
+rank a global winner or infer causality automatically. Virtual duration includes
+TCP cleanup timers/observations and can differ despite equal observation schedules.

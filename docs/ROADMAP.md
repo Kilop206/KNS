@@ -9,7 +9,7 @@ No milestone below is certified complete by the existence of an interface.
 | 1 Core reliability | baseline build/tests | deterministic replay, bounded execution, analytical link/queue tests, reconciled packet/byte metrics | Partial: clock, ordering, cancellation, seeded RNG, duplex/RED and TCP exist; execution control and metrics need expansion |
 | 2 Experiments | 1 | versioned scenarios, bounded sweeps, replayable hashed manifests | Partial: versioned profiles, bounded list/range sweeps, queue variants, hashed portable replay, per-case identity/provenance implemented; full scenario contract pending |
 | 3 Fault Lab | 1, 2 | scheduled failures, explicit in-flight policy, before/during/after results | Partial: versioned link plans, down/up/degradation/flapping, queue/in-flight policy, route observations and interval reports integrated with CLI/profiles/replay; node/device/service models pending |
-| 4 Compare | 2, 3 | paired equivalent workloads, variability, JSON/CSV/HTML | Partial: paired JSON/CSV/Markdown comparison exists |
+| 4 Compare | 2, 3 | paired equivalent workloads, variability, JSON/CSV/HTML | Partial: cross-bundle topology comparisons, explicit routing pairs, side/relative deltas, seed variability, conditional t intervals and offline HTML/SVG added; unavailable engine metrics and Studio view pending |
 | 5 Analytics | 1, 2 | stable statistics, retained time series, evidence-based rules | Partial: topology analysis and TCP histories exist |
 | 6 Traffic Lab | 1, 2 | concurrent CBR/periodic/burst/Poisson and application models | Partial: TCP workloads and simulated HTTP/DNS services exist |
 | 7 Industrial | 3, 5, 6 | deadline accounting, documented MQTT abstraction, scaling report | Pending |

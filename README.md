@@ -50,6 +50,8 @@ execution, pause/step/resume and cancellation APIs are documented in
 [the simulation model](docs/simulation-model.md).
 Scheduled link outages, degradation and reproducible observation reports are
 documented in [Fault Lab](docs/fault-injection.md).
+Saved experiments and topologies can be compared with offline HTML/SVG reports,
+paired seed variability and conditional intervals; see [KNS Compare](docs/compare.md).
 
 ## Requirements
 

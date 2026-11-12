@@ -2,6 +2,7 @@ import copy
 import csv
 import io
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -54,11 +55,62 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(len(result["summaries"]), 8)
         for summary in result["summaries"]:
             self.assertEqual(summary["expected_pairs"], 2)
-            self.assertEqual(summary["metrics"]["throughput_pps"],
+            self.assertEqual({key: summary["metrics"]["throughput_pps"][key]
+                              for key in ("sample_count", "mean_delta", "min_delta", "max_delta")},
                              {"sample_count": 2, "mean_delta": -10, "min_delta": -15, "max_delta": -5})
             self.assertEqual(summary["metrics"]["avg_latency_s"]["mean_delta"], 2)
             self.assertEqual(summary["metrics"]["queue_overflow_drops"]["mean_delta"], -6)
             self.assertAlmostEqual(summary["metrics"]["delivery_rate"]["mean_delta"], -0.1)
+
+    def test_variability_and_conditional_interval_match_known_paired_solution(self):
+        result = comparison.build_comparison(self.profile, self.benchmark)
+        metric = result["summaries"][0]["metrics"]["throughput_pps"]
+        self.assertEqual(metric["median_delta"], -10)
+        self.assertAlmostEqual(metric["sample_stddev_delta"], math.sqrt(50))
+        self.assertAlmostEqual(metric["conditional_ci95"]["low"], -73.53)
+        self.assertAlmostEqual(metric["conditional_ci95"]["high"], 53.53)
+        self.assertEqual(metric["direction"], "regression")
+        self.assertEqual(metric["sample_count"], 2)
+        # Constant deltas are descriptive evidence, not an assertion of zero uncertainty.
+        constant = result["summaries"][0]["metrics"]["avg_latency_s"]
+        self.assertIsNone(constant["conditional_ci95"])
+        self.assertEqual(constant["ci_status"], "no_observed_variation")
+
+    def test_relative_deltas_zero_baselines_and_context_metrics(self):
+        result = comparison.build_comparison(self.profile, self.benchmark)
+        pair = result["pairs"][0]
+        self.assertAlmostEqual(pair["delivery_rate_delta_percent"], -10)
+        self.assertEqual(pair["delivery_rate_baseline"], 1)
+        self.assertEqual(pair["delivery_rate_experiment"], 0.9)
+        self.assertIsNone(pair["loss_rate_delta_percent"])
+        self.assertEqual(pair["loss_rate_direction"], "regression")
+        self.assertEqual(pair["simulation_duration_s_direction"], "context_dependent")
+        self.assertEqual(pair["red_early_drops_direction"], "context_dependent")
+        self.assertEqual(result["summaries"][0]["metrics"]["loss_rate"]["relative_sample_count"], 0)
+
+    def test_relative_summary_averages_pairs_instead_of_dividing_group_means(self):
+        for row in self.benchmark["cases"]:
+            reference = 1 if row["seed"] == 42 else 3
+            row["throughput_pps"] = reference if row["topology"] == self.suite["topologies"][0] else reference + 1
+        result = comparison.build_comparison(self.profile, self.benchmark)
+        metric = result["summaries"][0]["metrics"]["throughput_pps"]
+        self.assertEqual(metric["baseline_mean"], 2)
+        self.assertEqual(metric["experiment_mean"], 3)
+        self.assertAlmostEqual(metric["mean_delta_percent"], 200 / 3)
+
+    def test_single_pair_has_no_interval_and_matrix_is_bounded_before_expansion(self):
+        self.benchmark["cases"].pop(16)
+        result = comparison.build_comparison(self.profile, self.benchmark)
+        metric = result["summaries"][0]["metrics"]["avg_latency_s"]
+        self.assertEqual(metric["sample_count"], 1)
+        self.assertIsNone(metric["sample_stddev_delta"])
+        self.assertIsNone(metric["conditional_ci95"])
+        self.assertEqual(metric["ci_status"], "insufficient_samples")
+        self.profile["seeds"] = list(range(20000))
+        self.suite["seeds"] = self.profile["seeds"]
+        with patch.object(comparison.itertools, "product", side_effect=AssertionError("must preflight")):
+            with self.assertRaisesRegex(ValueError, "10000-case budget"):
+                comparison.build_comparison(self.profile, self.benchmark)
 
     def test_reference_can_be_selected_in_profile_or_overridden(self):
         self.profile["baseline"] = "variant"
@@ -161,6 +213,76 @@ class ComparisonTests(unittest.TestCase):
             markdown = (directory / "comparison.md").read_text()
             self.assertIn("16/16", markdown)
             self.assertIn("experiment minus baseline", markdown)
+            self.assertTrue((directory / "comparison.html").is_file())
+            self.assertTrue((directory / "comparison-summary.csv").is_file())
+
+    def test_html_escapes_artifact_text_and_contains_only_local_visuals(self):
+        self.profile["name"] = '<script>alert(1)</script>'
+        self.suite["name"] = self.profile["name"]
+        result = comparison.build_comparison(self.profile, self.benchmark)
+        with tempfile.TemporaryDirectory() as temporary:
+            comparison.write_reports(result, Path(temporary))
+            html = (Path(temporary) / "comparison.html").read_text(encoding="utf-8")
+            self.assertNotIn("<script>", html)
+            self.assertIn("&lt;script&gt;", html)
+            self.assertIn("Content-Security-Policy", html)
+            self.assertIn('<svg xmlns=', html)
+            self.assertNotIn('src="http', html)
+            self.assertNotIn('<link ', html)
+            self.assertEqual(html.count('<svg xmlns='), len(result["summaries"]) * len(comparison.METRICS))
+            with (Path(temporary) / "comparison-summary.csv").open(newline="") as stream:
+                self.assertEqual(len(list(csv.DictReader(stream))), 56)
+
+    def test_cross_bundle_pairing_route_mapping_and_preserved_sources(self):
+        import comparison_artifacts
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("left", "right"):
+                directory = root / name
+                (directory / "runs").mkdir(parents=True)
+                (directory / "profile.json").write_text(json.dumps(self.profile))
+                (directory / "runs/benchmark.json").write_text(json.dumps(self.benchmark))
+            output = root / "comparison"
+            original = (root / "right/runs/benchmark.json").read_bytes()
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(comparison.main([str(root / "left"), "--against", str(root / "right"),
+                    "--baseline", "control", "--candidate", "variant", "--reference-routing", "delay",
+                    "--candidate-routing", "bandwidth", "--output", str(output)]), 0)
+            result = json.loads((output / "comparison.json").read_text())
+            self.assertEqual(result["matched_pairs"], 8)
+            self.assertEqual(result["pairs"][0]["avg_latency_s_delta"], 102)
+            self.assertEqual(result["pairs"][0]["routing_metric"], "delay vs bandwidth")
+            self.assertEqual(result["pairs"][0]["experiment_routing_metric"], "bandwidth")
+            self.assertEqual(result["sources"]["candidate"]["experiment"], "variant")
+            self.assertEqual((root / "right/runs/benchmark.json").read_bytes(), original)
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(comparison.main([str(root / "left"), "--against", str(root / "right")]), 1)
+            with self.assertRaises(ValueError):
+                comparison_artifacts.build(root / "left", root / "right", reference_routing="delay")
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(comparison.main([str(root / "left"), "--against", str(root / "right"),
+                    "--output", str(output)]), 1)
+            self.assertEqual((root / "right/runs/benchmark.json").read_bytes(), original)
+
+    def test_cross_bundle_different_seeds_stay_unavailable(self):
+        import comparison_artifacts
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, seed_offset in (("left", 0), ("right", 100)):
+                directory = root / name
+                (directory / "runs").mkdir(parents=True)
+                profile = copy.deepcopy(self.profile)
+                benchmark = copy.deepcopy(self.benchmark)
+                profile["seeds"] = [seed + seed_offset for seed in profile["seeds"]]
+                benchmark["suite"]["seeds"] = profile["seeds"]
+                for row in benchmark["cases"]:
+                    row["seed"] += seed_offset
+                (directory / "profile.json").write_text(json.dumps(profile))
+                (directory / "runs/benchmark.json").write_text(json.dumps(benchmark))
+            result = comparison_artifacts.build(root / "left", root / "right")
+            self.assertEqual(result["matched_pairs"], 0)
+            self.assertEqual(result["unavailable_pairs"], 32)
+            self.assertTrue(all(summary["metrics"]["throughput_pps"]["mean_delta"] is None for summary in result["summaries"]))
 
     def test_invalid_cli_inputs_leave_existing_comparisons_untouched(self):
         with tempfile.TemporaryDirectory() as temporary:

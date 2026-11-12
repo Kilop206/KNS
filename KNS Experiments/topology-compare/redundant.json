@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "name": "Three-node chain with direct redundant link",
+  "nodes": [
+    {"id": 0, "type": "computer", "label": "Client"},
+    {"id": 1, "type": "router", "label": "Transit"},
+    {"id": 2, "type": "server", "label": "Server"}
+  ],
+  "links": [
+    {"from": 0, "to": 1, "bandwidth": 10, "delay": 5, "loss": 0},
+    {"from": 1, "to": 2, "bandwidth": 10, "delay": 5, "loss": 0},
+    {"from": 0, "to": 2, "bandwidth": 10, "delay": 2, "loss": 0}
+  ]
+}

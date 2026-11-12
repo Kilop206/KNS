@@ -9,8 +9,9 @@ import json
 import math
 from pathlib import Path, PureWindowsPath
 import re
-import statistics
 import sys
+import comparison_statistics as paired_stats
+import comparison_html
 
 
 DIMENSIONS = ("routing_metric", "seed", "packet_size", "congestion_control")
@@ -69,6 +70,8 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
     if suite.get("link_event_scenarios") != [{"name": "baseline", "events": []}]:
         raise ValueError("Profile comparisons require the generated no-fault scenario")
 
+    if len(paths) * math.prod(len(profile.get(field, default)) for field, default in DEFAULTS.items()) > 10000:
+        raise ValueError("Comparison exceeds the 10000-case budget")
     settings = list(itertools.product(*(profile.get(field, default)
                                        for field, default in DEFAULTS.items())))
     expected = {(path, *setting) for path in paths for setting in settings}
@@ -115,7 +118,7 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
             control = indexed.get((baseline_path, *setting))
             candidate = indexed.get((path, *setting))
             matched = available(control) and available(candidate)
-            pairs.append({
+            pair = {
                 "experiment": name, "baseline": baseline,
                 **dict(zip(DIMENSIONS, setting)),
                 "status": "matched" if matched else "unavailable",
@@ -127,7 +130,16 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
                 "experiment_case_id": candidate.get("case_id") if candidate else None,
                 **{f"{field}_delta": metric_delta(candidate, control, field) if matched else None
                    for field in METRICS},
-            })
+            }
+            for field in METRICS:
+                delta = pair[f"{field}_delta"]
+                left = control.get(field) if matched and delta is not None else None
+                right = candidate.get(field) if matched and delta is not None else None
+                pair[f"{field}_baseline"] = left
+                pair[f"{field}_experiment"] = right
+                pair[f"{field}_delta_percent"] = paired_stats.relative(delta, left)
+                pair[f"{field}_direction"] = paired_stats.direction(field, delta)
+            pairs.append(pair)
 
     groups = {}
     for pair in pairs:
@@ -137,13 +149,7 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
     for key, group in groups.items():
         metric_summaries = {}
         for field in METRICS:
-            values = [pair[f"{field}_delta"] for pair in group if pair[f"{field}_delta"] is not None]
-            metric_summaries[field] = {
-                "sample_count": len(values),
-                "mean_delta": statistics.fmean(values) if values else None,
-                "min_delta": min(values) if values else None,
-                "max_delta": max(values) if values else None,
-            }
+            metric_summaries[field] = paired_stats.summarize(field, group)
         matched_count = sum(pair["status"] == "matched" for pair in group)
         summaries.append({
             **dict(zip(("experiment", "routing_metric", "packet_size", "congestion_control"), key)),
@@ -151,12 +157,21 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
             "unavailable_pairs": len(group) - matched_count, "metrics": metric_summaries,
         })
     return {
-        "schema_version": "1.0", "profile": profile["name"], "baseline": baseline,
+        "schema_version": "1.1", "profile": profile["name"], "baseline": baseline,
         "comparison": "experiment-minus-baseline", "kns_commit": benchmark.get("kns_commit"),
         "expected_pairs": len(pairs),
         "matched_pairs": sum(pair["status"] == "matched" for pair in pairs),
         "unavailable_pairs": sum(pair["status"] != "matched" for pair in pairs),
         "summaries": summaries, "pairs": pairs,
+        "methodology": {
+            "pairing": list(DIMENSIONS), "delta": "experiment-minus-baseline",
+            "relative_delta": "100 * paired_delta / paired_baseline; null at zero baseline",
+            "ci": "Nominal 95% paired Student-t interval; independent normally distributed seed deltas assumed; df capped at 30; rounded critical values",
+            "limitations": ["Direction labels describe observed metric deltas, not statistical significance or causality.",
+                "Intervals are per metric without multiple-comparison correction; normality and seed independence are not established by the tool.",
+                "Failed/missing cases are excluded; successful-pair summaries can have selection bias.",
+                "Latency concerns delivered DATA; delivery/loss are aggregate counter ratios, throughput includes control packets.",
+                "Goodput, latency median/p95/p99, jitter, utilization and service recovery are unavailable in the aggregate CSV."]},
     }
 
 
@@ -164,8 +179,10 @@ def write_reports(comparison: dict, output: Path) -> None:
     (output / "comparison.json").write_text(
         json.dumps(comparison, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
     fields = ["experiment", "baseline", *DIMENSIONS, "status", "baseline_status", "experiment_status",
+              "baseline_routing_metric", "experiment_routing_metric",
               "baseline_returncode", "experiment_returncode", "baseline_case_id", "experiment_case_id",
-              *(f"{field}_delta" for field in METRICS)]
+              *(f"{field}_{suffix}" for field in METRICS
+                for suffix in ("baseline", "experiment", "delta", "delta_percent", "direction"))]
     with (output / "comparison.csv").open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
@@ -203,10 +220,28 @@ def write_reports(comparison: dict, output: Path) -> None:
                          f"experiment `{pair['experiment_status']}` (exit {pair['experiment_returncode']}).")
     lines += ["", "Raw statistics, commands and process diagnostics remain in `runs/benchmark.json` "
               "and the per-case CSV/log files."]
+    lines += ["", "## Interpretation and conditional uncertainty", "",
+              "Values for both sides, percentage deltas, sample standard deviations and conditional 95% paired-t intervals "
+              "are available in comparison.json, comparison-summary.csv and comparison.html. Percentages are averaged "
+              "per pair and are undefined at a zero baseline. Zero observed variation does not establish zero uncertainty.", "",
+              *[f"- {item}" for item in comparison["methodology"]["limitations"]]]
     (output / "comparison.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    summary_fields = ["experiment", "routing_metric", "packet_size", "congestion_control", "metric",
+                      "sample_count", "baseline_mean", "experiment_mean", "mean_delta", "mean_delta_percent",
+                      "relative_sample_count", "sample_stddev_delta", "direction", "ci95_low", "ci95_high", "ci_status"]
+    with (output / "comparison-summary.csv").open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=summary_fields, extrasaction="ignore")
+        writer.writeheader()
+        for summary in comparison["summaries"]:
+            for field in METRICS:
+                metric = summary["metrics"][field]
+                writer.writerow({**summary, **metric, "metric": field,
+                    "ci95_low": (metric["conditional_ci95"] or {}).get("low"),
+                    "ci95_high": (metric["conditional_ci95"] or {}).get("high")})
+    comparison_html.write(comparison, output / "comparison.html", METRICS)
 
 
-def compare_artifacts(directory: Path, baseline: str | None = None) -> dict:
+def compare_artifacts(directory: Path, baseline: str | None = None, output: Path | None = None) -> dict:
     # Use recorded inputs only: analysis also works after moving an artifact folder.
     profile = json.loads((directory / "profile.json").read_text(encoding="utf-8"))
     benchmark = json.loads((directory / "runs" / "benchmark.json").read_text(encoding="utf-8"))
@@ -214,7 +249,9 @@ def compare_artifacts(directory: Path, baseline: str | None = None) -> dict:
         comparison = build_comparison(profile, benchmark, baseline)
     except (KeyError, TypeError, OverflowError) as exc:
         raise ValueError(f"Invalid comparison artifacts: {exc}") from exc
-    write_reports(comparison, directory)
+    if output is not None:
+        output.mkdir(parents=True, exist_ok=False)
+    write_reports(comparison, output or directory)
     return comparison
 
 
@@ -222,14 +259,31 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="Experiment artifact directory containing profile.json and runs/")
     parser.add_argument("--baseline", help="Override the reference experiment without rerunning KNS")
+    parser.add_argument("--against", type=Path, help="Candidate artifact bundle (requires a new --output directory)")
+    parser.add_argument("--candidate", help="Candidate variant in --against (default: its baseline)")
+    parser.add_argument("--output", type=Path, help="New directory for reports; never overwrite an existing destination")
+    parser.add_argument("--reference-routing", help="Explicit reference routing metric for cross-bundle pairing")
+    parser.add_argument("--candidate-routing", help="Explicit candidate routing metric for cross-bundle pairing")
     args = parser.parse_args(argv)
     try:
         directory = args.directory.resolve()
-        comparison = compare_artifacts(directory, args.baseline)
-    except (OSError, ValueError) as exc:
+        output = args.output.resolve() if args.output else None
+        if args.against:
+            if output is None:
+                raise ValueError("--against requires a new --output directory")
+            import comparison_artifacts
+            comparison = comparison_artifacts.build(directory, args.against.resolve(), args.baseline,
+                                                     args.candidate, args.reference_routing, args.candidate_routing)
+            output.mkdir(parents=True, exist_ok=False)
+            write_reports(comparison, output)
+        else:
+            if args.candidate or args.reference_routing or args.candidate_routing:
+                raise ValueError("Candidate/routing selection requires --against")
+            comparison = compare_artifacts(directory, args.baseline, output)
+    except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
-    print(f"Comparison: {directory / 'comparison.md'} "
+    print(f"Comparison: {(output or directory) / 'comparison.html'} "
           f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)")
     return 0
 

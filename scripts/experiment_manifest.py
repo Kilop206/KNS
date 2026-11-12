@@ -75,7 +75,8 @@ def create(profile: dict, topology: dict, timeout: float, exe: Path | None,
                         "python": platform.python_version()},
         "runner_sha256": {name: file_hash(root / "scripts" / name) for name in (
             "experiment_profile.py", "experiment_manifest.py", "experiment_sweep.py",
-            "benchmark_suite.py", "run.py", "compare_experiments.py", "fault_plan.py")},
+            "benchmark_suite.py", "run.py", "compare_experiments.py", "fault_plan.py",
+            "comparison_statistics.py", "comparison_html.py", "comparison_artifacts.py")},
         "replay_of": previous["run_id"] if previous else None,
         "executable_changed": changed,
     }

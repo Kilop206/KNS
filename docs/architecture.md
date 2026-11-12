@@ -57,6 +57,13 @@ are preflighted before generation and the native Core validates them independent
 before scheduling. The benchmark runner verifies applied events and observations
 before accepting a fault case's output. See [fault-injection.md](fault-injection.md).
 
+Compare stays outside the engine: `compare_experiments` validates and pairs saved
+records, `comparison_statistics` computes descriptive statistics/conditional
+intervals, `comparison_artifacts` declares cross-bundle selections and routing
+pairs, and `comparison_html` renders escaped static HTML/SVG. No rendering or
+statistical package becomes a Core dependency. Per-pair settings and provenance
+remain visible; absent metrics and failed cases do not become invented samples.
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:
