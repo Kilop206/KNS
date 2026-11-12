@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/analytics-config-v1.schema.json",
+  "title": "KNS Analytics collection config v1",
+  "description": "Virtual-time collection with bounded retention. Runtime additionally limits scheduled intervals and total retained link samples.",
+  "type": "object",
+  "required": ["schema_version", "until_s", "interval_s"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "until_s": {"type": "number", "minimum": 0},
+    "interval_s": {"type": "number", "exclusiveMinimum": 0},
+    "max_samples": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 2048},
+    "latency_retention": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 4096},
+    "max_groups": {"type": "integer", "minimum": 1, "maximum": 1024, "default": 128},
+    "group_retention": {"type": "integer", "minimum": 1, "maximum": 1024, "default": 128},
+    "max_reservations": {"type": "integer", "minimum": 1, "maximum": 1000000, "default": 65536}
+  }
+}

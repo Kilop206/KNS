@@ -76,6 +76,7 @@ namespace kns
 
         auto& stats = engine.getStats();
         stats.packets_delivered++;
+        engine.observePacketDelivery(packet);
 
         if (packet.packet_type == PacketType::DATA) {
             stats.data_packets_delivered++;

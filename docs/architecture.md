@@ -64,6 +64,16 @@ pairs, and `comparison_html` renders escaped static HTML/SVG. No rendering or
 statistical package becomes a Core dependency. Per-pair settings and provenance
 remain visible; absent metrics and failed cases do not become invented samples.
 
+Runtime Analytics is an optional injected `MetricsCollector`, separate from GUI
+packet/latency observers. The engine reports admitted serialization intervals and
+destination packet deliveries; ordinary sampling events observe virtual-time
+state. `LatencyStatistics` owns stable moments, all-observation histogram counts
+and bounded recent quantile storage. Collector internals bound pending reservations,
+time samples and group retention; unavailable utilization is null. Profile/batch
+orchestration persists configuration and requires corresponding report evidence.
+No random stream, network operation or LLM is added. See [analytics.md](analytics.md)
+for scopes, definitions, rules and incomplete model coverage.
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:

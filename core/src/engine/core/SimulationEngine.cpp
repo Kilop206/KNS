@@ -10,6 +10,7 @@
 #include "engine/events/TCPHandshakeEvent.hpp"
 #include "engine/events/PacketGenerationEvent.hpp"
 #include "engine/events/LinkFailureEvent.hpp"
+#include "analysis/MetricsCollector.hpp"
 #include "network/Packet.hpp"
 #include "enums/TCPState.hpp"
 
@@ -75,6 +76,18 @@ namespace kns {
 
     Stats& SimulationEngine::getStats() {
         return stats_;
+    }
+
+    void SimulationEngine::setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector) {
+        if (!collector || analytics_ || now() != 0 || stats_.packets_sent != 0 || stats_.packets_lost != 0 ||
+            stats_.packets_delivered != 0 || execution_statistics_.events_dispatched != 0 ||
+            execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed)
+            throw std::logic_error("Analytics must attach once at time zero before sending traffic");
+        analytics_ = std::move(collector);
+    }
+
+    void SimulationEngine::observePacketDelivery(const Packet& packet) {
+        if (analytics_) analytics_->delivery(packet, now());
     }
 
     bool SimulationEngine::hasEvents() const {
@@ -339,6 +352,7 @@ namespace kns {
         if (loss > 0.0 && random() < loss) {
             link.reserveTransmission(pkt.current_node, next_node,
                 actual_departure_time + transmission_time);
+            if (analytics_) analytics_->transmission(pkt, link, now, actual_departure_time, actual_departure_time + transmission_time);
             if (pkt.hop_count == 0) {
                 stats_.packets_sent++;
             }
@@ -371,6 +385,7 @@ namespace kns {
         }
         link.reserveTransmission(pkt.current_node, next_node,
             actual_departure_time + transmission_time);
+        if (analytics_) analytics_->transmission(pkt, link, now, actual_departure_time, actual_departure_time + transmission_time);
         if (pkt.hop_count == 0) {
             stats_.packets_sent++;
         }

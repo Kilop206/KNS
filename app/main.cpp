@@ -36,6 +36,7 @@
 #include "analysis/AnalysisJsonSerializer.hpp"
 #include "analysis/NetworkAnalysis.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
+#include "analysis/MetricsCollector.hpp"
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
@@ -106,6 +107,7 @@ namespace {
             << "  --until <seconds>          Inclusive virtual-time limit (headless only)\n"
             << "  --max-events <integer>     Event budget (headless only, zero allowed)\n"
             << "  --fault-plan <json>        Scheduled link faults; writes <output>.faults.json\n"
+            << "  --analytics <json>         Bounded virtual-time metrics; writes <output>.analytics.json\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
             << "  delay (default), bandwidth, hop-count, delay-bandwidth\n"
@@ -1858,6 +1860,7 @@ int main(int argc, char* argv[])
 {
     bool headless = false;
     std::optional<fs::path> faultPlanPath;
+    std::optional<fs::path> analyticsPath;
     std::optional<double> runHorizon;
     std::optional<std::uint64_t> eventBudget;
     std::optional<int> cliDevice;
@@ -1964,6 +1967,12 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (arg == "--analytics") {
+            if (i + 1 >= argc) { std::cerr << "Missing value for --analytics\n"; return 1; }
+            if (analyticsPath) { std::cerr << "Duplicate --analytics\n"; return 1; }
+            analyticsPath = argv[++i];
+            continue;
+        }
         if (arg == "--fault-plan") {
             if (i + 1 >= argc) { std::cerr << "Missing value for --fault-plan\n"; return 1; }
             if (faultPlanPath) { std::cerr << "Duplicate --fault-plan\n"; return 1; }
@@ -2091,8 +2100,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if ((runHorizon || eventBudget || faultPlanPath) && !headless) {
-        std::cerr << "--until, --max-events and --fault-plan require --headless\n";
+    if ((runHorizon || eventBudget || faultPlanPath || analyticsPath) && !headless) {
+        std::cerr << "--until, --max-events, --fault-plan and --analytics require --headless\n";
         return 1;
     }
     if (cliDevice) {
@@ -2217,6 +2226,20 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
+        std::shared_ptr<kns::analysis::MetricsCollector> analytics;
+        if (analyticsPath) {
+            try {
+                if (fs::file_size(*analyticsPath) > 256 * 1024) throw std::invalid_argument("Analytics config exceeds 256 KiB");
+                std::ifstream input(*analyticsPath);
+                if (!input) throw std::runtime_error("Cannot open analytics config");
+                nlohmann::json config;
+                input >> config;
+                analytics = kns::analysis::MetricsCollector::attach(*engine, config);
+            } catch (const std::exception& error) {
+                std::cerr << "Invalid analytics config: " << error.what() << '\n';
+                return 1;
+            }
+        }
         const bool headless_auto_start =
             autoStartFromEnvironment(
                 runConfig.auto_start
@@ -2262,6 +2285,15 @@ int main(int argc, char* argv[])
                 fs::create_directories(dir);
             }
             engine->exportStatsCSV(runConfig);
+            if (analytics) {
+                std::ofstream metrics(runConfig.filename + ".analytics.json");
+                if (!metrics) throw std::runtime_error("Cannot open analytics report output");
+                auto report = analytics->toJson();
+                report["simulation_end_s"] = engine->now();
+                report["pending_events"] = engine->pendingEventCount();
+                metrics << report.dump(2) << '\n';
+                if (!metrics) throw std::runtime_error("Analytics report write failed");
+            }
             if (faultReport) {
                 std::ofstream faults(runConfig.filename + ".faults.json");
                 if (!faults) throw std::runtime_error("Cannot open fault report output");

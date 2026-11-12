@@ -17,6 +17,7 @@ from pathlib import Path
 
 import run as runner
 import fault_plan
+import analytics_config
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -89,6 +90,12 @@ def load_suite(path: Path) -> dict:
             raise ValueError("Fault plan path must be a string")
         fault_plan.validate(json.loads((ROOT / plan).read_text(encoding="utf-8")),
                             json.loads((ROOT / topology).read_text(encoding="utf-8")))
+    if "analytics_config" in data:
+        if not isinstance(data["analytics_config"], str):
+            raise ValueError("analytics_config must be a config file path")
+        config = json.loads((ROOT / data["analytics_config"]).read_text(encoding="utf-8"))
+        for topology in data["topologies"]:
+            analytics_config.validate(config, json.loads((ROOT / topology).read_text(encoding="utf-8")))
     return data
 
 
@@ -116,6 +123,8 @@ def expand_cases(suite: dict) -> list[dict]:
         })
         if topology in suite.get("fault_plans", {}):
             cases[-1]["fault_plan"] = suite["fault_plans"][topology]
+        if "analytics_config" in suite:
+            cases[-1]["analytics_config"] = suite["analytics_config"]
     return cases
 
 
@@ -412,6 +421,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if case.get("fault_plan"):
             command.extend(["--fault-plan", str((ROOT / case["fault_plan"]).resolve())])
+        if case.get("analytics_config"):
+            command.extend(["--analytics", str((ROOT / case["analytics_config"]).resolve())])
 
         started = time.perf_counter()
         started_at = datetime.now(timezone.utc).isoformat()
@@ -451,6 +462,9 @@ def main(argv: list[str] | None = None) -> int:
                 if case.get("fault_plan"):
                     plan = json.loads((ROOT / case["fault_plan"]).read_text(encoding="utf-8"))
                     fault_plan.validate_report(json.loads(Path(str(csv_path) + ".faults.json").read_text(encoding="utf-8")), plan)
+                if case.get("analytics_config"):
+                    config = json.loads((ROOT / case["analytics_config"]).read_text(encoding="utf-8"))
+                    analytics_config.validate_report(json.loads(Path(str(csv_path) + ".analytics.json").read_text(encoding="utf-8")), config)
             except (OSError, ValueError) as exc:
                 status = "stats_error"
                 returncode = 1
@@ -470,6 +484,7 @@ def main(argv: list[str] | None = None) -> int:
             "log": str(log_path),
             "csv": str(csv_path) if csv_path.exists() else None,
             "fault_report": str(csv_path) + ".faults.json" if case.get("fault_plan") and Path(str(csv_path) + ".faults.json").exists() else None,
+            "analytics_report": str(csv_path) + ".analytics.json" if case.get("analytics_config") and Path(str(csv_path) + ".analytics.json").exists() else None,
             "wall_clock_duration_s": derived["wall_clock_duration_s"],
             "simulation_duration_s": derived["simulation_duration_s"],
             "packets_sent": derived["packets_sent"],

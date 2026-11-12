@@ -203,6 +203,64 @@ class ExperimentProfileTests(unittest.TestCase):
                 self.assertEqual(self.invoke("--generate-only"), 1)
                 self.assertFalse(self.output.exists())
 
+    def test_invalid_analytics_configs_do_not_create_artifacts(self):
+        valid = {"schema_version": "1.0", "until_s": 0.1, "interval_s": 0.01}
+        for update in ({"schema_version": "2.0"}, {"interval_s": 0}, {"until_s": -1},
+                       {"until_s": float("nan")}, {"interval_s": 1e-30},
+                       {"max_samples": True}, {"latency_retention": 0}, {"max_groups": 1025}):
+            self.profile["analytics"] = {**valid, **update}
+            self.save_profile()
+            with self.subTest(update=update):
+                self.assertEqual(self.invoke("--generate-only"), 1)
+                self.assertFalse(self.output.exists())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_real_analytics_retention_replay_and_unchanged_simulation_csv(self):
+        config = {"schema_version": "1.0", "until_s": 0.1, "interval_s": 0.001,
+                  "max_samples": 16, "latency_retention": 2, "max_groups": 1, "group_retention": 1}
+        self.profile["analytics"] = config
+        self.save_profile()
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        benchmark = json.loads((self.output / "runs/benchmark.json").read_text())
+        first = json.loads(Path(benchmark["cases"][0]["analytics_report"]).read_text())
+        self.assertEqual(first["samples_seen"], 101)
+        self.assertEqual(len(first["samples"]), 16)
+        self.assertEqual(first["samples_discarded"], 85)
+        self.assertGreater(first["data_latency"]["count"], 2)
+        self.assertEqual(first["data_latency"]["retained_samples"], 2)
+        self.assertEqual(first["data_latency"]["percentile_scope"], "most_recent_retained_deliveries")
+        self.assertEqual(sum(first["data_latency"]["histogram"]["counts"]), first["data_latency"]["count"])
+        broken = copy.deepcopy(first)
+        broken["samples_seen"] += 1
+        with self.assertRaises(ValueError):
+            experiments.analytics_config.validate_report(broken, config)
+        replay = self.root / "analytics replay"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(experiments.main(["--replay", str(self.output / "manifest.json"),
+                "--exe", os.environ["KNS_TEST_EXE"], "--output", str(replay)]), 0)
+        for original in (self.output / "runs").glob("*.analytics.json"):
+            self.assertEqual(original.read_bytes(), (replay / "runs" / original.name).read_bytes())
+        del self.profile["analytics"]
+        self.save_profile()
+        plain = self.root / "plain"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(experiments.main(["--profile", str(self.profile_path), "--exe", os.environ["KNS_TEST_EXE"],
+                                              "--output", str(plain)]), 0)
+        for original in (self.output / "runs").glob("*.csv"):
+            if original.name != "metrics.csv":
+                self.assertEqual(original.read_bytes(), (plain / "runs" / original.name).read_bytes())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_cli_rejects_invalid_analytics_before_export(self):
+        path = self.root / "invalid analytics.json"
+        path.write_text('{"schema_version":"1.0","until_s":1,"interval_s":0}')
+        output = self.root / "invalid.csv"
+        result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(self.topology_path),
+            "--analytics", str(path), "--output", str(output)], capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Invalid analytics config", result.stderr)
+        self.assertFalse(output.exists())
+
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
     def test_real_fault_plan_reports_outage_and_replays_identical_observations(self):
         plan = {"schema_version": "1.0", "in_flight_policy": "complete_accepted_hops",

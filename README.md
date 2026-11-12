@@ -52,6 +52,8 @@ Scheduled link outages, degradation and reproducible observation reports are
 documented in [Fault Lab](docs/fault-injection.md).
 Saved experiments and topologies can be compared with offline HTML/SVG reports,
 paired seed variability and conditional intervals; see [KNS Compare](docs/compare.md).
+Optional [runtime Analytics](docs/analytics.md) records bounded time series,
+DATA latency percentiles, directional utilization and evidence-based rule diagnostics.
 
 ## Requirements
 
@@ -203,6 +205,7 @@ KNS --headless --topology <file> [--output <csv>]
 | `--until <seconds>` | Inclusive virtual-time horizon; preserves an incomplete CSV snapshot and returns `3` if work remains. |
 | `--max-events <integer>` | Bound dispatched events; zero is allowed. With `--until` alone the budget defaults to one million. |
 | `--fault-plan <json>` | Apply a versioned link fault plan headlessly; write an observation report beside the CSV as `<output>.faults.json`. |
+| `--analytics <json>` | Collect bounded virtual-time metrics and write `<output>.analytics.json`. |
 | `-h`, `--help` | Print usage and exit. |
 
 Accepted routing metrics:

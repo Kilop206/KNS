@@ -60,6 +60,7 @@ other links, queue policies and metadata are retained.
 | `routing_metrics` | Defaults to `["delay"]`; also supports `bandwidth`, `hop-count`, `delay-bandwidth`. |
 | `congestion_controls` | Defaults to `["reno"]`; also supports `tahoe`, `newreno`, `cubic`. |
 | `allow_transport_failures` | Accept orderly retry exhaustion as an experiment outcome; defaults to `false`. |
+| `analytics` | Optional shared native collection config; see [Analytics](../docs/analytics.md). |
 
 Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`,
 `queue_capacity`.
@@ -126,6 +127,12 @@ required; cross-platform floating-point identity is not guaranteed. This is
 configuration replay from the beginning, not restoration of engine state.
 
 ## Artifacts and failures
+
+`analytics-lab.json` adds native time series, retained-scope DATA latency statistics
+and heuristic recommendations. Config is persisted in the manifest and each case's
+`.csv.analytics.json` report is required/validated when requested. The raw aggregate
+CSV retains its existing meanings; Analytics observation horizons and percentile
+retention scopes are explicit and can differ from the full simulation duration.
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the

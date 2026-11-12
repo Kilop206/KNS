@@ -29,6 +29,7 @@
 struct PacketSpec;
 
 namespace kns {
+    namespace analysis { class MetricsCollector; }
     struct ValidationReport {
         std::size_t total_sessions = 0;
         std::size_t completed_sessions = 0;
@@ -71,6 +72,7 @@ namespace kns {
         mutable std::uint64_t routing_revision_ = 0;
         // Statistics for the simulation
         Stats stats_;
+        std::shared_ptr<analysis::MetricsCollector> analytics_;
 
         // Event queue for managing scheduled events
         EventQueue event_queue_;
@@ -165,6 +167,9 @@ namespace kns {
         const Topology& getTopology() const;
 
         Stats& getStats();
+        /// Optional observer; attach once at time zero before transmitting traffic.
+        void setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector);
+        void observePacketDelivery(const Packet& packet);
 
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 

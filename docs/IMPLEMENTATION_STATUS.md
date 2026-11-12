@@ -283,3 +283,82 @@ comparison and Studio Compare View remain pending. Different bundle parameters d
 not establish identical offered load; reports retain that limitation and do not
 rank a global winner or infer causality automatically. Virtual duration includes
 TCP cleanup timers/observations and can differ despite equal observation schedules.
+
+## Milestone 5 increment — 2026-11-12
+
+Advanced to runtime Analytics at the user's explicit request. Existing topology
+analysis and GUI observers were preserved; collection is optional and off by default.
+
+Implemented:
+
+- Native `MetricsCollector` injected before traffic, with transmission/delivery
+  hooks and ordinary virtual-clock sampling events. Collection has a declared
+  horizon, independent of whole-run completion. No RNG draws, background worker,
+  LLM, actual network operation or GUI dependency was added.
+- Bounded time series for packet throughput, first-hop admissions, path-drop
+  rates, DATA latency, link configuration, directional/shared queues and link
+  serialization utilization. Physical busy intervals are clipped to sample
+  windows, excluding propagation and respecting full/half/simplex slots. Coverage
+  loss, missing links and incompatible mode windows are explicit; unavailable
+  utilization is null rather than an invented zero.
+- `LatencyStatistics` accumulates Welford moments with long-double intermediates,
+  count/min/max and all-observation fixed-bin histogram counts. Median/p95/p99 use
+  bounded recent deliveries and declare scope/retained/discarded counts. No
+  observations/single observations have appropriate null statistics.
+- Latency/delivery/wire-byte aggregates globally and in capped flow/destination
+  groups. Overflow deliveries stay in global counters and are explicitly counted
+  as ungrouped. Time series, configuration-change logs and pending reservations
+  have bounded retention. Link summaries retain peak evidence from valid windows.
+- Three deterministic heuristic rules: high directional serialization utilization
+  (>=0.9), high directional/shared queue fraction (>=0.8) and observed path drops
+  (>0). Recommendations include evidence, relevant thresholds/timestamps, suggested
+  experiments and model limitations; they are not causal bottleneck verdicts.
+- Headless `--analytics <json>` exports `.csv.analytics.json`. Profiles embed
+  collection config, manifests hash/persist it, replay reconstructs it, and the
+  benchmark runner requires matching complete collection evidence. Added schema,
+  positive/negative fixtures and a controlled congestion example.
+
+Changed files: new native latency-statistics/collector headers and implementations;
+engine/destination-delivery hooks; application CLI; Python analytics preflight and
+report validation; profile/benchmark/manifest integration and tests; config/profile
+schemas/fixtures; `analytics-lab.json`; README/guides, architecture, roadmap and this
+status. The simulator aggregate CSV contract and Compare metric meanings remain
+unchanged; retained-scope statistics are not silently merged with full-run metrics.
+
+Executed evidence:
+
+- GNU 16.2 MinGW/C++20 application/Core/tests compiled successfully.
+- CTest: 433/433 passed, including nine Analytics cases
+  (`build-core-mingw/milestone5-ctest.log`). Cases verify known moments/percentiles,
+  large-offset variance stability, serialization/propagation separation, duplex
+  normalization, retention/group/reservation coverage, sampled faults, modeled
+  random-loss serialization, config validation and seeded TCP equivalence.
+- Python discovery with current KNS: 58/58 passed without skips. Added three tests
+  covering invalid configs, actual CLI collection/retention/evidence rejection,
+  byte-identical replay and equal native CSVs with/without collection when the
+  observation horizon lies within the original run.
+- Contract validator: 11 schemas, 30 fixtures and four app topologies passed.
+  Existing unsandboxed temporary-process/contract-package ACL accommodations were
+  reused; no new runner dependency was installed or made mandatory.
+- Final `analytics-lab.json`: four successful actual simulation cases, two matched
+  pairs, 201 samples per case through virtual second 1. Control peak directional
+  utilization was about 0.4928 and queue fraction 0.625, with no diagnostic rule
+  triggered. The congested link reached utilization/queue fraction 1 and triggered
+  all three relevant rules. Only two DATA packets arrived in that window in each
+  congested case versus 40 in each control: percentile values are descriptive
+  observations, not SLA or capacity guarantees.
+- Replayed final manifest: four successful cases. Verified all four Analytics
+  JSON reports and four simulator CSVs byte-for-byte, 201 timestamps per report,
+  histogram count conservation, utilization bounds and current executable SHA-256.
+  Evidence: `build-core-mingw/milestone5-final` and
+  `build-core-mingw/milestone5 final replay` (ignored build artifacts).
+- `git diff --check` passed. No new interactive Studio/visual QA was performed.
+  Native TLS remains locally disabled; Linux/sanitizers remain unverified here.
+
+Milestone 5 remains partial: device processing rates, unique goodput, per-flow
+path-drop attribution/deadlines, jitter, automatic imbalance/congestion-pattern
+diagnosis, streaming storage, richer rule sets and Studio Analytics Dashboard are
+pending. Current group keys represent modeled session/direction endpoints and
+destination deliveries. Queue entries still include propagation; intervals and
+configuration-change markers are sampled callback observations. Retention scopes
+and virtual horizons must be respected when interpreting or comparing outputs.

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "name": "analytics-congestion",
+  "topology": "app/topologies/services-lab.json",
+  "seeds": [42, 43],
+  "allow_transport_failures": true,
+  "analytics": {
+    "schema_version": "1.0", "until_s": 1, "interval_s": 0.005,
+    "max_samples": 256, "latency_retention": 4096,
+    "max_groups": 64, "group_retention": 128, "max_reservations": 65536
+  },
+  "experiments": [
+    {"name": "control", "bandwidth": 100},
+    {"name": "congested", "bandwidth": 0.1, "queue_capacity": 2}
+  ]
+}

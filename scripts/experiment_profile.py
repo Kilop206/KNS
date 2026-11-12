@@ -17,6 +17,7 @@ import run as runner
 import experiment_manifest as manifests
 import experiment_sweep
 import fault_plan
+import analytics_config
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,7 +43,7 @@ def load_profile(path: Path) -> tuple[dict, dict]:
 def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
     allowed = {"name", "topology", "index", "experiments", "seeds", "packet_sizes",
                "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline",
-               "schema_version", "max_cases", "sweep"}
+               "schema_version", "max_cases", "sweep", "analytics"}
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
     if not valid_name(profile.get("name")):
@@ -60,6 +61,8 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         profile["experiments"] = experiment_sweep.expand(profile.pop("sweep"), max_cases)
     if not isinstance(topology, dict) or not isinstance(topology.get("links"), list):
         raise ValueError("Topology must contain a links array")
+    if "analytics" in profile:
+        analytics_config.validate(profile["analytics"], topology)
     index = profile.setdefault("index", 0)
     if type(index) is not int or not 0 <= index < len(topology["links"]):
         raise ValueError("Profile index must select an existing link")
@@ -141,6 +144,8 @@ def make_suite(profile: dict, output: Path) -> dict:
              if "fault_plan" in experiment}
     if plans:
         suite["fault_plans"] = plans
+    if "analytics" in profile:
+        suite["analytics_config"] = str(output / "analytics.json")
     return suite
 
 
@@ -165,6 +170,8 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
             write_json(Path(suite["fault_plans"][filename]), experiment["fault_plan"])
     write_json(output / "profile.json", profile)
     write_json(output / "source-topology.json", topology)
+    if "analytics" in profile:
+        write_json(output / "analytics.json", profile["analytics"])
     suite_path = output / "suite.json"
     write_json(suite_path, suite)
     return suite_path
