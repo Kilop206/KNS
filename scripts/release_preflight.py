@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_E2E = {"free_plan_denied", "discovery_hub_sync", "private_topology_access",
                 "optimistic_conflict", "kns_load_and_simulate", "kns_facts_sentient_kiwi",
-                "quota_idempotency", "kiwi_outage", "revision_restore", "revoked_token_denied"}
+                "quota_duplicate_rejected", "kiwi_outage", "revision_restore", "revoked_token_denied"}
 
 
 def verify_evidence(path: Path | None, manifest: dict, root: Path) -> tuple[bool, list[str]]:
