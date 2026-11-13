@@ -494,3 +494,23 @@ stream isolation, sequence determinism and duplicate-plan rejection. Evidence:
 checks passed 443/443 (`traffic-core-ctest.log`); final combined checks follow the
 CLI/contract integration. Milestone 6 is partial; application dependency models,
 arbitrary distributions, sweeps/import and Studio remain pending.
+
+## Traffic Lab CLI and contracts — 2026-11-13
+
+Headless `--traffic-plan` accepts versioned JSON and writes a per-flow terminal
+ledger beside the legacy CSV. Explicit plans replace automatic TCP generation;
+Analytics/Fault Lab remain composable. Duplicate arguments and invalid plans fail
+before execution. Time/event/generation truncation returns 3 with an incomplete
+diagnostic; a drained workload returns 0 even when all packets were rejected.
+This does not certify any delivery threshold. Reports record separate plan/network
+seeds and never count abstract payload as TCP goodput.
+
+Added strict schema/fixtures, Python preflight/report conservation checks, CTest
+registration and a six-profile shared-backbone example under
+`KNS Experiments/traffic-lab`. Three Python tests passed without skips, including
+real CLI runs, byte-identical traffic replay, all schedule kinds, malformed input,
+paths with spaces, pending/budget reports and all-loss execution. Evidence:
+`build-core-mingw/traffic-python-tests.log`. Contract validator passed 12 schemas,
+32 fixtures and four bundled app topologies. Native application/test build passed
+in the isolated build; TLS, Linux and Studio remain unverified. Usage and model
+limits are in [traffic-models.md](traffic-models.md).

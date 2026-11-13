@@ -37,6 +37,7 @@
 #include "analysis/NetworkAnalysis.hpp"
 #include "analysis/NetworkAnalyzer.hpp"
 #include "analysis/MetricsCollector.hpp"
+#include "traffic/TrafficRun.hpp"
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
@@ -108,6 +109,7 @@ namespace {
             << "  --max-events <integer>     Event budget (headless only, zero allowed)\n"
             << "  --fault-plan <json>        Scheduled link faults; writes <output>.faults.json\n"
             << "  --analytics <json>         Bounded virtual-time metrics; writes <output>.analytics.json\n"
+            << "  --traffic-plan <json>      Abstract workload; replaces automatic TCP; writes <output>.traffic.json\n"
             << "  -h, --help                 Show this help message\n\n"
             << "Headless routing metrics:\n"
             << "  delay (default), bandwidth, hop-count, delay-bandwidth\n"
@@ -1861,6 +1863,7 @@ int main(int argc, char* argv[])
     bool headless = false;
     std::optional<fs::path> faultPlanPath;
     std::optional<fs::path> analyticsPath;
+    std::optional<fs::path> trafficPlanPath;
     std::optional<double> runHorizon;
     std::optional<std::uint64_t> eventBudget;
     std::optional<int> cliDevice;
@@ -1967,6 +1970,12 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (arg == "--traffic-plan") {
+            if (i + 1 >= argc) { std::cerr << "Missing value for --traffic-plan\n"; return 1; }
+            if (trafficPlanPath) { std::cerr << "Duplicate --traffic-plan\n"; return 1; }
+            trafficPlanPath = argv[++i];
+            continue;
+        }
         if (arg == "--analytics") {
             if (i + 1 >= argc) { std::cerr << "Missing value for --analytics\n"; return 1; }
             if (analyticsPath) { std::cerr << "Duplicate --analytics\n"; return 1; }
@@ -2100,8 +2109,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if ((runHorizon || eventBudget || faultPlanPath || analyticsPath) && !headless) {
-        std::cerr << "--until, --max-events, --fault-plan and --analytics require --headless\n";
+    if ((runHorizon || eventBudget || faultPlanPath || analyticsPath || trafficPlanPath) && !headless) {
+        std::cerr << "--until, --max-events, --fault-plan, --analytics and --traffic-plan require --headless\n";
         return 1;
     }
     if (cliDevice) {
@@ -2240,12 +2249,26 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
+        std::shared_ptr<kns::traffic::TrafficRun> traffic;
+        if (trafficPlanPath) {
+            try {
+                if (fs::file_size(*trafficPlanPath) > 4 * 1024 * 1024) throw std::invalid_argument("Traffic plan exceeds 4 MiB");
+                std::ifstream input(*trafficPlanPath);
+                if (!input) throw std::runtime_error("Cannot open traffic plan");
+                nlohmann::json plan;
+                input >> plan;
+                traffic = kns::traffic::TrafficRun::schedule(*engine, plan);
+            } catch (const std::exception& error) {
+                std::cerr << "Invalid traffic plan: " << error.what() << '\n';
+                return 1;
+            }
+        }
         const bool headless_auto_start =
             autoStartFromEnvironment(
                 runConfig.auto_start
             );
 
-        if (headless_auto_start)
+        if (headless_auto_start && !traffic)
         {
             generatePackets(
                 engine,
@@ -2285,6 +2308,15 @@ int main(int argc, char* argv[])
                 fs::create_directories(dir);
             }
             engine->exportStatsCSV(runConfig);
+            if (traffic) {
+                std::ofstream output(runConfig.filename + ".traffic.json");
+                if (!output) throw std::runtime_error("Cannot open traffic report output");
+                auto report = traffic->toJson(engine->now());
+                report["pending_events"] = engine->pendingEventCount();
+                report["network_seed"] = runConfig.seed;
+                output << report.dump(2) << '\n';
+                if (!output) throw std::runtime_error("Traffic report write failed");
+            }
             if (analytics) {
                 std::ofstream metrics(runConfig.filename + ".analytics.json");
                 if (!metrics) throw std::runtime_error("Cannot open analytics report output");
@@ -2317,6 +2349,18 @@ int main(int argc, char* argv[])
                       << ",\"events_processed\":" << boundedResult->events_processed
                       << ",\"pending_events\":" << boundedResult->pending_events << "}\n";
             return 3;
+        }
+        if (traffic) {
+            const auto workload = traffic->toJson(engine->now());
+            if (workload.at("generation_limit_reached").get<bool>() ||
+                workload.at("generation_pending").get<bool>() || workload.at("pending").get<std::uint64_t>() != 0) {
+                std::cerr << "{\"status\":\"incomplete\",\"reason\":\"traffic_budget_or_pending_work\"}\n";
+                return 3;
+            }
+            // A completed abstract workload may legitimately offer no packets
+            // or lose all packets. Delivery targets belong to explicit assertions,
+            // rather than the legacy automatic-TCP completion requirement.
+            return 0;
         }
         const ValidationReport report =
             engine->validateSimulation();

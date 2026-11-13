@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "name": "Shared backbone traffic lab",
+  "nodes": [
+    {"id": 0, "label": "Workload client", "type": "computer"},
+    {"id": 1, "label": "Backbone router", "type": "router"},
+    {"id": 2, "label": "Workload server", "type": "server"}
+  ],
+  "links": [
+    {"from": 0, "to": 1, "bandwidth": 100, "delay": 1, "loss": 0, "queue_capacity": 64},
+    {"from": 1, "to": 2, "bandwidth": 1, "delay": 1, "loss": 0, "queue_capacity": 8}
+  ]
+}

@@ -11,7 +11,7 @@ No milestone below is certified complete by the existence of an interface.
 | 3 Fault Lab | 1, 2 | scheduled failures, explicit in-flight policy, before/during/after results | Partial: versioned link plans, down/up/degradation/flapping, queue/in-flight policy, route observations and interval reports integrated with CLI/profiles/replay; node/device/service models pending |
 | 4 Compare | 2, 3 | paired equivalent workloads, variability, JSON/CSV/HTML | Partial: cross-bundle topology comparisons, explicit routing pairs, side/relative deltas, seed variability, conditional t intervals and offline HTML/SVG added; unavailable engine metrics and Studio view pending |
 | 5 Analytics | 1, 2 | stable statistics, retained time series, evidence-based rules | Partial: native collection, TCP payload-release goodput, within-flow latency variation, repeated joint-pressure evidence, semantic validation and offline HTML/CSV export; device processing, protocol-specific jitter, imbalance and Studio pending |
-| 6 Traffic Lab | 1, 2 | concurrent CBR/periodic/burst/Poisson and application models | Partial: TCP workloads and simulated HTTP/DNS services exist |
+| 6 Traffic Lab | 1, 2 | concurrent CBR/periodic/burst/Poisson and application models | Partial: six bounded concurrent abstract schedules, per-flow seeds, outcome/deadline ledger, CLI, schema and congestion example; application dependencies, traffic sweeps and Studio pending |
 | 7 Industrial | 3, 5, 6 | deadline accounting, documented MQTT abstraction, scaling report | Pending |
 | 8 Capacity | 2, 4, 5, 6 | growth sweeps and user-priced alternatives | Pending |
 | 9 Validate | 2, 5 | assertions, baselines, diagnostic CI failures | Partial: engine invariants, schema validation and CI exist |

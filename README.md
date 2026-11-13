@@ -56,6 +56,9 @@ Optional [runtime Analytics](docs/analytics.md) records bounded time series,
 DATA latency percentiles, directional utilization and evidence-based rule diagnostics.
 Analytics also records within-flow latency variation and repeated queue pressure;
 `scripts/analytics_report.py` exports native reports as offline HTML/CSV.
+The [Traffic Lab](docs/traffic-models.md) adds bounded concurrent CBR, periodic,
+burst, Poisson, uniform and custom abstract workloads with per-flow outcome and
+deadline accounting through `--traffic-plan`.
 
 ## Requirements
 
@@ -208,6 +211,7 @@ KNS --headless --topology <file> [--output <csv>]
 | `--max-events <integer>` | Bound dispatched events; zero is allowed. With `--until` alone the budget defaults to one million. |
 | `--fault-plan <json>` | Apply a versioned link fault plan headlessly; write an observation report beside the CSV as `<output>.faults.json`. |
 | `--analytics <json>` | Collect bounded virtual-time metrics and write `<output>.analytics.json`. |
+| `--traffic-plan <json>` | Run bounded abstract workloads and write `<output>.traffic.json`; replaces automatic TCP. |
 | `-h`, `--help` | Print usage and exit. |
 
 Accepted routing metrics:

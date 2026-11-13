@@ -54,3 +54,25 @@ source/intermediate/TTL drops, pending work/cancellation, budget truncation,
 deadlines, isolated replayable random streams and atomic configuration rejection.
 Application dependency models, arbitrary distributions, traffic-plan sweeps,
 trace replay and Studio controls remain separate work.
+
+## Run the shared-backbone example
+
+```powershell
+.\build-core-mingw\verification-build\app\KNS.exe --headless --topology "KNS Experiments/traffic-lab/topology.json" --traffic-plan "KNS Experiments/traffic-lab/traffic.json" --analytics "KNS Experiments/traffic-lab/analytics.json" --seed 42 --output "results/traffic/run.csv"
+python scripts/analytics_report.py "results/traffic/run.csv.analytics.json" --output "results/traffic/view"
+```
+
+Use the path to your own build's `KNS.exe` when different. Six offered schedules
+compete on a 1 Mbps backbone with eight queue slots. Compare delivered/dropped
+and deadline counts by flow with serialization pressure in Analytics. Reverse
+traffic uses the separate full-duplex slot. Change backbone bandwidth to 10 Mbps
+and rerun with the same two seeds to investigate a controlled upgrade; do not
+infer the effect of priority scheduling from class metadata alone.
+
+The versioned schema is `contracts/traffic-plan-v1.schema.json`; runtime preflight
+also validates endpoint existence, unique IDs and cross-field timing constraints.
+CLI codes: 0 means the workload drained, including legitimate all-loss/zero-load
+cases; 1 means invalid input/execution error; 3 means a time/event/generation budget
+or pending work left the experiment incomplete. Delivery targets require separate
+assertions. JSON records both traffic and network seeds; raw traffic/Analytics
+reports replay identically under equivalent conditions.

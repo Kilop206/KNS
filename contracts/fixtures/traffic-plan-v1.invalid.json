@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0", "seed": -1, "max_packets": 100,
+  "flows": [{"id": 1, "source": 0, "destination": 1, "start_s": 0, "end_s": 1,
+             "wire_bytes": 125, "schedule": {"kind": "periodic", "interval_s": 0}}]
+}

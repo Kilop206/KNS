@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/traffic-plan-v1.schema.json",
+  "title": "KNS abstract traffic plan v1", "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "seed", "max_packets", "flows"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "seed": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "max_packets": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "flows": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/flow"}}
+  },
+  "$defs": {
+    "interval": {"type": "number", "minimum": 0.000000001, "maximum": 1000000},
+    "flow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"],
+      "properties": {
+        "id": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "source": {"type": "integer", "minimum": 0}, "destination": {"type": "integer", "minimum": 0},
+        "start_s": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "end_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000},
+        "wire_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 7},
+        "ttl_hops": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "deadline_s": {"$ref": "#/$defs/interval"},
+        "schedule": {"oneOf": [
+          {"type": "object", "additionalProperties": false, "required": ["kind", "interval_s"],
+           "properties": {"kind": {"const": "periodic"}, "interval_s": {"$ref": "#/$defs/interval"}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "rate_bps"],
+           "properties": {"kind": {"const": "cbr"}, "rate_bps": {"type": "number", "minimum": 0.000000001, "maximum": 1000000000000000}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "rate_pps"],
+           "properties": {"kind": {"const": "poisson"}, "rate_pps": {"type": "number", "minimum": 0.000000001, "maximum": 1000000000000000}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "min_interval_s", "max_interval_s"],
+           "properties": {"kind": {"const": "uniform"}, "min_interval_s": {"$ref": "#/$defs/interval"}, "max_interval_s": {"$ref": "#/$defs/interval"}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "burst_packets", "burst_interval_s", "packet_interval_s"],
+           "properties": {"kind": {"const": "burst"}, "burst_packets": {"type": "integer", "minimum": 1, "maximum": 1000000},
+                          "burst_interval_s": {"$ref": "#/$defs/interval"}, "packet_interval_s": {"type": "number", "minimum": 0, "maximum": 1000000}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "offsets_s"],
+           "properties": {"kind": {"const": "custom"}, "offsets_s": {"type": "array", "minItems": 1, "maxItems": 10000,
+                                                                       "items": {"type": "number", "minimum": 0, "maximum": 1000000}}}}
+        ]}
+      }
+    }
+  }
+}

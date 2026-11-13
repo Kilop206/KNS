@@ -136,6 +136,8 @@ retention scopes are explicit and can differ from the full simulation duration.
 Use `python scripts/analytics_report.py <case>.csv.analytics.json --output <new-directory>`
 for local charts, CSV and diagnostic evidence. Complete-report validation checks
 statistical conservation, coverage, rates and within-flow latency-change counts.
+The [Traffic Lab example](../docs/traffic-models.md) offers six concurrent schedules
+on a shared backbone through `--traffic-plan`.
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the
