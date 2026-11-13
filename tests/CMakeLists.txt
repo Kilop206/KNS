@@ -53,6 +53,10 @@ catch_discover_tests(kns_tests)
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    add_test(NAME experiment_manifest_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_manifest.py -v)
+    set_tests_properties(experiment_manifest_tests PROPERTIES TIMEOUT 60)
     add_test(NAME runner_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_run.py -v

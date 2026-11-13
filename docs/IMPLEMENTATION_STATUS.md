@@ -427,3 +427,15 @@ unique goodput, protocol-specific jitter, per-flow path-drop/deadline attributio
 automatic utilization imbalance analysis, streaming storage and Studio Analytics.
 Existing queue propagation semantics, sampled boundaries and explicit retention
 limits still apply. No feature is claimed complete solely from report scaffolding.
+
+## Experiment provenance portability — 2026-11-13
+
+The runner no longer requires a root `CMakeLists.txt` merely to record optional
+source-version metadata. Packaged/reorganized layouts record `source_version:
+unknown` when the file is absent, unreadable or has no recognized project version.
+Executable SHA-256 identity and replay mismatch rejection remain mandatory when
+an executable is supplied. No build sources or dependencies are restored by this
+change. Files: `experiment_manifest.py`, four focused unit tests and CTest
+registration. All four tests passed with the current Python runtime. Native build
+reorganization by the user is preserved; independent native verification is being
+prepared in the ignored `build-core-mingw` tree.

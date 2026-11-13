@@ -51,6 +51,20 @@ def source_revision(root: Path) -> str:
     return "unknown"
 
 
+def source_version(root: Path) -> str:
+    """Source metadata is optional in packaged or reorganized runner layouts.
+
+    The executable hash remains the identity of the binary actually executed;
+    never infer a binary version from stale build caches or unrelated files.
+    """
+    try:
+        cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return "unknown"
+    version = re.search(r"project\(KNS VERSION ([0-9.]+)", cmake)
+    return version.group(1) if version else "unknown"
+
+
 def create(profile: dict, topology: dict, timeout: float, exe: Path | None,
            root: Path, previous: dict | None = None, allow_change: bool = False) -> dict:
     portable = copy.deepcopy(profile)
@@ -62,14 +76,12 @@ def create(profile: dict, topology: dict, timeout: float, exe: Path | None,
     changed = bool(expected and binary_hash and expected != binary_hash)
     if changed and not allow_change:
         raise ValueError("Replay executable SHA-256 differs; use the original binary or --allow-executable-change")
-    cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
-    version = re.search(r"project\(KNS VERSION ([0-9.]+)", cmake)
     return {
         "schema_version": "1.0", "run_id": str(uuid.uuid4()),
         "created_at": datetime.now(timezone.utc).isoformat(), "status": "prepared",
         "configuration": configuration, "configuration_sha256": config_hash(configuration),
         "source_revision": source_revision(root),
-        "source_version": version.group(1) if version else "unknown",
+        "source_version": source_version(root),
         "executable_sha256": binary_hash,
         "environment": {"platform": platform.platform(), "machine": platform.machine(),
                         "python": platform.python_version()},
