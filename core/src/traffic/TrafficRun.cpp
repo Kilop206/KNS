@@ -1,4 +1,5 @@
 #include "traffic/TrafficRun.hpp"
+#include "analysis/LatencyStatistics.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "network/utils/PacketUtils.hpp"
 #include <algorithm>
@@ -39,21 +40,23 @@ std::uint64_t streamSeed(std::uint64_t seed, std::uint32_t id) {
 }
 struct Counters {
     std::uint64_t generated = 0, delivered = 0, dropped = 0, delivered_bytes = 0, on_time = 0, late = 0;
+    std::uint64_t source_generated = 0, responses_generated = 0, responses_delivered = 0, responses_dropped = 0;
+    std::uint64_t operations_completed = 0, operations_on_time = 0, operations_late = 0, pending_responses = 0;
+    analysis::LatencyStatistics operation_latency{256};
 };
 class Outcome final : public PacketOutcome {
-    std::shared_ptr<Counters> counters_;
+    std::shared_ptr<TrafficRun> run_;
+    std::size_t flow_;
+    bool response_;
+    double started_;
     bool finished_ = false;
 public:
-    explicit Outcome(std::shared_ptr<Counters> counters) : counters_(std::move(counters)) {}
-    void rejected() noexcept override { if (!finished_) { finished_ = true; ++counters_->dropped; } }
+    Outcome(std::shared_ptr<TrafficRun> run, std::size_t flow, bool response, double started)
+        : run_(std::move(run)), flow_(flow), response_(response), started_(started) {}
+    void rejected() noexcept override { if (!finished_) { finished_ = true; run_->rejected(flow_, response_); } }
     void delivered(SimulationEngine& engine, const Packet& packet) override {
         if (finished_) return;
-        finished_ = true; ++counters_->delivered;
-        counters_->delivered_bytes += static_cast<std::uint64_t>(packet.serializedSize());
-        if (packet.workload->deadline_at_s) {
-            if (engine.now() <= *packet.workload->deadline_at_s) ++counters_->on_time;
-            else ++counters_->late;
-        }
+        finished_ = true; run_->delivered(engine, flow_, packet, response_, started_);
     }
 };
 struct Flow {
@@ -68,7 +71,7 @@ struct Flow {
     std::optional<double> next(double previous) {
         const auto& schedule = config.at("schedule");
         const auto kind = schedule.at("kind").get<std::string>();
-        const auto ordinal = counters->generated;
+        const auto ordinal = counters->source_generated;
         const double start = config.at("start_s"), end = config.at("end_s");
         double at = start;
         if (kind == "periodic") at += ordinal * schedule.at("interval_s").get<double>();
@@ -101,6 +104,18 @@ public:
     GenerateEvent(double at, std::shared_ptr<TrafficRun> run, std::size_t flow) : Event(at), run_(std::move(run)), flow_(flow) {}
     void execute(SimulationEngine& engine) override { run_->generate(engine, flow_); }
 };
+class ResponseEvent final : public Event {
+    std::shared_ptr<TrafficRun> run_;
+    std::size_t flow_;
+    double started_;
+public:
+    ResponseEvent(double at, std::shared_ptr<TrafficRun> run, std::size_t flow, double started)
+        : Event(at), run_(std::move(run)), flow_(flow), started_(started) {}
+    void execute(SimulationEngine& engine) override { run_->respond(engine, flow_, started_); }
+};
+bool hasResponse(const Json& flow) {
+    return flow.contains("application") && flow.at("application").contains("response_wire_bytes");
+}
 void validate(const Json& plan, const SimulationEngine& engine) {
     fields(plan, {"schema_version", "seed", "max_packets", "flows"});
     if (plan.at("schema_version") != "1.0") throw std::invalid_argument("Unsupported traffic schema_version");
@@ -110,7 +125,7 @@ void validate(const Json& plan, const SimulationEngine& engine) {
     if (!flows.is_array() || flows.empty() || flows.size() > 256) throw std::invalid_argument("Traffic requires 1..256 flows");
     std::set<std::uint64_t> ids;
     for (const auto& flow : flows) {
-        fields(flow, {"id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"}, {"priority", "ttl_hops", "deadline_s"});
+        fields(flow, {"id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"}, {"priority", "ttl_hops", "deadline_s", "application"});
         if (!ids.insert(integer(flow.at("id"), 1, 0xffffffff, "flow id")).second) throw std::invalid_argument("Duplicate traffic flow id");
         for (const auto* key : {"source", "destination"}) {
             const auto node = integer(flow.at(key), 0, std::numeric_limits<int>::max(), key);
@@ -124,6 +139,21 @@ void validate(const Json& plan, const SimulationEngine& engine) {
         integer(flow.value("priority", Json(0)), 0, 7, "priority");
         integer(flow.value("ttl_hops", Json(64)), 1, 4096, "ttl_hops");
         if (flow.contains("deadline_s")) number(flow.at("deadline_s"), 1e-9, 1e6, "deadline_s");
+        if (flow.contains("application")) {
+            const auto& app = flow.at("application");
+            fields(app, {"kind"}, {"response_wire_bytes", "processing_delay_s", "deadline_s"});
+            const std::set<std::string> kinds{"request_response", "http", "api", "database", "messaging", "telemetry", "microservice", "streaming"};
+            if (!app.at("kind").is_string() || !kinds.contains(app.at("kind").get<std::string>())) throw std::invalid_argument("Unknown application abstraction");
+            const bool response = app.contains("response_wire_bytes");
+            const std::set<std::string> requires_response{"request_response", "http", "api", "database", "microservice"};
+            if ((requires_response.contains(app.at("kind").get<std::string>()) && !response) || response != app.contains("processing_delay_s") ||
+                (!response && app.contains("deadline_s"))) throw std::invalid_argument("Application response configuration is incomplete");
+            if (response) {
+                integer(app.at("response_wire_bytes"), 1, 1048576, "response_wire_bytes");
+                number(app.at("processing_delay_s"), 0, 1e6, "processing_delay_s");
+                if (app.contains("deadline_s")) number(app.at("deadline_s"), 1e-9, 1e6, "operation deadline_s");
+            }
+        }
         const auto& schedule = flow.at("schedule");
         if (!schedule.is_object() || !schedule.contains("kind") || !schedule.at("kind").is_string()) throw std::invalid_argument("Missing traffic schedule kind");
         const auto kind = schedule.at("kind").get<std::string>();
@@ -189,9 +219,9 @@ void TrafficRun::generate(SimulationEngine& engine, std::size_t index) {
     const auto& config = flow.config;
     Packet packet(config.at("source"), config.at("destination"), config.at("source"), engine.now(), config.at("wire_bytes"), 0);
     packet.workload = PacketWorkload{config.at("id"), counters.generated, config.value("priority", std::uint8_t{0}),
-        config.value("ttl_hops", std::uint32_t{64}), {}, std::make_shared<Outcome>(flow.counters)};
+        config.value("ttl_hops", std::uint32_t{64}), {}, std::make_shared<Outcome>(shared_from_this(), index, false, engine.now())};
     if (config.contains("deadline_s")) packet.workload->deadline_at_s = engine.now() + config.at("deadline_s").get<double>();
-    ++counters.generated; ++d.generated;
+    ++counters.generated; ++counters.source_generated; ++d.generated;
     if (!PacketUtils::sendPacketThroughTopology(engine, packet)) packet.workload->outcome->rejected();
     if (const auto next = flow.next(engine.now())) {
         if (d.generated >= d.maximum) d.limited = true;
@@ -199,6 +229,45 @@ void TrafficRun::generate(SimulationEngine& engine, std::size_t index) {
             engine.schedule(std::make_unique<GenerateEvent>(*next, shared_from_this(), index));
             flow.generation_pending = true;
         }
+    }
+}
+void TrafficRun::respond(SimulationEngine& engine, std::size_t index, double started) {
+    auto& d = *data_; auto& flow = d.flows.at(index); auto& c = *flow.counters;
+    --c.pending_responses;
+    if (d.generated >= d.maximum) { d.limited = true; return; }
+    const auto& config = flow.config;
+    Packet packet(config.at("destination"), config.at("source"), config.at("destination"), engine.now(), config.at("application").at("response_wire_bytes"), 0);
+    packet.workload = PacketWorkload{config.at("id"), c.generated, config.value("priority", std::uint8_t{0}),
+        config.value("ttl_hops", std::uint32_t{64}), {}, std::make_shared<Outcome>(shared_from_this(), index, true, started), true};
+    if (config.contains("deadline_s")) packet.workload->deadline_at_s = engine.now() + config.at("deadline_s").get<double>();
+    ++c.generated; ++c.responses_generated; ++d.generated;
+    if (!PacketUtils::sendPacketThroughTopology(engine, packet)) packet.workload->outcome->rejected();
+}
+void TrafficRun::rejected(std::size_t index, bool response) noexcept {
+    auto& c = *data_->flows[index].counters;
+    ++c.dropped;
+    if (response) ++c.responses_dropped;
+}
+void TrafficRun::delivered(SimulationEngine& engine, std::size_t index, const Packet& packet, bool response, double started) {
+    auto& flow = data_->flows.at(index); auto& c = *flow.counters;
+    ++c.delivered; c.delivered_bytes += static_cast<std::uint64_t>(packet.serializedSize());
+    if (packet.workload->deadline_at_s) {
+        if (engine.now() <= *packet.workload->deadline_at_s) ++c.on_time;
+        else ++c.late;
+    }
+    if (!hasResponse(flow.config)) return;
+    const auto& app = flow.config.at("application");
+    if (response) {
+        ++c.responses_delivered; ++c.operations_completed;
+        c.operation_latency.add(engine.now() - started);
+        if (app.contains("deadline_s")) {
+            if (engine.now() <= started + app.at("deadline_s").get<double>()) ++c.operations_on_time;
+            else ++c.operations_late;
+        }
+    } else {
+        const double at = engine.now() + app.at("processing_delay_s").get<double>();
+        engine.schedule(std::make_unique<ResponseEvent>(at, shared_from_this(), index, started));
+        ++c.pending_responses;
     }
 }
 Json TrafficRun::toJson(double now) const {
@@ -209,16 +278,25 @@ Json TrafficRun::toJson(double now) const {
     for (const auto& flow : d.flows) {
         const auto& c = *flow.counters;
         delivered += c.delivered; dropped += c.dropped;
-        generation_pending = generation_pending || flow.generation_pending;
+        const bool pending_generation = flow.generation_pending || c.pending_responses != 0;
+        generation_pending = generation_pending || pending_generation;
+        const auto operations_started = hasResponse(flow.config) ? c.source_generated : 0;
         flows.push_back({{"id", flow.config.at("id")}, {"stream_seed", flow.seed}, {"config", flow.config},
             {"generated", c.generated}, {"delivered", c.delivered}, {"dropped", c.dropped},
             {"pending", c.generated - c.delivered - c.dropped}, {"delivered_wire_bytes", c.delivered_bytes},
-            {"delivered_on_time", c.on_time}, {"delivered_late", c.late}, {"generation_pending", flow.generation_pending}});
+            {"delivered_on_time", c.on_time}, {"delivered_late", c.late}, {"generation_pending", pending_generation},
+            {"source_generated", c.source_generated}, {"responses_generated", c.responses_generated},
+            {"responses_delivered", c.responses_delivered}, {"responses_dropped", c.responses_dropped},
+            {"operations_started", operations_started}, {"operations_completed", c.operations_completed},
+            {"operations_failed", hasResponse(flow.config) ? c.dropped : 0},
+            {"operations_pending", hasResponse(flow.config) ? operations_started - c.operations_completed - c.dropped : 0},
+            {"operations_on_time", c.operations_on_time}, {"operations_late", c.operations_late},
+            {"operation_latency", c.operation_latency.toJson()}});
     }
     return {{"schema_version", "1.0"}, {"config", d.config}, {"simulation_time_s", now},
         {"generation_limit_reached", d.limited}, {"generation_pending", generation_pending},
         {"generated", d.generated}, {"delivered", delivered}, {"dropped", dropped},
         {"pending", d.generated - delivered - dropped}, {"flows", flows},
-        {"model", "abstract one-way wire packets; FIFO/RED link policies; priority is metadata; deadlines measured at destination; no TCP/application protocol or real sockets"}};
+        {"model", "abstract wire messages and optional causal response after delivery/processing delay; unlimited parallel processing; FIFO/RED links; priority metadata; no protocol implementation or real sockets"}};
 }
 }

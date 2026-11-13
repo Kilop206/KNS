@@ -23,5 +23,6 @@ struct PacketWorkload {
     std::uint32_t ttl_hops = 64;
     std::optional<double> deadline_at_s;
     std::shared_ptr<PacketOutcome> outcome;
+    bool response = false;
 };
 }

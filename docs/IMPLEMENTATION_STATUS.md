@@ -551,3 +551,48 @@ model, arbitrary distributions, traffic-parameter sweeps, trace replay or Studio
 controls are claimed. Milestone 5 still lacks device processing rates, application
 reads, protocol-specific jitter and additional analyses. User build edits were
 preserved; the temporary verification configuration stays in ignored artifacts.
+
+## Causal application workload increment — 2026-11-13
+
+Added optional application abstractions for request/response, HTTP/API/database/
+microservice messages, messaging, telemetry and streaming. Configured responses
+are emitted only after actual request delivery and an explicit processing timer,
+then traverse the reverse network path. Responses share the packet budget and
+never advance source-schedule ordinals. There is no protocol parsing, implicit
+retry, finite device processor, application dependency graph or MQTT guarantee.
+
+Reports distinguish source/response packet stages and operations started,
+completed, failed, pending, on time and late. Round-trip statistics reuse bounded
+LatencyStatistics (256 recent completions for quantiles, all-observation moments/
+histograms). Request/response wire sizes may differ; validation checks stage/byte/
+operation conservation and distinguishes packet from operation deadlines. A
+response omitted by the global budget leaves an incomplete operation, not a
+successful exchange. Details: [traffic-models.md](traffic-models.md).
+
+Changed files: native workload metadata/runtime and regression cases; traffic
+preflight/report validation and Python integration tests; schema/positive/negative
+application fixtures; mixed application example; model guide, roadmap and status.
+
+Executed evidence:
+
+- MinGW/C++20 build passed; all ten native Traffic cases passed (375 assertions).
+  Known request/reply paths plus a 3 ms processing timer produce an 8 ms round
+  trip in the two-node model and 10.03 ms in the CLI example topology. Tests cover
+  request/reply loss, budget-truncated operations and unchanged source schedules.
+- CTest **446/446 passed** (`build-core-mingw/application-ctest.log`).
+- Full real-engine Python suite **76/76 passed**, no skips
+  (`build-core-mingw/application-python-tests.log`).
+- Contracts: **12 schemas, 34 fixtures and four bundled topologies passed**.
+- Mixed seven-application experiment and manifest replay each completed four
+  actual cases/two comparison pairs. Verified 12 raw CSV/traffic/Analytics files
+  byte-for-byte. Each case generated/delivered 260 packets, completed 36 exchanges
+  and dropped none. Control had nine late operations with configured deadlines;
+  the bandwidth upgrade had zero. These are scoped model observations with fixed
+  processing delays, not real application performance or statistically independent
+  workload samples. Evidence: `build-core-mingw/application-final` and
+  `application final replay`.
+
+Milestone 6 remains partial: arbitrary dependency graphs/distributions, traffic
+parameter sweeps, trace replay and Studio remain pending. Device processing
+capacity and service/application-read goodput are still not modeled. Existing
+Windows/TLS/Linux/visual-QA limitations remain as recorded above.

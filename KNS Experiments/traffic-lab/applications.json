@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0", "seed": 42, "max_packets": 2000,
+  "flows": [
+    {"id": 1, "source": 0, "destination": 2, "wire_bytes": 300, "start_s": 0, "end_s": 1,
+     "schedule": {"kind": "periodic", "interval_s": 0.1},
+     "application": {"kind": "http", "response_wire_bytes": 2000, "processing_delay_s": 0.005, "deadline_s": 0.05}},
+    {"id": 2, "source": 0, "destination": 2, "wire_bytes": 200, "start_s": 0.02, "end_s": 0.82,
+     "schedule": {"kind": "periodic", "interval_s": 0.1},
+     "application": {"kind": "api", "response_wire_bytes": 1000, "processing_delay_s": 0.003, "deadline_s": 0.03}},
+    {"id": 3, "source": 0, "destination": 2, "wire_bytes": 150, "start_s": 0.04, "end_s": 0.84,
+     "schedule": {"kind": "periodic", "interval_s": 0.2},
+     "application": {"kind": "database", "response_wire_bytes": 1500, "processing_delay_s": 0.01}},
+    {"id": 4, "source": 0, "destination": 2, "wire_bytes": 250, "start_s": 0.06, "end_s": 0.86,
+     "schedule": {"kind": "periodic", "interval_s": 0.2},
+     "application": {"kind": "microservice", "response_wire_bytes": 400, "processing_delay_s": 0.002}},
+    {"id": 5, "source": 0, "destination": 2, "wire_bytes": 500, "start_s": 0, "end_s": 1,
+     "schedule": {"kind": "poisson", "rate_pps": 10},
+     "application": {"kind": "messaging", "response_wire_bytes": 80, "processing_delay_s": 0.001}},
+    {"id": 6, "source": 0, "destination": 2, "wire_bytes": 125, "start_s": 0, "end_s": 1,
+     "schedule": {"kind": "periodic", "interval_s": 0.01}, "application": {"kind": "telemetry"}},
+    {"id": 7, "source": 2, "destination": 0, "wire_bytes": 1000, "start_s": 0, "end_s": 1,
+     "schedule": {"kind": "cbr", "rate_bps": 700000}, "application": {"kind": "streaming"}}
+  ]
+}

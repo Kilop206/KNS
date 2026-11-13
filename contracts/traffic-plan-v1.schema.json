@@ -11,6 +11,18 @@
   },
   "$defs": {
     "interval": {"type": "number", "minimum": 0.000000001, "maximum": 1000000},
+    "application": {
+      "type": "object", "additionalProperties": false, "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["request_response", "http", "api", "database", "messaging", "telemetry", "microservice", "streaming"]},
+        "response_wire_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "processing_delay_s": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "deadline_s": {"$ref": "#/$defs/interval"}
+      },
+      "dependentRequired": {"response_wire_bytes": ["processing_delay_s"], "processing_delay_s": ["response_wire_bytes"], "deadline_s": ["response_wire_bytes"]},
+      "if": {"properties": {"kind": {"enum": ["request_response", "http", "api", "database", "microservice"]}}},
+      "then": {"required": ["response_wire_bytes", "processing_delay_s"]}
+    },
     "flow": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"],
@@ -23,6 +35,7 @@
         "priority": {"type": "integer", "minimum": 0, "maximum": 7},
         "ttl_hops": {"type": "integer", "minimum": 1, "maximum": 4096},
         "deadline_s": {"$ref": "#/$defs/interval"},
+        "application": {"$ref": "#/$defs/application"},
         "schedule": {"oneOf": [
           {"type": "object", "additionalProperties": false, "required": ["kind", "interval_s"],
            "properties": {"kind": {"const": "periodic"}, "interval_s": {"$ref": "#/$defs/interval"}}},

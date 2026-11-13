@@ -31,7 +31,7 @@ def validate(plan, topology):
     ids = set()
     for flow in flows:
         required = {"id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"}
-        if not isinstance(flow, dict) or not required <= set(flow) or set(flow) - required - {"priority", "ttl_hops", "deadline_s"}:
+        if not isinstance(flow, dict) or not required <= set(flow) or set(flow) - required - {"priority", "ttl_hops", "deadline_s", "application"}:
             raise ValueError("Flow contains missing or unsupported fields")
         identifier = integer(flow["id"], 1, 2**32 - 1, "flow id")
         if identifier in ids:
@@ -50,6 +50,19 @@ def validate(plan, topology):
         integer(flow.get("ttl_hops", 64), 1, 4096, "ttl_hops")
         if "deadline_s" in flow:
             number(flow["deadline_s"], 1e-9, 1e6, "deadline_s")
+        if "application" in flow:
+            app = flow["application"]
+            kinds = {"request_response", "http", "api", "database", "messaging", "telemetry", "microservice", "streaming"}
+            if not isinstance(app, dict) or "kind" not in app or set(app) - {"kind", "response_wire_bytes", "processing_delay_s", "deadline_s"} or not isinstance(app["kind"], str) or app["kind"] not in kinds:
+                raise ValueError("Invalid application abstraction")
+            response = "response_wire_bytes" in app
+            if (app["kind"] in {"request_response", "http", "api", "database", "microservice"} and not response) or response != ("processing_delay_s" in app) or (not response and "deadline_s" in app):
+                raise ValueError("Application response configuration is incomplete")
+            if response:
+                integer(app["response_wire_bytes"], 1, 1048576, "response_wire_bytes")
+                number(app["processing_delay_s"], 0, 1e6, "processing_delay_s")
+                if "deadline_s" in app:
+                    number(app["deadline_s"], 1e-9, 1e6, "operation deadline_s")
         schedule = flow["schedule"]
         fields = {"periodic": {"interval_s"}, "cbr": {"rate_bps"}, "poisson": {"rate_pps"},
                   "uniform": {"min_interval_s", "max_interval_s"},
@@ -103,7 +116,37 @@ def validate_report(report, plan, complete=True):
             totals[key] += integer(observed.get(key), 0, plan["max_packets"], "flow." + key)
         if observed["generated"] != observed["delivered"] + observed["dropped"] + observed["pending"]:
             raise ValueError("Traffic flow does not conserve packet outcomes")
-        if integer(observed.get("delivered_wire_bytes"), 0, 2**64 - 1, "delivered_wire_bytes") != observed["delivered"] * config["wire_bytes"]:
+        app = config.get("application", {})
+        has_response = "response_wire_bytes" in app
+        responses_delivered = 0
+        if has_response or "source_generated" in observed:
+            stage = {key: integer(observed.get(key), 0, plan["max_packets"], key) for key in
+                     ("source_generated", "responses_generated", "responses_delivered", "responses_dropped",
+                      "operations_started", "operations_completed", "operations_failed", "operations_pending",
+                      "operations_on_time", "operations_late")}
+            if stage["source_generated"] + stage["responses_generated"] != observed["generated"] or stage["responses_delivered"] + stage["responses_dropped"] > stage["responses_generated"]:
+                raise ValueError("Traffic source/response stages do not conserve packets")
+            if stage["responses_delivered"] > observed["delivered"] or stage["responses_dropped"] > observed["dropped"] or stage["responses_generated"] > observed["delivered"] - stage["responses_delivered"]:
+                raise ValueError("Response stages exceed observed request/delivery outcomes")
+            if observed["delivered"] - stage["responses_delivered"] + observed["dropped"] - stage["responses_dropped"] > stage["source_generated"]:
+                raise ValueError("Source terminal outcomes exceed source generations")
+            if not has_response and (stage["responses_generated"] or any(stage[k] for k in stage if k.startswith("operations_"))):
+                raise ValueError("One-way traffic has response/operation observations")
+            started = stage["source_generated"] if has_response else 0
+            failed = observed["dropped"] if has_response else 0
+            if (stage["operations_started"], stage["operations_completed"], stage["operations_failed"]) != (started, stage["responses_delivered"], failed) or started != stage["operations_completed"] + failed + stage["operations_pending"]:
+                raise ValueError("Application operations do not conserve outcomes")
+            if stage["operations_on_time"] + stage["operations_late"] != (stage["operations_completed"] if "deadline_s" in app else 0):
+                raise ValueError("Application deadline counts contradict completed operations")
+            from analytics_validation import statistics
+            latency = observed.get("operation_latency")
+            if statistics(latency, "operation_latency") != stage["operations_completed"] or latency["retained_samples"] != min(stage["operations_completed"], 256):
+                raise ValueError("Application latency statistics contradict completed operations")
+            if complete and stage["operations_pending"]:
+                raise ValueError("Application operations remain pending")
+            responses_delivered = stage["responses_delivered"]
+        expected_bytes = (observed["delivered"] - responses_delivered) * config["wire_bytes"] + responses_delivered * app.get("response_wire_bytes", 0)
+        if integer(observed.get("delivered_wire_bytes"), 0, 2**64 - 1, "delivered_wire_bytes") != expected_bytes:
             raise ValueError("Traffic delivered bytes contradict packet size")
         on_time = integer(observed.get("delivered_on_time"), 0, plan["max_packets"], "delivered_on_time")
         late = integer(observed.get("delivered_late"), 0, plan["max_packets"], "delivered_late")

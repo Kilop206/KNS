@@ -39,6 +39,46 @@ class TrafficConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 traffic_config.validate(invalid, self.topology)
 
+    def test_application_contract_rejects_incomplete_response_models(self):
+        for kind in ("http", "api", "database", "microservice", "request_response", "messaging", "telemetry", "streaming"):
+            plan = copy.deepcopy(self.plan)
+            plan["flows"][0]["application"] = {"kind": kind, "response_wire_bytes": 250, "processing_delay_s": 0.003}
+            traffic_config.validate(plan, self.topology)
+            del plan["flows"][0]["application"]["processing_delay_s"]
+            with self.assertRaises(ValueError): traffic_config.validate(plan, self.topology)
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration")
+    def test_application_round_trip_and_operation_statistics_use_real_messages(self):
+        with tempfile.TemporaryDirectory(prefix="KNS application ") as temp:
+            root = Path(temp)
+            plan = copy.deepcopy(self.plan); plan["flows"] = plan["flows"][:1]
+            flow = plan["flows"][0]
+            flow.update(end_s=0.001, schedule={"kind": "custom", "offsets_s": [0]},
+                        application={"kind": "api", "response_wire_bytes": 250, "processing_delay_s": 0.003, "deadline_s": 0.02})
+            source = root / "application.json"; source.write_text(json.dumps(plan))
+            output = root / "round trip.csv"
+            result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
+                "--traffic-plan", str(source), "--output", str(output)], capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(Path(str(output) + ".traffic.json").read_text())
+            traffic_config.validate_report(report, plan)
+            self.assertEqual(report["generated"], 2); self.assertEqual(report["delivered"], 2)
+            observed = report["flows"][0]
+            self.assertEqual(observed["operations_completed"], 1)
+            self.assertEqual(observed["operations_on_time"], 1)
+            self.assertAlmostEqual(observed["operation_latency"]["mean_s"], 0.01003, places=10)
+            self.assertEqual(observed["delivered_wire_bytes"], 375)
+            for mutation in (
+                lambda f: f.update(operations_pending=1),
+                lambda f: f.update(responses_delivered=0),
+                lambda f: f.update(responses_generated=0),
+                lambda f: f.update(operations_on_time=0),
+                lambda f: f.update(delivered_wire_bytes=250),
+                lambda f: f["operation_latency"]["histogram"]["counts"].__setitem__(0, 9),
+            ):
+                invalid = copy.deepcopy(report); mutation(invalid["flows"][0])
+                with self.assertRaises(ValueError): traffic_config.validate_report(invalid, plan)
+
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration")
     def test_actual_cli_competition_replay_conservation_and_invalid_arguments(self):
         with tempfile.TemporaryDirectory(prefix="KNS traffic ") as temp:

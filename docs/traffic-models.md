@@ -31,7 +31,7 @@ late packets are delivered and counted late, not silently discarded.
 
 Wire size includes whatever headers a workload designer chooses to model. These
 packets do not implement UDP, HTTP, MQTT, reliable transport or application reads.
-The current destination callback terminates the abstract message. TCP sessions
+The destination callback terminates each abstract message. TCP sessions
 use a separate Analytics group namespace and payload-goodput accounting.
 
 Generated packets have exactly one terminal outcome or remain pending. A shared
@@ -43,8 +43,9 @@ packets and future generation pending; reports distinguish them.
 
 Limits: 256 flows, 1,000,000 generated packets globally, 10,000 offsets per custom
 flow, 1 MiB per modeled wire packet and end times at most 1,000,000 seconds. Only
-one generator event per active flow is queued; network arrival events remain
-subject to link queues. Reaching the generation budget truncates offered load
+one source-generator event per active flow is queued. Optional responses add
+processing events bounded by generated requests; network arrivals remain subject
+to link queues. Reaching the generation budget truncates offered load
 explicitly with `generation_limit_reached`; it is not a completed capacity test.
 CLI input is capped at 4 MiB. The ledger retains scalar counters rather than a
 history of all packets. Analytics retention is configured independently.
@@ -52,8 +53,8 @@ history of all packets. Analytics retention is configured independently.
 Tests cover analytical serialization/propagation, shared queue congestion,
 source/intermediate/TTL drops, pending work/cancellation, budget truncation,
 deadlines, isolated replayable random streams and atomic configuration rejection.
-Application dependency models, arbitrary distributions, traffic-plan sweeps,
-trace replay and Studio controls remain separate work.
+Arbitrary application dependency graphs, arbitrary distributions, traffic-plan
+sweeps, trace replay and Studio controls remain separate work.
 
 ## Run the shared-backbone example
 
@@ -97,4 +98,43 @@ Compare preserves legacy CSV metric definitions, including first-hop admission
 denominators; use the traffic ledger for generated-packet delivery/deadline ratios.
 Cross-bundle comparisons record plan hashes and whether workload inputs match.
 Different plans can be compared descriptively but do not establish a controlled
-causal change. Traffic-rate/size sweeps and application dependencies remain pending.
+causal change. Traffic-rate/size sweeps remain pending.
+
+## Causal request/response application models
+
+An optional flow `application` object names an abstraction and, where appropriate,
+declares `response_wire_bytes`, `processing_delay_s` and optional operation
+`deadline_s`. A response is scheduled only after its request reaches the destination
+and its fixed processing delay elapses. It traverses the current reverse route,
+sharing real link queues and loss decisions. Responses may drain after source
+`end_s`; the global packet budget includes requests and responses. Source schedules
+count source messages independently, so replies never skip future source entries.
+
+| Kinds | Declared communication model | Important omissions |
+| --- | --- | --- |
+| `request_response`, `http`, `api`, `database`, `microservice` | Request, fixed processing delay, response with configured wire sizes | Protocol parsing, TCP, connection setup, query/service logic, dependency graphs |
+| `messaging` | One-way message or optional request/acknowledgement pair | Broker semantics, durable storage, retry and delivery guarantees |
+| `telemetry` | One-way or optional paired message using chosen schedule | MQTT/industrial protocol semantics and QoS |
+| `streaming` | Offered wire stream or optional paired messages | Playback, codecs, congestion control and adaptive rates |
+
+The kind labels select/validate these abstractions; they do not infer real payload
+sizes or processing costs. Processing is a timer with unlimited concurrency, not a
+device CPU, finite-capacity worker pool or processing queue. One operation is one
+source request and its response. There are no implicit retries.
+
+Flow reports separate source/response generation, delivery/drop stages, operations
+started/completed/failed/pending, operation deadline outcomes and round-trip latency
+statistics. Failed requests/responses end the operation. Budget-truncated replies
+leave operations pending and the run incomplete. Moments/histograms cover completed
+operations; quantiles retain at most 256 recent completions. Neither completions
+nor retained percentiles establish a service SLA. Flow `deadline_s` remains a
+per-message deadline; `application.deadline_s` covers request creation through
+response arrival, including modeled processing.
+
+Run the mixed application example with the same topology/Analytics options and
+`--traffic-plan "KNS Experiments/traffic-lab/applications.json"`. It combines web,
+API, database, microservice, messaging, telemetry and reverse streaming messages
+on the shared backbone. Inspect operation latency, failed operations and deadline
+counts alongside the one-way streaming load; compare a controlled bandwidth
+upgrade before inferring a bottleneck. The existing simulated HTTP/DNS service
+runtime is separate from these generic wire-message models.

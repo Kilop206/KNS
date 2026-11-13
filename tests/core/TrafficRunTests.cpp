@@ -133,6 +133,8 @@ TEST_CASE("Traffic validates whole plans before scheduling any events", "[traffi
     value = plan(); value["flows"][0]["schedule"] = {{"kind", "custom"}, {"offsets_s", {0.01, 0}}}; invalid.push_back(value);
     value = plan(); value["flows"][0]["schedule"] = {{"kind", "burst"}, {"burst_packets", 2}, {"burst_interval_s", 1}, {"packet_interval_s", 1}}; invalid.push_back(value);
     value = plan(); value["flows"][0]["schedule"]["interval_s"] = std::numeric_limits<double>::infinity(); invalid.push_back(value);
+    value = plan(); value["flows"][0]["application"] = {{"kind", "http"}}; invalid.push_back(value);
+    value = plan(); value["flows"][0]["application"] = {{"kind", "api"}, {"response_wire_bytes", 100}}; invalid.push_back(value);
     for (const auto& input : invalid) {
         kns::SimulationEngine engine(topology());
         REQUIRE_THROWS(kns::traffic::TrafficRun::schedule(engine, input));
@@ -147,4 +149,71 @@ TEST_CASE("Traffic validates whole plans before scheduling any events", "[traffi
     cancelled.cancel();
     REQUIRE_THROWS(kns::traffic::TrafficRun::schedule(cancelled, plan()));
     REQUIRE(cancelled.pendingEventCount() == 0);
+}
+
+TEST_CASE("Traffic responses wait for request delivery and modeled processing before traversing the reverse route", "[traffic][application][timing]") {
+    for (const double deadline : {0.007, 0.009}) {
+        kns::SimulationEngine engine(topology());
+        auto item = flow({{"kind", "custom"}, {"offsets_s", {0}}});
+        item["end_s"] = 0.001;
+        item["application"] = {{"kind", "api"}, {"response_wire_bytes", 250}, {"processing_delay_s", 0.003}, {"deadline_s", deadline}};
+        auto run = kns::traffic::TrafficRun::schedule(engine, plan(item));
+        engine.runUntil(0.0015);
+        auto observed = run->toJson(engine.now())["flows"][0];
+        REQUIRE(observed["responses_generated"] == 0); REQUIRE(observed["operations_pending"] == 1);
+        REQUIRE(observed["pending"] == 1);
+        engine.runUntil(0.003);
+        observed = run->toJson(engine.now())["flows"][0];
+        REQUIRE(observed["delivered"] == 1); REQUIRE(observed["responses_generated"] == 0);
+        REQUIRE(observed["pending"] == 0); REQUIRE(observed["generation_pending"].get<bool>());
+        engine.run();
+        observed = run->toJson(engine.now())["flows"][0];
+        REQUIRE(engine.now() == Catch::Approx(0.008));
+        REQUIRE(observed["source_generated"] == 1); REQUIRE(observed["responses_generated"] == 1);
+        REQUIRE(observed["generated"] == 2); REQUIRE(observed["delivered"] == 2);
+        REQUIRE(observed["delivered_wire_bytes"] == 375);
+        REQUIRE(observed["operations_completed"] == 1); REQUIRE(observed["operations_pending"] == 0);
+        REQUIRE(observed["operation_latency"]["mean_s"].get<double>() == Catch::Approx(0.008));
+        REQUIRE(observed["operations_on_time"] == (deadline > 0.008 ? 1 : 0));
+        REQUIRE(observed["operations_late"] == (deadline < 0.008 ? 1 : 0));
+    }
+}
+TEST_CASE("Traffic application failures and budget truncation preserve operation outcomes", "[traffic][application][conservation]") {
+    for (const int failure : {0, 1, 2}) {
+        kns::SimulationEngine engine(topology());
+        auto item = flow({{"kind", "custom"}, {"offsets_s", {0}}});
+        item["application"] = {{"kind", "http"}, {"response_wire_bytes", 250}, {"processing_delay_s", 0.003}};
+        auto input = plan(item);
+        if (failure == 0) engine.getTopology().getLinks()[0]->setLossProb(1);
+        if (failure == 2) input["max_packets"] = 1;
+        auto run = kns::traffic::TrafficRun::schedule(engine, input);
+        if (failure == 1) {
+            engine.runUntil(0.003);
+            engine.getTopology().getLinks()[0]->setLossProb(1);
+        }
+        engine.run();
+        const auto report = run->toJson(engine.now()); const auto observed = report["flows"][0];
+        REQUIRE(observed["operations_started"] == 1); REQUIRE(observed["operations_completed"] == 0);
+        REQUIRE(observed["operations_failed"] == (failure == 2 ? 0 : 1));
+        REQUIRE(observed["operations_pending"] == (failure == 2 ? 1 : 0));
+        REQUIRE(observed["responses_generated"] == (failure == 1 ? 1 : 0));
+        REQUIRE(observed["responses_dropped"] == (failure == 1 ? 1 : 0));
+        REQUIRE(report["pending"] == 0);
+        REQUIRE(report["generation_limit_reached"].get<bool>() == (failure == 2));
+    }
+}
+TEST_CASE("Traffic response generation does not skip later source schedule entries", "[traffic][application][schedule]") {
+    kns::SimulationEngine engine(topology());
+    auto item = flow();
+    item["application"] = {{"kind", "microservice"}, {"response_wire_bytes", 125}, {"processing_delay_s", 0}};
+    std::vector<double> source_times;
+    engine.setPacketObserver([&](const kns::Packet& p, auto, auto, auto, auto, auto) {
+        if (p.workload && !p.workload->response && p.hop_count == 0) source_times.push_back(p.creation_time);
+    });
+    auto run = kns::traffic::TrafficRun::schedule(engine, plan(item));
+    engine.run();
+    REQUIRE(source_times == std::vector<double>{0, 0.01, 0.02});
+    const auto observed = run->toJson(engine.now())["flows"][0];
+    REQUIRE(observed["generated"] == 6); REQUIRE(observed["operations_started"] == 3);
+    REQUIRE(observed["operations_completed"] == 3); REQUIRE(observed["operations_pending"] == 0);
 }
