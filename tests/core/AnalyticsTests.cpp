@@ -218,6 +218,38 @@ TEST_CASE("Analytics counts serialization for modeled probabilistic link loss", 
     REQUIRE(report["data_latency"]["count"] == 0);
 }
 
+TEST_CASE("Analytics imbalance uses full-horizon utilization rather than retained peaks", "[analytics][imbalance]") {
+    for (const int condition : {0, 1, 2, 3}) {
+        CAPTURE(condition);
+        kns::Topology topology(4);
+        topology.addLink(0, 1, 1, 1, 0, kns::LinkMode::FULL_DUPLEX, 64);
+        topology.addLink(2, 3, 1, 1);
+        kns::SimulationEngine engine(topology);
+        auto input = config(0.03, 0.005); input["max_samples"] = 1;
+        if (condition == 1) input["max_reservations"] = 1;
+        auto collector = kns::analysis::MetricsCollector::attach(engine, input);
+        for (int i = 0; i < (condition == 3 ? 3 : 30); ++i)
+            REQUIRE(engine.sendPacket(kns::Packet(0, 1, 0, 0, 125, 999), *engine.getTopology().getLinks()[0], 0));
+        if (condition == 2) engine.runUntil(0.01);
+        else engine.run();
+        const auto report = collector->toJson();
+        REQUIRE(report["samples"].size() == 1);
+        bool found = false;
+        for (const auto& item : report["recommendations"]) {
+            if (item["rule"] != "serialization_utilization_imbalance") continue;
+            found = true;
+            REQUIRE(item["classification"] == "heuristic");
+            REQUIRE(item["evidence"]["busiest_link_index"] == 0);
+            REQUIRE(item["evidence"]["lightest_link_index"] == 1);
+            REQUIRE(item["evidence"]["busiest_mean_fraction"].get<double>() == Catch::Approx(1));
+            REQUIRE(item["evidence"]["lightest_mean_fraction"] == 0);
+        }
+        REQUIRE(found == (condition == 0));
+        if (condition == 3)
+            REQUIRE(report["link_summaries"][0]["time_weighted_busiest_slot_utilization"].get<double>() == Catch::Approx(0.1));
+    }
+}
+
 TEST_CASE("Analytics latency variation pairs consecutive deliveries within the same flow", "[analytics][variation]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 1, 10);

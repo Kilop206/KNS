@@ -30,6 +30,24 @@ Three windows depend on sampling interval and do not prove sustained overload or
 its cause. Queue occupancy still includes propagation; a lone serialization peak
 without concurrent queue pressure does not trigger this rule.
 
+## Observed link utilization contrast
+
+Each link summary includes the duration-weighted mean of the busiest-slot
+serialization fraction per sample window. Its denominator is valid observed
+virtual seconds, excluding undefined windows; zero coverage yields null.
+`serialization_utilization_imbalance` compares at least two original tracked
+links only when each has complete reservation coverage and valid durations
+covering the entire declared horizon (relative floating-point tolerance 1e-10).
+It flags a mean >=0.8 alongside a mean <=0.2. Evidence records both link indices,
+means, thresholds, comparable count and virtual duration. Scalar integrals survive
+time-series trimming. Short peaks, partial runs and unknown coverage do not meet
+this full-horizon comparison rule.
+
+This is a utilization contrast, not proof of poor routing, inefficient capacity
+allocation or a bottleneck. Different link capacities, endpoint demand and route
+roles can explain it. Recommendations ask for controlled experiments and input
+inspection; they never automatically modify routes or capacities.
+
 ## Export a completed native CLI report
 
 ```powershell
@@ -55,6 +73,6 @@ authenticity or truth for arbitrary third-party reports.
 Tests cover 11/21/6 ms packet latencies yielding 10/15 ms within-flow changes,
 exclusion of an interleaved flow, repeated pressure, transient/unknown-coverage
 exclusions, actual-engine export, deterministic output, invalid/older reports,
-source preservation, HTML escaping and chart gaps. Device processing, unique
-goodput, standard-specific jitter, automatic imbalance diagnoses, streaming
+source preservation, HTML escaping and chart gaps. Device processing, application-read
+goodput, standard-specific jitter, routing-concentration diagnoses, streaming
 storage and Studio Analytics remain pending.

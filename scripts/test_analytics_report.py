@@ -43,6 +43,17 @@ def fixture():
 
 
 class AnalyticsReportTests(unittest.TestCase):
+    def test_link_mean_utilization_requires_a_valid_scope_and_fraction(self):
+        report = fixture()
+        report["link_summaries"] = [{"link_index": 0, "valid_utilization_duration_s": 1,
+            "time_weighted_busiest_slot_utilization": 0.1}]
+        analytics_config.validate_report(report, report["config"])
+        for duration, mean in ((0, 0), (1, 1.1), (2, 0.1), (1, None)):
+            invalid = copy.deepcopy(report)
+            invalid["link_summaries"][0].update(valid_utilization_duration_s=duration, time_weighted_busiest_slot_utilization=mean)
+            with self.assertRaises(ValueError): analytics_config.validate_report(invalid, invalid["config"])
+        report["link_summaries"][0].update(valid_utilization_duration_s=0, time_weighted_busiest_slot_utilization=None)
+        analytics_config.validate_report(report, report["config"])
     def test_tcp_goodput_conserves_payload_and_uses_virtual_duration(self):
         report = fixture()
         report.update(tcp_contiguous_payload_bytes=25, tcp_payload_goodput_bps=200,

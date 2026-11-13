@@ -169,7 +169,7 @@ Python integration checks actual CLI collection, config/report validation,
 byte-identical replay and unchanged aggregate CSV for a horizon within the run.
 
 This increment does not model device processing rates, unique goodput, per-flow
-path drops, deadlines, protocol-specific jitter, automatic traffic imbalance diagnoses, streaming
+path drops, deadlines, protocol-specific jitter, routing-concentration diagnoses, streaming
 disk storage or a Studio Analytics Dashboard. Compare still consumes aggregate
 CSV metrics; retained-scope percentile reports are not silently mixed into its
 full-run summaries. Collection uses one owner thread and may add runtime/memory

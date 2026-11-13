@@ -53,6 +53,7 @@ namespace {
         std::uint64_t pressure_windows = 0, pressure_streak = 0, longest_pressure_streak = 0;
         double pressure_start = 0, longest_pressure_from = 0, longest_pressure_to = 0;
         double valid_duration = 0, high_pressure_duration = 0;
+        long double utilization_area = 0;
     };
 }
 struct MetricsCollector::Data {
@@ -233,7 +234,10 @@ void MetricsCollector::sample(SimulationEngine& engine) {
         const auto ab = link.estimatedQueueSize(at, link.getA(), link.getB());
         const auto ba = link.getMode() == LinkMode::FULL_DUPLEX ? link.estimatedQueueSize(at, link.getB(), link.getA()) : 0;
         const double queue = static_cast<double>(std::max(ab, ba)) / static_cast<double>(link.getQueueCapacity());
-        if (valid) record.valid_duration += duration;
+        if (valid) {
+            record.valid_duration += duration;
+            record.utilization_area += static_cast<long double>(maximum) * duration;
+        }
         const bool pressure = valid && maximum >= 0.9 && queue >= 0.8;
         if (pressure) {
             ++record.pressure_windows; record.high_pressure_duration += duration;
@@ -281,10 +285,17 @@ Json MetricsCollector::toJson() const {
     };
     Json recommendations = Json::array();
     Json linkSummaries = Json::array();
+    const LinkRecord* busiest = nullptr;
+    const LinkRecord* lightest = nullptr;
+    std::size_t comparable_links = 0;
+    const auto mean_utilization = [](const LinkRecord& record) {
+        return std::clamp(static_cast<double>(record.utilization_area / record.valid_duration), 0.0, 1.0);
+    };
     for (const auto& [id, record] : d.links) {
         (void)id;
         linkSummaries.push_back({{"link_index", record.index}, {"reservation_coverage_complete", record.complete},
             {"valid_utilization_windows", record.valid_utilization_windows},
+            {"time_weighted_busiest_slot_utilization", record.valid_duration > 0 ? Json(mean_utilization(record)) : Json(nullptr)},
             {"valid_utilization_duration_s", record.valid_duration}, {"pressure_windows", record.pressure_windows},
             {"pressure_duration_s", record.high_pressure_duration}, {"longest_pressure_streak_windows", record.longest_pressure_streak},
             {"max_sampled_directional_utilization", record.valid_utilization_windows ? Json(record.peak_utilization) : Json(nullptr)},
@@ -307,6 +318,21 @@ Json MetricsCollector::toJson() const {
                 {"total_observed_pressure_s", record.high_pressure_duration}}},
             {"recommendation", "Investigate repeated serialization/queue pressure with demand, bandwidth and sampling-interval sweeps."},
             {"limitations", "Three sampled windows are interval-dependent evidence, not proof of sustained overload or its cause; queue occupancy includes propagation."}});
+        if (d.horizon > 0 && record.complete && record.valid_duration > 0 &&
+            std::abs(record.valid_duration - d.horizon) <= d.horizon * 1e-10) {
+            ++comparable_links;
+            if (!busiest || mean_utilization(record) > mean_utilization(*busiest)) busiest = &record;
+            if (!lightest || mean_utilization(record) < mean_utilization(*lightest)) lightest = &record;
+        }
+    }
+    if (comparable_links >= 2 && mean_utilization(*busiest) >= 0.8 && mean_utilization(*lightest) <= 0.2) {
+        recommendations.push_back({{"rule", "serialization_utilization_imbalance"}, {"classification", "heuristic"},
+            {"evidence", {{"busiest_link_index", busiest->index}, {"lightest_link_index", lightest->index},
+                {"busiest_mean_fraction", mean_utilization(*busiest)}, {"lightest_mean_fraction", mean_utilization(*lightest)},
+                {"high_threshold", 0.8}, {"low_threshold", 0.2}, {"comparable_links", comparable_links},
+                {"covered_virtual_duration_s", d.horizon}}},
+            {"recommendation", "Inspect flow demand, routes and link capacities; run controlled routing/capacity alternatives to investigate the utilization contrast."},
+            {"limitations", "Time-weighted busiest-slot fractions require complete same-horizon coverage. Different capacities, routes and workloads can explain the contrast; it is not proof of inefficient routing or a bottleneck."}});
     }
     if (d.previous_stats.packets_lost > 0) recommendations.push_back({{"rule", "observed_path_drops"}, {"classification", "heuristic"},
         {"evidence", {{"packets_lost", d.previous_stats.packets_lost}, {"queue_overflow_drops", d.previous_stats.queue_overflow_drops}, {"red_early_drops", d.previous_stats.red_early_drops}}},

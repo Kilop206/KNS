@@ -624,3 +624,22 @@ observations; Compare retains both distinct workload hashes. Evidence:
 Traffic parameter sweeps are now implemented. General operation-dependency graphs,
 additional distributions, trace import and Studio controls remain pending; earlier
 scientific/model/platform limitations still apply.
+
+## Full-horizon utilization contrast — 2026-11-13
+
+Analytics now retains the time integral of each window's busiest-slot fraction
+and valid duration independently of sample retention. Link summaries expose a
+bounded time-weighted mean (null without coverage). A deterministic heuristic
+compares at least two links with complete same-horizon evidence, flagging mean
+fractions >=0.8 alongside <=0.2. Its recommendation includes link identities,
+thresholds, denominator and limitations; different capacity/demand/route roles
+remain alternative explanations. It does not diagnose causality or change routes.
+
+Files: native collector, analytical test, summary-domain validator and regression
+test; Analytics guides, roadmap/status. Tests verify an actually busy/idle pair
+despite retaining one sample and exclude short peaks, partial runs and discarded
+reservation coverage. Build passed; CTest **447/447 passed**
+(`build-core-mingw/imbalance-ctest.log`); full real-engine Python **80/80 passed**,
+no skips (`imbalance-python.log`). Schema contracts were unchanged since the
+12-schema/36-fixture/four-topology validation. Device processing, routing
+concentration, protocol-specific jitter and Studio remain pending in Analytics.

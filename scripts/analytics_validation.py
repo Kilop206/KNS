@@ -203,6 +203,22 @@ def validate(report):
             if link["utilization_defined"] and not any(v is not None for v in utilization.values()):
                 raise ValueError("Defined utilization is missing measurements")
         previous = sample
+    summaries = report.get("link_summaries", [])
+    if not isinstance(summaries, list):
+        raise ValueError("Link summaries must be an array")
+    summary_indices = set()
+    for summary in summaries:
+        if not isinstance(summary, dict):
+            raise ValueError("Link summary must be an object")
+        index = count(summary.get("link_index"), "summary.link_index")
+        if index in summary_indices:
+            raise ValueError("Duplicate link summary")
+        summary_indices.add(index)
+        if "time_weighted_busiest_slot_utilization" in summary:
+            duration = number(summary.get("valid_utilization_duration_s"), "valid_utilization_duration_s")
+            mean = number(summary["time_weighted_busiest_slot_utilization"], "mean utilization", nullable=duration == 0)
+            if (duration == 0 and mean is not None) or (mean is not None and mean > 1) or duration > horizon * (1 + 1e-10):
+                raise ValueError("Mean utilization contradicts its coverage/domain")
     recommendations = report.get("recommendations")
     if not isinstance(recommendations, list):
         raise ValueError("Recommendations must be an array")
