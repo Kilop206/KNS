@@ -9,6 +9,8 @@ It is independent of ImGui and does not require an LLM or external service.
 Within-flow latency variation, repeated queue-pressure evidence, semantic report
 validation and offline HTML/CSV export are documented in
 [Analytics analysis and export](analytics-analysis.md).
+The transport-release byte counter and its virtual-time rate are defined in
+[TCP payload goodput](tcp-goodput.md).
 
 ## Run and replay
 

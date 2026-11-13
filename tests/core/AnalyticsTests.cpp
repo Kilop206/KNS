@@ -4,6 +4,7 @@
 #include "analysis/MetricsCollector.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/experiments/FaultLab.hpp"
+#include "engine/events/PacketReceivedEvent.hpp"
 #include <limits>
 #include <numeric>
 #include <cmath>
@@ -127,6 +128,49 @@ TEST_CASE("Analytics collection preserves seeded TCP simulation outputs", "[anal
     REQUIRE(observed.getStats().total_latency == plain.getStats().total_latency);
     REQUIRE(observed.now() == plain.now());
     REQUIRE(collector->toJson()["data_latency"]["count"].get<int>() > 0);
+    REQUIRE(collector->toJson()["tcp_contiguous_payload_bytes"].get<std::uint64_t>() > 0);
+}
+
+TEST_CASE("Analytics TCP goodput counts released contiguous bytes once across sequence wrap", "[analytics][goodput][tcp]") {
+    for (const auto first : {std::uint32_t{1000}, std::numeric_limits<std::uint32_t>::max() - 2}) {
+        for (const bool overflow : {false, true}) {
+            CAPTURE(first, overflow);
+            kns::Topology topology(2);
+            topology.addLink(0, 1, 100, 1);
+            kns::SimulationEngine engine(topology);
+            auto input = config(1, 0.25);
+            input["max_groups"] = 1;
+            auto collector = kns::analysis::MetricsCollector::attach(engine, input);
+            auto& session = engine.createTCPSession(0, 1);
+            session.getClientConnection() = kns::TCPConnection(kns::TCPState::ESTABLISHED, first, 500, 0, 1);
+            session.getServerConnection() = kns::TCPConnection(kns::TCPState::ESTABLISHED, 500, first, 1, 0);
+            session.markTrafficGenerated(); session.setTotalPackets(10);
+            const auto deliver = [&](double at, std::uint32_t seq, std::size_t bytes, std::uint64_t sid) {
+                kns::Packet p(0, 1, 1, 0, 0, sid);
+                p.tcp.seq = seq; p.tcp.flags = kns::TCPFlag::PSH;
+                p.tcp.payload.assign(bytes, 0x41);
+                engine.schedule(std::make_unique<kns::PacketReceivedEvent>(at, p));
+            };
+            if (overflow) deliver(0.01, first, 1, 9999); // consumes the sole tracked flow slot
+            deliver(0.1, first + 3, 2, session.getSession_id()); // buffered behind gap
+            engine.runUntil(0.15);
+            REQUIRE(collector->toJson()["tcp_contiguous_payload_bytes"] == 0);
+            deliver(0.2, first, 3, session.getSession_id()); // releases both segments
+            deliver(0.3, first, 3, session.getSession_id()); // duplicate
+            deliver(0.4, first + 5, 0, session.getSession_id()); // rejected empty payload
+            deliver(0.5, first + 5, 20, 9999); // unknown session never contributes
+            engine.run();
+            const auto report = collector->toJson();
+            REQUIRE(report["tcp_contiguous_payload_bytes"] == 5);
+            REQUIRE(report["tcp_payload_goodput_bps"] == 40);
+            REQUIRE(report["samples"][0]["tcp_payload_goodput_bps"].is_null());
+            REQUIRE(report["samples"][1]["tcp_payload_goodput_bps"] == 160);
+            REQUIRE(report["samples"].back()["tcp_contiguous_payload_bytes"] == 5);
+            REQUIRE(report["ungrouped_flow_tcp_payload_bytes"] == (overflow ? 5 : 0));
+            REQUIRE(report["flow_groups"][0]["tcp_contiguous_payload_bytes"] == (overflow ? 0 : 5));
+            REQUIRE(report["destination_node_groups"][0]["tcp_contiguous_payload_bytes"] == 5);
+        }
+    }
 }
 TEST_CASE("Analytics config validation is bounded and attaches before execution only", "[analytics][validation]") {
     kns::Topology topology(2);

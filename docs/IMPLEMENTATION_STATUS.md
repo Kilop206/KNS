@@ -439,3 +439,22 @@ change. Files: `experiment_manifest.py`, four focused unit tests and CTest
 registration. All four tests passed with the current Python runtime. Native build
 reorganization by the user is preserved; independent native verification is being
 prepared in the ignored `build-core-mingw` tree.
+
+## TCP payload accounting — 2026-11-13
+
+Added receiver-release counters and virtual-time TCP payload goodput globally,
+per sample, per flow and per destination, with explicit overflow byte accounting.
+The hook runs after accepted DATA receive processing; unsigned sequence-space
+advancement excludes duplicates and counts buffered bytes only when gaps close.
+It adds no transport scheduling or random draws. See [tcp-goodput.md](tcp-goodput.md)
+for the distinction between transport release and application reads.
+
+Files: collector/engine interfaces and implementations, DATA receive hook,
+Analytics regression tests and model documentation. The isolated MinGW/C++20
+build succeeded; all 12 Analytics cases passed (144 assertions), including
+duplicate/out-of-order/empty/unknown-session packets, 32-bit wrap and group
+overflow. Evidence: `build-core-mingw/goodput-native.log`. The old build cache
+referenced dependencies intentionally removed by the user; verification used
+`build-core-mingw/verification-src` and `verification-build` without restoring
+the root build file. Application-read goodput, device processing and Studio
+integration remain pending; transport-release accounting is now implemented.

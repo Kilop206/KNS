@@ -170,6 +170,7 @@ namespace kns {
         /// Optional observer; attach once at time zero before transmitting traffic.
         void setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector);
         void observePacketDelivery(const Packet& packet);
+        void observeTCPPayloadReleased(const Packet& packet, std::uint32_t bytes);
 
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 

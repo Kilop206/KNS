@@ -90,6 +90,10 @@ namespace kns {
         if (analytics_) analytics_->delivery(packet, now());
     }
 
+    void SimulationEngine::observeTCPPayloadReleased(const Packet& packet, std::uint32_t bytes) {
+        if (analytics_) analytics_->tcpPayloadReleased(packet, bytes, now());
+    }
+
     bool SimulationEngine::hasEvents() const {
         return event_queue_.hasEvents();
     }

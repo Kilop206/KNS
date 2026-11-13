@@ -300,6 +300,10 @@ namespace kns
 
                 const auto expected_after =
                     receiver.getExpectedAckNum();
+                // Sequence-space advancement releases contiguous payload once,
+                // including buffered segments when a gap closes. Unsigned
+                // subtraction also handles the 32-bit sequence wrap.
+                engine.observeTCPPayloadReleased(packet, expected_after - expected_before);
                 if (window_update) receiver.setPeerWindow(packet.tcp.window);
 
                 /*

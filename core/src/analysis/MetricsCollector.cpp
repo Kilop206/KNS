@@ -26,6 +26,7 @@ namespace {
     }
     struct Group {
         std::uint64_t packets = 0, wire_bytes = 0;
+        std::uint64_t tcp_payload_bytes = 0;
         LatencyStatistics latency;
         std::optional<LatencyStatistics> variation;
         std::optional<double> previous_data_latency;
@@ -34,6 +35,11 @@ namespace {
         }
     };
     struct Reservation { double start, end; int direction; };
+    std::string flowKey(const Packet& packet) {
+        return std::to_string(packet.session_id) + ":" + std::to_string(packet.source) + ":" +
+            std::to_string(packet.destination) + ":" + std::to_string(packet.tcp.source_port) + ":" +
+            std::to_string(packet.tcp.destination_port);
+    }
     struct LinkRecord {
         std::size_t index;
         LinkMode mode;
@@ -53,6 +59,8 @@ struct MetricsCollector::Data {
     std::size_t max_samples, max_groups, group_retention, max_reservations, reservation_count = 0;
     std::uint64_t samples_seen = 0, dropped_reservations = 0, untracked_transmissions = 0;
     std::uint64_t flow_overflow = 0, node_overflow = 0, delivered = 0, wire_bytes = 0, changes_seen = 0;
+    std::uint64_t tcp_payload_bytes = 0, previous_tcp_payload_bytes = 0;
+    std::uint64_t ungrouped_flow_payload_bytes = 0, ungrouped_node_payload_bytes = 0;
     Stats previous_stats;
     std::deque<Json> samples, changes;
     std::map<std::uint64_t, LinkRecord> links;
@@ -150,9 +158,20 @@ void MetricsCollector::delivery(const Packet& packet, double now) {
             }
         }
     };
-    update(d.flows, std::to_string(packet.session_id) + ":" + std::to_string(packet.source) + ":" +
-        std::to_string(packet.destination) + ":" + std::to_string(packet.tcp.source_port) + ":" + std::to_string(packet.tcp.destination_port), d.flow_overflow, true);
+    update(d.flows, flowKey(packet), d.flow_overflow, true);
     update(d.nodes, std::to_string(packet.destination), d.node_overflow, false);
+}
+void MetricsCollector::tcpPayloadReleased(const Packet& packet, std::uint32_t bytes, double now) {
+    auto& d = *data_;
+    if (now > d.horizon || bytes == 0) return;
+    d.tcp_payload_bytes += bytes;
+    const auto update = [bytes](auto& groups, const std::string& key, std::uint64_t& overflow) {
+        const auto found = groups.find(key);
+        if (found == groups.end()) overflow += bytes;
+        else found->second.tcp_payload_bytes += bytes;
+    };
+    update(d.flows, flowKey(packet), d.ungrouped_flow_payload_bytes);
+    update(d.nodes, std::to_string(packet.destination), d.ungrouped_node_payload_bytes);
 }
 void MetricsCollector::sample(SimulationEngine& engine) {
     auto& d = *data_;
@@ -168,6 +187,8 @@ void MetricsCollector::sample(SimulationEngine& engine) {
         {"throughput_pps", duration > 0 ? Json(delivered / duration) : Json(nullptr)},
         {"first_hop_admission_pps", duration > 0 ? Json(sent / duration) : Json(nullptr)},
         {"drops_per_s", duration > 0 ? Json(lost / duration) : Json(nullptr)},
+        {"tcp_contiguous_payload_bytes", d.tcp_payload_bytes},
+        {"tcp_payload_goodput_bps", duration > 0 ? Json(8.0 * (d.tcp_payload_bytes - d.previous_tcp_payload_bytes) / duration) : Json(nullptr)},
         {"data_latency", d.window_latency.toJson()}, {"data_latency_variation", d.window_variation.toJson()}, {"links", Json::array()}};
     std::map<std::uint64_t, std::shared_ptr<Link>> current;
     for (const auto& link : engine.getTopology().getLinks()) current.emplace(link->getId(), link);
@@ -240,6 +261,7 @@ void MetricsCollector::sample(SimulationEngine& engine) {
     if (d.samples.size() == d.max_samples) d.samples.pop_front();
     d.samples.push_back(std::move(sample)); ++d.samples_seen;
     d.previous_time = at; d.previous_stats = stats;
+    d.previous_tcp_payload_bytes = d.tcp_payload_bytes;
     d.window_latency = LatencyStatistics(std::min<std::size_t>(d.config.value("latency_retention", 4096), 256));
     d.window_variation = LatencyStatistics(std::min<std::size_t>(d.config.value("latency_retention", 4096), 256));
 }
@@ -249,7 +271,7 @@ Json MetricsCollector::toJson() const {
         Json output = Json::array();
         for (const auto& [key, group] : input) {
             Json item{{"key", key}, {"packets_delivered", group.packets}, {"wire_bytes_delivered", group.wire_bytes},
-                      {"data_latency", group.latency.toJson()}};
+                      {"data_latency", group.latency.toJson()}, {"tcp_contiguous_payload_bytes", group.tcp_payload_bytes}};
             if (group.variation) item["data_latency_variation"] = group.variation->toJson();
             output.push_back(std::move(item));
         }
@@ -292,6 +314,7 @@ Json MetricsCollector::toJson() const {
         {"definitions", {{"time_unit", "virtual_seconds"}, {"packet_rate_unit", "packets_per_virtual_second"},
             {"latency_scope", "delivered packets classified DATA, including retransmissions, at time <= until_s"},
             {"latency_variation", "absolute difference of successive DATA delivery latencies within each tracked flow/direction; not RFC jitter or application goodput"},
+            {"tcp_payload_goodput", "unique contiguous TCP payload bytes released by modeled receiver, excluding headers/control/duplicates; bits per virtual second; buffered bytes counted when gap closes, not application reads"},
             {"sample_boundaries", "event-ID order; horizon-tied deliveries may update aggregates after the final sample"},
             {"utilization", "clipped serialization busy seconds per directional/shared slot divided by sample duration; propagation excluded"},
             {"queue_scope", "accepted transmissions until arrival, including propagation"},
@@ -300,6 +323,10 @@ Json MetricsCollector::toJson() const {
         {"samples_seen", d.samples_seen}, {"samples_discarded", d.samples_seen - d.samples.size()}, {"samples", d.samples},
         {"link_changes_observed", d.changes_seen}, {"link_changes_discarded", d.changes_seen - d.changes.size()}, {"link_changes", d.changes},
         {"packets_delivered_in_scope", d.delivered}, {"wire_bytes_delivered_in_scope", d.wire_bytes},
+        {"tcp_contiguous_payload_bytes", d.tcp_payload_bytes},
+        {"tcp_payload_goodput_bps", d.horizon > 0 ? Json(8.0 * d.tcp_payload_bytes / d.horizon) : Json(nullptr)},
+        {"ungrouped_flow_tcp_payload_bytes", d.ungrouped_flow_payload_bytes},
+        {"ungrouped_node_tcp_payload_bytes", d.ungrouped_node_payload_bytes},
         {"data_latency", d.latency.toJson()}, {"flow_groups", groups(d.flows)}, {"destination_node_groups", groups(d.nodes)},
         {"data_latency_variation", d.variation.toJson()}, {"latency_variation_coverage", "tracked_flow_groups_only"},
         {"ungrouped_flow_deliveries", d.flow_overflow}, {"ungrouped_node_deliveries", d.node_overflow},
