@@ -94,6 +94,14 @@ namespace kns {
         if (analytics_) analytics_->tcpPayloadReleased(packet, bytes, now());
     }
 
+    void SimulationEngine::claimTrafficPlan() {
+        if (traffic_plan_claimed_ || now() != 0 || execution_statistics_.events_dispatched != 0 ||
+            stats_.packets_sent != 0 || stats_.packets_lost != 0 || stats_.packets_delivered != 0 ||
+            execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed)
+            throw std::logic_error("Traffic plan must attach once before execution or transmission");
+        traffic_plan_claimed_ = true;
+    }
+
     bool SimulationEngine::hasEvents() const {
         return event_queue_.hasEvents();
     }

@@ -36,6 +36,8 @@ namespace {
     };
     struct Reservation { double start, end; int direction; };
     std::string flowKey(const Packet& packet) {
+        if (packet.workload) return "traffic:" + std::to_string(packet.workload->flow_id) + ":" +
+            std::to_string(packet.source) + ":" + std::to_string(packet.destination);
         return std::to_string(packet.session_id) + ":" + std::to_string(packet.source) + ":" +
             std::to_string(packet.destination) + ":" + std::to_string(packet.tcp.source_port) + ":" +
             std::to_string(packet.tcp.destination_port);
@@ -319,6 +321,7 @@ Json MetricsCollector::toJson() const {
             {"utilization", "clipped serialization busy seconds per directional/shared slot divided by sample duration; propagation excluded"},
             {"queue_scope", "accepted transmissions until arrival, including propagation"},
             {"flow_key_fields", {"session_id", "source", "destination", "source_port", "destination_port"}},
+            {"workload_flow_key_fields", {"traffic", "flow_id", "source", "destination"}},
             {"node_group_scope", "destination_deliveries"}, {"wire_bytes", "serialized delivered bytes, not unique application goodput"}}},
         {"samples_seen", d.samples_seen}, {"samples_discarded", d.samples_seen - d.samples.size()}, {"samples", d.samples},
         {"link_changes_observed", d.changes_seen}, {"link_changes_discarded", d.changes_seen - d.changes.size()}, {"link_changes", d.changes},

@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <optional>
 #include "network/services/ServiceRuntime.hpp"
+#include "network/PacketWorkload.hpp"
 
 #include "enums/PacketType.hpp"
 #include "network/transport/tcp/TCPSegment.hpp"
@@ -79,6 +80,7 @@ namespace kns {
 
         TCPSegment tcp;
         std::optional<ServiceMessage> service;
+        std::optional<PacketWorkload> workload;
 
         Packet() = default;
 

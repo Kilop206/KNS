@@ -61,15 +61,18 @@ namespace kns
         packet.packet_type = inferPacketType(packet.tcp);
 
         // All traffic must remain bounded if topology changes create a forwarding loop.
-        if (packet.current_node != packet.destination && packet.hop_count >= 4096) {
+        const auto ttl = packet.workload ? packet.workload->ttl_hops : 4096;
+        if (packet.current_node != packet.destination && static_cast<std::uint32_t>(packet.hop_count) >= ttl) {
             engine.getStats().packets_lost++;
+            if (packet.workload && packet.workload->outcome) packet.workload->outcome->rejected();
             return;
         }
 
         assert(packet.current_node >= 0);
 
         if (packet.current_node != packet.destination) {
-            PacketUtils::sendPacketThroughTopology(engine, packet);
+            if (!PacketUtils::sendPacketThroughTopology(engine, packet) && packet.workload && packet.workload->outcome)
+                packet.workload->outcome->rejected();
 
             return;
         }
@@ -83,6 +86,11 @@ namespace kns
             const double latency = engine.now() - packet.creation_time;
             stats.total_latency += latency;
             engine.notifyLatencyDelivered(latency);
+        }
+
+        if (packet.workload) {
+            if (packet.workload->outcome) packet.workload->outcome->delivered(engine, packet);
+            return;
         }
 
         if (packet.service) {

@@ -73,6 +73,7 @@ namespace kns {
         // Statistics for the simulation
         Stats stats_;
         std::shared_ptr<analysis::MetricsCollector> analytics_;
+        bool traffic_plan_claimed_ = false;
 
         // Event queue for managing scheduled events
         EventQueue event_queue_;
@@ -171,6 +172,8 @@ namespace kns {
         void setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector);
         void observePacketDelivery(const Packet& packet);
         void observeTCPPayloadReleased(const Packet& packet, std::uint32_t bytes);
+        /// Reserve the single abstract traffic-plan namespace before execution.
+        void claimTrafficPlan();
 
         double compute_arrival_time(const Packet& pkt, const Link& link, double now);
 

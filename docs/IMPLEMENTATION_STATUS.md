@@ -471,3 +471,26 @@ seven corrupt-goodput variants and the full congestion example export. Evidence:
 `build-core-mingw/goodput-report-tests.log`. The additive group-key validator also
 recognizes an explicit `traffic:<flow_id>:<source>:<destination>` namespace for
 abstract workloads; it never merges these with TCP session keys.
+
+## Traffic Lab native generators — 2026-11-13
+
+Implemented `traffic::TrafficRun` with periodic, CBR, burst, Poisson, uniform and
+custom schedules. Flows share actual routing/serialization/propagation/queue/loss
+models, use independent per-flow seeded streams, configurable hop TTL and optional
+delivery deadlines. Priority is explicit class metadata; no priority queue is
+claimed. A single plan owns the engine's abstract-flow namespace. Plans validate
+fully before scheduling; one generation event per active flow and a global packet
+budget bound work. Generated/delivered/dropped/pending scalar ledgers follow packet
+copies and preserve pending states on interruption. Application/TCP protocol
+semantics are not synthesized. See [traffic-models.md](traffic-models.md).
+
+Files: new TrafficRun API/implementation and PacketWorkload lifecycle metadata;
+engine plan guard, packet arrival/drop/TTL hooks, Analytics traffic namespace and
+seven native regression cases. MinGW/C++20 build passed; all seven Traffic cases
+passed (306 assertions), including actual queue competition, analytical timing,
+deadline accounting, source/intermediate/TTL rejection, budgets/cancellation,
+stream isolation, sequence determinism and duplicate-plan rejection. Evidence:
+`build-core-mingw/traffic-native-tests.log`. Full suite before the final plan-guard
+checks passed 443/443 (`traffic-core-ctest.log`); final combined checks follow the
+CLI/contract integration. Milestone 6 is partial; application dependency models,
+arbitrary distributions, sweeps/import and Studio remain pending.
