@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "name": "traffic-load-sweep",
+  "topology": "KNS Experiments/traffic-lab/topology.json",
+  "index": 1,
+  "seeds": [
+    42
+  ],
+  "max_cases": 4,
+  "traffic_plan": {
+    "schema_version": "1.0",
+    "seed": 42,
+    "max_packets": 2000,
+    "flows": [
+      {
+        "id": 1,
+        "source": 0,
+        "destination": 2,
+        "start_s": 0,
+        "end_s": 1,
+        "wire_bytes": 125,
+        "priority": 7,
+        "deadline_s": 0.02,
+        "schedule": {
+          "kind": "periodic",
+          "interval_s": 0.01
+        }
+      },
+      {
+        "id": 2,
+        "source": 0,
+        "destination": 2,
+        "start_s": 0,
+        "end_s": 1,
+        "wire_bytes": 1000,
+        "schedule": {
+          "kind": "cbr",
+          "rate_bps": 1200000
+        }
+      },
+      {
+        "id": 3,
+        "source": 2,
+        "destination": 0,
+        "start_s": 0,
+        "end_s": 1,
+        "wire_bytes": 900,
+        "schedule": {
+          "kind": "poisson",
+          "rate_pps": 20
+        }
+      },
+      {
+        "id": 4,
+        "source": 0,
+        "destination": 2,
+        "start_s": 0.1,
+        "end_s": 0.91,
+        "wire_bytes": 1000,
+        "schedule": {
+          "kind": "burst",
+          "burst_packets": 8,
+          "burst_interval_s": 0.2,
+          "packet_interval_s": 0.0001
+        }
+      },
+      {
+        "id": 5,
+        "source": 0,
+        "destination": 2,
+        "start_s": 0.1,
+        "end_s": 0.7,
+        "wire_bytes": 300,
+        "schedule": {
+          "kind": "uniform",
+          "min_interval_s": 0.03,
+          "max_interval_s": 0.05
+        }
+      },
+      {
+        "id": 6,
+        "source": 2,
+        "destination": 0,
+        "start_s": 0.5,
+        "end_s": 0.7,
+        "wire_bytes": 500,
+        "schedule": {
+          "kind": "custom",
+          "offsets_s": [
+            0,
+            0.01,
+            0.03
+          ]
+        }
+      }
+    ]
+  },
+  "analytics": {
+    "schema_version": "1.0",
+    "until_s": 1.5,
+    "interval_s": 0.01,
+    "max_samples": 200,
+    "max_groups": 64
+  },
+  "sweep": {
+    "bandwidth": [
+      1,
+      10
+    ],
+    "traffic": [
+      {
+        "flow_id": 2,
+        "parameter": "schedule.rate_bps",
+        "values": [
+          600000,
+          1200000
+        ]
+      }
+    ]
+  }
+}

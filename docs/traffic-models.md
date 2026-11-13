@@ -53,8 +53,8 @@ history of all packets. Analytics retention is configured independently.
 Tests cover analytical serialization/propagation, shared queue congestion,
 source/intermediate/TTL drops, pending work/cancellation, budget truncation,
 deadlines, isolated replayable random streams and atomic configuration rejection.
-Arbitrary application dependency graphs, arbitrary distributions, traffic-plan
-sweeps, trace replay and Studio controls remain separate work.
+Arbitrary application dependency graphs, arbitrary distributions, trace replay
+and Studio controls remain separate work.
 
 ## Run the shared-backbone example
 
@@ -98,7 +98,41 @@ Compare preserves legacy CSV metric definitions, including first-hop admission
 denominators; use the traffic ledger for generated-packet delivery/deadline ratios.
 Cross-bundle comparisons record plan hashes and whether workload inputs match.
 Different plans can be compared descriptively but do not establish a controlled
-causal change. Traffic-rate/size sweeps remain pending.
+causal change. Traffic-rate/size sweeps are described below.
+
+## Bounded traffic parameter sweeps
+
+`sweep.traffic` combines up to 16 whitelisted flow parameters with link axes.
+Each axis declares a `flow_id`, `parameter` and `values` list or inclusive
+`{start, stop, step}` range. For example:
+
+```json
+{"bandwidth": [1, 10], "traffic": [
+  {"flow_id": 2, "parameter": "schedule.rate_bps", "values": [600000, 1200000]},
+  {"flow_id": 2, "parameter": "wire_bytes", "values": [500, 1000]}
+]}
+```
+
+This produces eight variants before seed/routing dimensions. Existing `max_cases`
+bounds both expansion and the final matrix. Fixed named variants may instead
+declare `traffic_overrides` entries with `flow_id`, `parameter`, `value`. Supported
+parameters include wire size, timing, class, hop TTL, packet deadlines, existing
+schedule rates/intervals/burst sizes and existing application response size/delay/
+operation deadline. Overrides cannot switch/create a schedule/application model,
+modify endpoints or silently select an unknown flow. Every effective plan is
+validated before creating output; the base plan is preserved.
+
+```powershell
+python scripts/experiment_profile.py --profile "KNS Experiments/traffic-lab/load-sweep.json" --exe build-core-mingw/verification-build/app/KNS.exe --output results/load-sweep
+```
+
+This smaller four-variant example crosses two backbone capacities with two CBR
+rates. Bundles retain a plan per topology variant in `traffic-plans/`, its full
+configuration in the hashed manifest and the resulting ledger for every case.
+Compare fingerprints the effective plans, including overrides; a matched metadata
+pair does not imply equal offered load when those fingerprints differ. Hold rate
+fixed to investigate a bandwidth change and hold bandwidth fixed to investigate
+load growth. Do not attribute a difference automatically when both change.
 
 ## Causal request/response application models
 

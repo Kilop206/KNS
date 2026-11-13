@@ -1,0 +1,4 @@
+{
+  "schema_version": "1.0", "name": "bad-traffic-sweep", "topology": "app/topologies/services-lab.json",
+  "sweep": {"traffic": [{"flow_id": 1, "parameter": "unknown.model", "values": [1]}]}
+}

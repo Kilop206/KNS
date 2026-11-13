@@ -12,6 +12,8 @@ import re
 import sys
 import comparison_statistics as paired_stats
 import comparison_html
+import experiment_manifest
+import traffic_config
 
 
 DIMENSIONS = ("routing_metric", "seed", "packet_size", "congestion_control")
@@ -156,6 +158,13 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
             "expected_pairs": len(group), "matched_pairs": matched_count,
             "unavailable_pairs": len(group) - matched_count, "metrics": metric_summaries,
         })
+    workload_hashes = {}
+    if "traffic_plan" in profile:
+        for variant in profile["experiments"]:
+            plan = profile["traffic_plan"]
+            if "traffic_overrides" in variant:
+                plan = traffic_config.apply_overrides(plan, variant["traffic_overrides"])
+            workload_hashes[variant["name"]] = experiment_manifest.config_hash(plan)
     return {
         "schema_version": "1.1", "profile": profile["name"], "baseline": baseline,
         "comparison": "experiment-minus-baseline", "kns_commit": benchmark.get("kns_commit"),
@@ -165,6 +174,8 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
         "summaries": summaries, "pairs": pairs,
         "methodology": {
             "workload_model": "abstract_wire" if "traffic_plan" in profile else "automatic_tcp",
+            "traffic_plan_input_hashes": workload_hashes,
+            "traffic_plan_inputs_match": len(set(workload_hashes.values())) <= 1 if workload_hashes else None,
             "pairing": list(DIMENSIONS), "delta": "experiment-minus-baseline",
             "relative_delta": "100 * paired_delta / paired_baseline; null at zero baseline",
             "ci": "Nominal 95% paired Student-t interval; independent normally distributed seed deltas assumed; df capped at 30; rounded critical values",

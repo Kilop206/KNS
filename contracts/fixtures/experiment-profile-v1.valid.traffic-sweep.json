@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0", "name": "traffic-sweep", "topology": "app/topologies/services-lab.json", "max_cases": 4,
+  "traffic_plan": {"schema_version": "1.0", "seed": 42, "max_packets": 100,
+    "flows": [{"id": 1, "source": 0, "destination": 2, "wire_bytes": 125, "start_s": 0, "end_s": 1,
+               "schedule": {"kind": "cbr", "rate_bps": 1000}}]},
+  "sweep": {"bandwidth": [1, 10], "traffic": [{"flow_id": 1, "parameter": "schedule.rate_bps", "values": [1000, 2000]}]}
+}

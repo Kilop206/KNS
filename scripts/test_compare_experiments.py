@@ -300,6 +300,14 @@ class ComparisonTests(unittest.TestCase):
             self.assertFalse(result["methodology"]["traffic_plan_inputs_match"])
             self.assertEqual(result["sources"]["reference"]["workload_model"], "abstract_wire")
             self.assertNotEqual(result["sources"]["reference"]["traffic_plan_sha256"], result["sources"]["candidate"]["traffic_plan_sha256"])
+            # Matching base plans with different selected overrides must also
+            # preserve the effective-load distinction.
+            right_path = root / "right/profile.json"
+            right = json.loads((root / "left/profile.json").read_text())
+            right["experiments"][0]["traffic_overrides"] = [{"flow_id": 1, "parameter": "schedule.rate_bps", "value": 3000}]
+            right_path.write_text(json.dumps(right))
+            result = comparison_artifacts.build(root / "left", root / "right")
+            self.assertFalse(result["methodology"]["traffic_plan_inputs_match"])
 
     def test_invalid_cli_inputs_leave_existing_comparisons_untouched(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,5 +1,11 @@
 """Preflight the bounded abstract Traffic Lab plan; no packets or sockets created."""
+import copy
 import math
+
+SWEEP_PARAMETERS = {"wire_bytes", "priority", "ttl_hops", "deadline_s", "start_s", "end_s",
+    "schedule.interval_s", "schedule.rate_bps", "schedule.rate_pps", "schedule.min_interval_s", "schedule.max_interval_s",
+    "schedule.burst_packets", "schedule.burst_interval_s", "schedule.packet_interval_s",
+    "application.response_wire_bytes", "application.processing_delay_s", "application.deadline_s"}
 
 
 def integer(value, low, high, label):
@@ -18,7 +24,7 @@ def number(value, low, high, label):
     return value
 
 
-def validate(plan, topology):
+def validate(plan, topology=None):
     if not isinstance(plan, dict) or set(plan) != {"schema_version", "seed", "max_packets", "flows"}:
         raise ValueError("Traffic plan requires only schema_version, seed, max_packets and flows")
     if plan["schema_version"] != "1.0":
@@ -38,7 +44,7 @@ def validate(plan, topology):
             raise ValueError("Traffic flow IDs must be unique")
         ids.add(identifier)
         for field in ("source", "destination"):
-            integer(flow[field], 0, len(topology["nodes"]) - 1, field)
+            integer(flow[field], 0, len(topology["nodes"]) - 1 if topology is not None else 2**31 - 1, field)
         if flow["source"] == flow["destination"]:
             raise ValueError("Traffic endpoints must differ")
         start = number(flow["start_s"], 0, 1e6, "start_s")
@@ -96,6 +102,7 @@ def validate(plan, topology):
 
 
 def validate_report(report, plan, complete=True):
+    validate(plan)
     if not isinstance(report, dict) or report.get("schema_version") != "1.0" or report.get("config") != plan:
         raise ValueError("Traffic report does not match its plan")
     number(report.get("simulation_time_s"), 0, float("inf"), "simulation_time_s")
@@ -162,3 +169,31 @@ def validate_report(report, plan, complete=True):
         raise ValueError("Traffic generation status contradicts flows")
     if complete and (totals["pending"] or generation_pending or report["pending_events"] or report["generation_limit_reached"]):
         raise ValueError("Traffic experiment is incomplete or its generation budget truncated offered load")
+
+
+def apply_overrides(plan, overrides, topology=None):
+    if not isinstance(overrides, list) or not 1 <= len(overrides) <= 16:
+        raise ValueError("Traffic overrides require 1..16 parameters")
+    validate(plan, topology)
+    result = copy.deepcopy(plan)
+    flows = {flow["id"]: flow for flow in result["flows"]}
+    seen = set()
+    for override in overrides:
+        if not isinstance(override, dict) or set(override) != {"flow_id", "parameter", "value"}:
+            raise ValueError("Traffic override requires flow_id, parameter and value")
+        flow_id = integer(override["flow_id"], 1, 2**32 - 1, "override flow_id")
+        parameter = override["parameter"]
+        if not isinstance(parameter, str) or parameter not in SWEEP_PARAMETERS or (flow_id, parameter) in seen:
+            raise ValueError("Invalid or repeated traffic override parameter")
+        seen.add((flow_id, parameter))
+        if flow_id not in flows:
+            raise ValueError("Traffic override selects an unknown flow")
+        target = flows[flow_id]
+        path = parameter.split(".")
+        if len(path) == 2:
+            target = target.get(path[0])
+            if not isinstance(target, dict) or path[1] not in target:
+                raise ValueError("Traffic override cannot create or switch a schedule/application model")
+        target[path[-1]] = override["value"]
+    validate(result, topology)
+    return result

@@ -358,6 +358,73 @@ class ExperimentProfileTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sweeps are unsupported"):
                 experiments.validate_profile(invalid, self.topology)
 
+    def test_traffic_sweeps_expand_joint_axes_without_modifying_base_plan(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        original = copy.deepcopy(self.profile["traffic_plan"])
+        del self.profile["experiments"]
+        self.profile["sweep"] = {"bandwidth": [1, 10], "traffic": [
+            {"flow_id": 2, "parameter": "schedule.rate_bps", "values": [600000, 1200000]},
+            {"flow_id": 2, "parameter": "wire_bytes", "values": {"start": 500, "stop": 1000, "step": 500}}]}
+        self.profile["max_cases"] = 8
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 0)
+        suite = benchmark_suite.load_suite(self.output / "suite.json")
+        self.assertEqual(len(suite["traffic_plans"]), 8)
+        self.assertEqual(self.profile["traffic_plan"], original)
+        normalized = json.loads((self.output / "profile.json").read_text())
+        for variant, topology in zip(normalized["experiments"], suite["topologies"]):
+            plan = json.loads(Path(suite["traffic_plans"][topology]).read_text())
+            changes = {item["parameter"]: item["value"] for item in variant["traffic_overrides"]}
+            self.assertEqual(plan["flows"][1]["wire_bytes"], changes["wire_bytes"])
+            self.assertEqual(plan["flows"][1]["schedule"]["rate_bps"], changes["schedule.rate_bps"])
+        self.assertTrue(all("traffic_plan" in case for case in benchmark_suite.expand_cases(suite)))
+
+    def test_invalid_traffic_axes_fail_before_writing_artifacts(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        original = copy.deepcopy(self.profile)
+        original["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        del original["experiments"]
+        axes = [
+            [{"flow_id": 999, "parameter": "wire_bytes", "values": [100]}],
+            [{"flow_id": 1, "parameter": "schedule.rate_bps", "values": [100]}],
+            [{"flow_id": 1, "parameter": "wire_bytes", "values": [0]}],
+            [{"flow_id": 1, "parameter": "wire_bytes", "values": [10**1000]}],
+            [{"flow_id": 1, "parameter": "schedule.interval_s", "values": [0]}],
+            [{"flow_id": 1, "parameter": "source", "values": [1]}],
+            [{"flow_id": 1, "parameter": "wire_bytes", "values": [100]}] * 2,
+            [{"flow_id": 2, "parameter": "wire_bytes", "values": list(range(1, 1001))},
+             {"flow_id": 2, "parameter": "schedule.rate_bps", "values": list(range(1, 1001))}],
+        ]
+        for traffic in axes:
+            self.profile = copy.deepcopy(original); self.profile["sweep"] = {"traffic": traffic}
+            self.save_profile()
+            self.assertEqual(self.invoke("--generate-only"), 1)
+            self.assertFalse(self.output.exists())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_real_joint_traffic_sweep_replays_distinct_offered_loads(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile = {"schema_version": "1.0", "name": "joint-sweep", "topology": str(lab / "topology.json"),
+            "index": 1, "max_cases": 4, "traffic_plan": json.loads((lab / "traffic.json").read_text()),
+            "sweep": {"bandwidth": [1, 10], "traffic": [{"flow_id": 2, "parameter": "schedule.rate_bps", "values": [600000, 1200000]}]}}
+        self.save_profile()
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        suite = benchmark_suite.load_suite(self.output / "suite.json")
+        self.assertEqual(len(suite["traffic_plans"]), 4)
+        cases = json.loads((self.output / "runs/benchmark.json").read_text())["cases"]
+        counts = {json.loads(Path(case["traffic_report"]).read_text())["generated"] for case in cases}
+        self.assertEqual(len(counts), 2)
+        self.assertTrue(all(case["status"] == "success" for case in cases))
+        comparison = json.loads((self.output / "comparison.json").read_text())
+        self.assertFalse(comparison["methodology"]["traffic_plan_inputs_match"])
+        self.assertEqual(len(set(comparison["methodology"]["traffic_plan_input_hashes"].values())), 2)
+        replay = self.root / "sweep replay"
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(experiments.main(["--replay", str(self.output / "manifest.json"), "--exe", os.environ["KNS_TEST_EXE"], "--output", str(replay)]), 0)
+        for source in (self.output / "runs").glob("*.traffic.json"):
+            self.assertEqual(source.read_bytes(), (replay / "runs" / source.name).read_bytes())
+
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE to a built engine for integration")
     def test_real_traffic_manifest_replay_preserves_all_raw_outcomes(self):
         lab = experiments.ROOT / "KNS Experiments/traffic-lab"

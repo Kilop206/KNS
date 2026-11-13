@@ -105,6 +105,16 @@ def load_suite(path: Path) -> dict:
             traffic_config.validate(plan, json.loads((ROOT / topology).read_text(encoding="utf-8")))
         if len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1:
             raise ValueError("Abstract traffic does not support TCP size/congestion-control axes")
+    plans = data.get("traffic_plans", {})
+    if not isinstance(plans, dict) or set(plans) - set(data["topologies"]):
+        raise ValueError("traffic_plans must map suite topology paths to plan paths")
+    if plans and (len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1):
+        raise ValueError("Abstract traffic does not support TCP size/congestion-control axes")
+    for topology, path in plans.items():
+        if not isinstance(path, str):
+            raise ValueError("Traffic plan path must be a string")
+        traffic_config.validate(json.loads((ROOT / path).read_text(encoding="utf-8")),
+                                json.loads((ROOT / topology).read_text(encoding="utf-8")))
     return data
 
 
@@ -136,6 +146,8 @@ def expand_cases(suite: dict) -> list[dict]:
             cases[-1]["analytics_config"] = suite["analytics_config"]
         if "traffic_plan" in suite:
             cases[-1]["traffic_plan"] = suite["traffic_plan"]
+        if topology in suite.get("traffic_plans", {}):
+            cases[-1]["traffic_plan"] = suite["traffic_plans"][topology]
     return cases
 
 

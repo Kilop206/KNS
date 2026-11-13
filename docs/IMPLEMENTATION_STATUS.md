@@ -596,3 +596,31 @@ Milestone 6 remains partial: arbitrary dependency graphs/distributions, traffic
 parameter sweeps, trace replay and Studio remain pending. Device processing
 capacity and service/application-read goodput are still not modeled. Existing
 Windows/TLS/Linux/visual-QA limitations remain as recorded above.
+
+## Bounded workload parameter sweeps — 2026-11-13
+
+Added joint Cartesian link/traffic axes using existing bounded list/range
+expansion. Whitelisted flow parameters include packet size, offered rate/timing,
+class/TTL/deadline and existing application reply size/processing/deadline.
+Normalized named overrides and every effective plan are validated before output.
+Variants retain independent plan files; manifests preserve the immutable base plus
+overrides and replay reconstructs them. Unknown flows/paths, conflicting axes,
+model switches, invalid effective configurations and excessive combinations fail
+preflight. Finite-number checks also reject oversized integer sweep inputs cleanly.
+Compare fingerprints effective workload configurations within/across bundles,
+including overrides; differing loads are explicit and do not imply causal pairing.
+
+Files: traffic validation/override helper, sweep/profile/benchmark integration,
+Compare provenance, schema/fixtures/tests, load-sweep example and documentation.
+Full real-engine Python suite **79/79 passed**, no skips
+(`build-core-mingw/traffic-sweep-final-python.log`). Contracts passed **12 schemas,
+36 fixtures and four topologies**. Native sources were unchanged since the
+446/446 CTest run. Actual four-case sweep and replay produced 12 identical raw
+CSV/traffic/Analytics files. Two rates generated 251 and 326 packets; at 1 Mbps
+they delivered 228 and 242, versus 246 and 316 at 10 Mbps. These are model-specific
+observations; Compare retains both distinct workload hashes. Evidence:
+`build-core-mingw/load-sweep-final` and `load sweep final replay`.
+
+Traffic parameter sweeps are now implemented. General operation-dependency graphs,
+additional distributions, trace import and Studio controls remain pending; earlier
+scientific/model/platform limitations still apply.

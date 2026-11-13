@@ -77,7 +77,7 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         raise ValueError("Profile experiments must be a non-empty list")
     names = set()
     for experiment in experiments:
-        if not isinstance(experiment, dict) or set(experiment) - ({"name", "fault_plan"} | PARAMETERS):
+        if not isinstance(experiment, dict) or set(experiment) - ({"name", "fault_plan", "traffic_overrides"} | PARAMETERS):
             raise ValueError("Each experiment must contain name and supported link parameters")
         name = experiment.get("name")
         if not valid_name(name) or name.casefold() in names:
@@ -86,8 +86,12 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         changes = set(experiment) & PARAMETERS
         if "fault_plan" in experiment:
             fault_plan.validate(experiment["fault_plan"], topology)
-        if not changes and "fault_plan" not in experiment:
-            raise ValueError(f"Experiment {name} must modify at least one link parameter")
+        if "traffic_overrides" in experiment:
+            if "traffic_plan" not in profile:
+                raise ValueError("Traffic overrides require a root traffic_plan")
+            traffic_config.apply_overrides(profile["traffic_plan"], experiment["traffic_overrides"], topology)
+        if not changes and "fault_plan" not in experiment and "traffic_overrides" not in experiment:
+            raise ValueError(f"Experiment {name} must modify a link, fault plan or traffic parameter")
         for field in changes:
             value = experiment[field]
             if field not in link and field != "queue_capacity":
@@ -152,7 +156,10 @@ def make_suite(profile: dict, output: Path) -> dict:
     if "analytics" in profile:
         suite["analytics_config"] = str(output / "analytics.json")
     if "traffic_plan" in profile:
-        suite["traffic_plan"] = str(output / "traffic.json")
+        if any("traffic_overrides" in experiment for experiment in profile["experiments"]):
+            suite["traffic_plans"] = {path: str(output / "traffic-plans" / f"{i:03d}.json") for i, path in enumerate(suite["topologies"], 1)}
+        else:
+            suite["traffic_plan"] = str(output / "traffic.json")
     return suite
 
 
@@ -168,6 +175,8 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     suite = make_suite(profile, output)
     if "fault_plans" in suite:
         (output / "fault-plans").mkdir()
+    if "traffic_plans" in suite:
+        (output / "traffic-plans").mkdir()
     for experiment, filename in zip(profile["experiments"], suite["topologies"]):
         variant = copy.deepcopy(topology)
         variant["links"][profile["index"]].update(
@@ -175,6 +184,10 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
         write_json(Path(filename), variant)
         if "fault_plan" in experiment:
             write_json(Path(suite["fault_plans"][filename]), experiment["fault_plan"])
+        if "traffic_plans" in suite:
+            plan = (traffic_config.apply_overrides(profile["traffic_plan"], experiment["traffic_overrides"], topology)
+                    if "traffic_overrides" in experiment else profile["traffic_plan"])
+            write_json(Path(suite["traffic_plans"][filename]), plan)
     write_json(output / "profile.json", profile)
     write_json(output / "source-topology.json", topology)
     if "analytics" in profile:

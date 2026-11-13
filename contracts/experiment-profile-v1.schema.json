@@ -25,10 +25,11 @@
       "type": "array", "minItems": 1, "maxItems": 10000,
       "items": {
         "type": "object", "required": ["name"], "additionalProperties": false,
-        "anyOf": [{"required": ["bandwidth"]}, {"required": ["delay"]}, {"required": ["loss"]}, {"required": ["queue_capacity"]}, {"required": ["fault_plan"]}],
+        "anyOf": [{"required": ["bandwidth"]}, {"required": ["delay"]}, {"required": ["loss"]}, {"required": ["queue_capacity"]}, {"required": ["fault_plan"]}, {"required": ["traffic_overrides"]}],
         "properties": {
           "name": {"$ref": "#/$defs/name"},
           "fault_plan": {"$ref": "https://userex.dev/contracts/kns/fault-plan-v1.schema.json"},
+          "traffic_overrides": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/traffic_override"}},
           "bandwidth": {"type": "number", "exclusiveMinimum": 0},
           "delay": {"type": "number", "minimum": 0},
           "loss": {"type": "number", "minimum": 0, "maximum": 1},
@@ -42,11 +43,23 @@
         "bandwidth": {"$ref": "#/$defs/dimension"},
         "delay": {"$ref": "#/$defs/dimension"},
         "loss": {"$ref": "#/$defs/dimension"},
-        "queue_capacity": {"$ref": "#/$defs/dimension"}
+        "queue_capacity": {"$ref": "#/$defs/dimension"},
+        "traffic": {"type": "array", "minItems": 1, "maxItems": 16, "items": {
+          "type": "object", "additionalProperties": false, "required": ["flow_id", "parameter", "values"],
+          "properties": {"flow_id": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+                         "parameter": {"$ref": "#/$defs/traffic_parameter"}, "values": {"$ref": "#/$defs/dimension"}}
+        }}
       }
     }
   },
   "$defs": {
+    "traffic_parameter": {"enum": ["wire_bytes", "priority", "ttl_hops", "deadline_s", "start_s", "end_s",
+      "schedule.interval_s", "schedule.rate_bps", "schedule.rate_pps", "schedule.min_interval_s", "schedule.max_interval_s",
+      "schedule.burst_packets", "schedule.burst_interval_s", "schedule.packet_interval_s",
+      "application.response_wire_bytes", "application.processing_delay_s", "application.deadline_s"]},
+    "traffic_override": {"type": "object", "additionalProperties": false, "required": ["flow_id", "parameter", "value"],
+      "properties": {"flow_id": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+                     "parameter": {"$ref": "#/$defs/traffic_parameter"}, "value": {"type": "number"}}},
     "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
     "dimension": {
       "oneOf": [
