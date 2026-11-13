@@ -61,13 +61,13 @@ def plot(points, title, ceiling=None):
 
 def write(report, output, source):
     samples = report["samples"]
-    series = [{key: sample.get(key) for key in ("at_s", "from_s", "duration_s", "throughput_pps", "first_hop_admission_pps", "drops_per_s")} |
+    series = [{key: sample.get(key) for key in ("at_s", "from_s", "duration_s", "throughput_pps", "first_hop_admission_pps", "drops_per_s", "tcp_contiguous_payload_bytes", "tcp_payload_goodput_bps")} |
               {"data_count": get(sample, "data_latency", "count"), "mean_latency_s": get(sample, "data_latency", "mean_s"),
                "p95_latency_s": get(sample, "data_latency", "p95_s"), "percentile_scope": get(sample, "data_latency", "percentile_scope"),
                "variation_pairs": get(sample, "data_latency_variation", "count"),
                "mean_absolute_latency_change_s": get(sample, "data_latency_variation", "mean_s")} for sample in samples]
     write_csv(output / "series.csv", ["at_s", "from_s", "duration_s", "throughput_pps", "first_hop_admission_pps", "drops_per_s",
-              "data_count", "mean_latency_s", "p95_latency_s", "percentile_scope", "variation_pairs", "mean_absolute_latency_change_s"], series)
+              "tcp_contiguous_payload_bytes", "tcp_payload_goodput_bps", "data_count", "mean_latency_s", "p95_latency_s", "percentile_scope", "variation_pairs", "mean_absolute_latency_change_s"], series)
     links, by_index = [], {}
     for sample in samples:
         for link in sample["links"]:
@@ -85,12 +85,13 @@ def write(report, output, source):
         for group in report[key]:
             groups.append({"scope": scope, "key": group["key"], "packets_delivered": group["packets_delivered"],
                 "wire_bytes_delivered": group["wire_bytes_delivered"], "data_count": get(group, "data_latency", "count"),
+                "tcp_contiguous_payload_bytes": group.get("tcp_contiguous_payload_bytes"),
                 "mean_latency_s": get(group, "data_latency", "mean_s"), "p95_latency_s": get(group, "data_latency", "p95_s"),
                 "percentile_scope": get(group, "data_latency", "percentile_scope"),
                 "variation_pairs": get(group, "data_latency_variation", "count"),
                 "mean_absolute_latency_change_s": get(group, "data_latency_variation", "mean_s")})
     write_csv(output / "groups.csv", ["scope", "key", "packets_delivered", "wire_bytes_delivered", "data_count",
-              "mean_latency_s", "p95_latency_s", "percentile_scope", "variation_pairs", "mean_absolute_latency_change_s"], groups)
+              "tcp_contiguous_payload_bytes", "mean_latency_s", "p95_latency_s", "percentile_scope", "variation_pairs", "mean_absolute_latency_change_s"], groups)
     bins = []
     for key in ("data_latency", "data_latency_variation"):
         histogram = get(report, key, "histogram")
@@ -107,10 +108,13 @@ def write(report, output, source):
     e = lambda value: escape(str(value), quote=True)
     cards = [("Delivered network packets", report["packets_delivered_in_scope"]), ("DATA observations", report["data_latency"]["count"]),
              ("Retained DATA p95 (s)", report["data_latency"]["p95_s"]),
-             ("Mean absolute latency change (s)", get(report, "data_latency_variation", "mean_s"))]
+             ("Mean absolute latency change (s)", get(report, "data_latency_variation", "mean_s")),
+             ("Released contiguous TCP payload (bytes)", report.get("tcp_contiguous_payload_bytes")),
+             ("TCP payload goodput (bit/s)", report.get("tcp_payload_goodput_bps"))]
     card_html = "".join(f'<div><small>{e(label)}</small><strong>{fmt(value)}</strong></div>' for label, value in cards)
     charts = []
     for title, metric in (("Destination throughput (packets / virtual s)", "throughput_pps"),
+                          ("Released TCP payload goodput (bit / virtual s)", "tcp_payload_goodput_bps"),
                           ("Mean delivered DATA latency (s)", "mean_latency_s"),
                           ("Mean absolute DATA latency change within tracked flows (s)", "mean_absolute_latency_change_s"),
                           ("Path drops / virtual s", "drops_per_s")):
@@ -147,6 +151,7 @@ Samples: {report["samples_seen"]}; discarded: {report["samples_discarded"]}.</p>
 <p>Tracked-flow latency-change pairs: {fmt(get(report, "data_latency_variation", "count"))}. A missing variation metric in older reports remains unavailable.</p>
 <p>Link utilization charts share a fixed 0–1 axis. Collection completeness does not establish successful transport; inspect the benchmark case outcome.</p>
 <p>Latency change pairs consecutive DATA deliveries within each tracked flow/direction, including retransmissions. It is not RFC interarrival jitter. Missing series remain gaps, not zeros. Small counts do not establish an SLA.</p>
+<p>TCP payload goodput counts contiguous payload released by the modeled receiver once; headers, control packets and duplicates are excluded. Buffered data counts when its gap closes. This measures transport release, not application reads.</p>
 <p>Charts show retained callbacks and at most the first 16 original links; all retained links are in link-series.csv. Queue entries include propagation. These observations are simulations, not physical network measurements or causal diagnoses.</p></section>
 <div class="charts">{''.join(charts)}{''.join(histograms)}</div><section><h2>Diagnostic recommendations</h2>{evidence}</section>
 <section><h2>Retention and coverage</h2><p>Ungrouped flow deliveries: {report["ungrouped_flow_deliveries"]}; ungrouped destination deliveries: {report["ungrouped_node_deliveries"]}.

@@ -43,6 +43,29 @@ def fixture():
 
 
 class AnalyticsReportTests(unittest.TestCase):
+    def test_tcp_goodput_conserves_payload_and_uses_virtual_duration(self):
+        report = fixture()
+        report.update(tcp_contiguous_payload_bytes=25, tcp_payload_goodput_bps=200,
+                      ungrouped_flow_tcp_payload_bytes=0, ungrouped_node_tcp_payload_bytes=0)
+        for key in ("flow_groups", "destination_node_groups"):
+            report[key][0]["tcp_contiguous_payload_bytes"] = 25
+        for sample in report["samples"]:
+            sample["tcp_contiguous_payload_bytes"] = 25 if sample["at_s"] else 0
+            sample["tcp_payload_goodput_bps"] = 200 if sample["at_s"] else None
+        analytics_config.validate_report(report, report["config"])
+        for mutate in (
+            lambda r: r.update(tcp_payload_goodput_bps=201),
+            lambda r: r.update(tcp_contiguous_payload_bytes=126),
+            lambda r: r.update(ungrouped_flow_tcp_payload_bytes=1),
+            lambda r: r["samples"][0].update(tcp_payload_goodput_bps=0),
+            lambda r: r["samples"][1].update(tcp_payload_goodput_bps=199),
+            lambda r: r["samples"][1].update(tcp_contiguous_payload_bytes=26),
+            lambda r: r["flow_groups"][0].update(tcp_contiguous_payload_bytes=True),
+        ):
+            invalid = copy.deepcopy(report)
+            mutate(invalid)
+            with self.assertRaises(ValueError):
+                analytics_config.validate_report(invalid, invalid["config"])
     def test_exports_legacy_report_without_inventing_variation(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -133,6 +156,7 @@ class AnalyticsReportTests(unittest.TestCase):
             source = Path(benchmark["cases"][-1]["analytics_report"])
             report = json.loads(source.read_text())
             self.assertIn("data_latency_variation", report)
+            self.assertGreater(report["tcp_contiguous_payload_bytes"], 0)
             self.assertTrue(any(rule["rule"] == "consecutive_serialization_queue_pressure" for rule in report["recommendations"]))
             original = source.read_bytes()
             for folder in ("report one", "report two"):

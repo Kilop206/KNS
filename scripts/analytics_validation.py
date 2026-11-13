@@ -89,6 +89,14 @@ def validate(report):
     count(report.get("wire_bytes_delivered_in_scope"), "wire_bytes_delivered_in_scope")
     if report["data_latency"]["count"] > delivered:
         raise ValueError("DATA deliveries exceed total observed deliveries")
+    payload_enabled = "tcp_contiguous_payload_bytes" in report
+    if payload_enabled:
+        payload = count(report["tcp_contiguous_payload_bytes"], "tcp_contiguous_payload_bytes")
+        if payload > report["wire_bytes_delivered_in_scope"]:
+            raise ValueError("Released TCP payload exceeds delivered wire bytes")
+        goodput = number(report.get("tcp_payload_goodput_bps"), "tcp_payload_goodput_bps", nullable=horizon == 0)
+        if (horizon == 0 and goodput is not None) or (horizon > 0 and not math.isclose(goodput, 8 * payload / horizon, rel_tol=1e-9, abs_tol=1e-12)):
+            raise ValueError("TCP goodput contradicts its virtual horizon and byte count")
     for key, overflow in (("flow_groups", "ungrouped_flow_deliveries"), ("destination_node_groups", "ungrouped_node_deliveries")):
         groups = report.get(key)
         if not isinstance(groups, list):
@@ -96,17 +104,21 @@ def validate(report):
         if len(groups) > config.get("max_groups", 128):
             raise ValueError("Group count exceeds configured retention")
         missing = count(report.get(overflow), overflow)
-        keys, total, data_total, byte_total = set(), missing, 0, 0
+        keys, total, data_total, byte_total, payload_total = set(), missing, 0, 0, 0
         for group in groups:
             if not isinstance(group, dict) or not isinstance(group.get("key"), str) or group["key"] in keys:
                 raise ValueError(f"{key} contains invalid or duplicate keys")
             keys.add(group["key"])
-            pattern = r"[0-9]+(?::[0-9]+){4}" if key == "flow_groups" else r"[0-9]+"
+            pattern = r"(?:[0-9]+(?::[0-9]+){4}|traffic:[0-9]+:[0-9]+:[0-9]+)" if key == "flow_groups" else r"[0-9]+"
             if re.fullmatch(pattern, group["key"]) is None:
                 raise ValueError("Group key does not match its declared dimensions")
             packets = count(group.get("packets_delivered"), key + ".packets_delivered")
             total += packets
             byte_total += count(group.get("wire_bytes_delivered"), key + ".wire_bytes_delivered")
+            if payload_enabled:
+                payload_total += count(group.get("tcp_contiguous_payload_bytes"), key + ".tcp_contiguous_payload_bytes")
+                if group["tcp_contiguous_payload_bytes"] > group["wire_bytes_delivered"]:
+                    raise ValueError("Group released payload exceeds delivered wire bytes")
             observed_data = statistics(group.get("data_latency"), key + ".data_latency")
             data_total += observed_data
             if observed_data > packets:
@@ -123,6 +135,10 @@ def validate(report):
             raise ValueError(f"{key} exceeds global DATA/byte totals")
         if missing == 0 and (data_total != report["data_latency"]["count"] or byte_total != report["wire_bytes_delivered_in_scope"]):
             raise ValueError(f"{key} does not conserve global DATA/byte totals")
+        if payload_enabled:
+            overflow_key = "ungrouped_flow_tcp_payload_bytes" if key == "flow_groups" else "ungrouped_node_tcp_payload_bytes"
+            if payload_total + count(report.get(overflow_key), overflow_key) != payload:
+                raise ValueError("Grouped TCP payload does not conserve released bytes")
     if "data_latency_variation" in report:
         total = sum(group.get("data_latency_variation", {}).get("count", 0) for group in report["flow_groups"])
         if report["data_latency_variation"]["count"] != total:
@@ -136,6 +152,16 @@ def validate(report):
             raise ValueError("Sample interval is inconsistent")
         if previous is not None and start != previous["at_s"]:
             raise ValueError("Retained sample intervals are not contiguous")
+        if payload_enabled:
+            current_payload = count(sample.get("tcp_contiguous_payload_bytes"), "sample.tcp_contiguous_payload_bytes")
+            prior_payload = previous["tcp_contiguous_payload_bytes"] if previous is not None else None
+            if current_payload > payload or (prior_payload is not None and current_payload < prior_payload):
+                raise ValueError("Sample TCP payload contradicts cumulative scope")
+            goodput = number(sample.get("tcp_payload_goodput_bps"), "sample.tcp_payload_goodput_bps", nullable=duration == 0)
+            if duration == 0 and goodput is not None:
+                raise ValueError("Zero-duration TCP goodput must be null")
+            if duration and prior_payload is not None and not math.isclose(goodput, 8 * (current_payload - prior_payload) / duration, rel_tol=1e-9, abs_tol=1e-12):
+                raise ValueError("Sample TCP goodput contradicts released bytes")
         for key in ("packets_sent", "packets_delivered", "packets_lost", "queue_overflow_drops", "red_early_drops"):
             count(sample.get(key), "sample." + key)
             if previous is not None and sample[key] < previous[key]:

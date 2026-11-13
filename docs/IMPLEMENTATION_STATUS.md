@@ -458,3 +458,16 @@ referenced dependencies intentionally removed by the user; verification used
 `build-core-mingw/verification-src` and `verification-build` without restoring
 the root build file. Application-read goodput, device processing and Studio
 integration remain pending; transport-release accounting is now implemented.
+
+## Goodput validation and export — 2026-11-13
+
+The offline Analytics exporter now includes TCP release counters and goodput
+in HTML cards/charts and group/time-series CSV. Older reports preserve missing
+values. Semantic checks reject inconsistent rate denominators, non-monotonic
+cumulative bytes and group/overflow conservation errors. Files:
+`analytics_validation.py`, `analytics_report.py` and report regression tests.
+All six exporter tests passed with the actual isolated-build executable, including
+seven corrupt-goodput variants and the full congestion example export. Evidence:
+`build-core-mingw/goodput-report-tests.log`. The additive group-key validator also
+recognizes an explicit `traffic:<flow_id>:<source>:<destination>` namespace for
+abstract workloads; it never merges these with TCP session keys.
