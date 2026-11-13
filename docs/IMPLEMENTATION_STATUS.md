@@ -643,3 +643,47 @@ reservation coverage. Build passed; CTest **447/447 passed**
 no skips (`imbalance-python.log`). Schema contracts were unchanged since the
 12-schema/36-fixture/four-topology validation. Device processing, routing
 concentration, protocol-specific jitter and Studio remain pending in Analytics.
+
+## Workload assertions and CI diagnostics — 2026-11-13
+
+Added `scripts/validate_result.py` for explicit versioned assertions over complete
+Traffic Lab reports. It validates input conservation/completion first, supports
+global/per-flow packet and operation counts/ratios, deadline delivery and per-flow
+round-trip mean/retained percentiles. Units, denominators, sample scopes and
+unavailable values are explicit. Empty populations never pass comparisons.
+Outputs are deterministic JSON, JUnit XML and Markdown in a new directory, with
+source/rule/configuration/validator SHA-256 identities. Exit codes: 0 pass, 1
+threshold/unavailable metric, 2 input/output error. No simulator rerun, external
+service or real-network operation occurs in the validator.
+
+Changed files: validator and tests; schema/positive/negative fixtures; example
+rules; CTest registration; Linux deterministic CI reference/artifact steps; guides,
+README, roadmap and this status. The CI reference uses generated-packet ratios,
+not wall-clock performance thresholds. Remote GitHub Actions was not executed.
+
+Executed evidence:
+
+- Full Python with the actual simulator: **83/83 passed**, no skips
+  (`build-core-mingw/result-validation-python.log`). Regression tests execute the
+  same offered workload at 10 and 1 Mbps: the first passes delivery >=0.9, the
+  second exits 1 and emits a failed JUnit assertion. Tests also preserve sources/
+  existing outputs and reproduce all three verdict files byte-for-byte.
+- Configured the isolated CMake build with the known working Python executable,
+  using cached dependencies only. Build passed. **CTest 454/454 passed**, comprising
+  447 native/headless tests and seven registered Python categories
+  (`build-core-mingw/validation-final-ctest.log`). The final validator identity/
+  determinism extension also passed its targeted CTest category afterward
+  (`validation-determinism-ctest.log`).
+- Contracts: **13 schemas, 38 fixtures and four bundled topologies passed**.
+- Saved local equivalent of the CI reference under
+  `build-core-mingw/validation-reference`: four successful cases/two pairs.
+  Explicit validator invocation on the upgrade returned 0 with no failures;
+  invocation on the controlled lower-bandwidth case returned 1 with one failed
+  assertion. JSON/JUnit/Markdown evidence is under `validation-pass` and
+  `validation-regression`. This is an expected negative control, not a failing
+  implementation test.
+
+Milestone 9 remains partial: automatic baseline-relative rules, scenario-embedded
+assertions, richer languages and Studio integration are pending. Core model,
+platform and scientific limitations recorded above still apply. No milestone is
+declared complete merely because CI configuration or schemas exist.

@@ -59,6 +59,8 @@ Analytics also records within-flow latency variation and repeated queue pressure
 The [Traffic Lab](docs/traffic-models.md) adds bounded concurrent CBR, periodic,
 burst, Poisson, uniform and custom abstract workloads with per-flow outcome and
 deadline accounting through `--traffic-plan`.
+The [result validator](docs/validation.md) checks explicit workload assertions and
+exports JSON/JUnit diagnostics with process codes suitable for CI.
 
 ## Requirements
 

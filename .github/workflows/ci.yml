@@ -47,6 +47,22 @@ jobs:
         if: matrix.build_tests == 'ON'
         run: ctest --test-dir build -C Release --output-on-failure
 
+      - name: Validate deterministic traffic delivery target
+        if: runner.os == 'Linux'
+        run: |
+          python scripts/experiment_profile.py --profile "KNS Experiments/traffic-lab/profile.json" --exe build/app/KNS --output build/traffic-validation
+          python scripts/validate_result.py build/traffic-validation/runs/003-002-upgrade-delay-reno-baseline-s42-p1500.csv.traffic.json --rules "KNS Experiments/traffic-lab/assertions.json" --output build/traffic-assertions
+
+      - name: Upload traffic validation evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: traffic-validation
+          path: |
+            build/traffic-validation
+            build/traffic-assertions
+          if-no-files-found: warn
+
       - name: Validate ecosystem contracts
         run: |
           python -m pip install -r scripts/requirements-contracts.txt

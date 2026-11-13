@@ -168,7 +168,7 @@ sampled faults, modeled-loss serialization and deterministic TCP equivalence.
 Python integration checks actual CLI collection, config/report validation,
 byte-identical replay and unchanged aggregate CSV for a horizon within the run.
 
-This increment does not model device processing rates, unique goodput, per-flow
+This increment does not model device processing rates, application-read goodput, per-flow
 path drops, deadlines, protocol-specific jitter, routing-concentration diagnoses, streaming
 disk storage or a Studio Analytics Dashboard. Compare still consumes aggregate
 CSV metrics; retained-scope percentile reports are not silently mixed into its

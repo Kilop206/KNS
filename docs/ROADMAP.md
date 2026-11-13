@@ -14,7 +14,7 @@ No milestone below is certified complete by the existence of an interface.
 | 6 Traffic Lab | 1, 2 | concurrent CBR/periodic/burst/Poisson and application models | Partial: six bounded schedules, per-flow seeds, causal application abstractions, operation/deadline accounting, joint link/traffic sweeps, CLI/schema/replay/examples; general dependency graphs, arbitrary distributions and Studio pending |
 | 7 Industrial | 3, 5, 6 | deadline accounting, documented MQTT abstraction, scaling report | Pending |
 | 8 Capacity | 2, 4, 5, 6 | growth sweeps and user-priced alternatives | Pending |
-| 9 Validate | 2, 5 | assertions, baselines, diagnostic CI failures | Partial: engine invariants, schema validation and CI exist |
+| 9 Validate | 2, 5 | assertions, baselines, diagnostic CI failures | Partial: explicit workload assertions, count/deadline/latency scopes, JSON/JUnit/Markdown, exit codes, actual regression test and deterministic CI reference; baseline-relative and scenario-embedded rules pending |
 | 10 Trace import | 2, 6 | bounded malformed-input-safe CSV/JSON then PCAP replay | Pending |
 | 11 Emulation | isolated optional adapter | dry run, explicit consent, isolated Linux test and cleanup | Pending; never change host networking implicitly |
 | 12 Studio | 1–9 | responsive functional editors and experiment/analysis views | Partial: existing ImGui studio retained |

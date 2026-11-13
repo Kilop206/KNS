@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "assertions": [
+    {"name": "delivery-target", "metric": "delivery_ratio", "operator": ">=", "value": 0.9},
+    {"name": "no-pending-packets", "metric": "pending", "operator": "==", "value": 0}
+  ]
+}

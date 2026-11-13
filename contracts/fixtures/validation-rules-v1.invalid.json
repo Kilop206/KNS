@@ -1,0 +1,1 @@
+{"schema_version":"1.0","assertions":[{"metric":"operation_latency_p95_s","operator":"<=","value":0.1}]}
