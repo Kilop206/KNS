@@ -76,3 +76,25 @@ cases; 1 means invalid input/execution error; 3 means a time/event/generation bu
 or pending work left the experiment incomplete. Delivery targets require separate
 assertions. JSON records both traffic and network seeds; raw traffic/Analytics
 reports replay identically under equivalent conditions.
+
+## Experiment bundles
+
+```powershell
+python scripts/experiment_profile.py --profile "KNS Experiments/traffic-lab/profile.json" --exe build-core-mingw/verification-build/app/KNS.exe --output results/traffic-experiment
+python scripts/experiment_profile.py --replay results/traffic-experiment/manifest.json --exe build-core-mingw/verification-build/app/KNS.exe --output "results/traffic replay"
+```
+
+Root `traffic_plan` embeds the full plan in the hashed configuration; generated
+bundles retain it as `traffic.json` and require/validate every `.traffic.json`
+outcome. The example changes only backbone bandwidth, comparing 1 with 10 Mbps.
+Two network seeds keep the same independently seeded offered schedule. At zero
+configured random loss their repeats may coincide; they do not create independent
+workload samples. Vary the plan seed in separate saved profiles for that purpose.
+
+TCP size/control sweep dimensions are rejected when they have multiple values;
+the retained single legacy labels do not set abstract wire sizes or policies.
+Compare preserves legacy CSV metric definitions, including first-hop admission
+denominators; use the traffic ledger for generated-packet delivery/deadline ratios.
+Cross-bundle comparisons record plan hashes and whether workload inputs match.
+Different plans can be compared descriptively but do not establish a controlled
+causal change. Traffic-rate/size sweeps and application dependencies remain pending.

@@ -344,6 +344,43 @@ class ExperimentProfileTests(unittest.TestCase):
         self.assertEqual(self.invoke("--generate-only"), 1)
         self.assertFalse(self.output.exists())
 
+    def test_traffic_plan_is_embedded_and_inactive_tcp_sweeps_are_rejected(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 0)
+        self.assertEqual(json.loads((self.output / "traffic.json").read_text()), self.profile["traffic_plan"])
+        suite = benchmark_suite.load_suite(self.output / "suite.json")
+        self.assertTrue(all(case["traffic_plan"] == str(self.output / "traffic.json") for case in benchmark_suite.expand_cases(suite)))
+        self.assertEqual(manifests.load(self.output / "manifest.json")["configuration"]["profile"]["traffic_plan"], self.profile["traffic_plan"])
+        for field, values in (("packet_sizes", [500, 1000]), ("congestion_controls", ["reno", "cubic"])):
+            invalid = copy.deepcopy(self.profile); invalid[field] = values
+            with self.assertRaisesRegex(ValueError, "sweeps are unsupported"):
+                experiments.validate_profile(invalid, self.topology)
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE to a built engine for integration")
+    def test_real_traffic_manifest_replay_preserves_all_raw_outcomes(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile = {"schema_version": "1.0", "name": "traffic-replay", "topology": str(lab / "topology.json"),
+            "index": 1, "seeds": [42, 43], "traffic_plan": json.loads((lab / "traffic.json").read_text()),
+            "analytics": json.loads((lab / "analytics.json").read_text()),
+            "experiments": [{"name": "control", "bandwidth": 1}, {"name": "upgrade", "bandwidth": 10}]}
+        self.save_profile()
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        benchmark = json.loads((self.output / "runs/benchmark.json").read_text())
+        self.assertEqual(benchmark["successful_cases"], 4)
+        self.assertTrue(all(case["traffic_report"] and case["workload_model"] == "abstract_wire" for case in benchmark["cases"]))
+        comparison = json.loads((self.output / "comparison.json").read_text())
+        self.assertEqual(comparison["matched_pairs"], 2)
+        self.assertEqual(comparison["methodology"]["workload_model"], "abstract_wire")
+        replay = self.root / "traffic replay"
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(experiments.main(["--replay", str(self.output / "manifest.json"), "--exe", os.environ["KNS_TEST_EXE"], "--output", str(replay)]), 0)
+        for pattern in ("*.csv", "*.traffic.json", "*.analytics.json"):
+            for original in (self.output / "runs").glob(pattern):
+                if original.name != "metrics.csv":
+                    self.assertEqual(original.read_bytes(), (replay / "runs" / original.name).read_bytes())
+
     def test_existing_output_and_source_directory_are_preserved(self):
         self.output.mkdir()
         sentinel = self.output / "keep.txt"

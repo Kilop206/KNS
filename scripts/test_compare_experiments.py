@@ -284,6 +284,23 @@ class ComparisonTests(unittest.TestCase):
             self.assertEqual(result["unavailable_pairs"], 32)
             self.assertTrue(all(summary["metrics"]["throughput_pps"]["mean_delta"] is None for summary in result["summaries"]))
 
+    def test_cross_bundle_records_different_abstract_workload_inputs(self):
+        import comparison_artifacts
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, rate in (("left", 1000), ("right", 2000)):
+                directory = root / name; (directory / "runs").mkdir(parents=True)
+                profile = copy.deepcopy(self.profile)
+                profile["traffic_plan"] = {"schema_version": "1.0", "seed": 42, "max_packets": 100,
+                    "flows": [{"id": 1, "source": 0, "destination": 1, "start_s": 0, "end_s": 1,
+                               "wire_bytes": 125, "schedule": {"kind": "cbr", "rate_bps": rate}}]}
+                (directory / "profile.json").write_text(json.dumps(profile))
+                (directory / "runs/benchmark.json").write_text(json.dumps(self.benchmark))
+            result = comparison_artifacts.build(root / "left", root / "right")
+            self.assertFalse(result["methodology"]["traffic_plan_inputs_match"])
+            self.assertEqual(result["sources"]["reference"]["workload_model"], "abstract_wire")
+            self.assertNotEqual(result["sources"]["reference"]["traffic_plan_sha256"], result["sources"]["candidate"]["traffic_plan_sha256"])
+
     def test_invalid_cli_inputs_leave_existing_comparisons_untouched(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

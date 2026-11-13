@@ -61,6 +61,7 @@ other links, queue policies and metadata are retained.
 | `congestion_controls` | Defaults to `["reno"]`; also supports `tahoe`, `newreno`, `cubic`. |
 | `allow_transport_failures` | Accept orderly retry exhaustion as an experiment outcome; defaults to `false`. |
 | `analytics` | Optional shared native collection config; see [Analytics](../docs/analytics.md). |
+| `traffic_plan` | Optional embedded abstract workload; see [Traffic Lab](../docs/traffic-models.md). Packet wire sizes come from this plan. |
 
 Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`,
 `queue_capacity`.

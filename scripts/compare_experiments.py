@@ -164,6 +164,7 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
         "unavailable_pairs": sum(pair["status"] != "matched" for pair in pairs),
         "summaries": summaries, "pairs": pairs,
         "methodology": {
+            "workload_model": "abstract_wire" if "traffic_plan" in profile else "automatic_tcp",
             "pairing": list(DIMENSIONS), "delta": "experiment-minus-baseline",
             "relative_delta": "100 * paired_delta / paired_baseline; null at zero baseline",
             "ci": "Nominal 95% paired Student-t interval; independent normally distributed seed deltas assumed; df capped at 30; rounded critical values",
@@ -171,7 +172,9 @@ def build_comparison(profile: dict, benchmark: dict, baseline: str | None = None
                 "Intervals are per metric without multiple-comparison correction; normality and seed independence are not established by the tool.",
                 "Failed/missing cases are excluded; successful-pair summaries can have selection bias.",
                 "Latency concerns delivered DATA; delivery/loss are aggregate counter ratios, throughput includes control packets.",
-                "Goodput, latency median/p95/p99, jitter, utilization and service recovery are unavailable in the aggregate CSV."]},
+                "Goodput, latency median/p95/p99, jitter, utilization and service recovery are unavailable in the aggregate CSV."] + (
+                ["For abstract traffic, wire sizes/classes are defined by the plan; legacy TCP size/control axes are inactive. Use the traffic report for generated-packet delivery ratios and deadlines."]
+                if "traffic_plan" in profile else [])},
     }
 
 

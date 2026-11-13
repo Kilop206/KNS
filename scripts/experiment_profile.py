@@ -18,6 +18,7 @@ import experiment_manifest as manifests
 import experiment_sweep
 import fault_plan
 import analytics_config
+import traffic_config
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,7 +44,7 @@ def load_profile(path: Path) -> tuple[dict, dict]:
 def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
     allowed = {"name", "topology", "index", "experiments", "seeds", "packet_sizes",
                "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline",
-               "schema_version", "max_cases", "sweep", "analytics"}
+               "schema_version", "max_cases", "sweep", "analytics", "traffic_plan"}
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
     if not valid_name(profile.get("name")):
@@ -63,6 +64,8 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         raise ValueError("Topology must contain a links array")
     if "analytics" in profile:
         analytics_config.validate(profile["analytics"], topology)
+    if "traffic_plan" in profile:
+        traffic_config.validate(profile["traffic_plan"], topology)
     index = profile.setdefault("index", 0)
     if type(index) is not int or not 0 <= index < len(topology["links"]):
         raise ValueError("Profile index must select an existing link")
@@ -120,6 +123,8 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
             raise ValueError(f"{field} must not contain duplicates; use distinct seeds for repetitions")
     if type(profile.setdefault("allow_transport_failures", False)) is not bool:
         raise ValueError("allow_transport_failures must be a boolean")
+    if "traffic_plan" in profile and (len(profile["packet_sizes"]) != 1 or len(profile["congestion_controls"]) != 1):
+        raise ValueError("Abstract traffic sizes/classes come from the plan; TCP packet-size/congestion-control sweeps are unsupported")
     baseline = profile.setdefault("baseline", experiments[0]["name"])
     if not isinstance(baseline, str) or baseline not in {experiment["name"] for experiment in experiments}:
         raise ValueError("baseline must name an experiment in the profile")
@@ -146,6 +151,8 @@ def make_suite(profile: dict, output: Path) -> dict:
         suite["fault_plans"] = plans
     if "analytics" in profile:
         suite["analytics_config"] = str(output / "analytics.json")
+    if "traffic_plan" in profile:
+        suite["traffic_plan"] = str(output / "traffic.json")
     return suite
 
 
@@ -172,6 +179,8 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     write_json(output / "source-topology.json", topology)
     if "analytics" in profile:
         write_json(output / "analytics.json", profile["analytics"])
+    if "traffic_plan" in profile:
+        write_json(output / "traffic.json", profile["traffic_plan"])
     suite_path = output / "suite.json"
     write_json(suite_path, suite)
     return suite_path

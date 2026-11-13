@@ -10,6 +10,7 @@
   "properties": {
     "schema_version": {"const": "1.0"},
     "analytics": {"$ref": "https://userex.dev/contracts/kns/analytics-config-v1.schema.json"},
+    "traffic_plan": {"$ref": "https://userex.dev/contracts/kns/traffic-plan-v1.schema.json"},
     "name": {"$ref": "#/$defs/name"},
     "topology": {"type": "string", "minLength": 1},
     "index": {"type": "integer", "minimum": 0, "default": 0},

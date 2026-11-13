@@ -18,6 +18,7 @@ from pathlib import Path
 import run as runner
 import fault_plan
 import analytics_config
+import traffic_config
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,6 +97,14 @@ def load_suite(path: Path) -> dict:
         config = json.loads((ROOT / data["analytics_config"]).read_text(encoding="utf-8"))
         for topology in data["topologies"]:
             analytics_config.validate(config, json.loads((ROOT / topology).read_text(encoding="utf-8")))
+    if "traffic_plan" in data:
+        if not isinstance(data["traffic_plan"], str):
+            raise ValueError("traffic_plan must be a config file path")
+        plan = json.loads((ROOT / data["traffic_plan"]).read_text(encoding="utf-8"))
+        for topology in data["topologies"]:
+            traffic_config.validate(plan, json.loads((ROOT / topology).read_text(encoding="utf-8")))
+        if len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1:
+            raise ValueError("Abstract traffic does not support TCP size/congestion-control axes")
     return data
 
 
@@ -125,6 +134,8 @@ def expand_cases(suite: dict) -> list[dict]:
             cases[-1]["fault_plan"] = suite["fault_plans"][topology]
         if "analytics_config" in suite:
             cases[-1]["analytics_config"] = suite["analytics_config"]
+        if "traffic_plan" in suite:
+            cases[-1]["traffic_plan"] = suite["traffic_plan"]
     return cases
 
 
@@ -423,6 +434,8 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--fault-plan", str((ROOT / case["fault_plan"]).resolve())])
         if case.get("analytics_config"):
             command.extend(["--analytics", str((ROOT / case["analytics_config"]).resolve())])
+        if case.get("traffic_plan"):
+            command.extend(["--traffic-plan", str((ROOT / case["traffic_plan"]).resolve())])
 
         started = time.perf_counter()
         started_at = datetime.now(timezone.utc).isoformat()
@@ -465,6 +478,9 @@ def main(argv: list[str] | None = None) -> int:
                 if case.get("analytics_config"):
                     config = json.loads((ROOT / case["analytics_config"]).read_text(encoding="utf-8"))
                     analytics_config.validate_report(json.loads(Path(str(csv_path) + ".analytics.json").read_text(encoding="utf-8")), config)
+                if case.get("traffic_plan"):
+                    plan = json.loads((ROOT / case["traffic_plan"]).read_text(encoding="utf-8"))
+                    traffic_config.validate_report(json.loads(Path(str(csv_path) + ".traffic.json").read_text(encoding="utf-8")), plan)
             except (OSError, ValueError) as exc:
                 status = "stats_error"
                 returncode = 1
@@ -485,6 +501,8 @@ def main(argv: list[str] | None = None) -> int:
             "csv": str(csv_path) if csv_path.exists() else None,
             "fault_report": str(csv_path) + ".faults.json" if case.get("fault_plan") and Path(str(csv_path) + ".faults.json").exists() else None,
             "analytics_report": str(csv_path) + ".analytics.json" if case.get("analytics_config") and Path(str(csv_path) + ".analytics.json").exists() else None,
+            "traffic_report": str(csv_path) + ".traffic.json" if case.get("traffic_plan") and Path(str(csv_path) + ".traffic.json").exists() else None,
+            "workload_model": "abstract_wire" if case.get("traffic_plan") else "automatic_tcp",
             "wall_clock_duration_s": derived["wall_clock_duration_s"],
             "simulation_duration_s": derived["simulation_duration_s"],
             "packets_sent": derived["packets_sent"],

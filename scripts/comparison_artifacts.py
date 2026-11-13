@@ -56,6 +56,8 @@ def build(reference: Path, candidate: Path, reference_name=None, candidate_name=
         source = {"directory": str(directory), "experiment": name,
                   "configuration": profile["experiments"][variant_index],
                   "kns_commit": benchmark.get("kns_commit"), "selected_routing_metric": route}
+        source["workload_model"] = "abstract_wire" if "traffic_plan" in profile else "automatic_tcp"
+        source["traffic_plan_sha256"] = experiment_manifest.config_hash(profile["traffic_plan"]) if "traffic_plan" in profile else None
         if (directory / "manifest.json").is_file():
             manifest = experiment_manifest.load(directory / "manifest.json")
             source.update(configuration_sha256=manifest["configuration_sha256"],
@@ -72,6 +74,10 @@ def build(reference: Path, candidate: Path, reference_name=None, candidate_name=
             row["routing_metric"] = f"{reference_routing} vs {candidate_routing}"
         result["methodology"]["pairing"] = ["explicit_routing_pair", "seed", "packet_size", "congestion_control"]
     result["sources"] = sources
+    result["methodology"]["traffic_plan_inputs_match"] = left.get("traffic_plan") == right.get("traffic_plan")
+    if "traffic_plan" in left or "traffic_plan" in right:
+        result["methodology"]["limitations"].append(
+            "Abstract workload wire sizes and classes come from the traffic plan; legacy TCP size/control labels do not configure these packets. Traffic-plan hashes record input equivalence, not causal equivalence of runs.")
     result["methodology"]["limitations"].append(
         "Across bundles, matching seed/payload/algorithm settings does not establish equal offered traffic, endpoint roles, observation horizons or software environments. Inspect recorded inputs; causality is not inferred.")
     if sources["reference"].get("executable_sha256") != sources["candidate"].get("executable_sha256"):

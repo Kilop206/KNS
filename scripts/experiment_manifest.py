@@ -89,7 +89,7 @@ def create(profile: dict, topology: dict, timeout: float, exe: Path | None,
             "experiment_profile.py", "experiment_manifest.py", "experiment_sweep.py",
             "benchmark_suite.py", "run.py", "compare_experiments.py", "fault_plan.py",
             "comparison_statistics.py", "comparison_html.py", "comparison_artifacts.py", "analytics_config.py",
-            "analytics_validation.py", "analytics_report.py")},
+            "analytics_validation.py", "analytics_report.py", "traffic_config.py")},
         "replay_of": previous["run_id"] if previous else None,
         "executable_changed": changed,
     }

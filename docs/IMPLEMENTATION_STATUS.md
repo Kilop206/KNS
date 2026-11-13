@@ -514,3 +514,40 @@ paths with spaces, pending/budget reports and all-loss execution. Evidence:
 32 fixtures and four bundled app topologies. Native application/test build passed
 in the isolated build; TLS, Linux and Studio remain unverified. Usage and model
 limits are in [traffic-models.md](traffic-models.md).
+
+## Traffic experiment integration — 2026-11-13
+
+Profiles embed traffic plans in configuration hashes, generated bundles and
+portable replay. The benchmark passes the plan and requires a complete, conserved
+traffic ledger. Inactive TCP size/control sweeps are rejected. Compare declares
+the workload model, retains legacy CSV denominators, records cross-bundle plan
+hashes and reports input mismatch instead of asserting equivalent offered load.
+The runner hash includes traffic validation code. Added a controlled bandwidth
+upgrade profile, integration tests and model/usage documentation.
+
+Final verification for this increment:
+
+- MinGW/C++20 Core/application/tests build passed; CTest **443/443 passed**
+  (`build-core-mingw/traffic-final-ctest.log`).
+- Full Python suite with current executable: **74/74 passed**, without skips
+  (`build-core-mingw/traffic-integrated-python.log`). New tests verify generated
+  plan preservation, inactive-axis rejection, actual four-case manifest replay
+  and mismatched workload provenance in cross-bundle comparisons.
+- Contracts: **12 schemas, 32 fixtures, four bundled topologies passed**.
+- Saved six-flow experiment and replay each completed four cases with two paired
+  comparisons. Verified four CSVs, four traffic ledgers and four Analytics reports
+  byte-for-byte; both manifest binary hashes match the executed binary. Each case
+  generated 326 packets. Control delivered 242/dropped 84 with 90 late telemetry
+  packets; upgrade delivered 316/dropped 10 with zero late telemetry packets.
+  The two network-seed repeats coincide because the topology has no random loss;
+  these are controlled simulation observations, not independent workload samples
+  or real-network capacity guarantees.
+- Evidence: `build-core-mingw/traffic-final`, `traffic final replay` and their
+  manifests/reports. Offline Analytics HTML was exported under `traffic-final/report`.
+  Browser visual QA, TLS, Linux/sanitizers and Studio remain unverified.
+
+Milestone 6 remains partial: no causal application dependency/request-response
+model, arbitrary distributions, traffic-parameter sweeps, trace replay or Studio
+controls are claimed. Milestone 5 still lacks device processing rates, application
+reads, protocol-specific jitter and additional analyses. User build edits were
+preserved; the temporary verification configuration stays in ignored artifacts.
