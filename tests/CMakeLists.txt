@@ -68,7 +68,13 @@ if(Python3_Interpreter_FOUND)
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_compare_experiments.py -v
     )
     set_tests_properties(experiment_comparison_tests PROPERTIES TIMEOUT 60)
+    add_test(NAME analytics_report_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_analytics_report.py -v)
+    set_tests_properties(analytics_report_tests PROPERTIES TIMEOUT 60)
     if(TARGET KNS)
+        set_tests_properties(analytics_report_tests PROPERTIES
+            ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")
         set_tests_properties(experiment_profile_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>"
         )

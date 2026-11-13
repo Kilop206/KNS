@@ -6,6 +6,7 @@
 #include <cmath>
 #include <deque>
 #include <map>
+#include <optional>
 #include <stdexcept>
 
 namespace kns::analysis {
@@ -26,7 +27,11 @@ namespace {
     struct Group {
         std::uint64_t packets = 0, wire_bytes = 0;
         LatencyStatistics latency;
-        explicit Group(std::size_t retained) : latency(retained) {}
+        std::optional<LatencyStatistics> variation;
+        std::optional<double> previous_data_latency;
+        explicit Group(std::size_t retained, bool flow) : latency(retained) {
+            if (flow) variation.emplace(retained);
+        }
     };
     struct Reservation { double start, end; int direction; };
     struct LinkRecord {
@@ -37,6 +42,9 @@ namespace {
         Json previous;
         double peak_utilization = 0, peak_queue = 0, util_from = 0, util_to = 0, queue_at = 0;
         std::uint64_t valid_utilization_windows = 0, queue_samples = 0;
+        std::uint64_t pressure_windows = 0, pressure_streak = 0, longest_pressure_streak = 0;
+        double pressure_start = 0, longest_pressure_from = 0, longest_pressure_to = 0;
+        double valid_duration = 0, high_pressure_duration = 0;
     };
 }
 struct MetricsCollector::Data {
@@ -49,7 +57,7 @@ struct MetricsCollector::Data {
     std::deque<Json> samples, changes;
     std::map<std::uint64_t, LinkRecord> links;
     std::map<std::string, Group> flows, nodes;
-    LatencyStatistics latency, window_latency;
+    LatencyStatistics latency, window_latency, variation, window_variation;
     explicit Data(const Json& input)
         : config(input), horizon(input.at("until_s")), interval(input.at("interval_s")),
           max_samples(limit(input, "max_samples", 2048, 10000)),
@@ -57,7 +65,9 @@ struct MetricsCollector::Data {
           group_retention(limit(input, "group_retention", 128, 1024)),
           max_reservations(limit(input, "max_reservations", 65536, 1000000)),
           latency(limit(input, "latency_retention", 4096, 100000)),
-          window_latency(std::min<std::size_t>(limit(input, "latency_retention", 4096, 100000), 256)) {}
+          window_latency(std::min<std::size_t>(limit(input, "latency_retention", 4096, 100000), 256)),
+          variation(limit(input, "latency_retention", 4096, 100000)),
+          window_variation(std::min<std::size_t>(limit(input, "latency_retention", 4096, 100000), 256)) {}
 };
 MetricsCollector::MetricsCollector(const Json& config) : data_(std::make_unique<Data>(config)) {}
 MetricsCollector::~MetricsCollector() = default;
@@ -119,19 +129,30 @@ void MetricsCollector::delivery(const Packet& packet, double now) {
     const double latency = now - packet.creation_time;
     const bool data = packet.packet_type == PacketType::DATA;
     if (data) { d.latency.add(latency); d.window_latency.add(latency); }
-    const auto update = [&](auto& groups, const std::string& key, std::uint64_t& overflow) {
+    const auto update = [&](auto& groups, const std::string& key, std::uint64_t& overflow, bool flow) {
         auto found = groups.find(key);
         if (found == groups.end()) {
             if (groups.size() >= d.max_groups) { ++overflow; return; }
-            found = groups.emplace(key, Group(d.group_retention)).first;
+            found = groups.emplace(key, Group(d.group_retention, flow)).first;
         }
         ++found->second.packets;
         found->second.wire_bytes += static_cast<std::uint64_t>(packet.serializedSize());
-        if (data) found->second.latency.add(latency);
+        if (data) {
+            auto& group = found->second;
+            group.latency.add(latency);
+            if (group.variation) {
+                if (group.previous_data_latency) {
+                    const double change = std::abs(latency - *group.previous_data_latency);
+                    group.variation->add(change);
+                    d.variation.add(change); d.window_variation.add(change);
+                }
+                group.previous_data_latency = latency;
+            }
+        }
     };
     update(d.flows, std::to_string(packet.session_id) + ":" + std::to_string(packet.source) + ":" +
-        std::to_string(packet.destination) + ":" + std::to_string(packet.tcp.source_port) + ":" + std::to_string(packet.tcp.destination_port), d.flow_overflow);
-    update(d.nodes, std::to_string(packet.destination), d.node_overflow);
+        std::to_string(packet.destination) + ":" + std::to_string(packet.tcp.source_port) + ":" + std::to_string(packet.tcp.destination_port), d.flow_overflow, true);
+    update(d.nodes, std::to_string(packet.destination), d.node_overflow, false);
 }
 void MetricsCollector::sample(SimulationEngine& engine) {
     auto& d = *data_;
@@ -147,7 +168,7 @@ void MetricsCollector::sample(SimulationEngine& engine) {
         {"throughput_pps", duration > 0 ? Json(delivered / duration) : Json(nullptr)},
         {"first_hop_admission_pps", duration > 0 ? Json(sent / duration) : Json(nullptr)},
         {"drops_per_s", duration > 0 ? Json(lost / duration) : Json(nullptr)},
-        {"data_latency", d.window_latency.toJson()}, {"links", Json::array()}};
+        {"data_latency", d.window_latency.toJson()}, {"data_latency_variation", d.window_variation.toJson()}, {"links", Json::array()}};
     std::map<std::uint64_t, std::shared_ptr<Link>> current;
     for (const auto& link : engine.getTopology().getLinks()) current.emplace(link->getId(), link);
     for (auto& [id, record] : d.links) {
@@ -156,6 +177,7 @@ void MetricsCollector::sample(SimulationEngine& engine) {
             d.reservation_count -= record.reservations.size();
             record.reservations.clear();
             record.complete = false;
+            record.pressure_streak = 0;
             sample["links"].push_back({{"link_index", record.index}, {"present", false},
                 {"utilization_defined", false}, {"utilization_complete", false},
                 {"utilization", {{"ab", nullptr}, {"ba", nullptr}, {"shared", nullptr}}},
@@ -188,6 +210,17 @@ void MetricsCollector::sample(SimulationEngine& engine) {
         const auto ab = link.estimatedQueueSize(at, link.getA(), link.getB());
         const auto ba = link.getMode() == LinkMode::FULL_DUPLEX ? link.estimatedQueueSize(at, link.getB(), link.getA()) : 0;
         const double queue = static_cast<double>(std::max(ab, ba)) / static_cast<double>(link.getQueueCapacity());
+        if (valid) record.valid_duration += duration;
+        const bool pressure = valid && maximum >= 0.9 && queue >= 0.8;
+        if (pressure) {
+            ++record.pressure_windows; record.high_pressure_duration += duration;
+            if (record.pressure_streak == 0) record.pressure_start = d.previous_time;
+            ++record.pressure_streak;
+            if (record.pressure_streak > record.longest_pressure_streak) {
+                record.longest_pressure_streak = record.pressure_streak;
+                record.longest_pressure_from = record.pressure_start; record.longest_pressure_to = at;
+            }
+        } else record.pressure_streak = 0;
         if (maximum > record.peak_utilization) { record.peak_utilization = maximum; record.util_from = d.previous_time; record.util_to = at; }
         if (queue > record.peak_queue) { record.peak_queue = queue; record.queue_at = at; }
         Json state{{"up", link.isUp()}, {"bandwidth_mbps", link.getBandwidthMbps()}, {"delay_ms", link.getDelayMs()},
@@ -208,13 +241,18 @@ void MetricsCollector::sample(SimulationEngine& engine) {
     d.samples.push_back(std::move(sample)); ++d.samples_seen;
     d.previous_time = at; d.previous_stats = stats;
     d.window_latency = LatencyStatistics(std::min<std::size_t>(d.config.value("latency_retention", 4096), 256));
+    d.window_variation = LatencyStatistics(std::min<std::size_t>(d.config.value("latency_retention", 4096), 256));
 }
 Json MetricsCollector::toJson() const {
     const auto& d = *data_;
     const auto groups = [](const auto& input) {
         Json output = Json::array();
-        for (const auto& [key, group] : input) output.push_back({{"key", key}, {"packets_delivered", group.packets},
-            {"wire_bytes_delivered", group.wire_bytes}, {"data_latency", group.latency.toJson()}});
+        for (const auto& [key, group] : input) {
+            Json item{{"key", key}, {"packets_delivered", group.packets}, {"wire_bytes_delivered", group.wire_bytes},
+                      {"data_latency", group.latency.toJson()}};
+            if (group.variation) item["data_latency_variation"] = group.variation->toJson();
+            output.push_back(std::move(item));
+        }
         return output;
     };
     Json recommendations = Json::array();
@@ -223,6 +261,8 @@ Json MetricsCollector::toJson() const {
         (void)id;
         linkSummaries.push_back({{"link_index", record.index}, {"reservation_coverage_complete", record.complete},
             {"valid_utilization_windows", record.valid_utilization_windows},
+            {"valid_utilization_duration_s", record.valid_duration}, {"pressure_windows", record.pressure_windows},
+            {"pressure_duration_s", record.high_pressure_duration}, {"longest_pressure_streak_windows", record.longest_pressure_streak},
             {"max_sampled_directional_utilization", record.valid_utilization_windows ? Json(record.peak_utilization) : Json(nullptr)},
             {"max_sampled_directional_queue_fraction", record.queue_samples ? Json(record.peak_queue) : Json(nullptr)}});
         if (record.peak_utilization >= 0.9) recommendations.push_back({{"rule", "high_serialization_utilization"},
@@ -235,6 +275,14 @@ Json MetricsCollector::toJson() const {
             {"evidence", {{"max_directional_queue_fraction", record.peak_queue}, {"threshold", 0.8}, {"observed_at_s", record.queue_at}}},
             {"recommendation", "Compare queue policy/capacity and propagation delay before changing buffer sizes."},
             {"limitations", "Current queue entries include propagation; this is not a physical waiting-buffer measurement."}});
+        if (record.longest_pressure_streak >= 3) recommendations.push_back({{"rule", "consecutive_serialization_queue_pressure"},
+            {"classification", "heuristic"}, {"link_index", record.index},
+            {"evidence", {{"consecutive_windows", record.longest_pressure_streak}, {"minimum_windows", 3},
+                {"utilization_threshold", 0.9}, {"queue_threshold", 0.8},
+                {"from_s", record.longest_pressure_from}, {"to_s", record.longest_pressure_to},
+                {"total_observed_pressure_s", record.high_pressure_duration}}},
+            {"recommendation", "Investigate repeated serialization/queue pressure with demand, bandwidth and sampling-interval sweeps."},
+            {"limitations", "Three sampled windows are interval-dependent evidence, not proof of sustained overload or its cause; queue occupancy includes propagation."}});
     }
     if (d.previous_stats.packets_lost > 0) recommendations.push_back({{"rule", "observed_path_drops"}, {"classification", "heuristic"},
         {"evidence", {{"packets_lost", d.previous_stats.packets_lost}, {"queue_overflow_drops", d.previous_stats.queue_overflow_drops}, {"red_early_drops", d.previous_stats.red_early_drops}}},
@@ -243,6 +291,7 @@ Json MetricsCollector::toJson() const {
     return {{"schema_version", "1.0"}, {"config", d.config}, {"collection_until_s", d.horizon},
         {"definitions", {{"time_unit", "virtual_seconds"}, {"packet_rate_unit", "packets_per_virtual_second"},
             {"latency_scope", "delivered packets classified DATA, including retransmissions, at time <= until_s"},
+            {"latency_variation", "absolute difference of successive DATA delivery latencies within each tracked flow/direction; not RFC jitter or application goodput"},
             {"sample_boundaries", "event-ID order; horizon-tied deliveries may update aggregates after the final sample"},
             {"utilization", "clipped serialization busy seconds per directional/shared slot divided by sample duration; propagation excluded"},
             {"queue_scope", "accepted transmissions until arrival, including propagation"},
@@ -252,6 +301,7 @@ Json MetricsCollector::toJson() const {
         {"link_changes_observed", d.changes_seen}, {"link_changes_discarded", d.changes_seen - d.changes.size()}, {"link_changes", d.changes},
         {"packets_delivered_in_scope", d.delivered}, {"wire_bytes_delivered_in_scope", d.wire_bytes},
         {"data_latency", d.latency.toJson()}, {"flow_groups", groups(d.flows)}, {"destination_node_groups", groups(d.nodes)},
+        {"data_latency_variation", d.variation.toJson()}, {"latency_variation_coverage", "tracked_flow_groups_only"},
         {"ungrouped_flow_deliveries", d.flow_overflow}, {"ungrouped_node_deliveries", d.node_overflow},
         {"reservation_records_discarded", d.dropped_reservations}, {"untracked_link_transmissions", d.untracked_transmissions},
         {"link_summaries", linkSummaries},

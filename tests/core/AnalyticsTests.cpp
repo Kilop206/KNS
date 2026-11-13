@@ -7,12 +7,20 @@
 #include <limits>
 #include <numeric>
 #include <cmath>
+#include <functional>
 
 namespace {
     using Json = nlohmann::json;
     Json config(double until = 0.02, double interval = 0.001) {
         return {{"schema_version", "1.0"}, {"until_s", until}, {"interval_s", interval}};
     }
+    class AnalyticsAction final : public kns::Event {
+        std::function<void(kns::SimulationEngine&)> action_;
+    public:
+        AnalyticsAction(double at, std::function<void(kns::SimulationEngine&)> action)
+            : Event(at), action_(std::move(action)) {}
+        void execute(kns::SimulationEngine& engine) override { action_(engine); }
+    };
 }
 TEST_CASE("Analytics latency statistics have known moments percentiles and histogram", "[analytics][statistics]") {
     kns::analysis::LatencyStatistics statistics(4);
@@ -59,6 +67,8 @@ TEST_CASE("Analytics utilization clips serialization and excludes propagation", 
     REQUIRE(report["packets_delivered_in_scope"] == 0); // arrival at 0.011, beyond scope
     REQUIRE(report["data_latency"]["count"] == 0);
     REQUIRE_FALSE(report["recommendations"].empty());
+    for (const auto& recommendation : report["recommendations"])
+        REQUIRE(recommendation["rule"] != "consecutive_serialization_queue_pressure");
 }
 TEST_CASE("Analytics full duplex and shared half duplex use distinct utilization slots", "[analytics][duplex]") {
     for (const auto mode : {kns::LinkMode::FULL_DUPLEX, kns::LinkMode::HALF_DUPLEX}) {
@@ -103,6 +113,7 @@ TEST_CASE("Analytics retention and grouping limits retain honest overflow counte
     REQUIRE(report["reservation_records_discarded"] == 1);
     REQUIRE(report["samples"][1]["links"][0]["utilization"]["ab"].is_null());
     REQUIRE(report["link_summaries"][0]["max_sampled_directional_utilization"].is_null());
+    REQUIRE(report["link_summaries"][0]["pressure_windows"] == 0);
 }
 TEST_CASE("Analytics collection preserves seeded TCP simulation outputs", "[analytics][determinism][integration]") {
     kns::Topology topology(2);
@@ -161,4 +172,63 @@ TEST_CASE("Analytics counts serialization for modeled probabilistic link loss", 
     REQUIRE(engine.getStats().packets_lost == 1);
     REQUIRE(report["samples"][1]["links"][0]["utilization"]["ab"].get<double>() == Catch::Approx(1));
     REQUIRE(report["data_latency"]["count"] == 0);
+}
+
+TEST_CASE("Analytics latency variation pairs consecutive deliveries within the same flow", "[analytics][variation]") {
+    kns::Topology topology(2);
+    topology.addLink(0, 1, 1, 10);
+    kns::SimulationEngine engine(topology);
+    auto collector = kns::analysis::MetricsCollector::attach(engine, config(0.3, 0.025));
+    auto link = engine.getTopology().getLinks()[0];
+    REQUIRE(engine.sendPacket(kns::Packet(0, 1, 0, 0, 125, 999), *link, 0));
+    engine.schedule(std::make_unique<AnalyticsAction>(0.05, [link](auto& e) {
+        REQUIRE(e.sendPacket(kns::Packet(0, 1, 0, e.now(), 125, 1000), *link, e.now()));
+    }));
+    engine.schedule(std::make_unique<AnalyticsAction>(0.1, [link](auto& e) {
+        link->setDelayMs(20);
+        REQUIRE(e.sendPacket(kns::Packet(0, 1, 0, e.now(), 125, 999), *link, e.now()));
+    }));
+    engine.schedule(std::make_unique<AnalyticsAction>(0.2, [link](auto& e) {
+        link->setDelayMs(5);
+        REQUIRE(e.sendPacket(kns::Packet(0, 1, 0, e.now(), 125, 999), *link, e.now()));
+    }));
+    engine.run();
+    const auto report = collector->toJson();
+    const auto& variation = report["data_latency_variation"];
+    REQUIRE(report["data_latency"]["count"] == 4);
+    REQUIRE(variation["count"] == 2);
+    REQUIRE(variation["mean_s"].get<double>() == Catch::Approx(0.0125));
+    REQUIRE(variation["p95_s"].get<double>() == Catch::Approx(0.01475));
+    std::uint64_t windowPairs = 0;
+    for (const auto& sample : report["samples"]) windowPairs += sample["data_latency_variation"]["count"].get<std::uint64_t>();
+    REQUIRE(windowPairs == 2);
+    for (const auto& group : report["flow_groups"]) {
+        if (group["data_latency"]["count"] == 1) REQUIRE(group["data_latency_variation"]["count"] == 0);
+        else REQUIRE(group["data_latency_variation"]["count"] == 2);
+    }
+}
+
+TEST_CASE("Analytics distinguishes consecutive joint pressure from transient peaks", "[analytics][pressure]") {
+    kns::Topology topology(2);
+    topology.addLink(0, 1, 1, 10, 0, kns::LinkMode::FULL_DUPLEX, 16);
+    kns::SimulationEngine engine(topology);
+    auto collector = kns::analysis::MetricsCollector::attach(engine, config(0.03));
+    auto link = engine.getTopology().getLinks()[0];
+    for (int i = 0; i < 16; ++i)
+        REQUIRE(engine.sendPacket(kns::Packet(0, 1, 0, 0, 125, 999), *link, 0));
+    engine.run();
+    const auto report = collector->toJson();
+    const auto& summary = report["link_summaries"][0];
+    REQUIRE(summary["longest_pressure_streak_windows"].get<int>() >= 3);
+    REQUIRE(summary["pressure_duration_s"].get<double>() >= 0.003);
+    REQUIRE(summary["valid_utilization_duration_s"].get<double>() == Catch::Approx(0.03));
+    bool detected = false;
+    for (const auto& recommendation : report["recommendations"]) {
+        if (recommendation["rule"] == "consecutive_serialization_queue_pressure") {
+            detected = true;
+            REQUIRE(recommendation["classification"] == "heuristic");
+            REQUIRE(recommendation["evidence"]["consecutive_windows"].get<int>() >= 3);
+        }
+    }
+    REQUIRE(detected);
 }

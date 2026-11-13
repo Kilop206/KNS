@@ -6,6 +6,10 @@ records bounded virtual-time series, DATA latency statistics, flow/destination
 groups, directional link utilization and deterministic diagnostic recommendations.
 It is independent of ImGui and does not require an LLM or external service.
 
+Within-flow latency variation, repeated queue-pressure evidence, semantic report
+validation and offline HTML/CSV export are documented in
+[Analytics analysis and export](analytics-analysis.md).
+
 ## Run and replay
 
 ```powershell
@@ -73,6 +77,7 @@ order or RNG draws; choose identical observation settings for comparisons.
 | `drops_per_s` | Difference of aggregate path-drop counters / duration; not a loss probability. |
 | `wire_bytes_delivered_in_scope` | Serialized destination bytes observed within the horizon, including control/retransmission bytes. |
 | `data_latency` | Destination arrival time minus packet creation time for packets classified DATA by the existing engine. |
+| `data_latency_variation` | Absolute latency change between consecutive DATA deliveries of each tracked flow/direction. |
 | `flow_groups` | Delivery aggregates keyed by session ID, source, destination and TCP ports; directions remain separate. |
 | `destination_node_groups` | Delivery aggregates by destination node ID; not device processing/CPU statistics. |
 
@@ -162,7 +167,7 @@ Python integration checks actual CLI collection, config/report validation,
 byte-identical replay and unchanged aggregate CSV for a horizon within the run.
 
 This increment does not model device processing rates, unique goodput, per-flow
-path drops, deadlines, jitter, automatic traffic imbalance diagnoses, streaming
+path drops, deadlines, protocol-specific jitter, automatic traffic imbalance diagnoses, streaming
 disk storage or a Studio Analytics Dashboard. Compare still consumes aggregate
 CSV metrics; retained-scope percentile reports are not silently mixed into its
 full-run summaries. Collection uses one owner thread and may add runtime/memory

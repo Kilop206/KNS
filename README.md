@@ -54,6 +54,8 @@ Saved experiments and topologies can be compared with offline HTML/SVG reports,
 paired seed variability and conditional intervals; see [KNS Compare](docs/compare.md).
 Optional [runtime Analytics](docs/analytics.md) records bounded time series,
 DATA latency percentiles, directional utilization and evidence-based rule diagnostics.
+Analytics also records within-flow latency variation and repeated queue pressure;
+`scripts/analytics_report.py` exports native reports as offline HTML/CSV.
 
 ## Requirements
 

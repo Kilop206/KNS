@@ -74,6 +74,14 @@ orchestration persists configuration and requires corresponding report evidence.
 No random stream, network operation or LLM is added. See [analytics.md](analytics.md)
 for scopes, definitions, rules and incomplete model coverage.
 
+The collector now tracks previous DATA latency per retained flow, so latency-change
+pairs never cross session/direction boundaries. Joint serialization/queue-pressure
+streaks retain scalar evidence independently of time-series trimming. Saved reports
+pass configuration/schedule checks in `analytics_config` and statistical/conservation
+checks in `analytics_validation`. The optional `analytics_report` exporter reads
+completed native reports and creates a new local directory without rerunning the
+simulator. Legacy reports without variation remain readable with that metric absent.
+
 ## System boundary
 
 KNS separates a reusable simulation library from application concerns:

@@ -133,6 +133,9 @@ and heuristic recommendations. Config is persisted in the manifest and each case
 `.csv.analytics.json` report is required/validated when requested. The raw aggregate
 CSV retains its existing meanings; Analytics observation horizons and percentile
 retention scopes are explicit and can differ from the full simulation duration.
+Use `python scripts/analytics_report.py <case>.csv.analytics.json --output <new-directory>`
+for local charts, CSV and diagnostic evidence. Complete-report validation checks
+statistical conservation, coverage, rates and within-flow latency-change counts.
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the

@@ -362,3 +362,68 @@ pending. Current group keys represent modeled session/direction endpoints and
 destination deliveries. Queue entries still include propagation; intervals and
 configuration-change markers are sampled callback observations. Retention scopes
 and virtual horizons must be respected when interpreting or comparing outputs.
+
+## Milestone 5 continuation — 2026-11-13
+
+Implemented and integrated:
+
+- Absolute latency change between consecutive DATA deliveries within each tracked
+  flow/direction, with global/window/flow statistics and bounded retention. The
+  first delivery contributes no pair, interleaved flows never form pairs and
+  destination groups do not mix flows. This is a declared variation measure,
+  not a protocol-specific jitter estimator or unique application goodput.
+- Repeated joint serialization/queue pressure: three consecutive valid windows
+  above documented thresholds trigger a deterministic recommendation. Scalar
+  counts, durations and longest streak survive time-series trimming. Missing
+  utilization evidence breaks the streak. Evidence depends on sampling interval
+  and does not establish sustained congestion or causality.
+- Semantic validation before benchmark acceptance and offline export: finite
+  values, retention/histogram conservation, group packet/DATA/byte totals,
+  consecutive-flow pair counts, interval continuity, rates, utilization bounds
+  and explanation fields. Consistency checks do not authenticate external data.
+- Dependency-free offline HTML, series/link/group/histogram CSV and recommendation
+  Markdown export to a new directory, preserving the source. Charts use virtual
+  time, explicit missing values, fixed 0–1 utilization axes and escaped labels.
+  Older schema-1.0 reports without variation remain readable. Partial reports,
+  invalid evidence and inputs over 64 MiB are rejected. HTML charts at most 16
+  original links; CSV preserves all retained links.
+
+Changed files: native collector and analytical regression tests;
+`analytics_config.py`, new `analytics_validation.py`, `analytics_report.py` and
+report tests; manifest runner hashes and CMake test registration; READMEs,
+Analytics guides, architecture, roadmap and this status. See
+[analytics-analysis.md](analytics-analysis.md) for definitions and usage.
+
+Executed evidence:
+
+- MinGW/C++20 application/Core/tests build succeeded. CTest: **435/435 passed**
+  (`build-core-mingw/milestone5-analysis-ctest.log`). Eleven Analytics cases
+  include 11/21/6 ms packet latencies yielding 10/15 ms same-flow changes,
+  interleaved-flow exclusion and repeated/transient/unknown pressure checks.
+- Python discovery with the actual KNS executable: **63/63 passed**, without
+  skips (`build-core-mingw/milestone5-analysis-python.log`). Five new report cases
+  cover actual-engine export, deterministic derived files, legacy compatibility,
+  malformed/partial evidence, source preservation, escaping and chart gaps.
+- Contract validation passed: **11 schemas, 30 fixtures, four bundled topologies**.
+  Existing temporary-process/dependency ACL accommodations were reused; no new
+  mandatory dependency was installed.
+- Final Analytics example and manifest replay each completed four successful
+  cases. All four simulation CSVs and four Analytics JSON reports were identical
+  byte-for-byte; each report has 201 samples. Both manifests match the current
+  executable SHA-256. Both control runs observed 40 DATA deliveries/38 variation
+  pairs and no pressure windows; congested runs observed two DATA deliveries/one
+  pair and 25 joint-pressure windows (125 ms). These small counts are descriptive,
+  not statistical capacity or SLA guarantees.
+- All six derived files were byte-identical between original/replayed reports.
+  HTML parsed successfully and contains embedded SVG with no scripts. Evidence:
+  `build-core-mingw/milestone5-analysis-final` and
+  `build-core-mingw/milestone5 analysis replay`; HTML is under each `report/`.
+- `git diff --check` passed. Browser visual QA, interactive Studio, native TLS,
+  Linux and sanitizers were not verified in this continuation. HTML parsing and
+  escaping tests do not establish visual layout correctness.
+
+Milestone 5 remains **partial**. Pending work includes device processing rates,
+unique goodput, protocol-specific jitter, per-flow path-drop/deadline attribution,
+automatic utilization imbalance analysis, streaming storage and Studio Analytics.
+Existing queue propagation semantics, sampled boundaries and explicit retention
+limits still apply. No feature is claimed complete solely from report scaffolding.
