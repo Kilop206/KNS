@@ -61,6 +61,8 @@ burst, Poisson, uniform and custom abstract workloads with per-flow outcome and
 deadline accounting through `--traffic-plan`.
 The [result validator](docs/validation.md) checks explicit workload assertions and
 exports JSON/JUnit diagnostics with process codes suitable for CI.
+The initial [Industrial scenarios](docs/iiot.md) exercise sensor telemetry,
+PLC/actuator exchanges, uplink faults and redundancy with measured scale limits.
 
 ## Requirements
 

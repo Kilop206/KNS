@@ -687,3 +687,52 @@ Milestone 9 remains partial: automatic baseline-relative rules, scenario-embedde
 assertions, richer languages and Studio integration are pending. Core model,
 platform and scientific limitations recorded above still apply. No milestone is
 declared complete merely because CI configuration or schemas exist.
+
+## Initial Industrial scenarios and measured scale — 2026-11-13
+
+Added a bounded scenario generator with explicit IoT sensor nodes, a forwarding
+gateway, telemetry destination and abstract PLC/actuator request-response loop.
+It emits versioned normal topology/Traffic Lab/profile inputs and executes three
+real variants: reference uplink, timed uplink outage/recovery, congestion. An
+optional higher-cost alternate route provides uplink redundancy. Every execution
+retains normal manifests/raw metrics and measured wall-time summaries; generated
+configuration and measurements remain distinct. The common gateway is still a
+single point of failure. MQTT, physical process behavior and node failures are
+not synthesized.
+
+Files: `industrial_scenario.py`, three tests/CTest registration, `iiot.md`, README,
+roadmap and status. The generator accepts 1..250 sensors within current flow
+limits; requests for 1000/10000 fail clearly before output. Those targets remain
+pending. Device classes map to existing IoT/router/server capabilities; priority
+metadata does not implement priority scheduling.
+
+Executed evidence:
+
+- Actual 100-sensor tests inspect route probes during/after outage, primary/alternate
+  hop counts, 1010 generated packets per case, five completed control operations,
+  congestion loss and measured process times. Single-uplink outage discarded 200
+  sensor messages; alternate routing delivered all 1010 packets and 1000 timely
+  sensor messages. Congestion delivered 534 packets with 17 timely sensor messages.
+- Measured 10, 100 and 250 explicit sensors in this MinGW/C++20 Debug environment.
+  Reference process wall times were 0.171/0.894/2.707 seconds; three-case runner
+  totals were 0.814/3.249/9.190 seconds. These single measurements include exports
+  and process startup, without performance guarantees or hardware-independent
+  thresholds. Memory/event rate were not measured. At 250 sensors the offered
+  2.5 Mbps sensor load exceeds the 2 Mbps reference link; 2012/2510 deliveries are
+  a capacity outcome. See `iiot.md` for configuration and interpretation.
+- Full actual-engine Python **86/86 passed**, no skips
+  (`build-core-mingw/industrial-final-python.log`). Build passed; **CTest 455/455
+  passed**, including eight Python categories (`industrial-final-ctest.log`).
+  Contract schemas/fixtures were unchanged since the 13/38/four-topology check.
+- Saved raw evidence: `build-core-mingw/industrial-{10,100,250}` and
+  `industrial-100-redundant`. Replayed the 100-sensor manifest and compared all
+  ten CSV/Traffic/Analytics/Fault Lab files byte-for-byte with
+  `industrial-100-replay`. Offline outage Analytics HTML is under
+  `industrial-100/report`. Wall-time measurement summaries are intentionally not
+  compared as deterministic artifacts.
+
+Milestone 7 remains partial: MQTT QoS, gateway/broker node failures, richer devices,
+1000/10000-sensor targets and Industrial Studio remain pending. Routing-table
+storage and per-flow bounds need attention before increasing those targets. No
+network privileges or real-network changes were used; remote CI, TLS, Linux and
+visual QA remain unverified in this workspace.
