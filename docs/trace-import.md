@@ -93,8 +93,9 @@ its canonical hash is recorded. `--keep-flow-labels` would retain the original
 address/port/protocol tuples and should be chosen deliberately before sharing.
 
 The reader supports PCAP 2.4 with either byte order, microsecond/nanosecond
-timestamps and plain Ethernet link type 1. It extracts untagged, unfragmented
-IPv4 TCP/UDP endpoint/port metadata. Header/length bounds and UDP length/TCP data
+timestamps and plain Ethernet link type 1. It extracts unfragmented IPv4 TCP/UDP
+endpoint/port metadata, untagged or behind at most two VLAN tags (TPIDs 0x8100
+and 0x88a8). Header/length bounds and UDP length/TCP data
 offsets are checked. Fully captured necessary headers allow record truncation
 afterward; `truncated_records` reports captured length below original length.
 Modeled bytes use original PCAP record length, including its recorded link header,
@@ -102,13 +103,24 @@ without adding preamble, interframe gap or FCS. This is a declared byte scope,
 not automatic reconstruction of physical wire overhead. Checksums are not checked
 and payload bytes are not exported. Protocol counts are observed TCP/UDP records.
 
+VLAN tag bytes remain part of original record length. Ordered TPID/VID stacks
+separate logical source flows, including tagged versus untagged records. PCP/DEI
+bits do not split flows and do not create modeled priority or drop eligibility.
+VLAN switching, isolation, trunk configuration and forwarding rules are not
+inferred. Metadata reports tagged record count and maximum depth; identifiers
+remain suppressed unless `--keep-flow-labels` is selected. Unknown TPIDs, more
+than two tags and incomplete tag/inner-type headers fail the entire import.
+
 References: [libpcap savefile specification](https://github.com/the-tcpdump-group/libpcap/blob/master/pcap-savefile.manfile.in),
 [IPv4](https://www.rfc-editor.org/rfc/rfc791.html),
 [UDP](https://www.rfc-editor.org/rfc/rfc768.html),
 [TCP header format](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.1).
+Tag layout and supported TPIDs follow the
+[Wireshark VLAN description](https://wiki.wireshark.org/VLAN/) and
+[Wireshark EtherType definitions](https://www.wireshark.org/docs/wsar_html/etypes_8h.html).
 The implementation is a bounded, read-only standard-library subset rather than a
 general libpcap dissector. It keeps native builds independent of capture libraries.
-PCAPNG, IPv6, VLAN/other link types, additional PCAP link flags, fragmented traffic,
+PCAPNG, IPv6, other link types, additional PCAP link flags, fragmented traffic,
 other IP protocols and incomplete necessary headers are explicitly rejected.
 Records are never silently skipped; broader support needs a separate adapter.
 

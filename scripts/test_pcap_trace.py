@@ -40,6 +40,10 @@ def capture(endian="<", nanos=False, records=None, linktype=1, snaplen=4096):
     return result
 
 
+def tagged(packet, tags):
+    return packet[:12] + b"".join(struct.pack("!HH", tpid, control) for tpid, control in tags) + packet[12:]
+
+
 class PcapTraceTests(unittest.TestCase):
     def setUp(self):
         self.topology = json.loads((LAB / "topology.json").read_text())
@@ -59,6 +63,34 @@ class PcapTraceTests(unittest.TestCase):
         self.assertTrue(all(plan == plans[0] for plan in plans))
         plan, _ = trace_import.convert(capture(nanos=True, records=[(1, frame(), None), (2, frame(), None)]), "pcap", self.topology, address_map=ADDRESS_MAP)
         self.assertEqual(plan["replay_events"][1]["at_s"], 1e-9)
+
+    def test_vlan_tags_preserve_flow_separation_and_original_record_bytes(self):
+        packets = [frame(), tagged(frame(), [(0x8100, 37)]),
+            tagged(frame(), [(0x8100, 37 | 0xF000)]), tagged(frame(), [(0x8100, 38)]),
+            tagged(frame(), [(0x88A8, 37)]), tagged(frame(), [(0x88A8, 12), (0x8100, 37)])]
+        data = capture(records=[(index, packet, None) for index, packet in enumerate(packets)])
+        plan, metadata = trace_import.convert(data, "pcap", self.topology, address_map=ADDRESS_MAP)
+        # PCP/DEI changes do not split a flow or create modeled priority.
+        self.assertEqual([event["flow_id"] for event in plan["replay_events"]], [1, 2, 2, 3, 4, 5])
+        self.assertEqual(metadata["source_flow_count"], 5)
+        self.assertEqual(metadata["wire_bytes_total"], sum(map(len, packets)))
+        self.assertEqual((metadata["pcap"]["vlan_tagged_records"], metadata["pcap"]["max_vlan_depth"]), (5, 2))
+        self.assertNotIn(";vlan=", json.dumps((plan, metadata)))
+        _, labelled = trace_import.convert(data, "pcap", self.topology, keep_flow_labels=True, address_map=ADDRESS_MAP)
+        self.assertTrue(labelled["wire_groups"][-1]["source_flow_label"].endswith(";vlan=88a8:12,8100:37"))
+        for count in (1, 2):
+            packet = tagged(frame(), [(0x8100, 37)] * count)
+            data = capture(records=[(0, packet[:42 + 4 * count], len(packet))])
+            _, truncated = trace_import.convert(data, "pcap", self.topology, address_map=ADDRESS_MAP)
+            self.assertEqual(truncated["pcap"]["truncated_records"], 1)
+
+    def test_incomplete_or_excess_vlan_stacks_are_rejected(self):
+        for size in range(14, 18):
+            with self.subTest(size=size), self.assertRaisesRegex(ValueError, "truncated VLAN"):
+                pcap_trace.parse(capture(records=[(0, tagged(frame(), [(0x8100, 37)])[:size], None)]), ADDRESS_MAP, 2)
+        excessive = tagged(frame(), [(0x88A8, 12), (0x8100, 37), (0x8100, 38)])
+        with self.assertRaisesRegex(ValueError, "deeper than two"):
+            pcap_trace.parse(capture(records=[(0, excessive, None)]), ADDRESS_MAP, 2)
 
     def test_malformed_and_unsupported_inputs_fail_without_partial_import(self):
         good = capture(records=[(0, frame(), None)])
@@ -89,6 +121,22 @@ class PcapTraceTests(unittest.TestCase):
                 self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--output", str(output)]), 1)
             self.assertFalse(output.exists())
             self.assertEqual(source.read_bytes(), capture())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for PCAP replay integration")
+    def test_actual_vlan_replay_accounts_tag_bytes_under_queue_contention(self):
+        packets = [tagged(frame(), [(0x8100, 37)]), tagged(frame(), [(0x8100, 38)]),
+            tagged(frame(6), [(0x88A8, 12), (0x8100, 37)]), tagged(frame(), [(0x88A8, 12), (0x8100, 37)])]
+        data = capture(records=[(0 if index < 3 else 10000, packet, None) for index, packet in enumerate(packets)])
+        with tempfile.TemporaryDirectory(prefix="KNS VLAN ") as folder:
+            root = Path(folder); source = root / "tagged.pcap"; source.write_bytes(data)
+            mapping = root / "map.json"; mapping.write_text(json.dumps(ADDRESS_MAP))
+            output = root / "imported"
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--address-map", str(mapping),
+                    "--output", str(output), "--exe", os.environ["KNS_TEST_EXE"]]), 0)
+            report = json.loads(next((output / "experiment/runs").glob("*.traffic.json")).read_text())
+            self.assertEqual((report["generated"], report["delivered"], report["dropped"]), (4, 3, 1))
+            self.assertEqual(sum(flow["delivered_wire_bytes"] for flow in report["flows"]), sum(len(packets[index]) for index in (0, 1, 3)))
 
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for PCAP replay integration")
     def test_actual_classic_pcap_replay_uses_orig_lengths_and_real_queue_drops(self):

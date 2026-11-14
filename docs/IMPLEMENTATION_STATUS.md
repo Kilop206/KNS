@@ -891,3 +891,19 @@ Local verification: pre-change CTest 462/462 passed
 (`pcap-extensions-baseline.log`); the updated profile suite passed 28/28 with the
 actual executable (`ci-path-tests.log`). macOS and MSYS2 execution of these fixes
 await a new remote run; local Windows testing cannot establish those outcomes.
+
+## Bounded VLAN metadata import — 2026-11-14
+
+Classic Ethernet PCAP now accepts one or two C/S tags with TPIDs 0x8100/0x88a8.
+Original record bytes include the tags. Ordered TPID/VID stacks distinguish
+logical flows; PCP/DEI do not create simulated priority. Counts/depth are recorded
+while labels remain suppressed by default. Truncated tags and excessive stacks
+fail before import. This does not implement VLAN forwarding or isolation.
+
+Changed the PCAP parser, seven parser/integration tests, trace guide and roadmap.
+Verification: targeted tests passed 7/7 (`vlan-tests.log`); full actual-executable
+Python regression passed 102/102 with no skips (`vlan-python.log`). The authored
+tagged contention fixture produces four generated, three delivered and one queue
+drop; delivered bytes include the recorded tags. No native model was changed.
+The earlier CI fix is pushed as 44ca7b7; its remote run 43612732498 is still in
+progress. IPv6/PCAPNG and wider capture support remain pending.

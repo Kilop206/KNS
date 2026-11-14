@@ -14,6 +14,24 @@ MAGICS = {b"\xd4\xc3\xb2\xa1": ("<", 1000000), b"\xa1\xb2\xc3\xd4": (">", 100000
           b"\x4d\x3c\xb2\xa1": ("<", 1000000000), b"\xa1\xb2\x3c\x4d": (">", 1000000000)}
 
 
+def ethernet_payload(frame):
+    """Locate L3 after at most two standard C/S tags; no VLAN behavior inferred."""
+    if len(frame) < 14:
+        raise ValueError("PCAP record has a truncated Ethernet header")
+    ether_type = struct.unpack_from("!H", frame, 12)[0]
+    offset, tags = 14, []
+    while ether_type in (0x8100, 0x88A8):
+        if len(tags) == 2:
+            raise ValueError("PCAP VLAN stacks deeper than two tags are unsupported")
+        if len(frame) < offset + 4:
+            raise ValueError("PCAP record has a truncated VLAN tag/inner EtherType")
+        control, inner_type = struct.unpack_from("!HH", frame, offset)
+        tags.append(f"{ether_type:04x}:{control & 0xfff}")
+        ether_type = inner_type
+        offset += 4
+    return ether_type, offset, tags
+
+
 def mapping(value, node_count):
     if not isinstance(value, dict) or set(value) != {"schema_version", "ipv4_to_node"} or value["schema_version"] != "1.0":
         raise ValueError("PCAP requires a version-1.0 ipv4_to_node map")
@@ -41,6 +59,7 @@ def parse(data, address_map, node_count):
     if (major, minor) != (2, 4) or not 1 <= snaplen <= 1048576 or linktype != 1:
         raise ValueError("PCAP requires version 2.4, bounded snaplen and plain Ethernet link type 1 without additional flags")
     rows, protocols, offset, truncated = [], {"tcp": 0, "udp": 0}, 24, 0
+    vlan_records = vlan_depth = 0
     while offset < len(data):
         if len(rows) >= 10000:
             raise ValueError("PCAP exceeds 10000 records")
@@ -53,9 +72,9 @@ def parse(data, address_map, node_count):
         if captured > len(data) - offset:
             raise ValueError("PCAP record extends beyond input")
         frame = data[offset:offset + captured]; offset += captured
-        if len(frame) < 14 or frame[12:14] != b"\x08\x00":
-            raise ValueError("PCAP requires complete Ethernet headers and untagged IPv4; other media/VLAN/IPv6 are unsupported")
-        ip = 14
+        ether_type, ip, tags = ethernet_payload(frame)
+        if ether_type != 0x0800:
+            raise ValueError("PCAP requires Ethernet IPv4; other media/IPv6 are unsupported")
         if len(frame) < ip + 20 or frame[ip] >> 4 != 4:
             raise ValueError("PCAP record has a truncated/invalid IPv4 header")
         header_size = (frame[ip] & 15) * 4
@@ -89,17 +108,20 @@ def parse(data, address_map, node_count):
             raise ValueError("PCAP IPv4 protocol is unsupported; only TCP/UDP metadata is imported")
         source_port, destination_port = struct.unpack_from("!HH", frame, transport)
         rows.append({"time_s": Decimal(seconds) + Decimal(fraction) / resolution,
-            "flow_id": f"{source}:{source_port}>{destination}:{destination_port}/{kind}",
+            "flow_id": f"{source}:{source_port}>{destination}:{destination_port}/{kind}" + (";vlan=" + ",".join(tags) if tags else ""),
             "source": addresses[source], "destination": addresses[destination], "wire_bytes": original})
         protocols[kind] += 1
         truncated += captured < original
+        vlan_records += bool(tags)
+        vlan_depth = max(vlan_depth, len(tags))
     if not rows:
         raise ValueError("PCAP contains no packet records")
     canonical_map = json.dumps(address_map, sort_keys=True, separators=(",", ":")).encode()
     return rows, {"version": "2.4", "link_type": "ethernet_ipv4", "byte_order": "little" if endian == "<" else "big",
         "timestamp_resolution": "microseconds" if resolution == 1000000 else "nanoseconds",
         "record_count": len(rows), "protocol_counts": protocols, "truncated_records": truncated,
+        "vlan_tagged_records": vlan_records, "max_vlan_depth": vlan_depth,
         "address_map_sha256": hashlib.sha256(canonical_map).hexdigest(),
         "parser_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "wire_bytes_scope": "PCAP original record length including recorded link header; no added preamble/interframe gap/FCS",
-        "limitations": "Structural header checks only; checksums and payload are not validated/exported; no TCP/UDP protocol state or fragmentation replay"}
+        "limitations": "Structural header checks only; checksums and payload are not validated/exported; no TCP/UDP protocol state, fragmentation replay or VLAN forwarding/priority semantics"}
