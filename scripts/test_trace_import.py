@@ -65,6 +65,12 @@ class TraceImportTests(unittest.TestCase):
             self.assertEqual(sentinel.read_text(), "evidence")
             self.assertEqual(list(output.iterdir()), [sentinel])
 
+    def test_timestamp_magnitude_is_checked_without_decimal_rounding_or_overflow(self):
+        for value in ("1e999999999", "1000000000000000000.000000000000000000001"):
+            source = ("time_s,flow_id,source,destination,wire_bytes\n" + value + ",flow,0,1,125\n").encode()
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "magnitude"):
+                trace_import.convert(source, "csv", self.topology)
+
     def test_decimal_normalization_retains_nanoseconds_and_reports_clock_collisions(self):
         def rows(times):
             return ("time_s,flow_id,source,destination,wire_bytes\n" + "".join(f"{at},flow,0,1,125\n" for at in times)).encode()

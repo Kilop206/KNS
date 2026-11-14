@@ -65,9 +65,9 @@ The initial [Industrial scenarios](docs/iiot.md) exercise sensor telemetry,
 PLC/actuator exchanges, uplink faults and redundancy with measured scale limits.
 The [Capacity Planner](docs/capacity-planning.md) evaluates bounded growth/link
 alternatives and accepts optional user costs for a measured Pareto frontier.
-The initial [Trace Import](docs/trace-import.md) converts bounded CSV/JSON and
-classic PCAP Ethernet IPv4/direct IPv6 TCP/UDP metadata to ordered abstract workloads with
-explicit topology mapping.
+The initial [Trace Import](docs/trace-import.md) converts bounded CSV/JSON,
+classic PCAP and a documented PCAPNG subset into ordered abstract workloads.
+Ethernet IPv4/direct IPv6 TCP/UDP imports use explicit topology mapping.
 
 ## Requirements
 

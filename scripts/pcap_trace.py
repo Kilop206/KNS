@@ -86,33 +86,17 @@ def ip_payload(frame, original, ether_type, ip):
     raise ValueError("PCAP requires Ethernet IPv4/IPv6; other EtherTypes/media are unsupported")
 
 
-def parse(data, address_map, node_count):
-    if len(data) > 4 * 1024 * 1024:
-        raise ValueError("PCAP input exceeds 4 MiB")
+def decode_records(records, address_map, node_count):
+    """Decode bounded Ethernet records from either capture container."""
     addresses = mapping(address_map, node_count)
-    if len(data) < 24:
-        raise ValueError("Truncated PCAP file header")
-    if data[:4] not in MAGICS:
-        raise ValueError("Unsupported PCAP magic; PCAPNG and modified formats are not implemented")
-    endian, resolution = MAGICS[data[:4]]
-    major, minor, _, _, snaplen, linktype = struct.unpack_from(endian + "HHIIII", data, 4)
-    if (major, minor) != (2, 4) or not 1 <= snaplen <= 1048576 or linktype != 1:
-        raise ValueError("PCAP requires version 2.4, bounded snaplen and plain Ethernet link type 1 without additional flags")
-    rows, protocols, offset, truncated = [], {"tcp": 0, "udp": 0}, 24, 0
-    vlan_records = vlan_depth = 0
+    rows, protocols = [], {"tcp": 0, "udp": 0}
+    truncated = vlan_records = vlan_depth = 0
     ip_versions = {"ipv4": 0, "ipv6": 0}
-    while offset < len(data):
+    for timestamp, frame, original in records:
         if len(rows) >= 10000:
-            raise ValueError("PCAP exceeds 10000 records")
-        if len(data) - offset < 16:
-            raise ValueError("Truncated PCAP record header")
-        seconds, fraction, captured, original = struct.unpack_from(endian + "IIII", data, offset)
-        offset += 16
-        if fraction >= resolution or not 1 <= captured <= min(snaplen, original) or not 1 <= original <= 1048576:
-            raise ValueError("PCAP record has invalid timestamp/length fields")
-        if captured > len(data) - offset:
-            raise ValueError("PCAP record extends beyond input")
-        frame = data[offset:offset + captured]; offset += captured
+            raise ValueError("Capture exceeds 10000 records")
+        if not 1 <= len(frame) <= original <= 1048576:
+            raise ValueError("Capture record has invalid captured/original lengths")
         ether_type, ip, tags = ethernet_payload(frame)
         source, destination, protocol, transport, transport_size, ip_version = ip_payload(frame, original, ether_type, ip)
         if source not in addresses or destination not in addresses:
@@ -136,19 +120,18 @@ def parse(data, address_map, node_count):
         source_port, destination_port = struct.unpack_from("!HH", frame, transport)
         source_label = f"[{source}]" if ip_version == "ipv6" else source
         destination_label = f"[{destination}]" if ip_version == "ipv6" else destination
-        rows.append({"time_s": Decimal(seconds) + Decimal(fraction) / resolution,
+        rows.append({"time_s": timestamp,
             "flow_id": f"{source_label}:{source_port}>{destination_label}:{destination_port}/{kind}" + (";vlan=" + ",".join(tags) if tags else ""),
             "source": addresses[source], "destination": addresses[destination], "wire_bytes": original})
         protocols[kind] += 1
         ip_versions[ip_version] += 1
-        truncated += captured < original
+        truncated += len(frame) < original
         vlan_records += bool(tags)
         vlan_depth = max(vlan_depth, len(tags))
     if not rows:
         raise ValueError("PCAP contains no packet records")
     canonical_map = json.dumps(address_map, sort_keys=True, separators=(",", ":")).encode()
-    return rows, {"version": "2.4", "link_type": "ethernet_ipv4" if not ip_versions["ipv6"] else "ethernet_ip", "byte_order": "little" if endian == "<" else "big",
-        "timestamp_resolution": "microseconds" if resolution == 1000000 else "nanoseconds",
+    return rows, {"link_type": "ethernet_ipv4" if not ip_versions["ipv6"] else "ethernet_ip",
         "record_count": len(rows), "protocol_counts": protocols, "truncated_records": truncated,
         "vlan_tagged_records": vlan_records, "max_vlan_depth": vlan_depth,
         "ip_version_counts": ip_versions,
@@ -156,3 +139,33 @@ def parse(data, address_map, node_count):
         "parser_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "wire_bytes_scope": "PCAP original record length including recorded link header; no added preamble/interframe gap/FCS",
         "limitations": "Structural header checks only; checksums and payload are not validated/exported; no TCP/UDP protocol state, fragmentation replay or VLAN forwarding/priority semantics"}
+
+
+def parse(data, address_map, node_count):
+    if len(data) > 4 * 1024 * 1024:
+        raise ValueError("PCAP input exceeds 4 MiB")
+    if len(data) < 24:
+        raise ValueError("Truncated PCAP file header")
+    if data[:4] not in MAGICS:
+        raise ValueError("Unsupported classic PCAP magic; select the PCAPNG format for PCAPNG input")
+    endian, resolution = MAGICS[data[:4]]
+    major, minor, _, _, snaplen, linktype = struct.unpack_from(endian + "HHIIII", data, 4)
+    if (major, minor) != (2, 4) or not 1 <= snaplen <= 1048576 or linktype != 1:
+        raise ValueError("PCAP requires version 2.4, bounded snaplen and plain Ethernet link type 1 without additional flags")
+    def records():
+        offset = 24
+        while offset < len(data):
+            if len(data) - offset < 16:
+                raise ValueError("Truncated PCAP record header")
+            seconds, fraction, captured, original = struct.unpack_from(endian + "IIII", data, offset)
+            offset += 16
+            if fraction >= resolution or not 1 <= captured <= min(snaplen, original) or not 1 <= original <= 1048576:
+                raise ValueError("PCAP record has invalid timestamp/length fields")
+            if captured > len(data) - offset:
+                raise ValueError("PCAP record extends beyond input")
+            frame = data[offset:offset + captured]; offset += captured
+            yield Decimal(seconds) + Decimal(fraction) / resolution, frame, original
+    rows, metadata = decode_records(records(), address_map, node_count)
+    metadata.update(version="2.4", byte_order="little" if endian == "<" else "big",
+                    timestamp_resolution="microseconds" if resolution == 1000000 else "nanoseconds")
+    return rows, metadata

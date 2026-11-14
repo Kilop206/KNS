@@ -3,7 +3,7 @@
 import argparse
 import bisect
 import csv
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 import hashlib
 import io
 import json
@@ -16,6 +16,7 @@ import sys
 import experiment_manifest
 import experiment_profile
 import pcap_trace
+import pcapng_trace
 import traffic_config
 
 LIMIT = 4 * 1024 * 1024
@@ -54,8 +55,8 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False, addres
         raise ValueError("keep_flow_labels must be a boolean")
     if not isinstance(topology, dict) or not isinstance(topology.get("nodes"), list) or not topology["nodes"] or not isinstance(topology.get("links"), list) or not topology["links"]:
         raise ValueError("A modeled topology with nodes and links is required")
-    if address_map is not None and format_name != "pcap":
-        raise ValueError("Address maps are used only for PCAP import")
+    if address_map is not None and format_name not in ("pcap", "pcapng"):
+        raise ValueError("Address maps are used only for PCAP/PCAPNG import")
     pcap_metadata = None
     if format_name == "csv":
         reader = csv.DictReader(io.StringIO(data.decode("utf-8-sig")), strict=True)
@@ -77,10 +78,11 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False, addres
         if not isinstance(document, dict) or set(document) != {"schema_version", "packets"} or document["schema_version"] != "1.0":
             raise ValueError("JSON trace requires schema_version 1.0 and packets")
         rows = document["packets"]
-    elif format_name == "pcap":
-        rows, pcap_metadata = pcap_trace.parse(data, address_map, len(topology["nodes"]))
+    elif format_name in ("pcap", "pcapng"):
+        reader = pcap_trace if format_name == "pcap" else pcapng_trace
+        rows, pcap_metadata = reader.parse(data, address_map, len(topology["nodes"]))
     else:
-        raise ValueError("Supported trace formats are csv, json and classic pcap; PCAPNG is not implemented")
+        raise ValueError("Supported trace formats are csv, json, classic pcap and the documented pcapng subset")
     if not isinstance(rows, list) or not 1 <= len(rows) <= 10000:
         raise ValueError("Trace requires 1..10000 packets")
     groups, labels, metadata_groups, events = {}, {}, [], []
@@ -97,10 +99,15 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False, addres
             timestamp = Decimal(str(raw_time))
         except InvalidOperation as error:
             raise ValueError(f"Trace packet {index} timestamp is invalid") from error
-        if not timestamp.is_finite() or abs(timestamp) > Decimal("1e18") or (previous is not None and timestamp < previous):
+        if not timestamp.is_finite() or timestamp.copy_abs() > Decimal("1e18") or (previous is not None and timestamp < previous):
             raise ValueError("Trace timestamps must be finite, ordered seconds with magnitude <=1e18")
         if origin is None: origin = timestamp
-        relative = timestamp - origin
+        # PCAPNG clocks can use 2^-127 units and signed 64-bit offsets.
+        # Their exact decimal offsets fit 200 digits; avoid a 28-digit
+        # intermediate rounding before the final binary64 conversion.
+        with localcontext() as context:
+            context.prec = 200
+            relative = timestamp - origin
         at = float(relative)
         if not math.isfinite(at) or at >= 1e6:
             raise ValueError("Normalized trace duration must be below 1000000 seconds")
@@ -144,7 +151,7 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False, addres
         "importer_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "plan_sha256": experiment_manifest.config_hash(plan), "packet_count": len(events), "source_flow_count": len(labels),
         "wire_bytes_total": wire_total, "normalized_duration_s": events[-1]["at_s"], "absolute_time_origin_removed": True,
-        "source_flow_labels_preserved": keep_flow_labels, "floating_time_collisions": collisions, "wire_groups": metadata_groups,
+        "source_flow_labels_preserved": keep_flow_labels, "floating_time_collisions": collisions, "decimal_normalization_precision": 200, "wire_groups": metadata_groups,
         "wire_size_distribution": [{"wire_bytes": size, "packets": count} for size, count in sorted(size_counts.items())],
         "interarrival_s": {"scope": "ordered normalized binary64 source offsets", "count": len(intervals),
             "min": min(intervals) if intervals else None, "max": max(intervals) if intervals else None,
@@ -152,7 +159,7 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False, addres
             "sample_stddev": statistics.stdev(intervals) if len(intervals) > 1 else None,
             "histogram": {"upper_edges_s": edges, "counts": bins, "bins": "lower inclusive, upper exclusive"}},
         "limitations": "Explicit model-node mapping, abstract offered wire packets; variable sizes split into separate Analytics flow groups; no payload/protocol replay or physical topology inference; flow-label suppression does not anonymize topology metadata"}
-    if pcap_metadata is not None: metadata["pcap"] = pcap_metadata
+    if pcap_metadata is not None: metadata[format_name] = pcap_metadata
     return plan, metadata
 
 
@@ -161,8 +168,8 @@ def main(argv=None):
     parser.add_argument("trace", type=Path)
     parser.add_argument("--topology", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="New import bundle; source trace is never copied")
-    parser.add_argument("--format", choices=("csv", "json", "pcap"))
-    parser.add_argument("--address-map", type=Path, help="Required for PCAP: explicit IP-to-model-node JSON mapping (v1.0 IPv4; v1.1 IPv4/IPv6)")
+    parser.add_argument("--format", choices=("csv", "json", "pcap", "pcapng"))
+    parser.add_argument("--address-map", type=Path, help="Required for PCAP/PCAPNG: explicit IP-to-model-node JSON mapping (v1.0 IPv4; v1.1 IPv4/IPv6)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--keep-flow-labels", action="store_true", help="Explicitly retain original flow labels in local metadata")
     parser.add_argument("--exe", type=Path, help="Optionally execute the imported profile and retain a portable manifest")

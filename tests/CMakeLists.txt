@@ -59,7 +59,7 @@ if(Python3_Interpreter_FOUND)
     endif()
     add_test(NAME pcap_trace_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
-            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_pcap_trace.py -v)
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p "test_pcap*.py" -v)
     set_tests_properties(pcap_trace_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME trace_import_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover

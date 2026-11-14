@@ -983,3 +983,41 @@ Remote CI runs 43613040525 (8a99a3d) and 43617090094 (6bcf804) pass all five
 jobs: Ubuntu, macOS, Windows MinGW/native context, sanitizers and warnings-as-errors.
 They establish the earlier portability fixes; new integration/trace commits
 require their own remote runs. The user's original build remains preserved.
+
+## Bounded PCAPNG and trace timestamp correctness - 2026-11-14
+
+Added a separate local standard-library PCAPNG 1.0 subset reader: one section,
+one Ethernet interface and timestamped Enhanced Packet Blocks, either byte
+order, decimal/binary clock scales, signed offset and checked section lengths.
+The shared Ethernet/IP decoder preserves the existing IPv4/direct IPv6/VLAN
+subset, original packet bytes and explicit address maps. Block/trailer/alignment,
+option (4096 per block), snaplen/interface/packet/count limits fail atomically.
+Comments/names/non-clock options are discarded and counted. Other block kinds,
+multiple sections/interfaces and unsupported packets are rejected, not skipped.
+No capture library, sockets, privileged operation or external upload was added.
+
+A final exact-fraction check found intermediate Decimal rounding at a supported
+binary-clock midpoint: (2^53+1)/2^64 was converted to the next double instead of
+0.00048828125. Normalization now uses 200 decimal digits before the final
+binary64 conversion, sufficient for the supported PCAPNG clock fields; metadata
+records this precision. CSV/JSON beyond that normalization precision are not
+promised arbitrary-precision replay. Exact copy_abs magnitude checks also reject
+out-of-range near-boundary/huge-exponent times without Decimal overflow.
+
+Changed shared/container readers, importer/CTest integration, parser and native
+replay tests, README, architecture, roadmap and CLI/trace guides. The authored
+488-byte PCAPNG example is executable and explicitly not real-network data:
+four offered records/260 original-record bytes, three delivered/186 bytes and
+one actual queue drop; the optional manifest survives removal of capture/map.
+Checksums/payload/protocol behavior are not reconstructed.
+
+Verification: build and full sequential CTest passed **462/462**, including
+112 Python tests without skips (`integration-final-ctest.log`). After the final
+numeric correction, both affected CTest groups passed again (**22 Python cases,
+no skips**, including two new numerical regressions; `pcapng-numeric-final.log`).
+The native real replay and byte-exact manifest comparisons are among those tests.
+Contracts passed **17 schemas/50 fixtures/four topologies**. Authored example
+execution succeeded under `build-core-mingw/pcapng-example`. Remote CI for the
+new commits is pending; 6bcf804 is the latest checked all-five-jobs success.
+Milestone 10 remains partial: general capture adapters, broader PCAPNG, fragments,
+IPv6 extensions and protocol reconstruction remain outside this subset.

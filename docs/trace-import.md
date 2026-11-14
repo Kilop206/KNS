@@ -55,8 +55,10 @@ short strings/integers. Endpoints are explicitly mapped model-node indices in th
 supplied topology. Wire bytes are provided by the user for the desired accounting;
 headers/protocol state are not inferred and payload fields are rejected. Ordered
 timestamps may tie; source row order is preserved. Absolute time origin is removed
-before conversion to binary64 virtual seconds. Decimal parsing preserves small
-epoch differences; remaining clock-resolution collisions are explicitly counted.
+before conversion to binary64 virtual seconds. Normalization uses 200 decimal
+digits (recorded in metadata), enough for the supported PCAPNG clock fields;
+arbitrary-precision CSV/JSON replay beyond that scope is not guaranteed. Decimal
+parsing preserves small epoch differences; remaining clock-resolution collisions are explicitly counted.
 
 Grouping uses logical source flow, endpoints and fixed wire size. A variable-size
 captured flow therefore produces multiple native Analytics groups. Opaque
@@ -134,7 +136,7 @@ Tag layout and supported TPIDs follow the
 [Wireshark EtherType definitions](https://www.wireshark.org/docs/wsar_html/etypes_8h.html).
 The implementation is a bounded, read-only standard-library subset rather than a
 general libpcap dissector. It keeps native builds independent of capture libraries.
-PCAPNG, IPv6 extensions, other link types, additional PCAP link flags, fragmented traffic,
+IPv6 extensions, other link types, additional PCAP link flags, fragmented traffic,
 other IP protocols and incomplete necessary headers are explicitly rejected.
 Records are never silently skipped; broader support needs a separate adapter.
 
@@ -149,3 +151,43 @@ combinations, complete/truncated records, malformed lengths/headers, unsupported
 formats, missing maps and privacy defaults. Actual native replay exercises queue
 contention, original-length byte accounting and portable manifest reconstruction.
 Those fixtures are not real-network measurements, and no live capture is performed.
+
+## Bounded PCAPNG adapter
+
+```powershell
+python scripts/trace_import.py capture.pcapng --topology model.json --address-map ip-map.json --output results/pcapng --exe build-core-mingw/verification-build/app/KNS.exe
+```
+
+The separate standard-library adapter accepts one version-1.0 Section Header
+Block, one Ethernet Interface Description Block and timestamped Enhanced Packet
+Blocks. Both byte orders, known/unspecified section lengths, default microseconds,
+decimal/binary timestamp resolutions and signed timestamp offsets are supported.
+Blocks, repeated lengths, alignment, options (at most 4096 per block), interface IDs and packet lengths
+are checked. Packet padding is excluded from modeled bytes. The shared decoder
+applies the same IPv4/direct IPv6/VLAN subset and explicit mapping rules.
+
+Multiple sections/interfaces, Simple/obsolete Packet Blocks, statistics, name
+resolution, secrets, custom and unknown blocks are rejected. This deliberately
+strict subset does not claim general PCAPNG compatibility or silently skip
+potential packets. Non-clock option values, including comments/interface names,
+are discarded; only their count is retained. Clock offsets are applied before
+origin removal and are not exported. Metadata records block/protocol/IP counts,
+resolution, parser/decoder hashes and the byte scope. Normalized replay uses
+binary64 virtual seconds and reports clock collisions as for other trace formats.
+
+Reference: [PCAPNG format draft-06, work in progress](https://www.ietf.org/archive/id/draft-ietf-opsawg-pcapng-06.html).
+No capture library, live capture, elevated privilege or network change is required.
+
+The bundled `KNS Experiments/trace-lab/authored-ethernet.pcapng` is a 488-byte
+authored structural fixture with documentation IPv4 addresses, deliberately
+unchecked checksums and no real-network measurements. It includes comments and
+payload markers to exercise default suppression. Execute it from the repository:
+
+```powershell
+python scripts/trace_import.py "KNS Experiments/trace-lab/authored-ethernet.pcapng" --topology "KNS Experiments/trace-lab/topology.json" --address-map "KNS Experiments/trace-lab/address-map.json" --output results/authored-pcapng --exe build-core-mingw/verification-build/app/KNS.exe
+```
+
+Its four offered records include one truncated record and 260 original-record
+bytes. The two-slot link queue delivers three records (186 bytes) and drops one.
+Those outcomes follow the model and input ordering; they are not measurements of
+TCP/application behavior in the original network. The output directory must be new.

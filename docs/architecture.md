@@ -199,12 +199,15 @@ sizes must be positive, including packets passed directly to transmission APIs.
 
 `configureRun()` applies `RunConfig::packet_size` and reseeds the random source
 before sessions or events exist. The CLI exposes both packet size and seed;
-GUI restarts apply the configuration again. The random source is currently
-process-global, so deterministic runs must execute sequentially rather than
-interleave independently configured engines.
+GUI restarts apply the configuration again. The engine owns its random generator;
+Traffic Lab schedules use independent seeded per-flow generators. Legacy link/TCP
+objects also retain local fallback generators. Event construction IDs remain
+process-global; parallel or interleaved engine execution is not a supported
+replay guarantee. Runs use one owner thread and record their configuration,
+executable identity and seed.
 
-Simulation validation separates the descriptive `loss_free` metric from
-integrity. Successful validation requires completed TCP workloads with both
+For automatic TCP workloads, validation separates the descriptive `loss_free`
+metric from integrity. Successful validation requires completed TCP workloads with both
 endpoints closed and buffers empty, no scheduled work, no packets in transit,
 and empty link queues. Delivered packets cannot exceed sent packets, and
 undelivered sends must be accounted for by losses. Losses may exceed that gap
@@ -216,3 +219,32 @@ The core is single-threaded. Logical time is independent from wall-clock time;
 the GUI controls presentation speed without changing event timestamps. Routing
 is centralized rather than modeled as a distributed protocol. The TCP layer is
 a deterministic experimental subset, not a kernel socket implementation.
+
+## Trace import boundary
+
+`trace_import.py` validates bounded CSV/JSON packet metadata or delegates binary
+containers to `pcap_trace.py` / `pcapng_trace.py`. The containers share the checked
+Ethernet/IP decoder. Explicit versioned address maps select model-node indices;
+no physical topology is inferred. Unsupported records/blocks fail the import
+before a bundle is created. Source files are read locally and are not copied or
+uploaded. Identifier suppression has the limits documented in trace-import.md.
+
+The output is the existing version-1.0 Traffic Lab plan, including a global
+ordered `replay_events` timeline. Source ties retain input order across groups;
+variable wire sizes split native groups while opaque source-flow IDs retain
+correlation. Recorded original frame lengths define the declared byte scope.
+Container padding does not become offered network bytes.
+
+The profile runner embeds topology and workload in its manifest, pins executable
+and configuration hashes, and executes the existing native `TrafficRun` path.
+A saved manifest can be replayed without the capture, map or importer. Virtual
+routing, serialization, queues, losses and failure events produce the delivery
+ledger; the importer does not manufacture network outcomes. Automatic TCP setup
+is disabled for this abstract-wire workload path.
+
+Captured TCP records are offered frames, including observed retransmissions and
+control packets. They do not instantiate native TCP sessions, reconstruct
+application payloads, measure original end-to-end latency or establish payload
+goodput. Trace metadata describes observations; the native ledger describes
+model results. Reports must preserve that distinction and identify all models'
+limitations. See [trace-import.md](trace-import.md) for the supported subsets.
