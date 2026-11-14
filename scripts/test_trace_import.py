@@ -38,6 +38,55 @@ class TraceImportTests(unittest.TestCase):
         _, metadata = trace_import.convert((LAB / "packets.csv").read_bytes(), "csv", self.topology, keep_flow_labels=True)
         self.assertIn("private-sensor", json.dumps(metadata))
 
+    def test_analyze_returns_only_scoped_metadata_without_creating_outputs(self):
+        with tempfile.TemporaryDirectory(prefix="KNS trace analysis ") as folder:
+            root = Path(folder); source = root / "private trace.csv"
+            source.write_bytes((LAB / "packets.csv").read_bytes())
+            original = source.read_bytes(); stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--analyze"]), 0)
+            report = json.loads(stdout.getvalue())
+            self.assertEqual(report["status"], "analyzed")
+            self.assertEqual(report["scope"], "source_record_metadata")
+            self.assertFalse(report["simulation_executed"])
+            self.assertEqual(report["topology_validation"], "structural_only")
+            self.assertEqual((report["metadata"]["packet_count"], report["metadata"]["wire_bytes_total"]), (5, 875))
+            self.assertNotIn("delivered", stdout.getvalue())
+            self.assertNotIn("private-sensor", stdout.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertEqual(source.read_bytes(), original)
+            self.assertEqual(list(root.iterdir()), [source])
+
+    def test_analyze_pcapng_uses_explicit_map_and_suppresses_capture_options(self):
+        from test_pcapng_trace import capture_ng
+        from test_pcap_trace import ADDRESS_MAP
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); source = root / "capture.pcapng"; source.write_bytes(capture_ng())
+            mapping = root / "mapping.json"; mapping.write_text(json.dumps(ADDRESS_MAP))
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--address-map", str(mapping), "--analyze"]), 0)
+            report = json.loads(stdout.getvalue())
+            self.assertEqual(report["metadata"]["pcapng"]["protocol_counts"], {"tcp": 1, "udp": 3})
+            self.assertNotIn("PRIVATE-CAPTURE", stdout.getvalue())
+            self.assertNotIn("192.0.2.10", stdout.getvalue())
+            self.assertEqual(set(root.iterdir()), {source, mapping})
+
+    def test_analysis_errors_are_json_and_modes_are_mutually_exclusive(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); source = root / "bad.csv"; source.write_text("not-a-trace")
+            base = [str(source), "--topology", str(LAB / "topology.json"), "--analyze"]
+            for extra in ([], ["--exe", "not-an-executable"]):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    self.assertEqual(trace_import.main(base + extra), 1)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertEqual(json.loads(stderr.getvalue())["status"], "invalid_input")
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+                trace_import.main(base + ["--output", str(root / "output")])
+            self.assertEqual(error.exception.code, 2)
+            self.assertEqual(list(root.iterdir()), [source])
+
     def test_nan_duplicates_unsorted_unknown_nodes_limits_and_existing_output_fail_safely(self):
         valid = json.loads((LAB / "packets.json").read_text())
         mutations = [lambda d: d.update(packets=[]), lambda d: d["packets"][1].update(time_s=-1),

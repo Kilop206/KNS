@@ -76,6 +76,13 @@ python scripts/industrial_scenario.py --sensors 100 --redundant --timeout 180 --
 python scripts/capacity_planner.py --base-sensors 10 --growth-percent 0 100 --bandwidth-mbps 2 4 --exe build/app/KNS.exe --output results/capacity
 ```
 
+For source-only JSON analysis, run the same trace command with `--analyze` in
+place of `--output ... --exe ...`. This does not require a native executable,
+write an experiment or execute the simulator. The output is explicitly scoped
+to source record metadata and structural topology preflight. Runtime input
+errors are JSON on stderr (exit 1); argparse usage errors exit 2. The analysis
+result contract is [trace-analysis-v1](../contracts/trace-analysis-v1.schema.json).
+
 The trace is explicitly authored, not a real-network measurement. See
 [trace-import.md](trace-import.md) for supported CSV/JSON/PCAP/PCAPNG subsets,
 explicit address mapping, limits and privacy defaults. Omitting `--exe` generates

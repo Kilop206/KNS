@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/trace-analysis-v1.schema.json",
+  "title": "KNS bounded source trace metadata analysis v1",
+  "type": "object",
+  "description": "Source observations and replay preflight only. Argparse usage errors (exit 2) are outside this JSON contract.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "scope",
+        "simulation_executed",
+        "topology_validation",
+        "metadata"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "status": {
+          "const": "analyzed"
+        },
+        "scope": {
+          "const": "source_record_metadata"
+        },
+        "simulation_executed": {
+          "const": false
+        },
+        "topology_validation": {
+          "const": "structural_only"
+        },
+        "metadata": {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "format",
+            "source_sha256",
+            "importer_sha256",
+            "plan_sha256",
+            "packet_count",
+            "wire_bytes_total",
+            "source_flow_count",
+            "normalized_duration_s",
+            "decimal_normalization_precision",
+            "source_flow_labels_preserved"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0"
+            },
+            "format": {
+              "enum": [
+                "csv",
+                "json",
+                "pcap",
+                "pcapng"
+              ]
+            },
+            "packet_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "wire_bytes_total": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10485760000
+            },
+            "source_flow_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "normalized_duration_s": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 1000000
+            },
+            "decimal_normalization_precision": {
+              "const": 200
+            },
+            "source_flow_labels_preserved": {
+              "type": "boolean"
+            },
+            "source_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "importer_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "plan_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "error"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "status": {
+          "const": "invalid_input"
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  ]
+}

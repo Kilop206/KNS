@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert bounded CSV/JSON packet metadata into an ordered abstract replay."""
+"""Analyze bounded trace metadata or convert it into an ordered abstract replay."""
 import argparse
 import bisect
 import csv
@@ -167,7 +167,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trace", type=Path)
     parser.add_argument("--topology", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True, help="New import bundle; source trace is never copied")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--output", type=Path, help="New import bundle; source trace is never copied")
+    mode.add_argument("--analyze", action="store_true", help="Print source metadata as JSON without creating a bundle or running KNS")
     parser.add_argument("--format", choices=("csv", "json", "pcap", "pcapng"))
     parser.add_argument("--address-map", type=Path, help="Required for PCAP/PCAPNG: explicit IP-to-model-node JSON mapping (v1.0 IPv4; v1.1 IPv4/IPv6)")
     parser.add_argument("--seed", type=int, default=42)
@@ -175,9 +177,15 @@ def main(argv=None):
     parser.add_argument("--exe", type=Path, help="Optionally execute the imported profile and retain a portable manifest")
     args = parser.parse_args(argv)
     try:
+        if args.analyze and args.exe:
+            raise ValueError("--analyze cannot be combined with --exe")
         topology = json_input(read(args.topology))
         address_map = json_input(read(args.address_map)) if args.address_map else None
         plan, metadata = convert(read(args.trace), args.format or args.trace.suffix.lower().lstrip("."), topology, args.seed, args.keep_flow_labels, address_map)
+        if args.analyze:
+            print(json.dumps({"schema_version": "1.0", "status": "analyzed", "scope": "source_record_metadata",
+                "simulation_executed": False, "topology_validation": "structural_only", "metadata": metadata}, allow_nan=False))
+            return 0
         if args.exe and not args.exe.is_file():
             raise ValueError("KNS executable does not exist")
         output = args.output.resolve()
@@ -192,7 +200,10 @@ def main(argv=None):
             return experiment_profile.main(["--profile", str(output / "profile.json"), "--exe", str(args.exe.resolve()), "--output", str(output / "experiment")])
         print("Trace bundle: " + str(output))
     except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError, csv.Error) as error:
-        print("[ERROR] " + str(error), file=sys.stderr)
+        if args.analyze:
+            print(json.dumps({"schema_version": "1.0", "status": "invalid_input", "error": str(error)}), file=sys.stderr)
+        else:
+            print("[ERROR] " + str(error), file=sys.stderr)
         return 1
     return 0
 

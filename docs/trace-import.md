@@ -191,3 +191,29 @@ Its four offered records include one truncated record and 260 original-record
 bytes. The two-slot link queue delivers three records (186 bytes) and drops one.
 Those outcomes follow the model and input ordering; they are not measurements of
 TCP/application behavior in the original network. The output directory must be new.
+
+## Analyze metadata without running KNS
+
+```powershell
+python scripts/trace_import.py "KNS Experiments/trace-lab/authored-ethernet.pcapng" --topology "KNS Experiments/trace-lab/topology.json" --address-map "KNS Experiments/trace-lab/address-map.json" --analyze
+```
+
+This mode prints version-1.0 JSON to stdout without creating a bundle or executing
+KNS. It applies the same bounded source/replay preflight and therefore still
+requires a topology and, for PCAP/PCAPNG, an explicit address map. Topology
+validation is structural only. Full native validation requires an actual run.
+It is a bounded KNS input analyzer, not a general capture dissector.
+
+The result identifies `scope: source_record_metadata`,
+`simulation_executed: false` and `status: analyzed`. Packet/wire totals, observed
+protocol counts, normalized source interarrival/size statistics and provenance
+are descriptive input metadata. They do not predict delivery, loss, network
+latency or application goodput. Source hash identifies the file; this report
+alone does not contain the per-record timeline required for replay. Use --output
+and retain the resulting manifest to prepare a replayable experiment.
+
+--analyze is mutually exclusive with --output and rejects --exe. Runtime input
+errors emit JSON `status: invalid_input` on stderr with exit 1 and no stdout;
+argument usage errors retain argparse diagnostics and exit 2. The successful
+analysis exits 0. See [the JSON contract](../contracts/trace-analysis-v1.schema.json).
+Identifier suppression and all existing input/clock limits still apply.

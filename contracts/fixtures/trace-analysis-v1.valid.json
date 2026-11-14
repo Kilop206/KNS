@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "status": "analyzed",
+  "scope": "source_record_metadata",
+  "simulation_executed": false,
+  "topology_validation": "structural_only",
+  "metadata": {
+    "schema_version": "1.0",
+    "format": "pcapng",
+    "source_sha256": "8774785ef5f734dd6168e91c96a7d056d2565f39cd9493819b9fda516eca8b93",
+    "importer_sha256": "e820bbe57c2f7242552f96f939c32e5bb7bd5ab6f779c58548aa7b127574c9a1",
+    "plan_sha256": "641bbe741e706d2ba52c17d6aa18ff265303fadcc3835ffb458518264bc917ec",
+    "packet_count": 4,
+    "source_flow_count": 2,
+    "wire_bytes_total": 260,
+    "normalized_duration_s": 0.01,
+    "absolute_time_origin_removed": true,
+    "source_flow_labels_preserved": false,
+    "floating_time_collisions": 0,
+    "decimal_normalization_precision": 200,
+    "wire_groups": [
+      {
+        "id": 1,
+        "source_flow_id": 1,
+        "source": 0,
+        "destination": 1,
+        "wire_bytes": 62,
+        "packet_count": 3
+      },
+      {
+        "id": 2,
+        "source_flow_id": 2,
+        "source": 0,
+        "destination": 1,
+        "wire_bytes": 74,
+        "packet_count": 1
+      }
+    ],
+    "wire_size_distribution": [
+      {
+        "wire_bytes": 62,
+        "packets": 3
+      },
+      {
+        "wire_bytes": 74,
+        "packets": 1
+      }
+    ],
+    "interarrival_s": {
+      "scope": "ordered normalized binary64 source offsets",
+      "count": 3,
+      "min": 0.0,
+      "max": 0.01,
+      "mean": 0.0033333333333333335,
+      "median": 0.0,
+      "sample_stddev": 0.005773502691896258,
+      "histogram": {
+        "upper_edges_s": [
+          1e-06,
+          1e-05,
+          0.0001,
+          0.001,
+          0.01,
+          0.1,
+          1
+        ],
+        "counts": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "bins": "lower inclusive, upper exclusive"
+      }
+    },
+    "limitations": "Explicit model-node mapping, abstract offered wire packets; variable sizes split into separate Analytics flow groups; no payload/protocol replay or physical topology inference; flow-label suppression does not anonymize topology metadata",
+    "pcapng": {
+      "link_type": "ethernet_ipv4",
+      "record_count": 4,
+      "protocol_counts": {
+        "tcp": 1,
+        "udp": 3
+      },
+      "truncated_records": 1,
+      "vlan_tagged_records": 0,
+      "max_vlan_depth": 0,
+      "ip_version_counts": {
+        "ipv4": 4,
+        "ipv6": 0
+      },
+      "address_map_sha256": "c65d7be45fcb6a70c7b57876e589095954fda8ee2d1475123bb8e97c6b63d7b1",
+      "parser_sha256": "b9aec0103e1e34c4bb1be7f598fef7457150ec25e4501877c60038bc4bb45ff2",
+      "wire_bytes_scope": "PCAPNG original packet length including recorded link header, excluding block/option padding; no added preamble/interframe gap/FCS",
+      "limitations": "Structural header checks only; checksums and payload are not validated/exported; no TCP/UDP protocol state, fragmentation replay or VLAN forwarding/priority semantics",
+      "decoder_sha256": "94c7973c5a933fd5e1f00eb4092970974c3b27ac3bc374d52f549324b56ce336",
+      "version": "1.0",
+      "byte_order": "little",
+      "block_counts": {
+        "section": 1,
+        "interface": 1,
+        "enhanced_packet": 4
+      },
+      "timestamp_resolution": {
+        "base": 10,
+        "exponent": 6
+      },
+      "timestamp_offset_applied": false,
+      "discarded_option_count": 2
+    }
+  }
+}

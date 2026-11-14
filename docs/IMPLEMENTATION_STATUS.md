@@ -1021,3 +1021,32 @@ execution succeeded under `build-core-mingw/pcapng-example`. Remote CI for the
 new commits is pending; 6bcf804 is the latest checked all-five-jobs success.
 Milestone 10 remains partial: general capture adapters, broader PCAPNG, fragments,
 IPv6 extensions and protocol reconstruction remain outside this subset.
+
+## Source trace JSON analysis CLI - 2026-11-14
+
+Added --analyze to the existing importer as a mutually exclusive alternative to
+--output. It emits scoped source metadata JSON without creating a bundle or
+executing KNS. The same bounded replay preflight still requires a topology and
+PCAP/PCAPNG mappings; topology validation is explicitly structural. Runtime
+errors are JSON on stderr (exit 1), successful metadata is stdout (exit 0),
+argument usage retains argparse exit 2. --exe is rejected in analysis mode.
+The report declares simulation_executed=false and source_record_metadata scope;
+no delivery, modeled latency, loss or goodput result is manufactured.
+
+Added the version-1.0 analysis JSON contract and three fixtures derived from
+actual CLI success/error output for the authored PCAPNG example. The invalid
+fixture changes simulation_executed to true and must be rejected. Tests cover
+CSV metadata, binary protocol counts/option suppression, paths with spaces,
+unchanged input/files, mutually exclusive modes and structured errors. Guides
+and roadmap describe analysis versus simulation, limits and remaining CLI work.
+
+Verification: the two affected CTest groups passed **25 Python tests with no
+skips** (`trace-analysis-ctest.log`), including existing actual KNS import/replay.
+A separate real CLI process in an empty directory emitted parseable JSON for
+four authored records/260 original-record bytes, suppressed identifiers and
+created no files in that directory. Invalid input emitted only JSON stderr.
+Its evidence is `build-core-mingw/trace-analysis-cli.json`. Contracts passed
+**18 schemas, 53 fixtures and four topologies**. Native/CMake code did not change
+since the full 462/462 CTest baseline. CI for 59d3873 is successful (43621237127);
+PCAPNG ea77a19 and this CLI increment await their remote checks. Milestones 10
+and 13 remain partial; general capture analysis and unified native CLI are pending.

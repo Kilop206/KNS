@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "status": "invalid_input",
+  "error": "CSV header requires exactly time_s, flow_id, source, destination, wire_bytes"
+}
