@@ -33,7 +33,7 @@ Native tests check tied source order, queue rejection identity, bounded pending
 source work, resume, budget truncation and atomic invalid-plan rejection. Python
 preflight checks match runtime constraints and actual CLI integration covers the
 complete and budget-truncated paths. This foundation accepts explicit modeled
-events. CSV/JSON conversion is described below; PCAP/PCAPNG remain pending. It does
+events. CSV/JSON conversion and a PCAP subset are described below. It does
 not infer physical topology, reproduce protocol state or measure a real network.
 
 ## Import CSV or JSON packet metadata
@@ -76,5 +76,50 @@ Limits: 4 MiB per trace/topology, 10000 packets, 256 endpoint/flow/size groups,
 JSON fields, malformed/extra/missing columns, unsupported fields, unknown nodes,
 empty/unsorted/non-finite inputs and excess limits fail before output creation.
 Excess data is rejected rather than truncated. Topology preflight is structural;
-the native loader validates it on execution. PCAP/PCAPNG and protocol statistics
-are pending. No captures, elevated privileges or real-network changes are needed.
+the native loader validates it on execution. No captures, elevated privileges or
+real-network changes are needed.
+
+## Classic PCAP metadata subset
+
+```powershell
+python scripts/trace_import.py capture.pcap --topology model.json --address-map ipv4-map.json --output results/pcap --exe build-core-mingw/verification-build/app/KNS.exe
+```
+
+The explicit mapping uses schema version 1.0 and `ipv4_to_node`, for example
+`{"schema_version":"1.0","ipv4_to_node":{"192.0.2.10":0,"192.0.2.20":1}}`.
+These are documentation addresses; supply mappings appropriate to your own model.
+Every observed endpoint must map to a valid model node. The map is not copied;
+its canonical hash is recorded. `--keep-flow-labels` would retain the original
+address/port/protocol tuples and should be chosen deliberately before sharing.
+
+The reader supports PCAP 2.4 with either byte order, microsecond/nanosecond
+timestamps and plain Ethernet link type 1. It extracts untagged, unfragmented
+IPv4 TCP/UDP endpoint/port metadata. Header/length bounds and UDP length/TCP data
+offsets are checked. Fully captured necessary headers allow record truncation
+afterward; `truncated_records` reports captured length below original length.
+Modeled bytes use original PCAP record length, including its recorded link header,
+without adding preamble, interframe gap or FCS. This is a declared byte scope,
+not automatic reconstruction of physical wire overhead. Checksums are not checked
+and payload bytes are not exported. Protocol counts are observed TCP/UDP records.
+
+References: [libpcap savefile specification](https://github.com/the-tcpdump-group/libpcap/blob/master/pcap-savefile.manfile.in),
+[IPv4](https://www.rfc-editor.org/rfc/rfc791.html),
+[UDP](https://www.rfc-editor.org/rfc/rfc768.html),
+[TCP header format](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.1).
+The implementation is a bounded, read-only standard-library subset rather than a
+general libpcap dissector. It keeps native builds independent of capture libraries.
+PCAPNG, IPv6, VLAN/other link types, additional PCAP link flags, fragmented traffic,
+other IP protocols and incomplete necessary headers are explicitly rejected.
+Records are never silently skipped; broader support needs a separate adapter.
+
+Each accepted record becomes an abstract offered wire packet, including captured
+control packets/retransmissions. There is no TCP state, application replay or
+deduplication. Observation times schedule source events, and subsequent latencies
+come from the model; they do not measure original end-to-end delays. Captures do
+not reveal uncaptured traffic or physical topology automatically.
+
+Tests construct clearly authored binary fixtures for four byte-order/resolution
+combinations, complete/truncated records, malformed lengths/headers, unsupported
+formats, missing maps and privacy defaults. Actual native replay exercises queue
+contention, original-length byte accounting and portable manifest reconstruction.
+Those fixtures are not real-network measurements, and no live capture is performed.

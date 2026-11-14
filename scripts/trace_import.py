@@ -15,6 +15,7 @@ import sys
 
 import experiment_manifest
 import experiment_profile
+import pcap_trace
 import traffic_config
 
 LIMIT = 4 * 1024 * 1024
@@ -45,12 +46,17 @@ def json_input(data, decimal=False):
                       parse_constant=reject, parse_float=Decimal if decimal else float)
 
 
-def convert(data, format_name, topology, seed=42, keep_flow_labels=False):
+def convert(data, format_name, topology, seed=42, keep_flow_labels=False, address_map=None):
     if len(data) > LIMIT:
         raise ValueError("Trace input exceeds 4 MiB")
     traffic_config.integer(seed, 0, 2**64 - 1, "seed")
     if type(keep_flow_labels) is not bool:
         raise ValueError("keep_flow_labels must be a boolean")
+    if not isinstance(topology, dict) or not isinstance(topology.get("nodes"), list) or not topology["nodes"] or not isinstance(topology.get("links"), list) or not topology["links"]:
+        raise ValueError("A modeled topology with nodes and links is required")
+    if address_map is not None and format_name != "pcap":
+        raise ValueError("Address maps are used only for PCAP import")
+    pcap_metadata = None
     if format_name == "csv":
         reader = csv.DictReader(io.StringIO(data.decode("utf-8-sig")), strict=True)
         if reader.fieldnames is None or len(reader.fieldnames) != len(FIELDS) or set(reader.fieldnames) != FIELDS:
@@ -71,12 +77,12 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False):
         if not isinstance(document, dict) or set(document) != {"schema_version", "packets"} or document["schema_version"] != "1.0":
             raise ValueError("JSON trace requires schema_version 1.0 and packets")
         rows = document["packets"]
+    elif format_name == "pcap":
+        rows, pcap_metadata = pcap_trace.parse(data, address_map, len(topology["nodes"]))
     else:
-        raise ValueError("Supported trace formats are csv and json; PCAP/PCAPNG are not implemented")
+        raise ValueError("Supported trace formats are csv, json and classic pcap; PCAPNG is not implemented")
     if not isinstance(rows, list) or not 1 <= len(rows) <= 10000:
         raise ValueError("Trace requires 1..10000 packets")
-    if not isinstance(topology, dict) or not isinstance(topology.get("nodes"), list) or not topology["nodes"] or not isinstance(topology.get("links"), list) or not topology["links"]:
-        raise ValueError("A modeled topology with nodes and links is required")
     groups, labels, metadata_groups, events = {}, {}, [], []
     origin = previous = previous_float = None
     wire_total = collisions = 0
@@ -146,6 +152,7 @@ def convert(data, format_name, topology, seed=42, keep_flow_labels=False):
             "sample_stddev": statistics.stdev(intervals) if len(intervals) > 1 else None,
             "histogram": {"upper_edges_s": edges, "counts": bins, "bins": "lower inclusive, upper exclusive"}},
         "limitations": "Explicit model-node mapping, abstract offered wire packets; variable sizes split into separate Analytics flow groups; no payload/protocol replay or physical topology inference; flow-label suppression does not anonymize topology metadata"}
+    if pcap_metadata is not None: metadata["pcap"] = pcap_metadata
     return plan, metadata
 
 
@@ -154,14 +161,16 @@ def main(argv=None):
     parser.add_argument("trace", type=Path)
     parser.add_argument("--topology", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="New import bundle; source trace is never copied")
-    parser.add_argument("--format", choices=("csv", "json"))
+    parser.add_argument("--format", choices=("csv", "json", "pcap"))
+    parser.add_argument("--address-map", type=Path, help="Required for PCAP: explicit IPv4-to-model-node JSON mapping")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--keep-flow-labels", action="store_true", help="Explicitly retain original flow labels in local metadata")
     parser.add_argument("--exe", type=Path, help="Optionally execute the imported profile and retain a portable manifest")
     args = parser.parse_args(argv)
     try:
         topology = json_input(read(args.topology))
-        plan, metadata = convert(read(args.trace), args.format or args.trace.suffix.lower().lstrip("."), topology, args.seed, args.keep_flow_labels)
+        address_map = json_input(read(args.address_map)) if args.address_map else None
+        plan, metadata = convert(read(args.trace), args.format or args.trace.suffix.lower().lstrip("."), topology, args.seed, args.keep_flow_labels, address_map)
         if args.exe and not args.exe.is_file():
             raise ValueError("KNS executable does not exist")
         output = args.output.resolve()

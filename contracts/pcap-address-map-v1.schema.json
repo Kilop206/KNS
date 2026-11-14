@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/pcap-address-map-v1.schema.json",
+  "title": "KNS explicit PCAP IPv4-to-model-node mapping v1", "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "ipv4_to_node"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "ipv4_to_node": {"type": "object", "minProperties": 1, "maxProperties": 4096,
+      "propertyNames": {"format": "ipv4"}, "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 2147483647}}
+  }
+}

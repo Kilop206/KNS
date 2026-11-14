@@ -837,3 +837,36 @@ examples are authored inputs, not real capture measurements. Manifest replay als
 succeeds after the original private trace is deleted. PCAP/PCAPNG/protocol parsing,
 remote CI, TLS/Linux and visual QA remain pending/unverified. Each verified commit
 is pushed to origin/main under the user's current instruction.
+
+## Bounded classic PCAP metadata reader — 2026-11-14
+
+Added a read-only PCAP 2.4 subset using explicit IPv4-to-model-node mappings.
+Both byte orders and micro/nanosecond resolutions feed the existing normalized
+ordered replay. Supported records are plain Ethernet/untagged, unfragmented IPv4
+TCP/UDP with complete necessary headers. Bounds, original/captured lengths, UDP
+length and TCP data offsets are checked. Later truncation is counted explicitly;
+modeled bytes use original record length. Payload/checksum/protocol state are not
+replayed/validated. Unknown mappings/unsupported records fail atomically; no live
+capture, sockets, privileged operation or external upload was added.
+
+The parser follows primary libpcap/RFC format references linked in trace-import.md.
+Metadata records canonical map/parser hashes, protocol counts, truncation count
+and byte scope. Original address/port labels remain suppressed by default; map
+files are not copied and topology metadata is not declared anonymous. PCAPNG,
+IPv6/VLAN/other media/flags, fragmentation and broader adapters remain pending.
+
+Files: separate pcap_trace reader/four tests; importer/CTest integration; mapping
+schema/fixtures/example; trace guide, README, roadmap and status.
+
+Verification: build passed; **CTest 462/462 passed** (`pcap-final-ctest.log`);
+actual Python **99/99 passed**, no skips (`pcap-final-python.log`). Contracts
+passed **16 schemas, 46 fixtures and four topologies**. Authored binary fixtures
+cover four endian/resolution combinations, nanosecond normalization, truncated
+records, malformed/unsupported headers/lengths, required maps and label/payload
+suppression. Saved authored fixture evidence under `build-core-mingw/pcap-final`
+contains four offered frames, three delivered and one actual queue drop: three
+UDP records and one TCP record, 260 original record bytes offered, one truncated
+record. Native CSV/traffic ledger match manifest replay byte-for-byte under
+`pcap-final-replay`. These are authored test inputs and model results, not measured
+real-network data. Remote CI, TLS/Linux and visual QA remain unverified. This
+verified commit is pushed immediately under the user's current instruction.
