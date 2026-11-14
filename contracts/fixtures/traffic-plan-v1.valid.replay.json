@@ -1,0 +1,5 @@
+{
+  "schema_version":"1.0","seed":42,"max_packets":10,
+  "flows":[{"id":1,"source":0,"destination":1,"wire_bytes":125,"start_s":0,"end_s":1,"schedule":{"kind":"replay"}}],
+  "replay_events":[{"at_s":0,"flow_id":1},{"at_s":0,"flow_id":1},{"at_s":0.1,"flow_id":1}]
+}

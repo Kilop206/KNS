@@ -11,6 +11,7 @@ public:
     ~TrafficRun();
     nlohmann::json toJson(double simulation_time_s) const;
     void generate(SimulationEngine&, std::size_t flow_index);
+    void replay(SimulationEngine&, std::size_t event_index);
     void respond(SimulationEngine&, std::size_t flow_index, double operation_started_s);
     void delivered(SimulationEngine&, std::size_t flow_index, const Packet&, bool response, double operation_started_s);
     void rejected(std::size_t flow_index, bool response) noexcept;

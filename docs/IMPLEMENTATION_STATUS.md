@@ -779,3 +779,31 @@ models, search/replication, larger populations and Studio planning remain pendin
 Industrial/Traffic/Analytics model limitations, unverified remote CI/TLS/Linux and
 visual QA remain applicable. No real network changes or privileged actions were
 introduced.
+
+## Ordered trace replay foundation — 2026-11-14
+
+Published the previously validated local history to origin/main as requested by
+the user, then resumed with small verified commits and a push after each commit.
+The clean pre-change baseline passed 456/456 CTest checks
+(`build-core-mingw/trace-baseline-ctest.log`).
+
+Added root `replay_events` and replay-only flow schedules to Traffic Lab. One
+source event advances the ordered timeline, retaining array order at tied times;
+normal network arrivals keep timestamp/event-ID semantics. The full plan is
+validated before scheduling, with 10000-event/256-flow limits, known references,
+ordered flow-window timestamps and no synthesized application responses. Time/
+event interruption preserves the suffix; insufficient packet budget remains
+explicitly incomplete even after emitted packets drain. Existing generation,
+deadline/byte/drop ledgers and CLI/profile/manifest paths are reused.
+
+Files: native TrafficRun API/implementation and four replay cases; Python
+preflight/actual CLI tests; schema/fixtures; trace guide, roadmap and status.
+The example fixture is directly executable with --traffic-plan. CSV/JSON
+conversion and PCAP/PCAPNG are not claimed by this foundation.
+
+Evidence: MinGW/C++20 build passed; focused replay tests **43 assertions/four
+cases passed**, including queue rejection identity for tied sources. Full CTest
+**460/460 passed** (`replay-foundation-ctest.log`). Actual-engine Python
+**91/91 passed**, no skips (`replay-core-python.log`). Contracts passed **14
+schemas, 42 fixtures and four topologies**. No real network traffic or privileges
+were introduced. Remote CI, TLS/Linux and browser visual QA remain unverified.

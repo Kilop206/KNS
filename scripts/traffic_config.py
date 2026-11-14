@@ -25,8 +25,9 @@ def number(value, low, high, label):
 
 
 def validate(plan, topology=None):
-    if not isinstance(plan, dict) or set(plan) != {"schema_version", "seed", "max_packets", "flows"}:
-        raise ValueError("Traffic plan requires only schema_version, seed, max_packets and flows")
+    required = {"schema_version", "seed", "max_packets", "flows"}
+    if not isinstance(plan, dict) or not required <= set(plan) or set(plan) - required - {"replay_events"}:
+        raise ValueError("Traffic plan requires schema_version, seed, max_packets, flows and optional replay_events")
     if plan["schema_version"] != "1.0":
         raise ValueError("Unsupported traffic schema_version")
     integer(plan["seed"], 0, 2**64 - 1, "traffic seed")
@@ -72,11 +73,16 @@ def validate(plan, topology=None):
         schedule = flow["schedule"]
         fields = {"periodic": {"interval_s"}, "cbr": {"rate_bps"}, "poisson": {"rate_pps"},
                   "uniform": {"min_interval_s", "max_interval_s"},
-                  "burst": {"burst_packets", "burst_interval_s", "packet_interval_s"}, "custom": {"offsets_s"}}
+                  "burst": {"burst_packets", "burst_interval_s", "packet_interval_s"}, "custom": {"offsets_s"}, "replay": set()}
         if not isinstance(schedule, dict) or not isinstance(schedule.get("kind"), str) or schedule["kind"] not in fields or set(schedule) != {"kind"} | fields[schedule["kind"]]:
             raise ValueError("Traffic schedule kind/fields are invalid")
         kind = schedule["kind"]
-        if kind == "custom":
+        if "replay_events" in plan and kind != "replay":
+            raise ValueError("Replay plans require only replay schedules")
+        if kind == "replay":
+            if "replay_events" not in plan or "application" in flow:
+                raise ValueError("Replay schedules require replay_events and do not synthesize application responses")
+        elif kind == "custom":
             offsets = schedule["offsets_s"]
             if not isinstance(offsets, list) or not 1 <= len(offsets) <= 10000:
                 raise ValueError("Custom traffic needs 1..10000 offsets")
@@ -99,6 +105,25 @@ def validate(plan, topology=None):
                 n = integer(schedule["burst_packets"], 1, 1000000, "burst_packets")
                 if (n - 1) * schedule["packet_interval_s"] >= schedule["burst_interval_s"]:
                     raise ValueError("Bursts must not overlap")
+    if "replay_events" in plan:
+        events = plan["replay_events"]
+        if not isinstance(events, list) or not 1 <= len(events) <= 10000:
+            raise ValueError("Replay requires 1..10000 events")
+        by_id = {flow["id"]: flow for flow in flows}
+        previous, referenced = -1, set()
+        for event in events:
+            if not isinstance(event, dict) or set(event) != {"at_s", "flow_id"}:
+                raise ValueError("Replay event requires at_s and flow_id")
+            flow_id = integer(event["flow_id"], 1, 2**32 - 1, "replay flow_id")
+            if flow_id not in by_id:
+                raise ValueError("Replay selects an unknown flow")
+            at = number(event["at_s"], 0, 1e6, "replay at_s")
+            flow = by_id[flow_id]
+            if at < previous or not flow["start_s"] <= at < flow["end_s"]:
+                raise ValueError("Replay times must be ordered and within each flow window")
+            previous = at; referenced.add(flow_id)
+        if referenced != ids:
+            raise ValueError("Replay must reference every configured flow")
 
 
 def validate_report(report, plan, complete=True):

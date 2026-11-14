@@ -3,11 +3,25 @@
   "$id": "https://userex.dev/contracts/kns/traffic-plan-v1.schema.json",
   "title": "KNS abstract traffic plan v1", "type": "object", "additionalProperties": false,
   "required": ["schema_version", "seed", "max_packets", "flows"],
+  "allOf": [{
+    "if": {"required": ["replay_events"]},
+    "then": {"properties": {"flows": {"items": {
+      "properties": {"schedule": {"properties": {"kind": {"const": "replay"}}}}, "not": {"required": ["application"]}
+    }}}},
+    "else": {"properties": {"flows": {"items": {
+      "properties": {"schedule": {"properties": {"kind": {"not": {"const": "replay"}}}}}
+    }}}}
+  }],
   "properties": {
     "schema_version": {"const": "1.0"},
     "seed": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
     "max_packets": {"type": "integer", "minimum": 1, "maximum": 1000000},
-    "flows": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/flow"}}
+    "flows": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/flow"}},
+    "replay_events": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {
+      "type": "object", "additionalProperties": false, "required": ["at_s", "flow_id"],
+      "properties": {"at_s": {"type": "number", "minimum": 0, "maximum": 1000000},
+                     "flow_id": {"type": "integer", "minimum": 1, "maximum": 4294967295}}
+    }}
   },
   "$defs": {
     "interval": {"type": "number", "minimum": 0.000000001, "maximum": 1000000},
@@ -37,6 +51,7 @@
         "deadline_s": {"$ref": "#/$defs/interval"},
         "application": {"$ref": "#/$defs/application"},
         "schedule": {"oneOf": [
+          {"type": "object", "additionalProperties": false, "required": ["kind"], "properties": {"kind": {"const": "replay"}}},
           {"type": "object", "additionalProperties": false, "required": ["kind", "interval_s"],
            "properties": {"kind": {"const": "periodic"}, "interval_s": {"$ref": "#/$defs/interval"}}},
           {"type": "object", "additionalProperties": false, "required": ["kind", "rate_bps"],

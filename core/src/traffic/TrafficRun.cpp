@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <random>
 #include <set>
 #include <stdexcept>
@@ -65,6 +66,7 @@ struct Flow {
     std::mt19937_64 random;
     std::shared_ptr<Counters> counters = std::make_shared<Counters>();
     bool generation_pending = false;
+    std::size_t pending_replay = 0;
     Flow(Json input, std::uint64_t root_seed) : config(std::move(input)),
         seed(streamSeed(root_seed, config.at("id"))), random(seed) {}
     double uniform() { return static_cast<double>(random() >> 11) * 0x1.0p-53; }
@@ -74,6 +76,7 @@ struct Flow {
         const auto ordinal = counters->source_generated;
         const double start = config.at("start_s"), end = config.at("end_s");
         double at = start;
+        if (kind == "replay") return {};
         if (kind == "periodic") at += ordinal * schedule.at("interval_s").get<double>();
         else if (kind == "cbr") at += ordinal * (8.0 * config.at("wire_bytes").get<double>() / schedule.at("rate_bps").get<double>());
         else if (kind == "custom") {
@@ -104,6 +107,14 @@ public:
     GenerateEvent(double at, std::shared_ptr<TrafficRun> run, std::size_t flow) : Event(at), run_(std::move(run)), flow_(flow) {}
     void execute(SimulationEngine& engine) override { run_->generate(engine, flow_); }
 };
+class ReplayEvent final : public Event {
+    std::shared_ptr<TrafficRun> run_;
+    std::size_t index_;
+public:
+    ReplayEvent(double at, std::shared_ptr<TrafficRun> run, std::size_t index)
+        : Event(at), run_(std::move(run)), index_(index) {}
+    void execute(SimulationEngine& engine) override { run_->replay(engine, index_); }
+};
 class ResponseEvent final : public Event {
     std::shared_ptr<TrafficRun> run_;
     std::size_t flow_;
@@ -117,16 +128,18 @@ bool hasResponse(const Json& flow) {
     return flow.contains("application") && flow.at("application").contains("response_wire_bytes");
 }
 void validate(const Json& plan, const SimulationEngine& engine) {
-    fields(plan, {"schema_version", "seed", "max_packets", "flows"});
+    fields(plan, {"schema_version", "seed", "max_packets", "flows"}, {"replay_events"});
     if (plan.at("schema_version") != "1.0") throw std::invalid_argument("Unsupported traffic schema_version");
     integer(plan.at("seed"), 0, std::numeric_limits<std::uint64_t>::max(), "seed");
     integer(plan.at("max_packets"), 1, 1000000, "max_packets");
     const auto& flows = plan.at("flows");
     if (!flows.is_array() || flows.empty() || flows.size() > 256) throw std::invalid_argument("Traffic requires 1..256 flows");
     std::set<std::uint64_t> ids;
+    std::map<std::uint64_t, const Json*> by_id;
     for (const auto& flow : flows) {
         fields(flow, {"id", "source", "destination", "start_s", "end_s", "wire_bytes", "schedule"}, {"priority", "ttl_hops", "deadline_s", "application"});
         if (!ids.insert(integer(flow.at("id"), 1, 0xffffffff, "flow id")).second) throw std::invalid_argument("Duplicate traffic flow id");
+        by_id.emplace(flow.at("id").get<std::uint64_t>(), &flow);
         for (const auto* key : {"source", "destination"}) {
             const auto node = integer(flow.at(key), 0, std::numeric_limits<int>::max(), key);
             if (node >= static_cast<std::uint64_t>(engine.getTopology().size())) throw std::invalid_argument("Traffic endpoint does not exist");
@@ -157,7 +170,12 @@ void validate(const Json& plan, const SimulationEngine& engine) {
         const auto& schedule = flow.at("schedule");
         if (!schedule.is_object() || !schedule.contains("kind") || !schedule.at("kind").is_string()) throw std::invalid_argument("Missing traffic schedule kind");
         const auto kind = schedule.at("kind").get<std::string>();
-        if (kind == "periodic") {
+        if (plan.contains("replay_events") && kind != "replay") throw std::invalid_argument("Replay plans require only replay schedules");
+        if (kind == "replay") {
+            fields(schedule, {"kind"});
+            if (!plan.contains("replay_events") || flow.contains("application"))
+                throw std::invalid_argument("Replay schedules require replay_events and do not synthesize application responses");
+        } else if (kind == "periodic") {
             fields(schedule, {"kind", "interval_s"}); number(schedule.at("interval_s"), 1e-9, 1e6, "interval_s");
         } else if (kind == "cbr" || kind == "poisson") {
             const char* key = kind == "cbr" ? "rate_bps" : "rate_pps";
@@ -184,15 +202,42 @@ void validate(const Json& plan, const SimulationEngine& engine) {
             }
         } else throw std::invalid_argument("Unknown traffic schedule kind");
     }
+    if (plan.contains("replay_events")) {
+        const auto& events = plan.at("replay_events");
+        if (!events.is_array() || events.empty() || events.size() > 10000) throw std::invalid_argument("Replay requires 1..10000 events");
+        double previous = -1;
+        std::set<std::uint64_t> referenced;
+        for (const auto& event : events) {
+            fields(event, {"at_s", "flow_id"});
+            const auto id = integer(event.at("flow_id"), 1, 0xffffffff, "replay flow_id");
+            const auto found = by_id.find(id);
+            if (found == by_id.end()) throw std::invalid_argument("Replay selects an unknown flow");
+            const double at = number(event.at("at_s"), 0, 1e6, "replay at_s");
+            const auto& flow = *found->second;
+            if (at < previous || at < flow.at("start_s").get<double>() || at >= flow.at("end_s").get<double>())
+                throw std::invalid_argument("Replay times must be ordered and within each flow window");
+            previous = at; referenced.insert(id);
+        }
+        if (referenced != ids) throw std::invalid_argument("Replay must reference every configured flow");
+    }
 }
 }
 struct TrafficRun::Data {
     Json config;
     std::vector<Flow> flows;
+    std::vector<std::pair<double, std::size_t>> replay_events;
     std::uint64_t generated = 0, maximum;
     bool limited = false;
     explicit Data(const Json& plan) : config(plan), maximum(plan.at("max_packets")) {
         for (const auto& flow : plan.at("flows")) flows.emplace_back(flow, plan.at("seed"));
+        if (plan.contains("replay_events")) {
+            std::map<std::uint32_t, std::size_t> indices;
+            for (std::size_t i = 0; i < flows.size(); ++i) indices.emplace(flows[i].config.at("id"), i);
+            for (const auto& event : plan.at("replay_events")) {
+                const auto index = indices.at(event.at("flow_id"));
+                replay_events.emplace_back(event.at("at_s"), index); ++flows[index].pending_replay;
+            }
+        }
     }
 };
 TrafficRun::TrafficRun(const Json& plan) : data_(std::make_unique<Data>(plan)) {}
@@ -201,6 +246,10 @@ std::shared_ptr<TrafficRun> TrafficRun::schedule(SimulationEngine& engine, const
     validate(plan, engine);
     auto run = std::shared_ptr<TrafficRun>(new TrafficRun(plan));
     engine.claimTrafficPlan();
+    if (!run->data_->replay_events.empty()) {
+        engine.schedule(std::make_unique<ReplayEvent>(run->data_->replay_events.front().first, run, 0));
+        return run;
+    }
     for (std::size_t i = 0; i < run->data_->flows.size(); ++i) {
         auto& flow = run->data_->flows[i];
         if (const auto at = flow.next(flow.config.at("start_s"))) {
@@ -209,6 +258,16 @@ std::shared_ptr<TrafficRun> TrafficRun::schedule(SimulationEngine& engine, const
         }
     }
     return run;
+}
+void TrafficRun::replay(SimulationEngine& engine, std::size_t event_index) {
+    auto& d = *data_;
+    const auto index = d.replay_events.at(event_index).second;
+    --d.flows.at(index).pending_replay;
+    generate(engine, index);
+    if (event_index + 1 < d.replay_events.size()) {
+        if (d.generated >= d.maximum) d.limited = true;
+        else engine.schedule(std::make_unique<ReplayEvent>(d.replay_events[event_index + 1].first, shared_from_this(), event_index + 1));
+    }
 }
 void TrafficRun::generate(SimulationEngine& engine, std::size_t index) {
     auto& d = *data_;
@@ -278,7 +337,7 @@ Json TrafficRun::toJson(double now) const {
     for (const auto& flow : d.flows) {
         const auto& c = *flow.counters;
         delivered += c.delivered; dropped += c.dropped;
-        const bool pending_generation = flow.generation_pending || c.pending_responses != 0;
+        const bool pending_generation = flow.generation_pending || c.pending_responses != 0 || flow.pending_replay != 0;
         generation_pending = generation_pending || pending_generation;
         const auto operations_started = hasResponse(flow.config) ? c.source_generated : 0;
         flows.push_back({{"id", flow.config.at("id")}, {"stream_seed", flow.seed}, {"config", flow.config},

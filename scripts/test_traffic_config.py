@@ -18,9 +18,40 @@ class TrafficConfigTests(unittest.TestCase):
         self.plan = json.loads((LAB / "traffic.json").read_text())
         self.topology = json.loads((LAB / "topology.json").read_text())
 
-    def test_example_validates_every_schedule(self):
+    def test_example_validates_six_generated_schedules(self):
         traffic_config.validate(self.plan, self.topology)
         self.assertEqual(len({f["schedule"]["kind"] for f in self.plan["flows"]}), 6)
+
+    def test_replay_preflight_matches_the_ordered_bounded_contract(self):
+        plan = json.loads((ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text())
+        traffic_config.validate(plan, self.topology)
+        for mutate in (
+            lambda p: p.pop("replay_events"),
+            lambda p: p.update(replay_events=[]),
+            lambda p: p["replay_events"][0].update(flow_id=99),
+            lambda p: p["replay_events"][1].update(at_s=-1),
+            lambda p: p["replay_events"][2].update(at_s=1),
+            lambda p: p["flows"][0].update(application={"kind": "telemetry"}),
+        ):
+            invalid = copy.deepcopy(plan); mutate(invalid)
+            with self.assertRaises(ValueError): traffic_config.validate(invalid, self.topology)
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for replay integration")
+    def test_actual_cli_replays_and_marks_source_budget_truncation(self):
+        plan = json.loads((ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text())
+        with tempfile.TemporaryDirectory(prefix="KNS replay ") as folder:
+            root = Path(folder)
+            for limit, code in ((10, 0), (2, 3)):
+                plan["max_packets"] = limit
+                source = root / "plan.json"; source.write_text(json.dumps(plan))
+                output = root / f"replay {limit}.csv"
+                completed = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
+                    "--traffic-plan", str(source), "--output", str(output)], capture_output=True, timeout=30)
+                self.assertEqual(completed.returncode, code, completed.stderr)
+                report = json.loads(Path(str(output) + ".traffic.json").read_text())
+                self.assertEqual(report["generated"], min(limit, 3))
+                self.assertEqual(report["delivered"], min(limit, 3))
+                traffic_config.validate_report(report, plan, complete=code == 0)
 
     def test_invalid_plans_have_explicit_preflight_errors(self):
         for mutation in (
