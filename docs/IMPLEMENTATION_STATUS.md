@@ -908,7 +908,7 @@ drop; delivered bytes include the recorded tags. No native model was changed.
 The earlier CI fix is pushed as 44ca7b7; its remote run 43612732498 is still in
 progress. IPv6/PCAPNG and wider capture support remain pending.
 
-## Direct IPv6 PCAP metadata import ? 2026-11-14
+## Direct IPv6 PCAP metadata import - 2026-11-14
 
 Added fixed-header IPv6 with direct TCP/UDP, including the supported VLAN stack.
 Explicit address map 1.1 supports IPv4 and/or canonical unscoped IPv6 entries;
@@ -937,7 +937,7 @@ and Windows MinGW/native context validation. macOS is still in progress; newer
 trace commits require their own remote results. PCAPNG and IPv6 extensions remain
 pending. Milestone 10 remains partial.
 
-## Explicit CI build concurrency ? 2026-11-14
+## Explicit CI build concurrency - 2026-11-14
 
 The macOS build in run 43612732498 remains in the compile step after the other
 four jobs passed. The standard and warnings-as-errors builds used --parallel
@@ -947,3 +947,39 @@ the long macOS build or performance improvement is claimed without a new run.
 The same explicit two-job command already succeeds in the remote sanitizer and
 MinGW jobs. Workflow syntax and diffs are checked; macOS validation is pending.
 The portable-path assertion fix is still not recorded as verified on macOS.
+
+## Integration deadlines and failure diagnostics - 2026-11-14
+
+The initial combined PCAPNG working-tree regression reported 108/110 Python
+passes and 457/462 CTest passes. The industrial control case expired at the
+60-second runner deadline; four Python suites exceeded their 60-second outer
+CTest guards. A headless snapshot was correct but command exit exceeded its
+10-second smoke guard. Polling tests also assumed sub-two-second startup and
+sub-ten-second cleanup. These expired cases were not accepted as model results.
+
+Process tests now control a monotonic decision clock before/after the deadline
+while retaining real child processes and tree cleanup. Success checks allow
+startup time; timeout status/report/file assertions replace host-speed assertions.
+Industrial test failures include captured diagnostics. The industrial CLI adds
+--timeout (finite positive real seconds per case, default unchanged at 60),
+recorded in the manifest. Both actual 100-sensor test layouts use 180 seconds per
+case and still verify packet counts, fault/recovery paths and control operations.
+
+Python CTest suites now use the configurable KNS_PYTHON_TEST_TIMEOUT real-time
+guard (600 seconds by default, integers 1..3600). The headless smoke uses finite
+60-second per-command guards and a 1200-second outer guard, including formerly
+unbounded argument-error calls. No virtual duration, traffic, model or delivery
+criteria were changed. See testing.md and iiot.md.
+
+Combined working-tree verification, including PCAPNG committed separately:
+build passed; full sequential CTest **462/462 passed**, 1107.38 real seconds
+(`integration-final-ctest.log`). Its 11 Python entries executed **112 tests with
+no skips**, confirmed from Testing/Temporary/LastTest.log. Industrial integration
+passed in 141.97 seconds; all preserved simulation assertions passed. Contract
+validation passed **17 schemas, 50 fixtures and four topologies**. These times
+are host observations, not a performance guarantee or acceptance threshold.
+
+Remote CI runs 43613040525 (8a99a3d) and 43617090094 (6bcf804) pass all five
+jobs: Ubuntu, macOS, Windows MinGW/native context, sanitizers and warnings-as-errors.
+They establish the earlier portability fixes; new integration/trace commits
+require their own remote runs. The user's original build remains preserved.

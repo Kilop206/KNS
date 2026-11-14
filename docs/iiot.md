@@ -71,3 +71,11 @@ Tests execute both actual 100-sensor networks and inspect paths before/during/
 after failure, packet counts, control completions and real timing records. MQTT,
 gateway/broker node failures, richer device behavior, larger scales and Industrial
 Studio controls remain pending.
+
+The optional `--timeout SECONDS` sets a finite positive real-time deadline per
+executed case (default 60). For slower machines, e.g. add `--timeout 180` to the
+industrial command. This does not change virtual duration, offered traffic or
+acceptance criteria. The experiment manifest stores `configuration.timeout_seconds`
+and replay preserves it. Invalid/non-finite/nonpositive values fail before
+creating scenario outputs. Integration tests use 180 seconds per case to verify
+simulation outcomes rather than impose a hardware performance target.

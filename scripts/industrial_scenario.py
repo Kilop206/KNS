@@ -3,6 +3,7 @@
 import argparse
 import copy
 import json
+import math
 from pathlib import Path
 import platform
 import sys
@@ -69,8 +70,11 @@ def main(argv=None):
     parser.add_argument("--redundant", action="store_true", help="Alternate uplink path; the common gateway remains a single point of failure")
     parser.add_argument("--output", type=Path, required=True, help="New scenario directory")
     parser.add_argument("--exe", type=Path, help="If supplied, execute all three variants and save measured results")
+    parser.add_argument("--timeout", type=float, default=60.0, help="Positive real seconds per executed case; not simulated duration (default: 60)")
     args = parser.parse_args(argv)
     try:
+        if not math.isfinite(args.timeout) or args.timeout <= 0:
+            raise ValueError("--timeout must be finite and positive")
         topology, profile = configuration(args.sensors, args.redundant, args.seed)
         if args.exe and not args.exe.is_file():
             raise ValueError("KNS executable does not exist")
@@ -88,7 +92,7 @@ def main(argv=None):
         if args.exe:
             started = time.perf_counter()
             code = experiment_profile.main(["--profile", str(output / "profile.json"), "--exe", str(args.exe.resolve()),
-                                           "--output", str(output / "experiment")])
+                                           "--output", str(output / "experiment"), "--timeout", str(args.timeout)])
             elapsed = time.perf_counter() - started
             if code:
                 return code

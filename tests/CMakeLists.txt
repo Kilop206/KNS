@@ -53,53 +53,57 @@ catch_discover_tests(kns_tests)
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    set(KNS_PYTHON_TEST_TIMEOUT 600 CACHE STRING "Bounded Python integration test timeout in real seconds (1..3600)")
+    if(NOT KNS_PYTHON_TEST_TIMEOUT MATCHES "^[1-9][0-9]*$" OR KNS_PYTHON_TEST_TIMEOUT GREATER 3600)
+        message(FATAL_ERROR "KNS_PYTHON_TEST_TIMEOUT must be an integer in 1..3600 real seconds")
+    endif()
     add_test(NAME pcap_trace_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_pcap_trace.py -v)
-    set_tests_properties(pcap_trace_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(pcap_trace_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME trace_import_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_trace_import.py -v)
-    set_tests_properties(trace_import_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(trace_import_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME capacity_planner_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_capacity_planner.py -v)
-    set_tests_properties(capacity_planner_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(capacity_planner_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME industrial_scenario_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_industrial_scenario.py -v)
-    set_tests_properties(industrial_scenario_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(industrial_scenario_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME result_validation_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_validate_result.py -v)
-    set_tests_properties(result_validation_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(result_validation_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME traffic_config_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_traffic_config.py -v)
-    set_tests_properties(traffic_config_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(traffic_config_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME experiment_manifest_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_manifest.py -v)
-    set_tests_properties(experiment_manifest_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(experiment_manifest_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME runner_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_run.py -v
     )
-    set_tests_properties(runner_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(runner_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME experiment_profile_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_profile.py -v
     )
-    set_tests_properties(experiment_profile_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(experiment_profile_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME experiment_comparison_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_compare_experiments.py -v
     )
-    set_tests_properties(experiment_comparison_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(experiment_comparison_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME analytics_report_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_analytics_report.py -v)
-    set_tests_properties(analytics_report_tests PROPERTIES TIMEOUT 60)
+    set_tests_properties(analytics_report_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     if(TARGET KNS)
         set_tests_properties(pcap_trace_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")

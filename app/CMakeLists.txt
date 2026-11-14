@@ -67,7 +67,7 @@ if(KNS_BUILD_TESTS)
             -DKNS_TOPOLOGY=${CMAKE_CURRENT_SOURCE_DIR}/topologies/mesh4.json
             -DKNS_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/execution-limit-tests
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunHeadlessLimits.cmake)
-    set_tests_properties(headless_execution_limits PROPERTIES TIMEOUT 60)
+    set_tests_properties(headless_execution_limits PROPERTIES TIMEOUT 1200)
     add_test(
         headless_run_configuration
         ${CMAKE_COMMAND}

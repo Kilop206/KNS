@@ -31,17 +31,29 @@ class IndustrialScenarioTests(unittest.TestCase):
                 self.assertEqual(industrial_scenario.main(["--output", str(output)]), 1)
             self.assertEqual((output / "keep.txt").read_text(), "existing scenario")
 
+    def test_invalid_case_timeout_fails_before_creating_outputs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "scenario"
+            for value in ("0", "-1", "nan", "inf"):
+                with self.subTest(timeout=value), redirect_stderr(io.StringIO()):
+                    self.assertEqual(industrial_scenario.main(["--output", str(output), "--timeout", value]), 1)
+                self.assertFalse(output.exists())
+
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real industrial scenarios")
     def test_100_sensor_uplink_failure_and_redundancy_use_real_routing(self):
         with tempfile.TemporaryDirectory(prefix="KNS industrial ") as folder:
             measurements = []
             for redundant in (False, True):
                 output = Path(folder) / ("redundant" if redundant else "single")
-                arguments = ["--sensors", "100", "--output", str(output), "--exe", os.environ["KNS_TEST_EXE"]]
+                arguments = ["--sensors", "100", "--output", str(output), "--exe", os.environ["KNS_TEST_EXE"], "--timeout", "180"]
                 if redundant: arguments.append("--redundant")
-                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                    self.assertEqual(industrial_scenario.main(arguments), 0)
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    result = industrial_scenario.main(arguments)
+                self.assertEqual(result, 0, stderr.getvalue() + stdout.getvalue())
                 report = json.loads((output / "measurements.json").read_text())
+                manifest = json.loads((output / "experiment/manifest.json").read_text())
+                self.assertEqual(manifest["configuration"]["timeout_seconds"], 180)
                 self.assertEqual(len(report["cases"]), 3)
                 self.assertTrue(all(case["generated"] == 1010 for case in report["cases"]))
                 self.assertTrue(all(case["control_operations_completed"] == 5 for case in report["cases"]))
