@@ -351,7 +351,10 @@ class ExperimentProfileTests(unittest.TestCase):
         self.assertEqual(self.invoke("--generate-only"), 0)
         self.assertEqual(json.loads((self.output / "traffic.json").read_text()), self.profile["traffic_plan"])
         suite = benchmark_suite.load_suite(self.output / "suite.json")
-        self.assertTrue(all(case["traffic_plan"] == str(self.output / "traffic.json") for case in benchmark_suite.expand_cases(suite)))
+        # macOS exposes temporary directories through /var -> /private/var.
+        # Generated suites use resolved paths; compare the referenced files.
+        self.assertTrue(all(Path(case["traffic_plan"]).resolve() == (self.output / "traffic.json").resolve()
+                            for case in benchmark_suite.expand_cases(suite)))
         self.assertEqual(manifests.load(self.output / "manifest.json")["configuration"]["profile"]["traffic_plan"], self.profile["traffic_plan"])
         for field, values in (("packet_sizes", [500, 1000]), ("congestion_controls", ["reno", "cubic"])):
             invalid = copy.deepcopy(self.profile); invalid[field] = values

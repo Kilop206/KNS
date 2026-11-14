@@ -870,3 +870,24 @@ record. Native CSV/traffic ledger match manifest replay byte-for-byte under
 `pcap-final-replay`. These are authored test inputs and model results, not measured
 real-network data. Remote CI, TLS/Linux and visual QA remain unverified. This
 verified commit is pushed immediately under the user's current instruction.
+
+## Remote CI portability follow-up — 2026-11-14
+
+Inspected GitHub Actions run 43593011143 at eff3603. The sanitizer job passed
+on Ubuntu; Windows MinGW built and passed CTest before native CPython context
+validation failed with Windows status 0xC0000135 (missing runtime DLL). Native
+validation now inherits the complete installed MinGW bin directory through
+GITHUB_PATH instead of five manually selected DLLs. This configures CI runtime
+lookup; it is not a portable release packaging solution.
+
+macOS built successfully and reported one failing Python profile assertion:
+the suite resolves temporary paths through /private/var while the test compared
+the /var spelling. The assertion now compares resolved paths. The Ubuntu matrix
+build was cancelled and the warnings-as-errors build had no available failure
+log; neither is recorded as passing. These findings supersede the earlier blanket
+statement that remote TLS/Linux checks were unverified for eff3603.
+
+Local verification: pre-change CTest 462/462 passed
+(`pcap-extensions-baseline.log`); the updated profile suite passed 28/28 with the
+actual executable (`ci-path-tests.log`). macOS and MSYS2 execution of these fixes
+await a new remote run; local Windows testing cannot establish those outcomes.
