@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.1",
+  "assertions": [
+    {
+      "name": "delivery-baseline",
+      "metric": "delivery_ratio",
+      "operator": ">=",
+      "baseline_offset": -0.01,
+      "value": 0.99
+    },
+    {
+      "name": "no-pending-packets",
+      "metric": "pending",
+      "operator": "==",
+      "value": 0
+    }
+  ]
+}

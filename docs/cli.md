@@ -67,6 +67,8 @@ enabled run; replace its input with that report. Neither command reruns the
 simulation. Validation writes JSON, JUnit XML and Markdown: exit 0 means all rules
 passed, 1 means valid input with failed assertions, and 2 means invalid input.
 Reports preserve metric scopes, units, denominators and model limitations.
+Rules 1.1 accept `baseline_offset` and a complete `--baseline` report with the
+identical workload, recorded streams and source cohorts; see [validation.md](validation.md).
 
 ## Trace import and industrial/capacity scenarios
 

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://userex.dev/contracts/kns/validation-rules-v1.1.schema.json",
+  "title": "KNS Traffic Lab absolute and baseline-offset assertion rules v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assertions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1"
+    },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "operator"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+          },
+          "metric": {
+            "enum": [
+              "generated",
+              "delivered",
+              "dropped",
+              "pending",
+              "operations_started",
+              "operations_completed",
+              "operations_failed",
+              "operations_pending",
+              "delivery_ratio",
+              "packet_loss_ratio",
+              "pending_ratio",
+              "operation_completion_ratio",
+              "on_time_operation_ratio",
+              "on_time_packet_ratio",
+              "operation_latency_mean_s",
+              "operation_latency_p50_s",
+              "operation_latency_p95_s",
+              "operation_latency_p99_s"
+            ]
+          },
+          "operator": {
+            "enum": [
+              ">=",
+              "<=",
+              ">",
+              "<",
+              "==",
+              "!="
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "flow_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295
+          },
+          "baseline_offset": {
+            "type": "number",
+            "description": "Additive offset in metric units to the matching baseline metric; requires --baseline."
+          }
+        },
+        "if": {
+          "properties": {
+            "metric": {
+              "enum": [
+                "operation_latency_mean_s",
+                "operation_latency_p50_s",
+                "operation_latency_p95_s",
+                "operation_latency_p99_s"
+              ]
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "flow_id"
+          ]
+        },
+        "oneOf": [
+          {
+            "required": [
+              "value"
+            ]
+          },
+          {
+            "required": [
+              "baseline_offset"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

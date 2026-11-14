@@ -1050,3 +1050,36 @@ Its evidence is `build-core-mingw/trace-analysis-cli.json`. Contracts passed
 since the full 462/462 CTest baseline. CI for 59d3873 is successful (43621237127);
 PCAPNG ea77a19 and this CLI increment await their remote checks. Milestones 10
 and 13 remain partial; general capture analysis and unified native CLI are pending.
+
+## Versioned baseline-offset validation - 2026-11-14
+
+Rules 1.1 add baseline_offset as an alternative to absolute value: candidate
+metric operator (reference metric + offset), in the same units. Rules/results
+1.0 remain supported. The optional --baseline input must be complete and match
+canonical workload configuration, reported model, recorded per-flow random
+streams and primary generated counts. Latency unit/scope mismatches are rejected;
+unavailable values/zero denominators fail even !=. Overflowing effective limits
+are invalid input. Duplicate JSON fields are now rejected unambiguously.
+
+JSON records the baseline file/configuration hashes, observed reference, offset,
+effective threshold and scope/evidence. JUnit and Markdown expose those details.
+Missing/unused/null/incompatible references fail before output creation. Existing
+exit codes, old absolute rules and output/source preservation remain intact.
+Added the rules 1.1 schema/fixtures, a runnable Traffic Lab rule file, guides and
+CI validation of an actual upgrade against its actual control (not itself), with
+baseline verdict artifacts. Historical saved results may also be supplied.
+
+Verification: result_validation_tests passed **5 tests, no skips**
+(`baseline-validation-final.log`), including actual 10/1 Mbps runs, pass/fail exits,
+JUnit, hashes, undefined metrics, changed seed, and structurally consistent but
+model/stream/cohort-incompatible inputs. Contracts passed **19 schemas/55 fixtures/
+four topologies**. Exact local CI commands ran all four profile cases/seeds and
+passed both the absolute and baseline verdicts. The inverse comparison returned
+exit 1: observed 0.7423312883435583 against reference 0.9693251533742331 and
+threshold 0.9593251533742331. These are model results, not real-network measurements.
+Evidence: baseline-ci-reference, baseline-ci-verdict and baseline-ci-regression
+under build-core-mingw. No native model changed since the full CTest baseline.
+
+CI for ea77a19 and 9a9c64c is successful (43622714007/43623891306). This increment's
+new CI step still needs its remote run. Milestone 9 remains partial: scenario-
+embedded rules, relative-percent offsets, broader report kinds and Studio pending.

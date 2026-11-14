@@ -27,23 +27,33 @@ def read_json(path, limit):
         raise ValueError(f"{path.name} exceeds the input size limit")
     def reject(value):
         raise ValueError("Non-finite JSON numbers are unsupported: " + value)
-    return json.loads(data.decode("utf-8"), parse_constant=reject), hashlib.sha256(data).hexdigest()
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate JSON fields are unsupported")
+            result[key] = value
+        return result
+    return json.loads(data.decode("utf-8"), parse_constant=reject, object_pairs_hook=unique_object), hashlib.sha256(data).hexdigest()
 
 
 def validate_rules(rules):
-    if not isinstance(rules, dict) or set(rules) != {"schema_version", "assertions"} or rules["schema_version"] != "1.0":
-        raise ValueError("Rules require schema_version 1.0 and assertions")
+    if not isinstance(rules, dict) or set(rules) != {"schema_version", "assertions"} or rules["schema_version"] not in ("1.0", "1.1"):
+        raise ValueError("Rules require schema_version 1.0/1.1 and assertions")
     assertions = rules["assertions"]
     if not isinstance(assertions, list) or not 1 <= len(assertions) <= 1024:
         raise ValueError("Rules require 1..1024 assertions")
     names = set()
     for index, rule in enumerate(assertions, 1):
-        required = {"metric", "operator", "value"}
-        if not isinstance(rule, dict) or not required <= set(rule) or set(rule) - required - {"name", "flow_id"}:
+        required = {"metric", "operator"}
+        if not isinstance(rule, dict) or not required <= set(rule) or set(rule) - required - {"value", "baseline_offset", "name", "flow_id"}:
             raise ValueError("Assertion has missing/unsupported fields")
+        thresholds = set(rule) & {"value", "baseline_offset"}
+        if len(thresholds) != 1 or ("baseline_offset" in rule and rules["schema_version"] != "1.1"):
+            raise ValueError("Assertion requires exactly one threshold; baseline_offset requires rules 1.1")
         if not isinstance(rule["metric"], str) or rule["metric"] not in METRICS or not isinstance(rule["operator"], str) or rule["operator"] not in OPERATORS:
             raise ValueError("Unsupported assertion metric/operator")
-        value = rule["value"]
+        value = rule[next(iter(thresholds))]
         try:
             finite = type(value) in (int, float) and math.isfinite(value)
         except OverflowError:
@@ -100,21 +110,70 @@ def measure(report, rule):
     return value, "fraction", denominator_name, {"numerator": numerator, "denominator": denominator}
 
 
-def evaluate(report, rules):
+def offset_threshold(value, offset):
+    threshold = value + offset
+    try:
+        finite = math.isfinite(threshold)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError("Baseline offset produces a non-finite threshold")
+    return threshold
+
+
+def evaluate(report, rules, baseline=None):
     traffic_config.validate_report(report, report["config"])
     validate_rules(rules)
+    uses_baseline = any("baseline_offset" in rule for rule in rules["assertions"])
+    configuration_hash = experiment_manifest.config_hash(report["config"])
+    if uses_baseline:
+        if not isinstance(baseline, dict) or "config" not in baseline:
+            raise ValueError("baseline_offset assertions require a complete --baseline Traffic Lab report")
+        traffic_config.validate_report(baseline, baseline["config"])
+        if experiment_manifest.config_hash(baseline["config"]) != configuration_hash:
+            raise ValueError("Baseline workload configuration must match exactly (including seed, flows and schedules)")
+        if report.get("model") != baseline.get("model"):
+            raise ValueError("Baseline model descriptions must match")
+        if [flow["stream_seed"] for flow in report["flows"]] != [flow["stream_seed"] for flow in baseline["flows"]]:
+            raise ValueError("Baseline recorded random stream seeds must match")
+        primary = lambda data: [flow.get("source_generated", flow["generated"]) for flow in data["flows"]]
+        if primary(report) != primary(baseline):
+            raise ValueError("Baseline primary generated counts must match; offered cohorts differ")
+    elif baseline is not None:
+        raise ValueError("--baseline requires at least one baseline_offset assertion")
     checks = []
     for index, rule in enumerate(rules["assertions"], 1):
         value, unit, scope, evidence = measure(report, rule)
-        passed = value is not None and OPERATORS[rule["operator"]](value, rule["value"])
-        checks.append({"name": rule.get("name", f"assertion-{index}"), "metric": rule["metric"],
-            "flow_id": rule.get("flow_id"), "operator": rule["operator"], "expected": rule["value"],
+        expected = rule.get("value")
+        reference = None
+        reason = None
+        if "baseline_offset" in rule:
+            base_value, base_unit, base_scope, base_evidence = measure(baseline, rule)
+            reference = {"observed": base_value, "offset": rule["baseline_offset"], "unit": base_unit,
+                         "scope": base_scope, "evidence": base_evidence}
+            if base_value is None:
+                reason = "baseline metric unavailable or denominator zero"
+            else:
+                if unit != base_unit or (value is not None and scope != base_scope):
+                    raise ValueError("Baseline metric units/scopes must match")
+                expected = offset_threshold(base_value, rule["baseline_offset"])
+        passed = expected is not None and value is not None and OPERATORS[rule["operator"]](value, expected)
+        reason = reason or ("threshold satisfied" if passed else ("metric unavailable or denominator zero" if value is None else "threshold violated"))
+        check = {"name": rule.get("name", f"assertion-{index}"), "metric": rule["metric"],
+            "flow_id": rule.get("flow_id"), "operator": rule["operator"], "expected": expected,
             "observed": value, "unit": unit, "scope": scope, "evidence": evidence,
-            "passed": passed, "reason": "threshold satisfied" if passed else ("metric unavailable or denominator zero" if value is None else "threshold violated")})
-    return {"schema_version": "1.0", "passed": all(check["passed"] for check in checks),
+            "passed": passed, "reason": reason}
+        if reference is not None:
+            check["baseline"] = reference
+        checks.append(check)
+    result = {"schema_version": rules["schema_version"], "passed": all(check["passed"] for check in checks),
         "assertion_count": len(checks), "failed_assertions": sum(not check["passed"] for check in checks),
-        "model": report.get("model"), "configuration_sha256": experiment_manifest.config_hash(report["config"]),
+        "model": report.get("model"), "configuration_sha256": configuration_hash,
         "checks": checks, "limitations": "Checks assert declared simulation metrics; they do not authenticate inputs, establish causal differences or certify real-network SLAs."}
+    if uses_baseline:
+        result["baseline_configuration_sha256"] = experiment_manifest.config_hash(baseline["config"])
+        result["limitations"] += " Baseline matching covers workload configuration, not topology/software provenance or statistical confidence. Delivered/completed populations can differ; examine loss/count/retention evidence alongside latency."
+    return result
 
 
 def write(result, output):
@@ -125,10 +184,17 @@ def write(result, output):
     for check in result["checks"]:
         case = ET.SubElement(suite, "testcase", name=check["name"], classname="KNS.validation")
         detail = f"{check['metric']} flow={check['flow_id']} observed={check['observed']} {check['operator']} {check['expected']}; {check['scope']}; {check['reason']}"
+        if "baseline" in check:
+            detail += f"; baseline={check['baseline']['observed']} offset={check['baseline']['offset']}; baseline_scope={check['baseline']['scope']}"
         if not check["passed"]:
             ET.SubElement(case, "failure", message=check["reason"]).text = detail
         ET.SubElement(case, "system-out").text = detail
         lines.append(f"| {check['name']} | {check['metric']} | {check['observed']} | {check['operator']} {check['expected']} | {'pass' if check['passed'] else 'fail'} |")
+    if any("baseline" in check for check in result["checks"]):
+        lines.extend(["", "## Baseline thresholds", "", "| Assertion | Baseline | Offset | Effective threshold |", "| --- | ---: | ---: | ---: |"])
+        for check in result["checks"]:
+            if "baseline" in check:
+                lines.append(f"| {check['name']} | {check['baseline']['observed']} | {check['baseline']['offset']} | {check['expected']} |")
     ET.ElementTree(suite).write(output / "validation.xml", encoding="utf-8", xml_declaration=True)
     (output / "validation.md").write_text("\n".join(lines) + "\n\n" + result["limitations"] + "\n", encoding="utf-8")
 
@@ -137,6 +203,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=Path)
     parser.add_argument("--rules", type=Path, required=True)
+    parser.add_argument("--baseline", type=Path, help="Complete result with the identical workload config; required by rules 1.1 baseline_offset")
     parser.add_argument("--output", type=Path, required=True, help="New directory for JSON, JUnit XML and Markdown")
     args = parser.parse_args(argv)
     try:
@@ -144,7 +211,12 @@ def main(argv=None):
         rules, rules_hash = read_json(args.rules, 1024 * 1024)
         if not isinstance(report, dict) or "config" not in report:
             raise ValueError("Input must be a Traffic Lab report")
-        result = evaluate(report, rules)
+        baseline, baseline_hash = read_json(args.baseline, 64 * 1024 * 1024) if args.baseline else (None, None)
+        if args.baseline and (not isinstance(baseline, dict) or "config" not in baseline):
+            raise ValueError("Baseline input must be a complete Traffic Lab report")
+        result = evaluate(report, rules, baseline)
+        if baseline_hash is not None:
+            result["baseline_sha256"] = baseline_hash
         result.update(source_sha256=source_hash, rules_sha256=rules_hash,
                       validator_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
         args.output.mkdir(parents=True, exist_ok=False)
