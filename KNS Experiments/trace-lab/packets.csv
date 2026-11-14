@@ -1,0 +1,6 @@
+time_s,flow_id,source,destination,wire_bytes
+1700000000.000000000,private-sensor,0,1,125
+1700000000.000000000,private-sensor,0,1,125
+1700000000.000000000,private-api,0,1,250
+1700000000.010000000,private-sensor,0,1,250
+1700000000.020000000,private-api,0,1,125

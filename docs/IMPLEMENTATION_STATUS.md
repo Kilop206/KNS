@@ -807,3 +807,33 @@ cases passed**, including queue rejection identity for tied sources. Full CTest
 **91/91 passed**, no skips (`replay-core-python.log`). Contracts passed **14
 schemas, 42 fixtures and four topologies**. No real network traffic or privileges
 were introduced. Remote CI, TLS/Linux and browser visual QA remain unverified.
+
+## CSV/JSON metadata trace import — 2026-11-14
+
+Added bounded CSV/JSON conversion into native ordered replay, explicit model-node
+mapping and optional execution through the experiment runner. Decimal timestamp
+normalization removes the absolute origin; clock collisions are counted. Variable
+wire sizes produce native groups with opaque logical-flow correlation. Metadata
+records source/importer/plan hashes, sizes, wire totals and source interarrival
+statistics/histograms. Labels are suppressed by default; retention is explicit.
+Raw traces are never copied/uploaded and topology metadata is not claimed
+anonymous. No payload/protocol state or physical topology is inferred.
+
+Limits: 4 MiB per input, 10000 packets, 256 wire groups and bounded sizes/times/
+model indices. Duplicate/malformed/non-finite/unsorted/unknown records and excess
+limits fail before output; sources and prior results are preserved. Tests cover
+CSV/JSON equivalence, nanosecond epoch differences, clock collisions, bad inputs,
+label suppression/correlation, group limits and actual portable replay.
+
+Files: importer/four tests/CTest registration; source-trace schema/fixtures;
+authored CSV/JSON/topology example; trace guide, README, roadmap and status.
+Build passed; **CTest 461/461 passed** (`trace-import-final-ctest.log`); actual
+Python **95/95 passed**, no skips (`trace-import-final-python.log`). Contracts:
+**15 schemas, 44 fixtures, four topologies passed**. Saved `trace-csv-final` and
+`trace-json-final` produced identical plans, simulation CSVs and traffic ledgers:
+five generated, four delivered, one actual queue drop; 625/875 offered wire bytes
+delivered. Two source flows map to four native wire groups. The analytical
+examples are authored inputs, not real capture measurements. Manifest replay also
+succeeds after the original private trace is deleted. PCAP/PCAPNG/protocol parsing,
+remote CI, TLS/Linux and visual QA remain pending/unverified. Each verified commit
+is pushed to origin/main under the user's current instruction.

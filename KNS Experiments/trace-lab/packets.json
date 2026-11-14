@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "packets": [
+    {"time_s": 1700000000.000000000, "flow_id": "private-sensor", "source": 0, "destination": 1, "wire_bytes": 125},
+    {"time_s": 1700000000.000000000, "flow_id": "private-sensor", "source": 0, "destination": 1, "wire_bytes": 125},
+    {"time_s": 1700000000.000000000, "flow_id": "private-api", "source": 0, "destination": 1, "wire_bytes": 250},
+    {"time_s": 1700000000.010000000, "flow_id": "private-sensor", "source": 0, "destination": 1, "wire_bytes": 250},
+    {"time_s": 1700000000.020000000, "flow_id": "private-api", "source": 0, "destination": 1, "wire_bytes": 125}
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0", "name": "Authored trace queue experiment",
+  "nodes": [{"id": 0, "type": "computer", "label": "Source"}, {"id": 1, "type": "server", "label": "Destination"}],
+  "links": [{"from": 0, "to": 1, "bandwidth": 1, "delay": 1, "loss": 0, "queue_capacity": 2}]
+}

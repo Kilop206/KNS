@@ -65,6 +65,8 @@ The initial [Industrial scenarios](docs/iiot.md) exercise sensor telemetry,
 PLC/actuator exchanges, uplink faults and redundancy with measured scale limits.
 The [Capacity Planner](docs/capacity-planning.md) evaluates bounded growth/link
 alternatives and accepts optional user costs for a measured Pareto frontier.
+The initial [Trace Import](docs/trace-import.md) converts bounded CSV/JSON packet
+metadata to ordered, reproducible abstract workloads on an explicit topology.
 
 ## Requirements
 
