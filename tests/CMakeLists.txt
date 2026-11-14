@@ -53,6 +53,10 @@ catch_discover_tests(kns_tests)
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    add_test(NAME capacity_planner_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_capacity_planner.py -v)
+    set_tests_properties(capacity_planner_tests PROPERTIES TIMEOUT 60)
     add_test(NAME industrial_scenario_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_industrial_scenario.py -v)
@@ -89,6 +93,8 @@ if(Python3_Interpreter_FOUND)
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_analytics_report.py -v)
     set_tests_properties(analytics_report_tests PROPERTIES TIMEOUT 60)
     if(TARGET KNS)
+        set_tests_properties(capacity_planner_tests PROPERTIES
+            ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")
         set_tests_properties(industrial_scenario_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")
         set_tests_properties(result_validation_tests PROPERTIES

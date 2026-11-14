@@ -736,3 +736,46 @@ Milestone 7 remains partial: MQTT QoS, gateway/broker node failures, richer devi
 storage and per-flow bounds need attention before increasing those targets. No
 network privileges or real-network changes were used; remote CI, TLS, Linux and
 visual QA remain unverified in this workspace.
+
+## Initial Capacity Planner — 2026-11-13
+
+Added actual bounded sensor-growth/uplink evaluation on the Industrial template.
+Decimal upward rounding preserves intended growth counts; every population/link
+alternative runs through the existing experiment/manifest pipeline. Explicit
+delivery/timely-sensor requirements yield observed verdicts. Optional identical
+outages/alternate paths support resilience checks. Summaries report the highest
+observed feasible population only, without extrapolation or monotonicity claims.
+Configuration, JSON/CSV/Markdown rows and every raw manifest/result are retained.
+
+Optional cost input must cover all evaluated alternatives. No prices/currency are
+assumed. A population-specific Pareto frontier uses supplied cost, all-DATA mean
+network latency, delivery and timely sensor ratios; equal alternatives remain
+coequal. Optional sensor unit cost is a declared component, not total ownership
+cost. Without cost data all costs/frontier flags remain unavailable. The schema
+and tests use arbitrary explicit test units, not infrastructure market estimates.
+
+Files: planner, tests/CTest registration, cost schema/fixtures, capacity guide,
+README, roadmap/status. See [capacity-planning.md](capacity-planning.md).
+
+Executed evidence:
+
+- Full real-engine Python **89/89 passed**, no skips
+  (`build-core-mingw/capacity-final-python.log`). Tests verify exact growth rounding,
+  preflight matrix/cost limits, Pareto arithmetic, actual differing loads/links,
+  raw-evidence preservation and an unpriced redundant/outage alternative.
+- Build passed; **CTest 456/456 passed** (`capacity-final-ctest.log`), including
+  447 native/headless tests and nine Python categories. The final resilience branch
+  was exercised by the registered capacity category in this combined run.
+- Contract validation passed **14 schemas, 40 fixtures and four topologies**.
+- Saved four-case run: `build-core-mingw/capacity-final`. At 100 sensors both 1 and
+  4 Mbps delivered 1010/1010 and met the default 0.99 requirements. At 200 sensors,
+  1 Mbps delivered 1026/2010 with timely sensor ratio 0.359; 4 Mbps delivered
+  2010/2010 with timely ratio 1. No costs were supplied and no cost frontier was
+  invented. Highest observed feasible populations were 100 and 200, not proven
+  capacity ceilings. Per-population manifests preserve full inputs/binary identity.
+
+Milestone 8 remains partial: broader application/segment growth, richer cost
+models, search/replication, larger populations and Studio planning remain pending.
+Industrial/Traffic/Analytics model limitations, unverified remote CI/TLS/Linux and
+visual QA remain applicable. No real network changes or privileged actions were
+introduced.

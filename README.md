@@ -63,6 +63,8 @@ The [result validator](docs/validation.md) checks explicit workload assertions a
 exports JSON/JUnit diagnostics with process codes suitable for CI.
 The initial [Industrial scenarios](docs/iiot.md) exercise sensor telemetry,
 PLC/actuator exchanges, uplink faults and redundancy with measured scale limits.
+The [Capacity Planner](docs/capacity-planning.md) evaluates bounded growth/link
+alternatives and accepts optional user costs for a measured Pareto frontier.
 
 ## Requirements
 
