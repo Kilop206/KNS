@@ -936,3 +936,14 @@ Remote CI for 44ca7b7 now passes Ubuntu build/tests, warnings-as-errors, sanitiz
 and Windows MinGW/native context validation. macOS is still in progress; newer
 trace commits require their own remote results. PCAPNG and IPv6 extensions remain
 pending. Milestone 10 remains partial.
+
+## Explicit CI build concurrency ? 2026-11-14
+
+The macOS build in run 43612732498 remains in the compile step after the other
+four jobs passed. The standard and warnings-as-errors builds used --parallel
+without a job count, unlike MinGW and sanitizers. Set both to two jobs for
+consistent bounded concurrency. This is a configuration correction; no cause of
+the long macOS build or performance improvement is claimed without a new run.
+The same explicit two-job command already succeeds in the remote sanitizer and
+MinGW jobs. Workflow syntax and diffs are checked; macOS validation is pending.
+The portable-path assertion fix is still not recorded as verified on macOS.
