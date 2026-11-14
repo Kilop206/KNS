@@ -162,7 +162,7 @@ def main(argv=None):
     parser.add_argument("--topology", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="New import bundle; source trace is never copied")
     parser.add_argument("--format", choices=("csv", "json", "pcap"))
-    parser.add_argument("--address-map", type=Path, help="Required for PCAP: explicit IPv4-to-model-node JSON mapping")
+    parser.add_argument("--address-map", type=Path, help="Required for PCAP: explicit IP-to-model-node JSON mapping (v1.0 IPv4; v1.1 IPv4/IPv6)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--keep-flow-labels", action="store_true", help="Explicitly retain original flow labels in local metadata")
     parser.add_argument("--exe", type=Path, help="Optionally execute the imported profile and retain a portable manifest")

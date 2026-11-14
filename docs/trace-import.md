@@ -88,14 +88,19 @@ python scripts/trace_import.py capture.pcap --topology model.json --address-map 
 The explicit mapping uses schema version 1.0 and `ipv4_to_node`, for example
 `{"schema_version":"1.0","ipv4_to_node":{"192.0.2.10":0,"192.0.2.20":1}}`.
 These are documentation addresses; supply mappings appropriate to your own model.
+Version 1.0 remains unchanged. Version 1.1 adds optional `ipv6_to_node`; at least
+one family must be present and each present family must be nonempty. See
+`contracts/pcap-address-map-v1.1.schema.json` and the bundled
+`address-map-dual-stack.json`. Runtime validation requires canonical unscoped
+address strings and at most 4096 combined entries.
 Every observed endpoint must map to a valid model node. The map is not copied;
 its canonical hash is recorded. `--keep-flow-labels` would retain the original
 address/port/protocol tuples and should be chosen deliberately before sharing.
 
 The reader supports PCAP 2.4 with either byte order, microsecond/nanosecond
 timestamps and plain Ethernet link type 1. It extracts unfragmented IPv4 TCP/UDP
-endpoint/port metadata, untagged or behind at most two VLAN tags (TPIDs 0x8100
-and 0x88a8). Header/length bounds and UDP length/TCP data
+and IPv6 direct TCP/UDP endpoint/port metadata, untagged or behind at most two VLAN
+tags (TPIDs 0x8100 and 0x88a8). Header/length bounds and UDP length/TCP data
 offsets are checked. Fully captured necessary headers allow record truncation
 afterward; `truncated_records` reports captured length below original length.
 Modeled bytes use original PCAP record length, including its recorded link header,
@@ -111,8 +116,17 @@ inferred. Metadata reports tagged record count and maximum depth; identifiers
 remain suppressed unless `--keep-flow-labels` is selected. Unknown TPIDs, more
 than two tags and incomplete tag/inner-type headers fail the entire import.
 
+IPv6 import supports the fixed 40-byte base header followed directly by TCP/UDP.
+Payload length must be nonzero and fit the original record. Extension headers,
+fragments (including atomic fragments), jumbograms, ICMPv6 and other next headers
+are rejected. IPv6 flow labels, traffic class and hop limit do not create modeled
+QoS, forwarding or multicast semantics; each record is offered between its two
+explicitly mapped model nodes. `ip_version_counts` reports record counts by IP
+version. This subset does not claim general IPv6 capture support.
+
 References: [libpcap savefile specification](https://github.com/the-tcpdump-group/libpcap/blob/master/pcap-savefile.manfile.in),
 [IPv4](https://www.rfc-editor.org/rfc/rfc791.html),
+[IPv6 base header](https://www.rfc-editor.org/rfc/rfc8200.html#section-3),
 [UDP](https://www.rfc-editor.org/rfc/rfc768.html),
 [TCP header format](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.1).
 Tag layout and supported TPIDs follow the
@@ -120,7 +134,7 @@ Tag layout and supported TPIDs follow the
 [Wireshark EtherType definitions](https://www.wireshark.org/docs/wsar_html/etypes_8h.html).
 The implementation is a bounded, read-only standard-library subset rather than a
 general libpcap dissector. It keeps native builds independent of capture libraries.
-PCAPNG, IPv6, other link types, additional PCAP link flags, fragmented traffic,
+PCAPNG, IPv6 extensions, other link types, additional PCAP link flags, fragmented traffic,
 other IP protocols and incomplete necessary headers are explicitly rejected.
 Records are never silently skipped; broader support needs a separate adapter.
 

@@ -907,3 +907,32 @@ tagged contention fixture produces four generated, three delivered and one queue
 drop; delivered bytes include the recorded tags. No native model was changed.
 The earlier CI fix is pushed as 44ca7b7; its remote run 43612732498 is still in
 progress. IPv6/PCAPNG and wider capture support remain pending.
+
+## Direct IPv6 PCAP metadata import ? 2026-11-14
+
+Added fixed-header IPv6 with direct TCP/UDP, including the supported VLAN stack.
+Explicit address map 1.1 supports IPv4 and/or canonical unscoped IPv6 entries;
+map 1.0 is unchanged. Mappings are bounded to 4096 combined entries. Both
+families use the same checked transport parsing and original-record byte scope.
+IP-version counts are exported; address/port/VLAN labels remain suppressed by
+default. Extension/fragment headers, jumbograms, other next headers and incomplete
+necessary headers fail atomically. IPv6 forwarding, traffic class, flow labels,
+hop limits and multicast behavior are not inferred from a capture.
+
+Changed parser/importer, tests, versioned mapping schema/four fixtures, a dual
+stack example, trace guide, README and roadmap. Verification: PCAP tests 10/10
+passed with the native executable; all Python tests passed 105/105, no skips
+(`ipv6-python.log`). Contract validation passed 17 schemas/50 fixtures/four
+bundled topologies. No native model changed; the CTest baseline remains 462/462.
+
+Retained authored mixed-IP/VLAN evidence under `build-core-mingw/ipv6-evidence`:
+four generated, three delivered, one queue drop, 234 delivered original-record
+bytes. After removing the authored PCAP and map, manifest replay produced
+identical native per-case CSV and traffic ledgers. Aggregate runner metrics
+include real execution times and paths and are not expected to be byte-identical.
+These are authored inputs and simulation outputs, not real-network measurements.
+
+Remote CI for 44ca7b7 now passes Ubuntu build/tests, warnings-as-errors, sanitizers
+and Windows MinGW/native context validation. macOS is still in progress; newer
+trace commits require their own remote results. PCAPNG and IPv6 extensions remain
+pending. Milestone 10 remains partial.

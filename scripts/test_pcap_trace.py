@@ -15,6 +15,8 @@ import trace_import
 ROOT = Path(__file__).resolve().parent.parent
 LAB = ROOT / "KNS Experiments/trace-lab"
 ADDRESS_MAP = {"schema_version": "1.0", "ipv4_to_node": {"192.0.2.10": 0, "192.0.2.20": 1}}
+DUAL_MAP = {"schema_version": "1.1", "ipv4_to_node": ADDRESS_MAP["ipv4_to_node"],
+            "ipv6_to_node": {"2001:db8::10": 0, "2001:db8::20": 1}}
 
 
 def frame(protocol=17, payload=b"PRIVATE-CAPTURE-DATA"):
@@ -42,6 +44,13 @@ def capture(endian="<", nanos=False, records=None, linktype=1, snaplen=4096):
 
 def tagged(packet, tags):
     return packet[:12] + b"".join(struct.pack("!HH", tpid, control) for tpid, control in tags) + packet[12:]
+
+
+def frame6(protocol=17):
+    transport_payload = frame(protocol)[34:]
+    header = struct.pack("!IHBB16s16s", 6 << 28, len(transport_payload), protocol, 64,
+        ipaddress.IPv6Address("2001:db8::10").packed, ipaddress.IPv6Address("2001:db8::20").packed)
+    return bytes(12) + b"\x86\xdd" + header + transport_payload
 
 
 class PcapTraceTests(unittest.TestCase):
@@ -92,6 +101,46 @@ class PcapTraceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "deeper than two"):
             pcap_trace.parse(capture(records=[(0, excessive, None)]), ADDRESS_MAP, 2)
 
+    def test_ipv6_and_mixed_ip_records_preserve_explicit_mapping_and_privacy(self):
+        packets = [frame(), frame6(), frame6(6), tagged(frame6(), [(0x88A8, 12), (0x8100, 37)])]
+        data = capture(records=[(index, packet, None) for index, packet in enumerate(packets)])
+        plan, metadata = trace_import.convert(data, "pcap", self.topology, address_map=DUAL_MAP)
+        self.assertEqual(metadata["pcap"]["ip_version_counts"], {"ipv4": 1, "ipv6": 3})
+        self.assertEqual(metadata["pcap"]["protocol_counts"], {"udp": 3, "tcp": 1})
+        self.assertEqual(metadata["wire_bytes_total"], sum(map(len, packets)))
+        self.assertEqual(metadata["source_flow_count"], 4)
+        self.assertNotIn("2001:db8", json.dumps((plan, metadata)))
+        _, labelled = trace_import.convert(data, "pcap", self.topology, keep_flow_labels=True, address_map=DUAL_MAP)
+        self.assertTrue(labelled["wire_groups"][1]["source_flow_label"].startswith("[2001:db8::10]:1234>"))
+        ipv6_only = {"schema_version": "1.1", "ipv6_to_node": DUAL_MAP["ipv6_to_node"]}
+        for protocol, complete_header in ((17, 62), (6, 74)):
+            packet = frame6(protocol)
+            _, truncated = trace_import.convert(capture(records=[(0, packet[:complete_header], len(packet))]),
+                "pcap", self.topology, address_map=ipv6_only)
+            self.assertEqual(truncated["pcap"]["truncated_records"], 1)
+        self.assertEqual(pcap_trace.mapping(ADDRESS_MAP, 2), ADDRESS_MAP["ipv4_to_node"])
+
+    def test_invalid_ipv6_headers_extensions_and_maps_are_rejected(self):
+        bad_packets = [frame6()[:53], frame6()[:61]]
+        for position, value in ((14, b"\x40"), (18, b"\x00\x00"), (18, b"\xff\xff"), (58, b"\x00\x01")):
+            packet = bytearray(frame6()); packet[position:position + len(value)] = value; bad_packets.append(bytes(packet))
+        for next_header in (0, 43, 44, 50, 51, 59, 60, 58):
+            packet = bytearray(frame6()); packet[20] = next_header; bad_packets.append(bytes(packet))
+        tcp = bytearray(frame6(6)); tcp[66] = 0xF0; bad_packets.append(bytes(tcp))
+        for packet in bad_packets:
+            with self.subTest(packet=packet[:24]), self.assertRaises(ValueError):
+                pcap_trace.parse(capture(records=[(0, packet, None)]), DUAL_MAP, 2)
+        invalid_maps = [ADDRESS_MAP, {**DUAL_MAP, "schema_version": "1.0"}, {"schema_version": "1.1"},
+            {"schema_version": "1.1", "ipv6_to_node": {}}, {**DUAL_MAP, "extra": {}},
+            {"schema_version": "1.1", "ipv6_to_node": {"2001:DB8::10": 0}},
+            {"schema_version": "1.1", "ipv6_to_node": {"fe80::1%eth0": 0}},
+            {"schema_version": "1.1", "ipv6_to_node": {"2001:db8::10": True}},
+            {"schema_version": "1.1", "ipv6_to_node": {"2001:db8::10": 2}},
+            {"schema_version": "1.1", "ipv6_to_node": {"2001:db8::10": 0}}]
+        for address_map in invalid_maps:
+            with self.subTest(address_map=address_map), self.assertRaises(ValueError):
+                pcap_trace.parse(capture(records=[(0, frame6(), None)]), address_map, 2)
+
     def test_malformed_and_unsupported_inputs_fail_without_partial_import(self):
         good = capture(records=[(0, frame(), None)])
         bad_inputs = [b"", good[:23], good[:30], good[:-1], good + b"x", capture(records=[]),
@@ -121,6 +170,23 @@ class PcapTraceTests(unittest.TestCase):
                 self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--output", str(output)]), 1)
             self.assertFalse(output.exists())
             self.assertEqual(source.read_bytes(), capture())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for PCAP replay integration")
+    def test_actual_mixed_ip_replay_preserves_flow_and_byte_accounting(self):
+        packets = [frame(), frame6(), frame6(6), tagged(frame6(), [(0x88A8, 12), (0x8100, 37)])]
+        data = capture(records=[(0 if index < 3 else 10000, packet, None) for index, packet in enumerate(packets)])
+        with tempfile.TemporaryDirectory(prefix="KNS dual stack ") as folder:
+            root = Path(folder); source = root / "mixed.pcap"; source.write_bytes(data)
+            mapping = root / "map.json"; mapping.write_text(json.dumps(DUAL_MAP))
+            output = root / "imported"
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--address-map", str(mapping),
+                    "--output", str(output), "--exe", os.environ["KNS_TEST_EXE"]]), 0)
+            report = json.loads(next((output / "experiment/runs").glob("*.traffic.json")).read_text())
+            self.assertEqual((report["generated"], report["delivered"], report["dropped"]), (4, 3, 1))
+            self.assertEqual(sum(flow["delivered_wire_bytes"] for flow in report["flows"]), sum(len(packets[index]) for index in (0, 1, 3)))
+            for path in output.glob("*.json"):
+                self.assertNotIn("2001:db8", path.read_text())
 
     @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for PCAP replay integration")
     def test_actual_vlan_replay_accounts_tag_bytes_under_queue_contention(self):
