@@ -85,7 +85,7 @@ void IntelligencePanel::render(
     );
 
     if (ImGui::BeginTabBar("intelligence_tabs")) {
-        if (ImGui::BeginTabItem("KiWi Chat")) {
+        if (ImGui::BeginTabItem("Topology Chat")) {
             renderChat(analysis, stats);
             ImGui::EndTabItem();
         }
@@ -163,7 +163,7 @@ void IntelligencePanel::renderAnalysis(
 
 void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis, const kns::Stats& stats)
 {
-    ImGui::TextWrapped("Converse com a KiWi sobre esta topologia.");
+    ImGui::TextWrapped("Converse com a Assistant sobre esta topologia.");
     ImGui::TextDisabled("Contexto: topologia e contadores da simulação no envio.");
     ImGui::TextDisabled("Memória: até 10 interações recentes.");
     if (!chat_.last_plan().empty()) {
@@ -193,7 +193,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
     ImGui::Separator();
     const float historyHeight = std::max(100.0f, ImGui::GetContentRegionAvail().y -
         (chat_.error().empty() ? 210.0f : 270.0f));
-    ImGui::BeginChild("kiwi_history", ImVec2(0, historyHeight), ImGuiChildFlags_Borders);
+    ImGui::BeginChild("chat_history", ImVec2(0, historyHeight), ImGuiChildFlags_Borders);
     const bool followingLatest = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 24.0f;
     if (chat_.messages().empty()) {
         ImGui::TextWrapped("Pergunte sobre conectividade, rotas, gargalos ou formas de adicionar redundância.");
@@ -216,7 +216,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
     for (const auto& message : chat_.messages()) {
         ImGui::PushID(messageIndex++);
         ImGui::TextColored(message.role == "user" ? ImVec4(0.4f, 0.7f, 1, 1) : ImVec4(0.4f, 0.85f, 0.5f, 1),
-                           "%s", message.role == "user" ? "Você" : "KiWi");
+                           "%s", message.role == "user" ? "Você" : "Assistant");
         ImGui::SameLine();
         if (ImGui::SmallButton("Copiar")) ImGui::SetClipboardText(message.content.c_str());
         // Keep long answers readable even when the panel spans a wide monitor.
@@ -249,7 +249,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
         chat_scroll_to_latest_ = true;
     if (chat_.busy()) {
         if (chat_wait_started_ < 0.0) chat_wait_started_ = ImGui::GetTime();
-        ImGui::TextDisabled("KiWi preparando resposta... %.0f s", ImGui::GetTime() - chat_wait_started_);
+        ImGui::TextDisabled("Assistant preparando resposta... %.0f s", ImGui::GetTime() - chat_wait_started_);
     } else {
         chat_wait_started_ = -1.0;
     }
@@ -298,7 +298,7 @@ void IntelligencePanel::renderChat(const std::optional<kns::analysis::NetworkAna
         chat_focus_input_ = false;
     }
     ImGui::SetNextItemWidth(-1);
-    const bool submitted = ImGui::InputTextMultiline("##kiwi_question", chat_input_.data(), chat_input_.size(),
+    const bool submitted = ImGui::InputTextMultiline("##chat_question", chat_input_.data(), chat_input_.size(),
         ImVec2(-1, 65), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine);
     const bool empty = std::string(chat_input_.data()).find_first_not_of(" \t\r\n") == std::string::npos;
     ImGui::BeginDisabled(empty || chat_.busy() || chat_.canRetry());

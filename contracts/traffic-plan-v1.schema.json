@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/traffic-plan-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/traffic-plan-v1.schema.json",
   "title": "KNS abstract traffic plan v1", "type": "object", "additionalProperties": false,
   "required": ["schema_version", "seed", "max_packets", "flows"],
   "allOf": [{

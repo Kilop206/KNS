@@ -24,7 +24,7 @@ if(KNS_BUILD_APP)
         ${PROJECT_SOURCE_DIR}/app/intelligence/ChatService.cpp
         ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceClient.cpp
         ${PROJECT_SOURCE_DIR}/app/intelligence/IntelligenceConfigLoader.cpp
-        ${PROJECT_SOURCE_DIR}/app/hub/TopologyHubClient.cpp
+        ${PROJECT_SOURCE_DIR}/app/hub/TopologyStoreClient.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/TopologyCanvas.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/DeviceIcons.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/PacketRenderer.cpp

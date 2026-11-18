@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/analysis-context-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/analysis.context.schema.json",
   "title": "KNS Analysis Context v1",
   "description": "Deterministic structural analysis produced by KNS AIContextBuilder. Values describe the simulated topology and routing model; they are not observed network measurements or generated claims.",
   "type": "object",

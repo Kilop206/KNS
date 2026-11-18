@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/capacity-costs-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/capacity-costs-v1.schema.json",
   "title": "KNS user-declared capacity alternative costs v1", "type": "object", "additionalProperties": false,
   "required": ["schema_version", "currency", "uplinks"],
   "properties": {

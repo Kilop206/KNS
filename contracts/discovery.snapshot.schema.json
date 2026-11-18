@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/discovery.snapshot.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/discovery.snapshot.schema.json",
   "title": "KNS Discovery Snapshot v1",
   "description": "Discovery's current topology-v1 export. Evidence records the source of each node and link; inferred links do not represent verified physical cables.",
   "type": "object",

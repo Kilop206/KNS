@@ -1,4 +1,4 @@
-#include "hub/TopologyHubClient.hpp"
+#include "hub/TopologyStoreClient.hpp"
 
 #include <cctype>
 #include <stdexcept>
@@ -30,7 +30,7 @@ bool validTopologyId(const std::string& id)
 }
 
 httplib::Headers requestHeaders(
-    const TopologyHubClientConfig& config,
+    const TopologyStoreClientConfig& config,
     bool mutation = false
 )
 {
@@ -47,7 +47,7 @@ httplib::Headers requestHeaders(
     return headers;
 }
 
-void configureClient(httplib::Client& client, const TopologyHubClientConfig& config)
+void configureClient(httplib::Client& client, const TopologyStoreClientConfig& config)
 {
     kns::app::http::configureClientTrust(client);
     client.set_connection_timeout(config.connection_timeout_seconds);
@@ -64,7 +64,7 @@ std::runtime_error httpError(const std::string& operation, int status)
         );
     }
     if (status == 401 || status == 403) {
-        return std::runtime_error(operation + " is not authorized by Topology Hub");
+        return std::runtime_error(operation + " is not authorized by Topology Store");
     }
     if (status == 404) {
         return std::runtime_error(operation + " could not find an accessible topology");
@@ -72,7 +72,7 @@ std::runtime_error httpError(const std::string& operation, int status)
     return std::runtime_error(operation + " failed with HTTP " + std::to_string(status));
 }
 
-HubTopology parseDetail(
+StoredTopology parseDetail(
     const std::string& topology_id,
     const std::string& body
 )
@@ -80,11 +80,11 @@ HubTopology parseDetail(
     try {
         const auto document = nlohmann::json::parse(body);
         const auto& summary = document.at("topology");
-        HubTopology result;
+        StoredTopology result;
         result.id = topology_id.empty()
             ? summary.at("id").get<std::string>() : topology_id;
         if (!validTopologyId(result.id)) {
-            throw std::runtime_error("Topology Hub returned an invalid topology ID");
+            throw std::runtime_error("Topology Store returned an invalid topology ID");
         }
         result.title = summary.at("title").get<std::string>();
         result.description = summary.at("description").get<std::string>();
@@ -94,31 +94,31 @@ HubTopology parseDetail(
         return result;
     } catch (const nlohmann::json::exception& error) {
         throw std::runtime_error(
-            std::string("Topology Hub returned an invalid topology document: ") + error.what()
+            std::string("Topology Store returned an invalid topology document: ") + error.what()
         );
     }
 }
 
 } // namespace
 
-TopologyHubClient::TopologyHubClient(TopologyHubClientConfig config)
+TopologyStoreClient::TopologyStoreClient(TopologyStoreClientConfig config)
     : config_(std::move(config))
 {
     if (config_.base_url.empty()) {
-        throw std::invalid_argument("Topology Hub base URL cannot be empty");
+        throw std::invalid_argument("Topology Store base URL cannot be empty");
     }
     if (config_.connection_timeout_seconds <= 0 || config_.read_timeout_seconds <= 0) {
-        throw std::invalid_argument("Topology Hub timeouts must be positive");
+        throw std::invalid_argument("Topology Store timeouts must be positive");
     }
     if (config_.max_response_bytes == 0) {
-        throw std::invalid_argument("Topology Hub response limit must be positive");
+        throw std::invalid_argument("Topology Store response limit must be positive");
     }
 }
 
-Topology TopologyHubClient::fetchPublicTopology(const std::string& topology_id) const
+Topology TopologyStoreClient::fetchPublicTopology(const std::string& topology_id) const
 {
     if (!validTopologyId(topology_id)) {
-        throw std::invalid_argument("Invalid Topology Hub topology ID");
+        throw std::invalid_argument("Invalid Topology Store topology ID");
     }
 
     httplib::Client client(config_.base_url);
@@ -128,29 +128,29 @@ Topology TopologyHubClient::fetchPublicTopology(const std::string& topology_id) 
     const auto result = client.Get(endpoint, requestHeaders(config_));
     if (!result) {
         throw std::runtime_error(
-            "Could not connect to Topology Hub: " + httplib::to_string(result.error())
+            "Could not connect to Topology Store: " + httplib::to_string(result.error())
         );
     }
     if (result->status < 200 || result->status >= 300) {
         throw httpError("Topology download", result->status);
     }
     if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Topology Hub topology exceeds response size limit");
+        throw std::runtime_error("Topology Store topology exceeds response size limit");
     }
 
     try {
         return TopologyLoader::fromJson(nlohmann::json::parse(result->body));
     } catch (const nlohmann::json::exception& error) {
         throw std::runtime_error(
-            std::string("Topology Hub returned invalid JSON: ") + error.what()
+            std::string("Topology Store returned invalid JSON: ") + error.what()
         );
     }
 }
 
-HubTopology TopologyHubClient::fetchTopology(const std::string& topology_id) const
+StoredTopology TopologyStoreClient::fetchTopology(const std::string& topology_id) const
 {
     if (!validTopologyId(topology_id)) {
-        throw std::invalid_argument("Invalid Topology Hub topology ID");
+        throw std::invalid_argument("Invalid Topology Store topology ID");
     }
 
     httplib::Client client(config_.base_url);
@@ -159,22 +159,22 @@ HubTopology TopologyHubClient::fetchTopology(const std::string& topology_id) con
     const auto result = client.Get(endpoint, requestHeaders(config_));
     if (!result) {
         throw std::runtime_error(
-            "Could not connect to Topology Hub: " + httplib::to_string(result.error())
+            "Could not connect to Topology Store: " + httplib::to_string(result.error())
         );
     }
     if (result->status < 200 || result->status >= 300) {
         throw httpError("Topology load", result->status);
     }
     if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Topology Hub response exceeds response size limit");
+        throw std::runtime_error("Topology Store response exceeds response size limit");
     }
     return parseDetail(topology_id, result->body);
 }
 
-HubTopology TopologyHubClient::createTopology(const HubTopology& topology) const
+StoredTopology TopologyStoreClient::createTopology(const StoredTopology& topology) const
 {
     if (config_.bearer_token.empty()) {
-        throw std::runtime_error("Saving to Topology Hub requires KNS_TOPOLOGY_HUB_TOKEN");
+        throw std::runtime_error("Saving to Topology Store requires KNS_TOPOLOGY_STORE_TOKEN");
     }
     nlohmann::json body{
         {"title", topology.title},
@@ -189,25 +189,25 @@ HubTopology TopologyHubClient::createTopology(const HubTopology& topology) const
     );
     if (!result) {
         throw std::runtime_error(
-            "Could not connect to Topology Hub: " + httplib::to_string(result.error())
+            "Could not connect to Topology Store: " + httplib::to_string(result.error())
         );
     }
     if (result->status != 201) {
         throw httpError("Topology upload", result->status);
     }
     if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Topology Hub response exceeds response size limit");
+        throw std::runtime_error("Topology Store response exceeds response size limit");
     }
     return parseDetail({}, result->body);
 }
 
-HubTopology TopologyHubClient::saveTopology(const HubTopology& topology) const
+StoredTopology TopologyStoreClient::saveTopology(const StoredTopology& topology) const
 {
     if (!validTopologyId(topology.id)) {
-        throw std::invalid_argument("Invalid Topology Hub topology ID");
+        throw std::invalid_argument("Invalid Topology Store topology ID");
     }
     if (config_.bearer_token.empty()) {
-        throw std::runtime_error("Saving to Topology Hub requires KNS_TOPOLOGY_HUB_TOKEN");
+        throw std::runtime_error("Saving to Topology Store requires KNS_TOPOLOGY_STORE_TOKEN");
     }
 
     nlohmann::json body{
@@ -229,14 +229,14 @@ HubTopology TopologyHubClient::saveTopology(const HubTopology& topology) const
     );
     if (!result) {
         throw std::runtime_error(
-            "Could not connect to Topology Hub: " + httplib::to_string(result.error())
+            "Could not connect to Topology Store: " + httplib::to_string(result.error())
         );
     }
     if (result->status < 200 || result->status >= 300) {
         throw httpError("Topology save", result->status);
     }
     if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Topology Hub response exceeds response size limit");
+        throw std::runtime_error("Topology Store response exceeds response size limit");
     }
     return parseDetail(topology.id, result->body);
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/trace-analysis-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/trace-analysis-v1.schema.json",
   "title": "KNS bounded source trace metadata analysis v1",
   "type": "object",
   "description": "Source observations and replay preflight only. Argparse usage errors (exit 2) are outside this JSON contract.",

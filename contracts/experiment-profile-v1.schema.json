@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/experiment-profile-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/experiment-profile-v1.schema.json",
   "title": "KNS Experiment Profile v1",
   "description": "Legacy omitted version normalizes to 1.0. Runtime also checks case-insensitive names, baseline references, link indices, interval bounds and total matrix size.",
   "type": "object",
@@ -9,8 +9,8 @@
   "oneOf": [{"required": ["experiments"]}, {"required": ["sweep"]}],
   "properties": {
     "schema_version": {"const": "1.0"},
-    "analytics": {"$ref": "https://userex.dev/contracts/kns/analytics-config-v1.schema.json"},
-    "traffic_plan": {"$ref": "https://userex.dev/contracts/kns/traffic-plan-v1.schema.json"},
+    "analytics": {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/analytics-config-v1.schema.json"},
+    "traffic_plan": {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/traffic-plan-v1.schema.json"},
     "name": {"$ref": "#/$defs/name"},
     "topology": {"type": "string", "minLength": 1},
     "index": {"type": "integer", "minimum": 0, "default": 0},
@@ -28,7 +28,7 @@
         "anyOf": [{"required": ["bandwidth"]}, {"required": ["delay"]}, {"required": ["loss"]}, {"required": ["queue_capacity"]}, {"required": ["fault_plan"]}, {"required": ["traffic_overrides"]}],
         "properties": {
           "name": {"$ref": "#/$defs/name"},
-          "fault_plan": {"$ref": "https://userex.dev/contracts/kns/fault-plan-v1.schema.json"},
+          "fault_plan": {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/fault-plan-v1.schema.json"},
           "traffic_overrides": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/traffic_override"}},
           "bandwidth": {"type": "number", "exclusiveMinimum": 0},
           "delay": {"type": "number", "minimum": 0},

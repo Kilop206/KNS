@@ -37,8 +37,7 @@ and congestion-control state.
 - configurable canvas cables with full-duplex, half-duplex and simplex modes,
   loss, delay, bandwidth, and queue capacity;
 - optional asynchronous translation of the main GUI controls;
-- conversational topology analysis with KiWi in the Intelligence panel
-  ([configuration and chat contract](docs/kiwi-chat.md));
+- optional conversational topology analysis in the Intelligence panel;
 - headless CSV export and Catch2 unit/integration tests.
 
 KNS is a simulation model rather than a production TCP/IP stack. See
@@ -413,37 +412,3 @@ The main remaining integration and extension areas are:
 KNS is source-available for personal, educational, research, and private
 modification under the terms in [`LICENSE`](LICENSE). Commercial use is
 prohibited unless separately authorized. This is not the MIT License.
-
-
-## Topology Hub desktop access
-
-To upload a local topology, sign in to the Hub and open **Conectar KNS**
-(`/tokens`). Generate a desktop token and copy it once. In KNS, load or create
-your network and select **Settings > Save to Topology Hub**. Enter the Hub URL
-(locally `http://localhost:3001`), paste the token, and choose a title,
-description and visibility. New uploads default to private. The token is held
-only in memory for the current KNS session; the environment variables below
-can also prefill the connection fields.
-
-The first upload creates a document; later saves in the same KNS session update
-that document with optimistic version checking. The success message shows its
-ID. Reopen it with `--hub-topology` in a later session to continue editing the
-same document. Loading another local file starts a new upload.
-
-KNS can open a Topology Hub document by ID:
-
-```powershell
-$env:KNS_TOPOLOGY_HUB_URL = "http://localhost:3001"
-$env:KNS_TOPOLOGY_HUB_TOKEN = "knsh_..."
-.\build\app\Release\KNS.exe --hub-topology <topology-id>
-```
-
-The token is optional for public topologies and required for private topologies
-or write-back. When a Hub-backed topology is open, **Save to Topology Hub**
-updates the same document using its loaded optimistic-lock version. A concurrent
-remote edit returns a conflict and KNS refuses to overwrite it; reload the
-topology before saving again. Successful saves create an immutable Hub revision.
-
-Desktop tokens are created and revoked from the authenticated Topology Hub API
-and should be treated as secrets. KNS reads the token from the environment and
-does not store a Hub password or browser session.

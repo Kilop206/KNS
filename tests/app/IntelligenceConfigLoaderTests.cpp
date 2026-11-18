@@ -29,28 +29,28 @@ struct EnvironmentCleanup {
     ~EnvironmentCleanup()
     {
         clearEnvironment("KNS_INTELLIGENCE_TOKEN");
-        clearEnvironment("KNS_TOPOLOGY_HUB_TOKEN");
+        clearEnvironment("KNS_TOPOLOGY_STORE_TOKEN");
     }
 };
 
 } // namespace
 
-TEST_CASE("intelligence token falls back to Topology Hub desktop token", "[intelligence][config]")
+TEST_CASE("intelligence token falls back to Topology Store desktop token", "[intelligence][config]")
 {
     EnvironmentCleanup cleanup;
     clearEnvironment("KNS_INTELLIGENCE_TOKEN");
-    setEnvironment("KNS_TOPOLOGY_HUB_TOKEN", "knsh_hub-token");
+    setEnvironment("KNS_TOPOLOGY_STORE_TOKEN", "example-hub-token");
 
     const auto config =
         kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
 
-    REQUIRE(config.bearer_token == "knsh_hub-token");
+    REQUIRE(config.bearer_token == "example-hub-token");
 }
 
-TEST_CASE("explicit intelligence token overrides Topology Hub token", "[intelligence][config]")
+TEST_CASE("explicit intelligence token overrides Topology Store token", "[intelligence][config]")
 {
     EnvironmentCleanup cleanup;
-    setEnvironment("KNS_TOPOLOGY_HUB_TOKEN", "knsh_hub-token");
+    setEnvironment("KNS_TOPOLOGY_STORE_TOKEN", "example-hub-token");
     setEnvironment("KNS_INTELLIGENCE_TOKEN", "sentient-override");
 
     const auto config =

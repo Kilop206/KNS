@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/validation-rules-v1.1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/validation-rules-v1.1.schema.json",
   "title": "KNS Traffic Lab absolute and baseline-offset assertion rules v1.1",
   "type": "object",
   "additionalProperties": false,

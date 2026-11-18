@@ -1,28 +1,21 @@
-# KNS ecosystem contracts
+# KNS contracts
 
-This directory is the canonical source for wire contracts shared by KNS ecosystem
-components. Contracts are versioned independently from application releases.
+This directory defines the file formats and optional client interfaces exposed by
+KNS and KNS Discovery. Schemas are versioned independently from applications.
 
 ## Ownership
 
 | Contract | Producer | Consumer |
 | --- | --- | --- |
-| `topology-v1.schema.json` | KNS Discovery, Topology Hub, KNS | KNS, Topology Hub |
-| `discovery-diff-v1.schema.json` | KNS Discovery | KNS, Topology Hub |
-| `desktop-intelligence-request-v1.schema.json` | KNS desktop | Sentient KNS |
-| `chat-request-v1.schema.json` | KNS desktop | Sentient KNS, KiWi through the gateway |
-| `chat-response-v1.schema.json` | KiWi | Sentient KNS, KNS desktop |
-| `kiwi.analysis.schema.json` | KiWi `/api/v1/analyze` | Sentient KNS |
-| `analysis.context.schema.json` | KNS `AIContextBuilder` | Sentient KNS, KiWi |
-| `discovery.snapshot.schema.json` | KNS Discovery | Topology Hub, KNS |
+| `topology-v1.schema.json` | KNS Discovery, KNS | KNS |
+| `discovery-diff-v1.schema.json` | KNS Discovery | KNS |
+| `desktop-intelligence-request-v1.schema.json` | KNS desktop | Compatible analysis endpoint |
+| `chat-request-v1.schema.json` | KNS desktop | Compatible chat endpoint |
+| `chat-response-v1.schema.json` | Compatible chat endpoint | KNS desktop |
+| `analysis.context.schema.json` | KNS `AIContextBuilder` | Analysis tooling |
+| `discovery.snapshot.schema.json` | KNS Discovery | KNS |
 
-Sentient KNS remains the public product gateway. KiWi's internal analysis adapter
-may use a different field naming convention, but that adapter is not a public
-desktop contract. `kiwi.analysis.schema.json` describes its current response
-body; `/api/v1/analyze` supplies the version because the body has no version field.
-It does not claim measurement authority or add request provenance absent from the
-existing response. Correlation and grounding evidence belong in the request and
-gateway envelope until a versioned response migration is agreed.
+
 `analysis.context.schema.json` describes KNS deterministic topology analysis.
 Its critical-node/link lists are bounded summaries, so missing entries must not
 be treated as proof that an entity is safe. Packet-level simulation counters are

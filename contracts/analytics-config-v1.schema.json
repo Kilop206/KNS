@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/analytics-config-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/analytics-config-v1.schema.json",
   "title": "KNS Analytics collection config v1",
   "description": "Virtual-time collection with bounded retention. Runtime additionally limits scheduled intervals and total retained link samples.",
   "type": "object",

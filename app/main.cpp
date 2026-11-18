@@ -41,7 +41,7 @@
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
-#include "hub/TopologyHubClient.hpp"
+#include "hub/TopologyStoreClient.hpp"
 #include "engine/core/Random.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "engine/core/SimulationState.hpp"
@@ -98,7 +98,7 @@ namespace {
             << "  --topology <file>          Load a topology JSON file\n"
             << "  --watch-topology <file>    Load and continuously synchronize a topology (GUI)\n"
             << "  --watch-topology-diff <file>  Observe KNS Discovery diff metadata (GUI)\n"
-            << "  --hub-topology <id>        Load a Topology Hub document (token required if private)\n"
+            << "  --hub-topology <id>        Load a Topology Store document (token required if private)\n"
             << "  --output <csv>             Write headless statistics to a CSV file\n"
             << "  --routing-metric <metric>  Select the headless routing metric\n"
             << "  --congestion-control <cc>  Select TCP congestion control\n"
@@ -211,25 +211,25 @@ namespace {
             : isAutoStartEnabledValue(*raw_value);
     }
 
-    [[nodiscard]] kns::app::hub::TopologyHubClientConfig topologyHubConfigFromEnvironment()
+    [[nodiscard]] kns::app::hub::TopologyStoreClientConfig topologyStoreConfigFromEnvironment()
     {
-        kns::app::hub::TopologyHubClientConfig config;
+        kns::app::hub::TopologyStoreClientConfig config;
         if (const auto base_url =
-                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_HUB_URL")) {
+                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_URL")) {
             config.base_url = *base_url;
         }
         if (const auto token =
-                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_HUB_TOKEN")) {
+                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_TOKEN")) {
             config.bearer_token = *token;
         }
         return config;
     }
 
-    [[nodiscard]] kns::app::hub::HubTopology loadTopologyFromHub(
+    [[nodiscard]] kns::app::hub::StoredTopology loadTopologyFromHub(
         const std::string& topology_id
     )
     {
-        return kns::app::hub::TopologyHubClient(topologyHubConfigFromEnvironment())
+        return kns::app::hub::TopologyStoreClient(topologyStoreConfigFromEnvironment())
             .fetchTopology(topology_id);
     }
 
@@ -1149,7 +1149,7 @@ static void renderConfigWindow(
     if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
         saveRequested = true;
     }
-    if (ImGui::Button(translations.label("Save to Topology Hub", "save-topology-hub").c_str())) {
+    if (ImGui::Button(translations.label("Save to Topology Store", "save-topology-store").c_str())) {
         saveHubRequested = true;
     }
     if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
@@ -1309,7 +1309,7 @@ static void visualizeWindow(
     std::string topologyPath,
     std::string topologyDiffPath,
     bool watchTopology,
-    std::optional<kns::app::hub::HubTopology> hubDocument
+    std::optional<kns::app::hub::StoredTopology> hubDocument
 )
 {
     if (!engine) {
@@ -1322,7 +1322,7 @@ static void visualizeWindow(
     VisualPacketManager visualManager;
     TranslationService translations;
 
-    const auto initialHubConfig = topologyHubConfigFromEnvironment();
+    const auto initialHubConfig = topologyStoreConfigFromEnvironment();
     std::array<char, 1024> hubUrl{};
     std::array<char, 512> hubToken{};
     std::array<char, 121> hubTitle{};
@@ -1754,15 +1754,15 @@ static void visualizeWindow(
             copyHubField(hubDescription, hubDocument ? hubDocument->description : "");
             hubPublic = hubDocument && hubDocument->visibility == "PUBLIC";
             hubError.clear();
-            ImGui::OpenPopup("Topology Hub###hub-upload");
+            ImGui::OpenPopup("Topology Store###hub-upload");
         }
         ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Appearing);
-        if (ImGui::BeginPopupModal("Topology Hub###hub-upload", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginPopupModal("Topology Store###hub-upload", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextWrapped("%s", translations.translate(
                 hubDocument ? "Update this topology on the Hub." : "Upload this topology to your Hub account.").c_str());
             ImGui::InputText(translations.label("Hub URL", "hub-url").c_str(), hubUrl.data(), hubUrl.size());
             ImGui::InputText(translations.label("Desktop token", "hub-token").c_str(), hubToken.data(), hubToken.size(), ImGuiInputTextFlags_Password);
-            ImGui::TextWrapped("%s", translations.translate("Create a token in Topology Hub > Connect KNS (/tokens). The token is kept only for this KNS session.").c_str());
+            ImGui::TextWrapped("%s", translations.translate("Create a token in your topology store. The token is kept only for this KNS session.").c_str());
             ImGui::InputText(translations.label("Title", "hub-title").c_str(), hubTitle.data(), hubTitle.size());
             ImGui::InputTextMultiline(translations.label("Description", "hub-description").c_str(), hubDescription.data(), hubDescription.size(), ImVec2(-1, 80));
             ImGui::Checkbox(translations.label("Public topology", "hub-public").c_str(), &hubPublic);
@@ -1773,8 +1773,8 @@ static void visualizeWindow(
                     auto config = initialHubConfig;
                     config.base_url = hubUrl.data();
                     config.bearer_token = hubToken.data();
-                    kns::app::hub::TopologyHubClient client(config);
-                    kns::app::hub::HubTopology document;
+                    kns::app::hub::TopologyStoreClient client(config);
+                    kns::app::hub::StoredTopology document;
                     if (hubDocument) document = *hubDocument;
                     document.title = hubTitle.data();
                     document.description = hubDescription.data();
@@ -1878,7 +1878,7 @@ int main(int argc, char* argv[])
     RunConfig runConfig;
 
     Topology topo;
-    std::optional<kns::app::hub::HubTopology> hubDocument;
+    std::optional<kns::app::hub::StoredTopology> hubDocument;
 
     // --------------------------------------------------
     // Parse command-line arguments

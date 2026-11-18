@@ -53,8 +53,8 @@ def main():
             ):
                 before = Handler.requests
                 env = {**os.environ, "SSL_CERT_FILE": str(folder / (trust + ".pem")),
-                       "KNS_TOPOLOGY_HUB_URL": f"https://{host}:{server.server_port}",
-                       "KNS_TOPOLOGY_HUB_TOKEN": "", "KNS_AUTO_START": "1"}
+                       "KNS_TOPOLOGY_STORE_URL": f"https://{host}:{server.server_port}",
+                       "KNS_TOPOLOGY_STORE_TOKEN": "", "KNS_AUTO_START": "1"}
                 result = subprocess.run([str(executable), "--headless", "--hub-topology", "tls-test",
                                          "--output", str(folder / "metrics.csv")],
                                         cwd=folder, env=env, capture_output=True, text=True, timeout=30)

@@ -21,10 +21,10 @@ void complete(ChatService& chat)
 }
 }
 
-TEST_CASE("KiWi chat sends topology and bounded alternating history", "[chat]")
+TEST_CASE("Assistant chat sends topology and bounded alternating history", "[chat]")
 {
     nlohmann::json captured;
-    ChatService chat([&](const nlohmann::json& request) { captured = request; return ChatReply{"KiWi reply"}; });
+    ChatService chat([&](const nlohmann::json& request) { captured = request; return ChatReply{"Assistant reply"}; });
     kns::analysis::NetworkAnalysis analysis;
     analysis.node_count = 3;
     for (int id : {10, 30, 50}) {
@@ -49,7 +49,7 @@ TEST_CASE("KiWi chat sends topology and bounded alternating history", "[chat]")
     REQUIRE(chat.messages().back().history_turns_omitted == 1);
 }
 
-TEST_CASE("KiWi chat exposes measured simulation loss attribution", "[chat][aqm]")
+TEST_CASE("Assistant chat exposes measured simulation loss attribution", "[chat][aqm]")
 {
     nlohmann::json captured;
     ChatService chat([&](const nlohmann::json& request) {
@@ -82,7 +82,7 @@ TEST_CASE("KiWi chat exposes measured simulation loss attribution", "[chat][aqm]
     REQUIRE(captured.at("context").at("network").at("links").at(0).at("red_queue_weight") == 0.125);
 }
 
-TEST_CASE("KiWi chat omits measurements when no stats were supplied", "[chat][aqm]")
+TEST_CASE("Assistant chat omits measurements when no stats were supplied", "[chat][aqm]")
 {
     nlohmann::json captured;
     ChatService chat([&](const nlohmann::json& request) {
@@ -94,7 +94,7 @@ TEST_CASE("KiWi chat omits measurements when no stats were supplied", "[chat][aq
     REQUIRE_FALSE(captured.at("context").contains("simulation"));
 }
 
-TEST_CASE("KiWi retry keeps the original measured counters", "[chat][aqm]")
+TEST_CASE("Assistant retry keeps the original measured counters", "[chat][aqm]")
 {
     nlohmann::json first;
     nlohmann::json retried;
@@ -116,7 +116,7 @@ TEST_CASE("KiWi retry keeps the original measured counters", "[chat][aqm]")
     REQUIRE(retried == first);
 }
 
-TEST_CASE("KiWi chat keeps failed turn for retry without duplicate messages", "[chat]")
+TEST_CASE("Assistant chat keeps failed turn for retry without duplicate messages", "[chat]")
 {
     int calls = 0;
     ChatService chat([&](const nlohmann::json&) -> ChatReply {
@@ -138,7 +138,7 @@ TEST_CASE("KiWi chat keeps failed turn for retry without duplicate messages", "[
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("KiWi chat discards pending replies on topology change or clear", "[chat]")
+TEST_CASE("Assistant chat discards pending replies on topology change or clear", "[chat]")
 {
     std::promise<void> release;
     auto ready = release.get_future().share();
@@ -155,7 +155,7 @@ TEST_CASE("KiWi chat discards pending replies on topology change or clear", "[ch
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("KiWi chat ignores blank questions and reports oversized input", "[chat]")
+TEST_CASE("Assistant chat ignores blank questions and reports oversized input", "[chat]")
 {
     ChatService chat([](const nlohmann::json&) { return ChatReply{"unexpected"}; });
     chat.send({}, " \n\t ");
@@ -166,7 +166,7 @@ TEST_CASE("KiWi chat ignores blank questions and reports oversized input", "[cha
     REQUIRE(chat.messages().empty());
 }
 
-TEST_CASE("KiWi chat allows editing a failed question and forgets stale errors", "[chat]")
+TEST_CASE("Assistant chat allows editing a failed question and forgets stale errors", "[chat]")
 {
     ChatService chat([](const nlohmann::json&) -> ChatReply { throw std::runtime_error("offline"); });
     chat.send({}, "Original question");
@@ -183,7 +183,7 @@ TEST_CASE("KiWi chat allows editing a failed question and forgets stale errors",
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("KiWi chat reports client and model history omissions without deleting the transcript", "[chat]")
+TEST_CASE("Assistant chat reports client and model history omissions without deleting the transcript", "[chat]")
 {
     nlohmann::json captured;
     bool fail = false;
@@ -217,7 +217,7 @@ TEST_CASE("KiWi chat reports client and model history omissions without deleting
     REQUIRE(chat.messages().back().history_turns_omitted == 0);
 }
 
-TEST_CASE("KiWi chat preserves a failed question when history metadata is impossible", "[chat]")
+TEST_CASE("Assistant chat preserves a failed question when history metadata is impossible", "[chat]")
 {
     ChatService chat([](const nlohmann::json&) { return ChatReply{"Reply", 1}; });
     chat.send({}, "First question");
@@ -227,7 +227,7 @@ TEST_CASE("KiWi chat preserves a failed question when history metadata is imposs
     REQUIRE_FALSE(chat.error().empty());
 }
 
-TEST_CASE("KiWi transcript preserves full UTF-8 history and context notices", "[chat]")
+TEST_CASE("Assistant transcript preserves full UTF-8 history and context notices", "[chat]")
 {
     ChatService chat([](const nlohmann::json& request) {
         return ChatReply{"Verifique a conexão.\nNão há telemetria.", request.at("messages").size() > 1 ? 1u : 0u};
@@ -241,7 +241,7 @@ TEST_CASE("KiWi transcript preserves full UTF-8 history and context notices", "[
     const auto transcript = chat.transcript();
     REQUIRE(transcript.find("revisão da topologia: 42") != std::string::npos);
     REQUIRE(transcript.find("Você:\nE a redundância?\nRota 10 → 30") != std::string::npos);
-    REQUIRE(transcript.find("KiWi:\nVerifique a conexão.\nNão há telemetria.") != std::string::npos);
+    REQUIRE(transcript.find("Assistant:\nVerifique a conexão.\nNão há telemetria.") != std::string::npos);
     REQUIRE(transcript.find("fora do contexto desta resposta: 1") != std::string::npos);
     REQUIRE(transcript.find("ainda sem resposta") == std::string::npos);
     REQUIRE(chat.messages().size() == 4);
@@ -249,7 +249,7 @@ TEST_CASE("KiWi transcript preserves full UTF-8 history and context notices", "[
     REQUIRE(chat.transcript().empty());
 }
 
-TEST_CASE("KiWi transcript identifies pending and failed questions without inventing replies", "[chat]")
+TEST_CASE("Assistant transcript identifies pending and failed questions without inventing replies", "[chat]")
 {
     std::promise<void> release;
     auto ready = release.get_future().share();
@@ -262,7 +262,7 @@ TEST_CASE("KiWi transcript identifies pending and failed questions without inven
     release.set_value();
     complete(chat);
     REQUIRE(pending.find("Última pergunta ainda sem resposta") != std::string::npos);
-    REQUIRE(pending.find("KiWi:\n") == std::string::npos);
+    REQUIRE(pending.find("Assistant:\n") == std::string::npos);
     REQUIRE(chat.transcript() == pending);
     REQUIRE(chat.canRetry());
     chat.discardFailedQuestion();
@@ -282,7 +282,7 @@ TEST_CASE("chat exposes last successful plan and quota metadata", "[chat][entitl
     REQUIRE(*chat.last_quota_remaining() == 99);
 }
 
-TEST_CASE("KiWi HTTP transport validates request identity and errors", "[chat][http]")
+TEST_CASE("Assistant HTTP transport validates request identity and errors", "[chat][http]")
 {
     httplib::Server server;
     std::string mode = "success";

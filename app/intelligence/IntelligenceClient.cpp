@@ -110,30 +110,30 @@ ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
     addRequestIdHeader(headers, request, "requestId");
     const auto result = client.Post(config_.chat_endpoint, headers, request.dump(), "application/json");
     if (!result) {
-        throw std::runtime_error("Could not reach KiWi chat: " + httplib::to_string(result.error()));
+        throw std::runtime_error("Could not reach Assistant chat: " + httplib::to_string(result.error()));
     }
     if (result->status < 200 || result->status >= 300) {
         throw std::runtime_error(httpErrorMessage(result->status, result->body.substr(0, 2048)));
     }
     if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("KiWi chat response exceeds response size limit");
+        throw std::runtime_error("Assistant chat response exceeds response size limit");
     }
     const auto response = nlohmann::json::parse(result->body);
     if (response.at("requestId") != request.at("requestId") ||
         response.at("topologyRevision") != request.at("topologyRevision")) {
-        throw std::runtime_error("KiWi returned a reply for a different request or topology");
+        throw std::runtime_error("Assistant returned a reply for a different request or topology");
     }
     auto message = response.at("message").get<std::string>();
     if (message.empty() || message.size() > 64000 ||
         message.find_first_not_of(" \t\r\n") == std::string::npos) {
-        throw std::runtime_error("KiWi returned an empty or oversized reply");
+        throw std::runtime_error("Assistant returned an empty or oversized reply");
     }
     std::size_t omitted = 0;
     if (response.contains("historyTurnsOmitted")) {
         const auto& value = response.at("historyTurnsOmitted");
         if (!value.is_number_integer() || value < 0 ||
             value > request.at("messages").size() / 2) {
-            throw std::runtime_error("KiWi returned invalid chat history metadata");
+            throw std::runtime_error("Assistant returned invalid chat history metadata");
         }
         omitted = value.get<std::size_t>();
     }

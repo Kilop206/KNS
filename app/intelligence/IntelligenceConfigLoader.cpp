@@ -107,7 +107,7 @@ IntelligenceConfigLoader::fromEnvironment()
     } else if (
         const auto value =
             kns::app::readEnvironmentVariable(
-                "KNS_TOPOLOGY_HUB_TOKEN"
+                "KNS_TOPOLOGY_STORE_TOKEN"
             )
     ) {
         config.bearer_token =

@@ -18,7 +18,7 @@ target_sources(KNS PRIVATE
     intelligence/IntelligenceConfigLoader.cpp
     intelligence/IntelligenceService.cpp
     intelligence/ChatService.cpp
-    hub/TopologyHubClient.cpp
+    hub/TopologyStoreClient.cpp
     gui/src/GUIFormat.cpp
     gui/src/NativeFileDialog.cpp
     gui/src/IntelligencePanel.cpp

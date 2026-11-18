@@ -8,7 +8,7 @@
 
 namespace kns::app::hub {
 
-struct TopologyHubClientConfig {
+struct TopologyStoreClientConfig {
     std::string base_url = "http://localhost:3001";
     std::string bearer_token;
     int connection_timeout_seconds = 5;
@@ -16,7 +16,7 @@ struct TopologyHubClientConfig {
     std::size_t max_response_bytes = 1024 * 1024;
 };
 
-struct HubTopology {
+struct StoredTopology {
     std::string id;
     std::string title;
     std::string description;
@@ -25,17 +25,17 @@ struct HubTopology {
     Topology topology;
 };
 
-class TopologyHubClient {
+class TopologyStoreClient {
 public:
-    explicit TopologyHubClient(TopologyHubClientConfig config = {});
+    explicit TopologyStoreClient(TopologyStoreClientConfig config = {});
 
     [[nodiscard]] Topology fetchPublicTopology(const std::string& topology_id) const;
-    [[nodiscard]] HubTopology fetchTopology(const std::string& topology_id) const;
-    [[nodiscard]] HubTopology createTopology(const HubTopology& topology) const;
-    [[nodiscard]] HubTopology saveTopology(const HubTopology& topology) const;
+    [[nodiscard]] StoredTopology fetchTopology(const std::string& topology_id) const;
+    [[nodiscard]] StoredTopology createTopology(const StoredTopology& topology) const;
+    [[nodiscard]] StoredTopology saveTopology(const StoredTopology& topology) const;
 
 private:
-    TopologyHubClientConfig config_;
+    TopologyStoreClientConfig config_;
 };
 
 } // namespace kns::app::hub

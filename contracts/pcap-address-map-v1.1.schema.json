@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/pcap-address-map-v1.1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/pcap-address-map-v1.1.schema.json",
   "title": "KNS explicit PCAP IP-to-model-node mapping v1.1",
   "description": "Runtime also checks canonical unscoped spelling, at most 4096 combined entries, and node existence.",
   "type": "object", "additionalProperties": false,

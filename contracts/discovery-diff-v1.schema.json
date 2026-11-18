@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://userex.dev/contracts/kns/discovery-diff-v1.schema.json",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/discovery-diff-v1.schema.json",
   "title": "KNS Discovery Snapshot Diff v1",
   "type": "object",
   "required": [

@@ -12,10 +12,10 @@ ChatService::ChatService(Transport transport) : transport_(std::move(transport))
 std::string ChatService::transcript() const
 {
     if (messages_.empty()) return {};
-    std::string text = "KiWi Chat — revisão da topologia: " + std::to_string(revision_) +
+    std::string text = "Topology Chat — revisão da topologia: " + std::to_string(revision_) +
         "\nContexto: análise da topologia, sem telemetria ao vivo.\n";
     for (const auto& message : messages_) {
-        text += message.role == "user" ? "\nVocê:\n" : "\nKiWi:\n";
+        text += message.role == "user" ? "\nVocê:\n" : "\nAssistant:\n";
         text += message.content + "\n";
         if (message.history_turns_omitted > 0) {
             text += "[Interações anteriores fora do contexto desta resposta: " +
@@ -158,7 +158,7 @@ void ChatService::update()
         if (active_generation_ != generation_) return;
         const auto sentTurns = failed_request_->at("messages").size() / 2;
         if (response.history_turns_omitted > sentTurns) {
-            throw std::runtime_error("KiWi returned invalid chat history metadata");
+            throw std::runtime_error("Assistant returned invalid chat history metadata");
         }
         const auto omitted = messages_.size() / 2 - sentTurns + response.history_turns_omitted;
         last_plan_ = std::move(response.plan);
@@ -171,7 +171,7 @@ void ChatService::update()
         if (active_generation_ == generation_) error_ = exception.what();
     }
     catch (...) {
-        if (active_generation_ == generation_) error_ = "Unexpected KiWi chat error.";
+        if (active_generation_ == generation_) error_ = "Unexpected Assistant chat error.";
     }
 }
 
