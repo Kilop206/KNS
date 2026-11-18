@@ -3,13 +3,12 @@
 #include "network/Link.hpp"
 #include "enums/LinkMode.hpp"
 
-#include <fstream>
+#include <cstdint>
 #include <filesystem>
-#include <stdexcept>
-#include <iostream>
+#include <fstream>
 #include <limits>
 #include <map>
-#include <cstdint>
+#include <stdexcept>
 #include <utility>
 #include <nlohmann/json.hpp>
 
@@ -22,6 +21,8 @@ namespace kns {
             if (!value.is_number_integer()) {
                 return false;
             }
+            // JSON can hold unsigned values above INT64_MAX. Keep their original
+            // width and signedness so a wrapped threshold cannot pass validation.
             if (value.is_number_unsigned()) {
                 const auto number = value.get<std::uint64_t>();
                 return std::cmp_greater_equal(number, minimum) && std::cmp_less_equal(number, maximum);
@@ -29,7 +30,28 @@ namespace kns {
             const auto number = value.get<std::int64_t>();
             return minimum <= number && number <= maximum;
         }
-    }
+
+        std::map<int, int> denseNodeIndices(const json& nodes) {
+            std::map<int, int> indices;
+            for (const auto& node : nodes) {
+                if (!node.is_object() || !node.contains("id") ||
+                    !integerInRange(node.at("id"), 0, std::numeric_limits<int>::max())) {
+                    throw std::invalid_argument("Node IDs must be nonnegative 32-bit integers");
+                }
+                if (!indices.emplace(node.at("id").get<int>(), 0).second) {
+                    throw std::invalid_argument("Duplicate node ID");
+                }
+            }
+
+            // Routing tables use dense indices. Assign them in wire-ID order so
+            // reordering the node array leaves the simulator's indices stable.
+            int next_index = 0;
+            for (auto& entry : indices) {
+                entry.second = next_index++;
+            }
+            return indices;
+        }
+    } // namespace
 
     Topology TopologyLoader::load_topology(const std::string& filename) {
         std::ifstream file(std::filesystem::path(std::u8string(filename.begin(), filename.end())), std::ios::binary);
@@ -43,48 +65,36 @@ namespace kns {
         return fromJson(j);
     }
 
-    Topology TopologyLoader::fromJson(const json& j) {
+    Topology TopologyLoader::fromJson(const json& document) {
         const std::string filename = "topology snapshot";
 
-        if (!j.is_object()) {
+        if (!document.is_object()) {
             throw std::invalid_argument("Topology JSON is not an object: " + filename);
         }
 
-        if (j.contains("schema_version") && j.at("schema_version") != "1.0") {
+        if (document.contains("schema_version") && document.at("schema_version") != "1.0") {
             throw std::invalid_argument("Unsupported topology schema_version");
         }
-        const bool typed = j.contains("nodes") && j.at("nodes").is_array();
+        const auto nodes = document.find("nodes");
+        const bool has_typed_nodes = nodes != document.end() && nodes->is_array();
         int count = 0;
-        if (typed) {
-            if (j.at("nodes").size() > Topology::MAX_NODES) {
+        if (has_typed_nodes) {
+            if (nodes->size() > Topology::MAX_NODES) {
                 throw std::invalid_argument("Too many nodes (maximum " + std::to_string(Topology::MAX_NODES) + ")");
             }
-            count = static_cast<int>(j.at("nodes").size());
-        } else if (j.contains("nodes")) {
-            const auto& value = j.at("nodes");
-            if (!integerInRange(value, 0, Topology::MAX_NODES)) {
+            count = static_cast<int>(nodes->size());
+        } else if (nodes != document.end()) {
+            if (!integerInRange(*nodes, 0, Topology::MAX_NODES)) {
                 throw std::invalid_argument("nodes must be an array or an integer in [0, " +
                     std::to_string(Topology::MAX_NODES) + "]");
             }
-            count = value.get<int>();
+            count = nodes->get<int>();
         }
-        std::map<int, int> node_ids;
-        if (typed) {
-            for (const auto& node : j.at("nodes")) {
-                if (!node.is_object() || !node.contains("id") ||
-                    !integerInRange(node.at("id"), 0, std::numeric_limits<int>::max())) {
-                    throw std::invalid_argument("Node IDs must be nonnegative 32-bit integers");
-                }
-                if (!node_ids.emplace(node.at("id").get<int>(), 0).second)
-                    throw std::invalid_argument("Duplicate node ID");
-            }
-            int next_id = 0;
-            for (auto& entry : node_ids) entry.second = next_id++;
-        }
+        const auto node_indices = has_typed_nodes ? denseNodeIndices(*nodes) : std::map<int, int>{};
         Topology topology(count);
-        if (typed) {
-            for (const auto& node : j.at("nodes")) {
-                const int id = node_ids.at(node.at("id").get<int>());
+        if (has_typed_nodes) {
+            for (const auto& node : *nodes) {
+                const int id = node_indices.at(node.at("id").get<int>());
                 DeviceInfo device;
                 device.type = deviceTypeFromString(node.value("type", "unknown"));
                 device.external_id = node.value("external_id", "");
@@ -142,27 +152,27 @@ namespace kns {
             }
         }
 
-        if (!j.contains("links") || !j["links"].is_array()) {
+        if (!document.contains("links") || !document["links"].is_array()) {
             throw std::invalid_argument("Topology JSON is missing 'links' array: " + filename);
         }
 
-        for (const auto& l : j["links"]) {
-            if (!l.is_object()) throw std::invalid_argument("Link must be an object");
-            if (!l.contains("from") || !l.contains("to") || 
-                !l.contains("bandwidth") || !l.contains("delay") || !l.contains("loss")) {
+        for (const auto& link_document : document["links"]) {
+            if (!link_document.is_object()) throw std::invalid_argument("Link must be an object");
+            if (!link_document.contains("from") || !link_document.contains("to") ||
+                !link_document.contains("bandwidth") || !link_document.contains("delay") || !link_document.contains("loss")) {
                 throw std::invalid_argument("Link is missing required fields in " + filename);
             }
 
-            if (!integerInRange(l.at("from"), 0, std::numeric_limits<int>::max()) ||
-                !integerInRange(l.at("to"), 0, std::numeric_limits<int>::max())) {
+            if (!integerInRange(link_document.at("from"), 0, std::numeric_limits<int>::max()) ||
+                !integerInRange(link_document.at("to"), 0, std::numeric_limits<int>::max())) {
                 throw std::invalid_argument("Link endpoints must be nonnegative 32-bit integers");
             }
-            int from = l["from"].get<int>();
-            int to = l["to"].get<int>();
-            if (typed) {
-                const auto source = node_ids.find(from);
-                const auto target = node_ids.find(to);
-                if (source == node_ids.end() || target == node_ids.end())
+            int from = link_document["from"].get<int>();
+            int to = link_document["to"].get<int>();
+            if (has_typed_nodes) {
+                const auto source = node_indices.find(from);
+                const auto target = node_indices.find(to);
+                if (source == node_indices.end() || target == node_indices.end())
                     throw std::invalid_argument("Link references missing node");
                 from = source->second;
                 to = target->second;
@@ -170,9 +180,9 @@ namespace kns {
                 throw std::invalid_argument("Link endpoints must be integers in [0, " +
                     std::to_string(Topology::MAX_NODES) + ")");
             }
-            double bandwidth = l["bandwidth"].get<double>();
-            double delay = l["delay"].get<double>();
-            double loss = l["loss"].get<double>();
+            double bandwidth = link_document["bandwidth"].get<double>();
+            double delay = link_document["delay"].get<double>();
+            double loss = link_document["loss"].get<double>();
 
             if (from < 0 || to < 0 || from == to) {
                 throw std::invalid_argument("Invalid node indices in link in " + filename);
@@ -188,8 +198,8 @@ namespace kns {
             }
 
             LinkMode mode = LinkMode::FULL_DUPLEX;
-            if (l.contains("mode")) {
-                std::string mode_str = l["mode"].get<std::string>();
+            if (link_document.contains("mode")) {
+                std::string mode_str = link_document["mode"].get<std::string>();
                 if (mode_str == "full_duplex") {
                     mode = LinkMode::FULL_DUPLEX;
                 } else if (mode_str == "half_duplex") {
@@ -202,8 +212,8 @@ namespace kns {
             }
 
             int queue_capacity = 32;
-            if (l.contains("queue_capacity")) {
-                const auto& value = l.at("queue_capacity");
+            if (link_document.contains("queue_capacity")) {
+                const auto& value = link_document.at("queue_capacity");
                 if (!integerInRange(value, 1, std::numeric_limits<int>::max())) {
                     throw std::invalid_argument("Link queue_capacity must be a positive integer in " + filename);
                 }
@@ -211,21 +221,21 @@ namespace kns {
             }
             auto link = topology.addLinkPtr(from, to, bandwidth, delay, loss, mode, queue_capacity);
 
-            const std::string queue_policy = l.value("queue_policy", "drop_tail");
+            const std::string queue_policy = link_document.value("queue_policy", "drop_tail");
             if (queue_policy == "red") {
                 if (
-                    !l.contains("red_min_threshold") ||
-                    !l.contains("red_max_threshold") ||
-                    !l.contains("red_max_drop_probability")
+                    !link_document.contains("red_min_threshold") ||
+                    !link_document.contains("red_max_threshold") ||
+                    !link_document.contains("red_max_drop_probability")
                 ) {
                     throw std::invalid_argument(
                         "RED queue policy requires red_min_threshold, red_max_threshold, and red_max_drop_probability"
                     );
                 }
-                const auto& min_threshold = l.at("red_min_threshold");
-                const auto& max_threshold = l.at("red_max_threshold");
-                const auto& max_probability = l.at("red_max_drop_probability");
-                const auto queue_weight = l.value("red_queue_weight", json(1.0));
+                const auto& min_threshold = link_document.at("red_min_threshold");
+                const auto& max_threshold = link_document.at("red_max_threshold");
+                const auto& max_probability = link_document.at("red_max_drop_probability");
+                const auto queue_weight = link_document.value("red_queue_weight", json(1.0));
                 if (
                     !integerInRange(min_threshold, 0, queue_capacity) ||
                     !integerInRange(max_threshold, 1, queue_capacity) ||
@@ -244,12 +254,12 @@ namespace kns {
                 throw std::invalid_argument("Unknown queue_policy in " + filename);
             }
 
-            link->setUp(l.value("up", true));
-            link->setDiscoveryMetadata(l.value("inferred", false), l.value("evidence", ""));
+            link->setUp(link_document.value("up", true));
+            link->setDiscoveryMetadata(link_document.value("inferred", false), link_document.value("evidence", ""));
         }
 
-        if (j.contains("name") && j["name"].is_string()) {
-            topology.setName(j["name"].get<std::string>().c_str());
+        if (document.contains("name") && document["name"].is_string()) {
+            topology.setName(document["name"].get<std::string>().c_str());
         }
 
         return topology;
