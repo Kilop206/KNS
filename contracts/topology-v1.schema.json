@@ -46,6 +46,13 @@
               "label": {
                 "type": "string"
               },
+              "mac": {
+                "type": "string"
+              },
+              "active": {
+                "type": "boolean",
+                "description": "Optional node state. Omission means active."
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -135,6 +142,10 @@
               "half_duplex",
               "simplex"
             ]
+          },
+          "up": {
+            "type": "boolean",
+            "description": "Optional link operational state. Omission means up."
           },
           "queue_capacity": {
             "description": "Maximum queued packets; applied per direction for full duplex and shared for half duplex.",

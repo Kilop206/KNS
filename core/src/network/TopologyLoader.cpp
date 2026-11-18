@@ -9,11 +9,27 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <cstdint>
+#include <utility>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 namespace kns {
+
+    namespace {
+        bool integerInRange(const json& value, int minimum, int maximum) {
+            if (!value.is_number_integer()) {
+                return false;
+            }
+            if (value.is_number_unsigned()) {
+                const auto number = value.get<std::uint64_t>();
+                return std::cmp_greater_equal(number, minimum) && std::cmp_less_equal(number, maximum);
+            }
+            const auto number = value.get<std::int64_t>();
+            return minimum <= number && number <= maximum;
+        }
+    }
 
     Topology TopologyLoader::load_topology(const std::string& filename) {
         std::ifstream file(std::filesystem::path(std::u8string(filename.begin(), filename.end())), std::ios::binary);
@@ -40,20 +56,23 @@ namespace kns {
         const bool typed = j.contains("nodes") && j.at("nodes").is_array();
         int count = 0;
         if (typed) {
-            if (j.at("nodes").size() > 4096) throw std::invalid_argument("Too many nodes (maximum 4096)");
+            if (j.at("nodes").size() > Topology::MAX_NODES) {
+                throw std::invalid_argument("Too many nodes (maximum " + std::to_string(Topology::MAX_NODES) + ")");
+            }
             count = static_cast<int>(j.at("nodes").size());
         } else if (j.contains("nodes")) {
             const auto& value = j.at("nodes");
-            if (!value.is_number_integer() || value < 0 || value > 4096) {
-                throw std::invalid_argument("nodes must be an array or an integer in [0, 4096]");
+            if (!integerInRange(value, 0, Topology::MAX_NODES)) {
+                throw std::invalid_argument("nodes must be an array or an integer in [0, " +
+                    std::to_string(Topology::MAX_NODES) + "]");
             }
             count = value.get<int>();
         }
         std::map<int, int> node_ids;
         if (typed) {
             for (const auto& node : j.at("nodes")) {
-                if (!node.is_object() || !node.contains("id") || !node.at("id").is_number_integer() ||
-                    node.at("id") < 0 || node.at("id") > std::numeric_limits<int>::max()) {
+                if (!node.is_object() || !node.contains("id") ||
+                    !integerInRange(node.at("id"), 0, std::numeric_limits<int>::max())) {
                     throw std::invalid_argument("Node IDs must be nonnegative 32-bit integers");
                 }
                 if (!node_ids.emplace(node.at("id").get<int>(), 0).second)
@@ -84,7 +103,7 @@ namespace kns {
                         service.name = entry.at("name").get<std::string>();
                         service.kind = parseServiceKind(entry.at("kind").get<std::string>());
                         const auto& port = entry.at("port");
-                        if (!port.is_number_integer() || port < 1 || port > 65535)
+                        if (!integerInRange(port, 1, 65535))
                             throw std::invalid_argument("Service port must be an integer in [1, 65535]");
                         service.port = port.get<int>();
                         service.enabled = entry.value("enabled", true);
@@ -94,7 +113,7 @@ namespace kns {
                                 throw std::invalid_argument("pages must be an object with at most 128 entries");
                             for (const auto& [path, page] : entry.at("pages").items()) {
                                 const auto& status = page.at("status");
-                                if (!status.is_number_integer() || status < 200 || status > 599)
+                                if (!integerInRange(status, 200, 599))
                                     throw std::invalid_argument("HTTP status must be an integer in [200, 599]");
                                 service.pages.emplace(path, HttpPage{status.get<int>(), page.at("body").get<std::string>()});
                             }
@@ -134,9 +153,8 @@ namespace kns {
                 throw std::invalid_argument("Link is missing required fields in " + filename);
             }
 
-            if (!l.at("from").is_number_integer() || !l.at("to").is_number_integer() ||
-                l.at("from") < 0 || l.at("from") > std::numeric_limits<int>::max() ||
-                l.at("to") < 0 || l.at("to") > std::numeric_limits<int>::max()) {
+            if (!integerInRange(l.at("from"), 0, std::numeric_limits<int>::max()) ||
+                !integerInRange(l.at("to"), 0, std::numeric_limits<int>::max())) {
                 throw std::invalid_argument("Link endpoints must be nonnegative 32-bit integers");
             }
             int from = l["from"].get<int>();
@@ -148,8 +166,9 @@ namespace kns {
                     throw std::invalid_argument("Link references missing node");
                 from = source->second;
                 to = target->second;
-            } else if (from >= 4096 || to >= 4096) {
-                throw std::invalid_argument("Link endpoints must be integers in [0, 4096)");
+            } else if (from >= Topology::MAX_NODES || to >= Topology::MAX_NODES) {
+                throw std::invalid_argument("Link endpoints must be integers in [0, " +
+                    std::to_string(Topology::MAX_NODES) + ")");
             }
             double bandwidth = l["bandwidth"].get<double>();
             double delay = l["delay"].get<double>();
@@ -185,8 +204,7 @@ namespace kns {
             int queue_capacity = 32;
             if (l.contains("queue_capacity")) {
                 const auto& value = l.at("queue_capacity");
-                if (!value.is_number_integer() || value <= 0 ||
-                    value > std::numeric_limits<int>::max()) {
+                if (!integerInRange(value, 1, std::numeric_limits<int>::max())) {
                     throw std::invalid_argument("Link queue_capacity must be a positive integer in " + filename);
                 }
                 queue_capacity = value.get<int>();
@@ -209,11 +227,10 @@ namespace kns {
                 const auto& max_probability = l.at("red_max_drop_probability");
                 const auto queue_weight = l.value("red_queue_weight", json(1.0));
                 if (
-                    !min_threshold.is_number_integer() ||
-                    !max_threshold.is_number_integer() ||
+                    !integerInRange(min_threshold, 0, queue_capacity) ||
+                    !integerInRange(max_threshold, 1, queue_capacity) ||
                     !max_probability.is_number() || !queue_weight.is_number() ||
-                    min_threshold < 0 || min_threshold >= max_threshold ||
-                    max_threshold > queue_capacity
+                    min_threshold.get<int>() >= max_threshold.get<int>()
                 ) {
                     throw std::invalid_argument("Invalid RED queue configuration");
                 }

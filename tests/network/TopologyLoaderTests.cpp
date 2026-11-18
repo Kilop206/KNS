@@ -26,6 +26,17 @@ struct TempJsonFile {
     }
 };
 
+TEST_CASE("Topology JSON rejects oversized unsigned RED thresholds before conversion", "[network][loader][red]")
+{
+    auto graph = nlohmann::json::parse(R"({"nodes":2,"links":[
+        {"from":0,"to":1,"bandwidth":100,"delay":1,"loss":0,"queue_capacity":16,
+        "queue_policy":"red","red_min_threshold":4,"red_max_threshold":12,"red_max_drop_probability":0.25}
+    ]})");
+    REQUIRE_NOTHROW(TopologyLoader::fromJson(graph));
+    graph["links"][0]["red_max_threshold"] = 9223372036854775820ULL;
+    REQUIRE_THROWS_AS(TopologyLoader::fromJson(graph), std::invalid_argument);
+}
+
 TEST_CASE("Topology JSON validates optional queue capacity", "[network][loader][queue]")
 {
     for (const auto capacity : {"1", "5", "0", "-1", "1.5", "2147483648", "\"4\""}) {

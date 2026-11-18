@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "nodes": [{"id": 3}, {"id": 5}],
+  "links": [{"from": 3, "to": 5, "delay": 1, "bandwidth": 100, "loss": 0, "up": "false"}]
+}
