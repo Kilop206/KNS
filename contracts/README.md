@@ -14,7 +14,8 @@ KNS and KNS Discovery. Schemas are versioned independently from applications.
 | `chat-response-v1.schema.json` | Compatible chat endpoint | KNS desktop |
 | `analysis.context.schema.json` | KNS `AIContextBuilder` | Analysis tooling |
 | `discovery.snapshot.schema.json` | KNS Discovery | KNS |
-
+| `simulation.config.schema.json` | KNS headless batch runner | Replay and result tooling |
+| `simulation.result.schema.json` | KNS headless batch runner | Result and experiment tooling |
 
 `analysis.context.schema.json` describes KNS deterministic topology analysis.
 Its critical-node/link lists are bounded summaries, so missing entries must not
@@ -28,6 +29,25 @@ retains its last published observation time so watch mode does not reload KNS.
 `discovery.snapshot.valid.traffic.json` is a synthetic three-node fixture for
 offline integration tests. Its nodes and inferred links are test data, not
 observations of a real network.
+
+Topology v1 validates optional node state (`active`), link state (`up`), and MAC
+metadata (`mac`) with the types used by the simulator. The KNS loader and the
+Discovery snapshot profile support up to 4,096 nodes.
+
+The batch runner writes `simulation.result.json` for each successful execution.
+It embeds the effective simulation config, SHA-256 of the selected executable at
+batch start and of the input snapshot, plus the final counters and logical times
+from KNS CSV v1. These metrics describe simulated traffic. Timing fields use
+seconds. Optional queue counters are omitted when the engine CSV omits them.
+Failed executions remain available in the batch summary with their status and
+diagnostics.
+
+To replay, use the executable whose hash matches `engine_sha256` and the topology
+copy identified by `topology_snapshot` and `topology_sha256`. Convert the 16-digit
+hexadecimal `seed` to decimal for `--seed`, set `KNS_AUTO_START` to `1` or `0`, and
+apply packet size, routing metric, congestion control, and link events as recorded.
+Run IDs and UTC generation times identify individual executions. The config and
+metrics are the comparable parts of results from identical runs.
 
 ## Compatibility policy
 
@@ -52,3 +72,5 @@ After building the application, run `python scripts/validate_analysis_context.py
 to check a context emitted by the actual headless engine. The script runs a
 bundled fixture topology and writes only into a temporary directory. Use
 `--work-dir <directory>` to retain the generated evidence locally.
+Run `python scripts/validate_simulation_result.py --work-dir build` to validate
+results from two parallel runs of the bundled topology fixture.

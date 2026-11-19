@@ -11,16 +11,20 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
 import platform
+import shutil
 import signal
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from itertools import count
 from pathlib import Path
 from typing import TextIO
 
@@ -65,13 +69,13 @@ def find_executable(root: Path) -> Path | None:
 
 def get_test_dir(base: Path) -> Path:
     base.mkdir(parents=True, exist_ok=True)
-    i = 1
-    while True:
-        d = base / f"test_{i}"
-        if not d.exists():
-            d.mkdir(parents=True)
-            return d
-        i += 1
+    for index in count(1):
+        directory = base / f"test_{index}"
+        try:
+            directory.mkdir()
+        except FileExistsError:
+            continue
+        return directory
 
 
 # ==============================================================
@@ -120,6 +124,8 @@ def run_silent(
     packet_size: int = 1500,
     congestion_control: str = "reno",
     link_events: list[str] | None = None,
+    *,
+    work_dir: Path | None = None,
 ) -> tuple[subprocess.Popen, float, TextIO]:
     cmd = build_command(
         exe,
@@ -138,7 +144,7 @@ def run_silent(
         stdout=log_handle,
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
-        cwd=str(topo.parent),
+        cwd=str(work_dir if work_dir is not None else topo.parent),
     )
 
     if is_windows():
@@ -163,21 +169,30 @@ def run_silent(
 
 
 def parse_csv_if_exists(csv_file: Path) -> list[dict] | None:
-    if not csv_file or not csv_file.exists():
+    try:
+        stream = csv_file.open(encoding="utf-8", newline="")
+    except FileNotFoundError:
         return None
 
-    rows = []
-    with open(csv_file, encoding="utf-8", errors="replace", newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if None in row or any(v is None for v in row.values()):
-                raise ValueError("Malformed stats CSV row")
-            rows.append({k: v.strip() for k, v in row.items()})
-
+    with stream:
+        reader = csv.DictReader(stream, strict=True)
+        try:
+            fields = reader.fieldnames or []
+            if any(not field.strip() for field in fields) or len(fields) != len(
+                set(fields)
+            ):
+                raise ValueError("Stats CSV headers must be nonempty and unique")
+            rows = []
+            for row in reader:
+                if None in row or any(value is None for value in row.values()):
+                    raise ValueError("Malformed stats CSV row")
+                rows.append({key: value.strip() for key, value in row.items()})
+        except (csv.Error, ValueError) as exc:
+            raise ValueError(f"Invalid stats CSV {csv_file}: {exc}") from exc
     return rows if rows else None
 
 
-def parse_stats(csv_file: Path) -> dict:
+def parse_stats(csv_file: Path, *, default_aqm: bool = True) -> dict:
     """Read version 1 of the engine's aggregate CSV; reject invalid output."""
     rows = parse_csv_if_exists(csv_file)
     if not rows or len(rows) != 1:
@@ -199,22 +214,29 @@ def parse_stats(csv_file: Path) -> dict:
                 "seed",
             )
         }
-        result["queue_overflow_drops"] = int(raw.get("queue_overflow_drops", "0") or 0)
-        result["red_early_drops"] = int(raw.get("red_early_drops", "0") or 0)
-        result.update(
-            {
-                key: float(raw[key])
-                for key in ("total_latency", "avg_latency", "simulation_duration_s")
-            }
-        )
-        if any(not math.isfinite(value) or value < 0 for value in result.values()):
-            raise ValueError("Metrics must be finite and nonnegative")
+        for key in ("queue_overflow_drops", "red_early_drops"):
+            value = raw.get(key)
+            if value:
+                result[key] = int(value)
+            elif default_aqm:
+                result[key] = 0
+        if any(value < 0 for value in result.values()):
+            raise ValueError("Counters and seed must be nonnegative")
+        if result["seed"] >= 2**64:
+            raise ValueError("Seed must fit an unsigned 64-bit integer")
+        timings = {
+            key: float(raw[key])
+            for key in ("total_latency", "avg_latency", "simulation_duration_s")
+        }
+        if any(not math.isfinite(value) or value < 0 for value in timings.values()):
+            raise ValueError("Timing metrics must be finite and nonnegative")
+        result.update(timings)
         sent = result["packets_sent"]
         result["delivery_rate"] = result["packets_delivered"] / sent if sent else 0.0
         result["loss_rate"] = result["packets_lost"] / sent if sent else 0.0
         result["avg_latency_s"] = result.pop("avg_latency")
         return result
-    except (KeyError, ValueError, TypeError) as exc:
+    except (KeyError, ValueError, TypeError, OverflowError) as exc:
         raise ValueError(f"Invalid stats CSV {csv_file}: {exc}") from exc
 
 
@@ -373,6 +395,68 @@ def compute_stats(stats: dict | None, duration_s: float) -> dict:
     return result
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_simulation_result(
+    path: Path, snapshot: Path, config: dict, stats: dict
+) -> None:
+    if stats["seed"] != config["seed"]:
+        raise ValueError(
+            f"Recorded seed {stats['seed']} differs from requested seed {config['seed']}"
+        )
+
+    metrics = {
+        key: stats[key]
+        for key in (
+            "packets_sent",
+            "packets_delivered",
+            "packets_lost",
+            "packets_in_transit",
+            "total_sessions",
+            "data_packets_delivered",
+            "avg_latency_s",
+            "simulation_duration_s",
+        )
+    }
+    for key in ("queue_overflow_drops", "red_early_drops"):
+        if key in stats:
+            metrics[key] = stats[key]
+    metrics["total_latency_s"] = stats["total_latency"]
+    result = {
+        "schema_version": "1.0",
+        "run_id": str(uuid.uuid4()),
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "data_origin": "simulated",
+        "config": {
+            "schema_version": "1.0",
+            "engine_sha256": config["engine_sha256"],
+            "topology_sha256": sha256_file(snapshot),
+            "topology_snapshot": snapshot.relative_to(path.parent).as_posix(),
+            "seed": f"{config['seed']:016x}",
+            "packet_size_bytes": config["packet_size"],
+            "routing_metric": config["routing_metric"],
+            "congestion_control": config["congestion_control"],
+            "auto_start": config["auto_start"],
+            "link_events": config["link_events"],
+        },
+        "metrics": metrics,
+    }
+    temporary = path.with_suffix(".tmp")
+    try:
+        temporary.write_text(
+            json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8"
+        )
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def write_summary_json(
     runs: list[dict],
     test_dir: Path,
@@ -386,6 +470,7 @@ def write_summary_json(
                 "topology": str(r["topo"]),
                 "log": str(r["log"]),
                 "csv": str(r.get("csv")) if r.get("csv") else None,
+                "result_json": str(r["result_json"]) if r.get("result_json") else None,
                 "returncode": r["returncode"],
                 "status": r.get("status", "unknown"),
                 "error": r.get("error"),
@@ -486,6 +571,10 @@ def main(argv: list[str] | None = None) -> int:
         "topologies_dir",
         help="Directory containing .json topology files",
     )
+    parser.add_argument("--exe", type=Path, help="Built KNS executable to use")
+    parser.add_argument(
+        "--output-root", type=Path, help="Parent for numbered batch directories"
+    )
     parser.add_argument(
         "--max-procs",
         "-j",
@@ -543,8 +632,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.seed < 0 or args.seed > 2**64 - 1:
         print("[ERROR] --seed must fit an unsigned 64-bit integer.", file=sys.stderr)
         return 1
-    if args.packet_size <= 0:
-        print("[ERROR] --packet-size must be positive.", file=sys.stderr)
+    if not 1 <= args.packet_size <= 2**31 - 1:
+        print(
+            "[ERROR] --packet-size must fit a positive 32-bit integer.", file=sys.stderr
+        )
         return 1
 
     topo_dir = Path(args.topologies_dir).resolve()
@@ -553,8 +644,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     root = Path(__file__).resolve().parent.parent
-    exe = find_executable(root)
-    if not exe:
+    exe = args.exe.resolve() if args.exe else find_executable(root)
+    if not exe or not exe.is_file():
         print(
             "[ERROR] KNS(.exe) not found.\n"
             "        Build the project with CMake before running this script.",
@@ -562,20 +653,26 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    results_root = root / "results" / "v1.2"
-    test_dir = get_test_dir(results_root)
-    print(f"[INFO] Results will be saved in: {test_dir}")
-
     topologies = sorted(topo_dir.rglob("*.json"))
     if not topologies:
         print(f"[ERROR] No .json files found in: {topo_dir}", file=sys.stderr)
         return 1
 
+    try:
+        engine_sha256 = sha256_file(exe)
+        output_root = (args.output_root or root / "results" / "v1.2").resolve()
+        test_dir = get_test_dir(output_root)
+    except OSError as exc:
+        print(f"[ERROR] Could not prepare batch: {exc}", file=sys.stderr)
+        return 1
+    print(f"[INFO] Results will be saved in: {test_dir}")
     print(f"[INFO] Found topologies: {len(topologies)}")
     print(f"[INFO] Platform: {platform.platform()}")
 
     pending: list[PendingRun] = []
     run_records: list[dict] = []
+    snapshots: dict[Path, Path] = {}
+    auto_start = os.environ.get("KNS_AUTO_START") not in {"0", "false", "False"}
 
     for i, topo in enumerate(topologies):
         log_file = test_dir / f"run_{i}.log"
@@ -583,9 +680,13 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"[RUN {i}] {topo.name}")
         try:
+            run_dir = test_dir / f"run_{i}"
+            snapshot = run_dir / "topology" / topo.name
+            snapshot.parent.mkdir(parents=True)
+            shutil.copyfile(topo, snapshot)
             proc, t0, log_handle = run_silent(
                 exe,
-                topo,
+                snapshot,
                 log_file,
                 csv_file,
                 args.routing_metric,
@@ -593,7 +694,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.packet_size,
                 args.congestion_control,
                 args.link_event,
+                work_dir=run_dir,
             )
+            snapshots[csv_file] = snapshot
             pending.append(PendingRun(proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
             print(f"[ERROR] Failed to start {topo.name}: {exc}", file=sys.stderr)
@@ -616,32 +719,48 @@ def main(argv: list[str] | None = None) -> int:
     while pending:
         _flush_one(pending, run_records, args.timeout)
 
-    graphs: list[str] = []
-
-    print("[INFO] Generating graphs...")
-
-    # Graphs are optional: a missing plotting dependency or a rendering failure
-    # must not discard the diagnostics for a failed simulation batch.
-    try:
-        dash = plot_summary_dashboard(run_records, test_dir)
-        graphs.append(str(dash))
-        print("       dashboard.png")
-    except Exception as exc:
-        print(f"[WARNING] Dashboard unavailable: {exc}", file=sys.stderr)
-
     run_config = {
         "project_root": str(root),
         "topologies_dir": str(topo_dir),
         "executable": str(exe),
+        "engine_sha256": engine_sha256,
         "max_procs": args.max_procs,
         "timeout_seconds": args.timeout,
         "routing_metric": args.routing_metric,
         "seed": args.seed,
         "packet_size": args.packet_size,
         "congestion_control": args.congestion_control,
+        "auto_start": auto_start,
         "link_events": args.link_event,
         "platform": platform.platform(),
     }
+
+    for record in run_records:
+        if record["returncode"] != 0:
+            continue
+        snapshot = snapshots[record["csv"]]
+        result_path = snapshot.parent.parent / "simulation.result.json"
+        try:
+            write_simulation_result(result_path, snapshot, run_config, record["stats"])
+            record["result_json"] = result_path
+        except (OSError, ValueError) as exc:
+            record.update(
+                returncode=1, status="result_error", error=str(exc), stats=None
+            )
+            print(
+                f"[ERROR] Could not write result for {record['topo'].name}: {exc}",
+                file=sys.stderr,
+            )
+
+    graphs: list[str] = []
+    print("[INFO] Generating graphs...")
+    # Plotting is optional. Keep diagnostics even if rendering fails.
+    try:
+        dash = plot_summary_dashboard(run_records, test_dir)
+        graphs.append(str(dash))
+        print("       dashboard.png")
+    except Exception as exc:
+        print(f"[WARNING] Dashboard unavailable: {exc}", file=sys.stderr)
 
     with open(test_dir / "run_config.json", "w", encoding="utf-8") as f:
         json.dump(run_config, f, indent=2, ensure_ascii=False)
@@ -709,7 +828,7 @@ def _flush_one(
     elif rc == 0:
         # A zero exit code alone cannot establish that usable metrics exist.
         try:
-            stats = parse_stats(run.csv_path)
+            stats = parse_stats(run.csv_path, default_aqm=False)
         except (ValueError, OSError) as exc:
             outcome, rc, error = "stats_error", 1, str(exc)
 
@@ -738,14 +857,23 @@ def _flush_one(
 
 def _terminate_tree(proc: subprocess.Popen) -> None:
     if is_windows():
-        result = subprocess.run(
-            ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
-        if result.returncode != 0 and proc.poll() is None:
-            raise RuntimeError(f"Could not terminate process tree {proc.pid}")
+        try:
+            result = subprocess.run(
+                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                timeout=5,
+            )
+            tree_terminated = result.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            tree_terminated = False
+        if not tree_terminated and proc.poll() is None:
+            print(
+                f"[WARNING] taskkill failed for PID {proc.pid}; terminating the simulator directly",
+                file=sys.stderr,
+            )
+            proc.kill()
     else:
         try:
             os.killpg(proc.pid, signal.SIGKILL)

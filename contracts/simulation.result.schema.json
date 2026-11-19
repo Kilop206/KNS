@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/simulation.result.schema.json",
+  "title": "KNS Simulation Result v1",
+  "description": "A successful KNS headless execution with its effective configuration and final simulator counters.",
+  "type": "object",
+  "required": ["schema_version", "run_id", "generated_at", "data_origin", "config", "metrics"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "generated_at": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "data_origin": {"const": "simulated"},
+    "config": {"$ref": "simulation.config.schema.json"},
+    "metrics": {
+      "type": "object",
+      "required": ["packets_sent", "packets_delivered", "packets_lost", "packets_in_transit", "total_sessions", "data_packets_delivered", "total_latency_s", "avg_latency_s", "simulation_duration_s"],
+      "properties": {
+        "packets_sent": {"$ref": "#/$defs/count"},
+        "packets_delivered": {"$ref": "#/$defs/count"},
+        "packets_lost": {"$ref": "#/$defs/count"},
+        "packets_in_transit": {"$ref": "#/$defs/count"},
+        "total_sessions": {"$ref": "#/$defs/count"},
+        "data_packets_delivered": {"$ref": "#/$defs/count"},
+        "queue_overflow_drops": {"$ref": "#/$defs/count"},
+        "red_early_drops": {"$ref": "#/$defs/count"},
+        "total_latency_s": {"$ref": "#/$defs/seconds", "description": "Sum of modeled data-packet latencies in seconds."},
+        "avg_latency_s": {"$ref": "#/$defs/seconds", "description": "Mean modeled data-packet latency in seconds. The engine emits 0 when no data packets are delivered."},
+        "simulation_duration_s": {"$ref": "#/$defs/seconds", "description": "Final logical clock in seconds."}
+      }
+    }
+  },
+  "$defs": {
+    "count": {"type": "integer", "minimum": 0},
+    "seconds": {"type": "number", "minimum": 0}
+  }
+}

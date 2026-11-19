@@ -4,8 +4,8 @@ KNS imports topology schema 1.0 from local files. KNS Discovery emits a compatib
 snapshot and can also write a versioned change set for watch mode. The simulator
 continues to accept unversioned legacy local topologies.
 
-Headless runs emit CSV schema 1. Batch tools also generate machine-readable
-experiment artifacts. Optional desktop clients accept compatible endpoints configured
+Headless runs emit CSV schema 1. Batch runs also record configuration and results
+as versioned JSON. Optional desktop clients accept compatible endpoints configured
 by the operator. Their request and response schemas are listed in
 [the contract reference](../contracts/README.md).
 

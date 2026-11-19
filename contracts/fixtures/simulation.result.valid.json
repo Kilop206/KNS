@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "run_id": "fd8951eb-bb5f-48e4-94e1-9b24b3b4d3fe",
+  "generated_at": "2026-11-18T12:00:00Z",
+  "data_origin": "simulated",
+  "config": {
+    "schema_version": "1.0",
+    "engine_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "topology_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "topology_snapshot": "topology/mesh4.json",
+    "seed": "000000000000002a",
+    "packet_size_bytes": 1500,
+    "routing_metric": "delay",
+    "congestion_control": "reno",
+    "auto_start": true,
+    "link_events": []
+  },
+  "metrics": {
+    "packets_sent": 10,
+    "packets_delivered": 8,
+    "packets_lost": 2,
+    "packets_in_transit": 0,
+    "total_sessions": 1,
+    "data_packets_delivered": 8,
+    "total_latency_s": 0.4,
+    "avg_latency_s": 0.05,
+    "simulation_duration_s": 2
+  }
+}

@@ -358,6 +358,14 @@ optional and requires `matplotlib` and `numpy`; plotting failures do not prevent
 diagnostic reports. Measurement definitions are documented in
 [`docs/experiments.md`](docs/experiments.md).
 
+Successful runs also write `run_N/simulation.result.json` and retain the input
+topology and analysis context in that run directory. The result records the
+engine and input SHA-256 hashes, effective configuration, and metrics in seconds
+and packet counts. The batch summary links to each result. Use `--exe` to select
+a specific build and `--output-root` to place the batch in a different directory.
+See the [simulation contracts](contracts/README.md) for the seed encoding and
+replay inputs.
+
 ## Architecture
 
 ```text

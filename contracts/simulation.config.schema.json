@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/simulation.config.schema.json",
+  "title": "KNS Simulation Configuration v1",
+  "description": "Effective inputs recorded by the headless batch runner for a single simulation.",
+  "type": "object",
+  "required": ["schema_version", "engine_sha256", "topology_sha256", "topology_snapshot", "seed", "packet_size_bytes", "routing_metric", "congestion_control", "auto_start", "link_events"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "engine_sha256": {"$ref": "#/$defs/sha256", "description": "SHA-256 of the selected KNS executable at batch start."},
+    "topology_sha256": {"$ref": "#/$defs/sha256", "description": "SHA-256 of the original bytes copied into the topology snapshot used by KNS."},
+    "topology_snapshot": {"type": "string", "minLength": 1, "description": "Portable path to the recorded snapshot, relative to the enclosing result file."},
+    "seed": {"type": "string", "minLength": 16, "maxLength": 16, "pattern": "^[0-9a-f]{16}$", "description": "Unsigned 64-bit seed encoded as 16 lowercase hexadecimal digits. Convert to decimal for the KNS CLI."},
+    "packet_size_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+    "routing_metric": {"enum": ["delay", "bandwidth", "hop-count", "delay-bandwidth"]},
+    "congestion_control": {"enum": ["tahoe", "reno", "newreno", "cubic"]},
+    "auto_start": {"type": "boolean", "description": "Whether KNS generated the default traffic workload."},
+    "link_events": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "description": "Exact CLI arguments in scheduling order. Each is time_seconds:node_a:node_b:down|up and is validated semantically by KNS."
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}
+  }
+}

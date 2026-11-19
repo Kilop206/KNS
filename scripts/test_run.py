@@ -1,10 +1,12 @@
 import csv
+import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,6 +76,7 @@ class StatsTests(unittest.TestCase):
             ("avg_latency", "nan"),
             ("packets_sent", -1),
             ("seed", ""),
+            ("seed", 2**64),
         ):
             with self.subTest(key=key):
                 original = self.row[key]
@@ -85,6 +88,24 @@ class StatsTests(unittest.TestCase):
         self.path.unlink()
         with self.assertRaises(ValueError):
             runner.parse_stats(self.path)
+
+    def test_csv_rejects_duplicate_headers_and_unclosed_quotes(self):
+        self.write()
+        header, row = self.path.read_text(encoding="utf-8").splitlines()
+        self.path.write_text(f"{header},packets_sent\n{row},9\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "headers must be nonempty and unique"):
+            runner.parse_stats(self.path)
+        self.path.write_text(f'{header}\n"{row}\n', encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Invalid stats CSV"):
+            runner.parse_stats(self.path)
+
+    def test_concurrent_runs_reserve_distinct_directories(self):
+        base = self.path.parent / "runs"
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            directories = list(pool.map(runner.get_test_dir, [base] * 12))
+        self.assertEqual(
+            {path.name for path in directories}, {f"test_{i}" for i in range(1, 13)}
+        )
 
     def test_build_command_carries_experiment_parameters(self):
         command = runner.build_command(
@@ -401,8 +422,7 @@ class ProcessTests(unittest.TestCase):
         done = self.launch("raise SystemExit(3)", "done")
         done.process.wait(timeout=60)
         pending, records = [hung, done], []
-        # Test polling order before the first deadline, independent of host
-        # process-start latency. The children and process-tree cleanup are real.
+        # Clock control keeps the polling assertions independent of host scheduling.
         before_deadline = max(hung.started_at, done.started_at) + 0.1
         deadline = before_deadline - hung.started_at + 2
         with patch.object(runner.time, "perf_counter", return_value=before_deadline):
@@ -441,8 +461,7 @@ class ProcessTests(unittest.TestCase):
                 runner, "plot_summary_dashboard", side_effect=ImportError("matplotlib")
             ),
         ):
-            # Status/report assertions below verify timeout handling. Host
-            # startup and taskkill latency are not performance requirements.
+            # Host startup and process termination times vary across CI runners.
             self.assertEqual(runner.main([str(self.root), "-j", "1", "-t", "0.2"]), 1)
         import json
 
@@ -500,6 +519,20 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(report["successful_runs"], 1)
         self.assertEqual(report["failed_runs"], 1)
         self.assertTrue((self.root / "metrics.csv").exists())
+        by_status = {run["status"]: run for run in report["runs"]}
+        self.assertIsNone(by_status["process_error"]["result_json"])
+        result = json.loads(
+            Path(by_status["success"]["result_json"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual(result["config"]["seed"], "000000000000002a")
+        self.assertNotIn("red_early_drops", result["metrics"])
+
+    @unittest.skipUnless(runner.is_windows(), "Windows taskkill fallback")
+    def test_taskkill_failure_still_reaps_the_simulator(self):
+        child = self.launch("import time; time.sleep(60)", "fallback").process
+        with patch.object(runner.subprocess, "run", side_effect=PermissionError):
+            runner._terminate_tree(child)
+        self.assertIsNotNone(child.poll())
 
 
 if __name__ == "__main__":

@@ -73,6 +73,9 @@ jobs:
       - name: Validate emitted analysis context
         run: python scripts/validate_analysis_context.py
 
+      - name: Validate emitted simulation results
+        run: python scripts/validate_simulation_result.py --work-dir build
+
       - name: Validate coordinated release train
         run: python scripts/validate_release_train.py
 
@@ -125,6 +128,7 @@ jobs:
           python -m pip install -r scripts/requirements-contracts.txt
           python scripts/validate_contracts.py
           python scripts/validate_analysis_context.py --work-dir build-mingw
+          python scripts/validate_simulation_result.py --work-dir build-mingw
 
   sanitizers:
     name: Sanitizers (ubuntu-latest)

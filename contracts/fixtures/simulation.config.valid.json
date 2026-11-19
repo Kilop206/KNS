@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "engine_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "topology_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "topology_snapshot": "topology/mesh4.json",
+  "seed": "ffffffffffffffff",
+  "packet_size_bytes": 512,
+  "routing_metric": "delay",
+  "congestion_control": "reno",
+  "auto_start": true,
+  "link_events": []
+}
