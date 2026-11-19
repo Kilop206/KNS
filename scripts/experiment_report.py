@@ -1,31 +1,42 @@
 """Offline overview of an experiment bundle and its recorded evidence."""
 
 import json
+import os
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
+import experiment_manifest
 
-def write(output: Path, manifest: dict, comparison: dict, validation: dict | None) -> None:
+
+def write(
+    output: Path,
+    manifest: dict,
+    comparison: dict,
+    validation: dict | None,
+    source: Path | None = None,
+) -> None:
+    source = source or output
     profile = manifest["configuration"]["profile"]
 
     def text(value):
         return escape(str(value), quote=True)
 
-    def link(relative, label):
+    def link(relative, label, root=output):
         path = Path(relative)
         # Only link existing evidence contained in this bundle.
         try:
-            target = (output / path).resolve()
-            target.relative_to(output.resolve())
+            target = (root / path).resolve()
+            target.relative_to(root.resolve())
         except ValueError:
             return text(label)
         if not target.is_file():
             return text(label)
-        return f'<a href="{quote(path.as_posix(), safe="/")}">{text(label)}</a>'
+        href = Path(os.path.relpath(target, output)).as_posix()
+        return f'<a href="{quote(href, safe="/")}">{text(label)}</a>'
 
     benchmark = json.loads(
-        (output / "runs" / "benchmark.json").read_text(encoding="utf-8")
+        (source / "runs" / "benchmark.json").read_text(encoding="utf-8")
     )
     verdicts = (
         {case["case_id"]: case for case in validation["cases"]} if validation else {}
@@ -43,7 +54,8 @@ def write(output: Path, manifest: dict, comparison: dict, validation: dict | Non
         ):
             if case.get(field):
                 # Older bundles record absolute paths. Files live directly in runs/.
-                evidence.append(link(Path("runs") / Path(case[field]).name, label))
+                artifact = experiment_manifest.case_artifact(source, case[field])
+                evidence.append(link(artifact.relative_to(source.resolve()), label, source))
         verdict_text = "No rules configured"
         if verdict:
             verdict_text = text(verdict["status"])
@@ -74,7 +86,7 @@ def write(output: Path, manifest: dict, comparison: dict, validation: dict | Non
             f'{link("validation/rules.json", "Rules JSON")}</p>'
         )
     artifacts = " · ".join(
-        link(path, label) for path, label in (
+        link(path, label, source) for path, label in (
             ("manifest.json", "Manifest"),
             ("profile.json", "Profile"),
             ("source-topology.json", "Source topology"),
@@ -83,6 +95,15 @@ def write(output: Path, manifest: dict, comparison: dict, validation: dict | Non
             ("runs/report.md", "Benchmark Markdown"),
         )
     )
+    analysis_section = ""
+    if (output / "analysis.json").is_file() and source != output:
+        analysis = json.loads((output / "analysis.json").read_text(encoding="utf-8"))
+        analysis_section = (
+            '<section><h2>Saved-result analysis</h2>'
+            f'<p>Analysis {text(analysis["status"])} · Exit code {text(analysis["returncode"])}. '
+            f'{link("analysis.json", "Analysis provenance JSON")}</p>'
+            '<p>The execution status below comes from the original manifest.</p></section>'
+        )
     provenance = "".join(
         f"<dt>{text(label)}</dt><dd><code>{text(manifest.get(key))}</code></dd>"
         for key, label in (
@@ -124,6 +145,7 @@ dd {{ margin-left: 0; overflow-wrap: anywhere; }}
 <h1>{text(profile["name"])}</h1>
 <p>Experiment {text(manifest["status"])} · Exit code {text(manifest["returncode"])}
 · {text(benchmark["case_count"])} cases</p>
+{analysis_section}
 <section><h2>Validation</h2>{validation_section}</section>
 <section><h2>Cases</h2>
 <p>Execution status and rule verdicts are recorded for each case.</p>

@@ -99,6 +99,10 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_report.py -v)
     set_tests_properties(experiment_report_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
+    add_test(NAME saved_experiment_analysis_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_analyze_experiment.py -v)
+    set_tests_properties(saved_experiment_analysis_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME experiment_comparison_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_compare_experiments.py -v
@@ -109,6 +113,8 @@ if(Python3_Interpreter_FOUND)
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_analytics_report.py -v)
     set_tests_properties(analytics_report_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     if(TARGET KNS)
+        set_tests_properties(saved_experiment_analysis_tests PROPERTIES
+            ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")
         set_tests_properties(pcap_trace_tests PROPERTIES
             ENVIRONMENT "KNS_TEST_EXE=$<TARGET_FILE:KNS>")
         set_tests_properties(trace_import_tests PROPERTIES

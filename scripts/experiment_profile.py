@@ -315,11 +315,35 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     return suite_path
 
 
-def validate_cases(output: Path, profile: dict, validator_sha256: str) -> dict:
+def validate_cases(
+    source: Path, profile: dict, validator_sha256: str, output: Path | None = None
+) -> dict:
+    output = output or source
     rules = profile["validation"]
     benchmark = json.loads(
-        (output / "runs" / "benchmark.json").read_text(encoding="utf-8")
+        (source / "runs" / "benchmark.json").read_text(encoding="utf-8")
     )
+    plans = {
+        path: (
+            traffic_config.apply_overrides(
+                profile["traffic_plan"], experiment["traffic_overrides"]
+            )
+            if "traffic_overrides" in experiment
+            else profile["traffic_plan"]
+        )
+        for path, experiment in zip(
+            benchmark["suite"]["topologies"], profile["experiments"]
+        )
+    }
+
+    def read_case_report(run):
+        report, source_hash = validate_result.read_report(
+            manifests.case_artifact(source, run["traffic_report"])
+        )
+        if report["config"] != plans[run["topology"]]:
+            raise ValueError("Traffic report configuration differs from the saved profile")
+        return report, source_hash
+
     references = {}
     uses_baseline = validate_result.requires_baseline(rules)
     if uses_baseline:
@@ -355,9 +379,7 @@ def validate_cases(output: Path, profile: dict, validator_sha256: str) -> dict:
             )
         else:
             try:
-                report, source_hash = validate_result.read_report(
-                    Path(run["traffic_report"])
-                )
+                report, source_hash = read_case_report(run)
                 baseline_report = None
                 baseline_hash = None
                 if uses_baseline:
@@ -372,9 +394,7 @@ def validate_cases(output: Path, profile: dict, validator_sha256: str) -> dict:
                         or not reference["traffic_report"]
                     ):
                         raise ValueError("Matching baseline has no complete traffic report")
-                    baseline_report, baseline_hash = validate_result.read_report(
-                        Path(reference["traffic_report"])
-                    )
+                    baseline_report, baseline_hash = read_case_report(reference)
                 verdict = validate_result.evaluate(report, rules, baseline_report)
             except (
                 OSError,

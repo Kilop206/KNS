@@ -752,6 +752,10 @@ class ExperimentProfileTests(unittest.TestCase):
                 Path(run["traffic_report"]).unlink()
         incomplete = self.root / "incomplete"
         (incomplete / "runs").mkdir(parents=True)
+        for run in benchmark["cases"]:
+            if "control" in run["case_id"]:
+                path = Path(run["traffic_report"])
+                (incomplete / "runs" / path.name).write_bytes(path.read_bytes())
         experiments.write_json(incomplete / "runs/benchmark.json", benchmark)
         result = experiments.validate_cases(incomplete, self.profile, "0" * 64)
         self.assertEqual(result["error_cases"], 8)

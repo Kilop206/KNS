@@ -213,6 +213,35 @@ uses inline styles and links to evidence within the bundle. Keep the directory
 together when sharing the results. A `--generate-only` bundle contains prepared
 inputs and a manifest, and receives its execution report when replayed with KNS.
 
+## Analyze a saved experiment
+
+Regenerate comparison, validation and overview reports from a finished bundle
+with the current Python tools:
+
+```powershell
+python scripts/analyze_experiment.py results/traffic-experiment --output "results/traffic analysis"
+```
+
+The destination must be new. It receives `report.html`, comparison reports,
+per-case validation artifacts when rules are embedded, and `analysis.json`.
+Analysis provenance records the source run ID, configuration identity, source
+manifest/benchmark hashes and the current analyzer, comparator, validator and
+overview-exporter hashes. The overview shows both the recorded execution status
+and the current analysis status.
+
+The command reads case evidence from the bundle's `runs/` directory, including
+bundles moved since execution or recorded on another platform. Traffic report
+configurations must match the saved profile's effective per-variant plan.
+Missing evidence, incomplete matrices and incompatible baseline reports prevent
+a passing analysis. Prepared and running manifests are rejected.
+
+The original bundle is preserved. Overview links to its raw evidence are relative
+to the new analysis directory. Keep both directories in the same relative layout
+when sharing them. Exit codes are 0 when the recorded execution and current
+assertions pass, 1 for input/execution/analysis errors, and 2 for violated
+assertions after successful execution. Current validators may reject evidence
+accepted by an older tool version, so retain `analysis.json` with the reports.
+
 ## Compare variants
 
 The [Compare guide](../docs/compare.md) covers offline HTML/SVG output, side values,

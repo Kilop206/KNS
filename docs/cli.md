@@ -59,6 +59,7 @@ Differences do not by themselves establish causality or statistical confidence.
 ```powershell
 python scripts/validate_result.py results/traffic/runs/003-002-upgrade-delay-reno-baseline-s42-p1500.csv.traffic.json --rules "KNS Experiments/traffic-lab/assertions.json" --output results/validation
 python scripts/analytics_report.py results/simulation.csv.analytics.json --output results/analytics-report
+python scripts/analyze_experiment.py results/traffic --output results/traffic-analysis
 ```
 
 The assertion example consumes the completed Traffic Lab example above. The
@@ -70,6 +71,14 @@ Reports preserve metric scopes, units, denominators and model limitations.
 Rules 1.1 accept `baseline_offset` and rules 1.2 also accept
 `baseline_percent`. Both require a complete `--baseline` report with the
 identical workload, recorded streams and source cohorts. See [validation.md](validation.md).
+
+Experiment profiles may embed these rules in `validation`. Relative rules select
+the profile's named baseline using matching workload dimensions. Profile execution
+and saved-experiment analysis return 0 when execution and assertions pass, 1 for
+execution/input/analysis errors, and 2 for violated assertions after successful
+execution. Saved-experiment analysis reads a finished bundle and writes current
+comparison, validation and overview reports with provenance to a new directory.
+Open its `report.html` to inspect the outcomes and linked raw evidence.
 
 ## Trace import and industrial/capacity scenarios
 

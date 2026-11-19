@@ -10,7 +10,7 @@ import platform
 import re
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 def config_hash(configuration: dict) -> str:
@@ -30,6 +30,17 @@ def file_hash(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def case_artifact(directory: Path, recorded_path: str) -> Path:
+    """Resolve recorded case evidence in a moved or cross-platform bundle."""
+    if not isinstance(recorded_path, str) or not recorded_path:
+        raise ValueError("Case artifact requires a recorded path")
+    filename = PureWindowsPath(recorded_path).name
+    target = (directory / "runs" / filename).resolve()
+    if not filename or not target.is_relative_to((directory / "runs").resolve()):
+        raise ValueError("Case artifact must stay within the bundle's runs directory")
+    return target
 
 
 def source_revision(root: Path) -> str:
