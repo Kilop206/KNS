@@ -2,10 +2,10 @@ import copy
 import csv
 import json
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 import traffic_config
 
@@ -23,7 +23,9 @@ class TrafficConfigTests(unittest.TestCase):
         self.assertEqual(len({f["schedule"]["kind"] for f in self.plan["flows"]}), 6)
 
     def test_replay_preflight_matches_the_ordered_bounded_contract(self):
-        plan = json.loads((ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text())
+        plan = json.loads(
+            (ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text()
+        )
         traffic_config.validate(plan, self.topology)
         for mutate in (
             lambda p: p.pop("replay_events"),
@@ -33,20 +35,39 @@ class TrafficConfigTests(unittest.TestCase):
             lambda p: p["replay_events"][2].update(at_s=1),
             lambda p: p["flows"][0].update(application={"kind": "telemetry"}),
         ):
-            invalid = copy.deepcopy(plan); mutate(invalid)
-            with self.assertRaises(ValueError): traffic_config.validate(invalid, self.topology)
+            invalid = copy.deepcopy(plan)
+            mutate(invalid)
+            with self.assertRaises(ValueError):
+                traffic_config.validate(invalid, self.topology)
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for replay integration")
+    @unittest.skipUnless(
+        os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for replay integration"
+    )
     def test_actual_cli_replays_and_marks_source_budget_truncation(self):
-        plan = json.loads((ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text())
+        plan = json.loads(
+            (ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text()
+        )
         with tempfile.TemporaryDirectory(prefix="KNS replay ") as folder:
             root = Path(folder)
             for limit, code in ((10, 0), (2, 3)):
                 plan["max_packets"] = limit
-                source = root / "plan.json"; source.write_text(json.dumps(plan))
+                source = root / "plan.json"
+                source.write_text(json.dumps(plan))
                 output = root / f"replay {limit}.csv"
-                completed = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
-                    "--traffic-plan", str(source), "--output", str(output)], capture_output=True, timeout=30)
+                completed = subprocess.run(
+                    [
+                        os.environ["KNS_TEST_EXE"],
+                        "--headless",
+                        "--topology",
+                        str(LAB / "topology.json"),
+                        "--traffic-plan",
+                        str(source),
+                        "--output",
+                        str(output),
+                    ],
+                    capture_output=True,
+                    timeout=30,
+                )
                 self.assertEqual(completed.returncode, code, completed.stderr)
                 report = json.loads(Path(str(output) + ".traffic.json").read_text())
                 self.assertEqual(report["generated"], min(limit, 3))
@@ -55,7 +76,8 @@ class TrafficConfigTests(unittest.TestCase):
 
     def test_invalid_plans_have_explicit_preflight_errors(self):
         for mutation in (
-            lambda p: p.update(seed=-1), lambda p: p.update(max_packets=True),
+            lambda p: p.update(seed=-1),
+            lambda p: p.update(max_packets=True),
             lambda p: p["flows"].append(copy.deepcopy(p["flows"][0])),
             lambda p: p["flows"][0].update(destination=99),
             lambda p: p["flows"][0].update(end_s=0),
@@ -66,38 +88,80 @@ class TrafficConfigTests(unittest.TestCase):
             lambda p: p["flows"][4]["schedule"].update(max_interval_s=0.01),
             lambda p: p["flows"][5]["schedule"].update(offsets_s=[0.03, 0.01]),
         ):
-            invalid = copy.deepcopy(self.plan); mutation(invalid)
+            invalid = copy.deepcopy(self.plan)
+            mutation(invalid)
             with self.assertRaises(ValueError):
                 traffic_config.validate(invalid, self.topology)
 
     def test_application_contract_rejects_incomplete_response_models(self):
-        for kind in ("http", "api", "database", "microservice", "request_response", "messaging", "telemetry", "streaming"):
+        for kind in (
+            "http",
+            "api",
+            "database",
+            "microservice",
+            "request_response",
+            "messaging",
+            "telemetry",
+            "streaming",
+        ):
             plan = copy.deepcopy(self.plan)
-            plan["flows"][0]["application"] = {"kind": kind, "response_wire_bytes": 250, "processing_delay_s": 0.003}
+            plan["flows"][0]["application"] = {
+                "kind": kind,
+                "response_wire_bytes": 250,
+                "processing_delay_s": 0.003,
+            }
             traffic_config.validate(plan, self.topology)
             del plan["flows"][0]["application"]["processing_delay_s"]
-            with self.assertRaises(ValueError): traffic_config.validate(plan, self.topology)
+            with self.assertRaises(ValueError):
+                traffic_config.validate(plan, self.topology)
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration")
+    @unittest.skipUnless(
+        os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration"
+    )
     def test_application_round_trip_and_operation_statistics_use_real_messages(self):
         with tempfile.TemporaryDirectory(prefix="KNS application ") as temp:
             root = Path(temp)
-            plan = copy.deepcopy(self.plan); plan["flows"] = plan["flows"][:1]
+            plan = copy.deepcopy(self.plan)
+            plan["flows"] = plan["flows"][:1]
             flow = plan["flows"][0]
-            flow.update(end_s=0.001, schedule={"kind": "custom", "offsets_s": [0]},
-                        application={"kind": "api", "response_wire_bytes": 250, "processing_delay_s": 0.003, "deadline_s": 0.02})
-            source = root / "application.json"; source.write_text(json.dumps(plan))
+            flow.update(
+                end_s=0.001,
+                schedule={"kind": "custom", "offsets_s": [0]},
+                application={
+                    "kind": "api",
+                    "response_wire_bytes": 250,
+                    "processing_delay_s": 0.003,
+                    "deadline_s": 0.02,
+                },
+            )
+            source = root / "application.json"
+            source.write_text(json.dumps(plan))
             output = root / "round trip.csv"
-            result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
-                "--traffic-plan", str(source), "--output", str(output)], capture_output=True, timeout=30)
+            result = subprocess.run(
+                [
+                    os.environ["KNS_TEST_EXE"],
+                    "--headless",
+                    "--topology",
+                    str(LAB / "topology.json"),
+                    "--traffic-plan",
+                    str(source),
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                timeout=30,
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(Path(str(output) + ".traffic.json").read_text())
             traffic_config.validate_report(report, plan)
-            self.assertEqual(report["generated"], 2); self.assertEqual(report["delivered"], 2)
+            self.assertEqual(report["generated"], 2)
+            self.assertEqual(report["delivered"], 2)
             observed = report["flows"][0]
             self.assertEqual(observed["operations_completed"], 1)
             self.assertEqual(observed["operations_on_time"], 1)
-            self.assertAlmostEqual(observed["operation_latency"]["mean_s"], 0.01003, places=10)
+            self.assertAlmostEqual(
+                observed["operation_latency"]["mean_s"], 0.01003, places=10
+            )
             self.assertEqual(observed["delivered_wire_bytes"], 375)
             for mutation in (
                 lambda f: f.update(operations_pending=1),
@@ -105,19 +169,44 @@ class TrafficConfigTests(unittest.TestCase):
                 lambda f: f.update(responses_generated=0),
                 lambda f: f.update(operations_on_time=0),
                 lambda f: f.update(delivered_wire_bytes=250),
-                lambda f: f["operation_latency"]["histogram"]["counts"].__setitem__(0, 9),
+                lambda f: f["operation_latency"]["histogram"]["counts"].__setitem__(
+                    0, 9
+                ),
             ):
-                invalid = copy.deepcopy(report); mutation(invalid["flows"][0])
-                with self.assertRaises(ValueError): traffic_config.validate_report(invalid, plan)
+                invalid = copy.deepcopy(report)
+                mutation(invalid["flows"][0])
+                with self.assertRaises(ValueError):
+                    traffic_config.validate_report(invalid, plan)
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration")
+    @unittest.skipUnless(
+        os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for real engine integration"
+    )
     def test_actual_cli_competition_replay_conservation_and_invalid_arguments(self):
         with tempfile.TemporaryDirectory(prefix="KNS traffic ") as temp:
             root = Path(temp)
+
             def execute(output, *extra):
-                return subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
-                    "--traffic-plan", str(LAB / "traffic.json"), "--analytics", str(LAB / "analytics.json"),
-                    "--seed", "42", "--output", str(output), *extra], capture_output=True, text=True, timeout=30)
+                return subprocess.run(
+                    [
+                        os.environ["KNS_TEST_EXE"],
+                        "--headless",
+                        "--topology",
+                        str(LAB / "topology.json"),
+                        "--traffic-plan",
+                        str(LAB / "traffic.json"),
+                        "--analytics",
+                        str(LAB / "analytics.json"),
+                        "--seed",
+                        "42",
+                        "--output",
+                        str(output),
+                        *extra,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
             original = None
             for index in range(2):
                 output = root / f"run {index}.csv"
@@ -129,45 +218,108 @@ class TrafficConfigTests(unittest.TestCase):
                 self.assertGreater(report["generated"], 200)
                 self.assertGreater(report["dropped"], 0)
                 self.assertGreater(report["delivered"], 0)
-                self.assertEqual(report["flows"][0]["delivered_on_time"] + report["flows"][0]["delivered_late"], report["flows"][0]["delivered"])
-                if original is None: original = source.read_bytes()
-                else: self.assertEqual(original, source.read_bytes())
+                self.assertEqual(
+                    report["flows"][0]["delivered_on_time"]
+                    + report["flows"][0]["delivered_late"],
+                    report["flows"][0]["delivered"],
+                )
+                if original is None:
+                    original = source.read_bytes()
+                else:
+                    self.assertEqual(original, source.read_bytes())
                 with output.open(newline="") as stream:
-                    self.assertEqual(int(next(csv.DictReader(stream))["total_sessions"]), 0)
-                analytics = json.loads(Path(str(output) + ".analytics.json").read_text())
+                    self.assertEqual(
+                        int(next(csv.DictReader(stream))["total_sessions"]), 0
+                    )
+                analytics = json.loads(
+                    Path(str(output) + ".analytics.json").read_text()
+                )
                 self.assertEqual(analytics["tcp_contiguous_payload_bytes"], 0)
-                self.assertTrue(all(g["key"].startswith("traffic:") for g in analytics["flow_groups"]))
+                self.assertTrue(
+                    all(
+                        g["key"].startswith("traffic:")
+                        for g in analytics["flow_groups"]
+                    )
+                )
                 for key in ("generated", "pending", "delivered"):
-                    invalid = copy.deepcopy(report); invalid[key] += 1
-                    with self.assertRaises(ValueError): traffic_config.validate_report(invalid, self.plan)
+                    invalid = copy.deepcopy(report)
+                    invalid[key] += 1
+                    with self.assertRaises(ValueError):
+                        traffic_config.validate_report(invalid, self.plan)
             partial = root / "partial.csv"
             self.assertEqual(execute(partial, "--until", "0.001").returncode, 3)
             observed = json.loads(Path(str(partial) + ".traffic.json").read_text())
             traffic_config.validate_report(observed, self.plan, complete=False)
-            with self.assertRaises(ValueError): traffic_config.validate_report(observed, self.plan)
-            self.assertEqual(execute(root / "duplicate.csv", "--traffic-plan", str(LAB / "traffic.json")).returncode, 1)
-            bad = copy.deepcopy(self.plan); bad["flows"][0]["destination"] = 99
-            source = root / "bad.json"; source.write_text(json.dumps(bad))
-            result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
-                                     "--traffic-plan", str(source)], capture_output=True, timeout=30)
+            with self.assertRaises(ValueError):
+                traffic_config.validate_report(observed, self.plan)
+            self.assertEqual(
+                execute(
+                    root / "duplicate.csv", "--traffic-plan", str(LAB / "traffic.json")
+                ).returncode,
+                1,
+            )
+            bad = copy.deepcopy(self.plan)
+            bad["flows"][0]["destination"] = 99
+            source = root / "bad.json"
+            source.write_text(json.dumps(bad))
+            result = subprocess.run(
+                [
+                    os.environ["KNS_TEST_EXE"],
+                    "--headless",
+                    "--topology",
+                    str(LAB / "topology.json"),
+                    "--traffic-plan",
+                    str(source),
+                ],
+                capture_output=True,
+                timeout=30,
+            )
             self.assertEqual(result.returncode, 1)
             self.assertIn(b"Invalid traffic plan", result.stderr)
-            limited = copy.deepcopy(self.plan); limited["max_packets"] = 2
+            limited = copy.deepcopy(self.plan)
+            limited["max_packets"] = 2
             source.write_text(json.dumps(limited))
             output = root / "limited.csv"
-            result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(LAB / "topology.json"),
-                "--traffic-plan", str(source), "--output", str(output)], capture_output=True, timeout=30)
+            result = subprocess.run(
+                [
+                    os.environ["KNS_TEST_EXE"],
+                    "--headless",
+                    "--topology",
+                    str(LAB / "topology.json"),
+                    "--traffic-plan",
+                    str(source),
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                timeout=30,
+            )
             self.assertEqual(result.returncode, 3, result.stderr)
             report = json.loads(Path(str(output) + ".traffic.json").read_text())
             self.assertTrue(report["generation_limit_reached"])
             traffic_config.validate_report(report, limited, complete=False)
-            with self.assertRaises(ValueError): traffic_config.validate_report(report, limited)
+            with self.assertRaises(ValueError):
+                traffic_config.validate_report(report, limited)
             down = copy.deepcopy(self.topology)
-            for link in down["links"]: link["up"] = False
-            topology = root / "all links down.json"; topology.write_text(json.dumps(down))
+            for link in down["links"]:
+                link["up"] = False
+            topology = root / "all links down.json"
+            topology.write_text(json.dumps(down))
             output = root / "all dropped.csv"
-            result = subprocess.run([os.environ["KNS_TEST_EXE"], "--headless", "--topology", str(topology),
-                "--traffic-plan", str(LAB / "traffic.json"), "--output", str(output)], capture_output=True, timeout=30)
+            result = subprocess.run(
+                [
+                    os.environ["KNS_TEST_EXE"],
+                    "--headless",
+                    "--topology",
+                    str(topology),
+                    "--traffic-plan",
+                    str(LAB / "traffic.json"),
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                timeout=30,
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(Path(str(output) + ".traffic.json").read_text())
             traffic_config.validate_report(report, self.plan)

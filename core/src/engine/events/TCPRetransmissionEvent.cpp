@@ -12,33 +12,20 @@
 
 namespace kns {
 
-    TCPRetransmissionEvent::TCPRetransmissionEvent(
-        double timestamp,
-        std::uint64_t session_id,
-        std::uint32_t sequence
-    )
-        : Event(timestamp),
-          session_id_(session_id),
-          sequence_(sequence)
-    {
-    }
+    TCPRetransmissionEvent::TCPRetransmissionEvent(double timestamp, std::uint64_t session_id,
+                                                   std::uint32_t sequence)
+        : Event(timestamp), session_id_(session_id), sequence_(sequence) {}
 
-    void TCPRetransmissionEvent::execute(
-        SimulationEngine& engine
-    )
-    {
+    void TCPRetransmissionEvent::execute(SimulationEngine& engine) {
         if (!engine.hasTCPSession(session_id_)) {
             return;
         }
 
-        auto& session =
-            engine.getTCPSession(session_id_);
+        auto& session = engine.getTCPSession(session_id_);
 
-        auto& client =
-            session.getClientConnection();
+        auto& client = session.getClientConnection();
 
-        const auto segment =
-            client.getOutstandingSegment(sequence_);
+        const auto segment = client.getOutstandingSegment(sequence_);
 
         if (!segment.has_value()) {
             return;
@@ -55,13 +42,9 @@ namespace kns {
         }
 
         if (!client.canRetransmit(sequence_)) {
-            KNS_DEBUG_LOG(
-                "[TCP][RTO] retransmission limit reached "
-                << "session=" << session_id_
-                << " seq=" << sequence_
-                << " time=" << engine.now()
-                << '\n'
-            );
+            KNS_DEBUG_LOG("[TCP][RTO] retransmission limit reached "
+                          << "session=" << session_id_ << " seq=" << sequence_
+                          << " time=" << engine.now() << '\n');
 
             return;
         }
@@ -70,47 +53,23 @@ namespace kns {
             return;
         }
 
-        client.markSegmentRetransmitted(
-            sequence_,
-            engine.now()
-        );
+        client.markSegmentRetransmitted(sequence_, engine.now());
 
-        Packet retransmission(
-            client.getLocalNode(),
-            client.getRemoteNode(),
-            client.getLocalNode(),
-            engine.now(),
-            static_cast<int>(
-                segment->payloadSize()
-            ),
-            session_id_
-        );
+        Packet retransmission(client.getLocalNode(), client.getRemoteNode(), client.getLocalNode(),
+                              engine.now(), static_cast<int>(segment->payloadSize()), session_id_);
 
-        retransmission.packet_type =
-            PacketType::DATA;
+        retransmission.packet_type = PacketType::DATA;
 
-        retransmission.tcp =
-            *segment;
+        retransmission.tcp = *segment;
 
         retransmission.tcp.window =
-            static_cast<std::uint16_t>(
-                std::min<std::uint32_t>(
-                    client.getReceiveWindow(),
-                    65535U
-                )
-            );
+            static_cast<std::uint16_t>(std::min<std::uint32_t>(client.getReceiveWindow(), 65535U));
 
-        retransmission.departure_time =
-            engine.now();
+        retransmission.departure_time = engine.now();
 
-        KNS_DEBUG_LOG(
-            "[TCP][RTO] retransmit "
-            << "session=" << session_id_
-            << " seq=" << sequence_
-            << " time=" << engine.now()
-            << " rto=" << client.getCurrentRTO()
-            << '\n'
-        );
+        KNS_DEBUG_LOG("[TCP][RTO] retransmit " << "session=" << session_id_ << " seq=" << sequence_
+                                               << " time=" << engine.now()
+                                               << " rto=" << client.getCurrentRTO() << '\n');
 
         // Outstanding data keeps its recovery timer even if this attempt drops.
         PacketUtils::sendPacketThroughTopology(engine, retransmission);
@@ -119,14 +78,8 @@ namespace kns {
             return;
         }
 
-        engine.schedule(
-            std::make_unique<TCPTimeoutEvent>(
-                engine.now() +
-                    client.getCurrentRTO(),
-                session_id_,
-                sequence_
-            )
-        );
+        engine.schedule(std::make_unique<TCPTimeoutEvent>(engine.now() + client.getCurrentRTO(),
+                                                          session_id_, sequence_));
     }
 
 } // namespace kns

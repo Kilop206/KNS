@@ -18,8 +18,8 @@ using kns::PacketGenerationEvent;
 using kns::SimulationEngine;
 using kns::Topology;
 
-TEST_CASE("Packet sizes are validated before transmission side effects", "[core][engine][packet-size]")
-{
+TEST_CASE("Packet sizes are validated before transmission side effects",
+          "[core][engine][packet-size]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
@@ -49,8 +49,8 @@ TEST_CASE("Packet sizes are validated before transmission side effects", "[core]
     }
 }
 
-TEST_CASE("SimulationEngine computes arrival time from propagation and transmission delay", "[core][engine]")
-{
+TEST_CASE("SimulationEngine computes arrival time from propagation and transmission delay",
+          "[core][engine]") {
     Topology topo(2);
     topo.addLink(0, 1, 100.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
     SimulationEngine engine(topo);
@@ -64,24 +64,24 @@ TEST_CASE("SimulationEngine computes arrival time from propagation and transmiss
     REQUIRE(arrival == Approx(2.0262));
 }
 
-TEST_CASE("SimulationEngine lifecycle state transitions", "[core][engine][state]")
-{
+TEST_CASE("SimulationEngine lifecycle state transitions", "[core][engine][state]") {
     Topology topo(2);
     topo.addLink(0, 1, 100.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
     SimulationEngine engine(topo);
 
     REQUIRE_FALSE(engine.hasEvents());
-    
+
     auto& sess = engine.createTCPSession(0, 1);
-    engine.schedule(std::make_unique<PacketGenerationEvent>(engine.now(), 0, 1, sess.getSession_id()));
+    engine.schedule(
+        std::make_unique<PacketGenerationEvent>(engine.now(), 0, 1, sess.getSession_id()));
     REQUIRE(engine.hasEvents());
 
     engine.run();
     REQUIRE_FALSE(engine.hasEvents());
 }
 
-TEST_CASE("TCP APIs reject invalid nodes without partial state", "[core][engine][tcp][validation]")
-{
+TEST_CASE("TCP APIs reject invalid nodes without partial state",
+          "[core][engine][tcp][validation]") {
     for (const int invalid : {-1, 2, 3, 999}) {
         for (const bool use_ports : {false, true}) {
             CAPTURE(invalid, use_ports);
@@ -92,15 +92,20 @@ TEST_CASE("TCP APIs reject invalid nodes without partial state", "[core][engine]
                 const int source = invalid_source ? invalid : 0;
                 const int destination = invalid_source ? 1 : invalid;
                 if (use_ports) {
-                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination, 49152, 80), std::invalid_argument);
-                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination, 49152, 80), std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination, 49152, 80),
+                                      std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination, 49152, 80),
+                                      std::invalid_argument);
                 } else {
-                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination), std::invalid_argument);
-                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination), std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.createTCPSession(source, destination),
+                                      std::invalid_argument);
+                    REQUIRE_THROWS_AS(engine.startTCPConnection(source, destination),
+                                      std::invalid_argument);
                 }
             }
             if (use_ports) {
-                REQUIRE_THROWS_AS(engine.startTCPListen(invalid, std::uint16_t{80}, 2), std::invalid_argument);
+                REQUIRE_THROWS_AS(engine.startTCPListen(invalid, std::uint16_t{80}, 2),
+                                  std::invalid_argument);
             } else {
                 REQUIRE_THROWS_AS(engine.startTCPListen(invalid), std::invalid_argument);
             }

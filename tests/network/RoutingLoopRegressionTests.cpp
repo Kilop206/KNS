@@ -5,7 +5,8 @@
 
 using namespace kns;
 
-TEST_CASE("Equal cost routes make forwarding progress on small connected graphs", "[routing][audit]") {
+TEST_CASE("Equal cost routes make forwarding progress on small connected graphs",
+          "[routing][audit]") {
     std::mt19937 random(731);
     for (int sample = 0; sample < 120; ++sample) {
         Topology topology(5);
@@ -16,12 +17,14 @@ TEST_CASE("Equal cost routes make forwarding progress on small connected graphs"
             }
         }
         SimulationEngine engine(topology);
-        for (auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth, RoutingMetric::DelayBandwidth}) {
+        for (auto metric :
+             {RoutingMetric::Delay, RoutingMetric::Bandwidth, RoutingMetric::DelayBandwidth}) {
             engine.setRoutingMetric(metric);
-            for (int a = 0; a < 5; ++a) for (int b = 0; b < 5; ++b) {
-                CAPTURE(sample, a, b, static_cast<int>(metric));
-                REQUIRE(engine.traceRoute(a, b).status == RouteStatus::Reachable);
-            }
+            for (int a = 0; a < 5; ++a)
+                for (int b = 0; b < 5; ++b) {
+                    CAPTURE(sample, a, b, static_cast<int>(metric));
+                    REQUIRE(engine.traceRoute(a, b).status == RouteStatus::Reachable);
+                }
         }
     }
 }

@@ -7,8 +7,8 @@
 
 using namespace kns;
 
-TEST_CASE("Rejected run configuration preserves packet size controller and RNG", "[tcp][congestion][run-config]")
-{
+TEST_CASE("Rejected run configuration preserves packet size controller and RNG",
+          "[tcp][congestion][run-config]") {
     SimulationEngine engine(Topology(2));
     SimulationEngine control(Topology(2));
     RunConfig original;
@@ -33,17 +33,16 @@ TEST_CASE("Rejected run configuration preserves packet size controller and RNG",
     REQUIRE(engine.getGlobalPacketSize() == 1200);
     REQUIRE(engine.random() == control.random());
     auto& session = engine.createTCPSession(0, 1);
-    REQUIRE(session.getClientConnection().getCongestionControlType() == CongestionControlType::CUBIC);
-    REQUIRE(session.getServerConnection().getCongestionControlType() == CongestionControlType::CUBIC);
+    REQUIRE(session.getClientConnection().getCongestionControlType() ==
+            CongestionControlType::CUBIC);
+    REQUIRE(session.getServerConnection().getCongestionControlType() ==
+            CongestionControlType::CUBIC);
 }
 
-TEST_CASE("RunConfig selects congestion control for new TCP sessions", "[tcp][congestion][run-config]")
-{
-    for (const auto type : {
-            CongestionControlType::TAHOE,
-            CongestionControlType::RENO,
-            CongestionControlType::NEW_RENO,
-            CongestionControlType::CUBIC}) {
+TEST_CASE("RunConfig selects congestion control for new TCP sessions",
+          "[tcp][congestion][run-config]") {
+    for (const auto type : {CongestionControlType::TAHOE, CongestionControlType::RENO,
+                            CongestionControlType::NEW_RENO, CongestionControlType::CUBIC}) {
         SimulationEngine engine(Topology(2));
         RunConfig config;
         config.congestion_control = type;

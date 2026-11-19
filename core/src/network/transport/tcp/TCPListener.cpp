@@ -5,13 +5,8 @@
 
 namespace kns {
 
-    std::uint64_t TCPListener::accept(
-        int source_node,
-        std::uint16_t source_port,
-        std::uint32_t source_seq,
-        SimulationEngine& engine
-    )
-    {
+    std::uint64_t TCPListener::accept(int source_node, std::uint16_t source_port,
+                                      std::uint32_t source_seq, SimulationEngine& engine) {
         if (!listening_) {
             return INVALID_SESSION_ID;
         }
@@ -21,22 +16,13 @@ namespace kns {
         }
 
         // Create a fresh session: server = node_id_, client = source_node.
-        TCPSession& session =
-            engine.createTCPSession(
-                source_node,
-                node_id_,
-                source_port,
-                port_
-            );
+        TCPSession& session = engine.createTCPSession(source_node, node_id_, source_port, port_);
 
-        const std::uint64_t sid =
-            session.getSession_id();
+        const std::uint64_t sid = session.getSession_id();
 
-        auto& client =
-            session.getClientConnection();
+        auto& client = session.getClientConnection();
 
-        auto& server =
-            session.getServerConnection();
+        auto& server = session.getServerConnection();
 
         client.setSeqNum(source_seq);
 

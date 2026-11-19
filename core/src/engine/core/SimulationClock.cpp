@@ -4,10 +4,7 @@
 
 namespace kns {
 
-    SimulationClock::SimulationClock()
-        : current_time_(0.0)
-    {
-    }
+    SimulationClock::SimulationClock() : current_time_(0.0) {}
 
     void SimulationClock::tick(double delta_time_) {
         if (!std::isfinite(delta_time_) || delta_time_ < 0.0) {

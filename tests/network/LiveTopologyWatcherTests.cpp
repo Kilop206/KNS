@@ -10,29 +10,38 @@
 #include "network/TopologyLoader.hpp"
 
 namespace {
-struct WatchFile {
-    std::filesystem::path path = std::filesystem::temp_directory_path() /
-        ("kns-watch-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
-    ~WatchFile() { std::error_code error; std::filesystem::remove(path, error); }
-    void write(const std::string& contents) const { std::ofstream(path) << contents; }
-};
+    struct WatchFile {
+        std::filesystem::path path =
+            std::filesystem::temp_directory_path() /
+            ("kns-watch-" +
+             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
 
-std::optional<kns::Topology> check(kns::LiveTopologyWatcher& watcher)
-{
-    const auto checks = watcher.completedChecks();
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (std::chrono::steady_clock::now() < deadline) {
-        auto result = watcher.poll(true);
-        if (watcher.completedChecks() > checks) return result;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        ~WatchFile() {
+            std::error_code error;
+            std::filesystem::remove(path, error);
+        }
+
+        void write(const std::string& contents) const {
+            std::ofstream(path) << contents;
+        }
+    };
+
+    std::optional<kns::Topology> check(kns::LiveTopologyWatcher& watcher) {
+        const auto checks = watcher.completedChecks();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (std::chrono::steady_clock::now() < deadline) {
+            auto result = watcher.poll(true);
+            if (watcher.completedChecks() > checks)
+                return result;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        FAIL("Live watcher did not finish reading");
+        return std::nullopt;
     }
-    FAIL("Live watcher did not finish reading");
-    return std::nullopt;
-}
 }
 
-TEST_CASE("Live file rejects malformed updates and recovers without losing topology", "[network][discovery][watch]")
-{
+TEST_CASE("Live file rejects malformed updates and recovers without losing topology",
+          "[network][discovery][watch]") {
     WatchFile file;
     kns::LiveTopologyWatcher watcher;
     watcher.setSource(file.path.string(), true);
@@ -52,8 +61,7 @@ TEST_CASE("Live file rejects malformed updates and recovers without losing topol
     REQUIRE(watcher.error().empty());
 }
 
-TEST_CASE("Live file ignores late results after disabling source", "[network][discovery][watch]")
-{
+TEST_CASE("Live file ignores late results after disabling source", "[network][discovery][watch]") {
     WatchFile file;
     file.write(R"({"nodes":2,"links":[]})");
     kns::LiveTopologyWatcher watcher;
@@ -65,8 +73,8 @@ TEST_CASE("Live file ignores late results after disabling source", "[network][di
     REQUIRE_FALSE(watcher.busy());
 }
 
-TEST_CASE("Live file reports unavailable empty and oversized files and recovers", "[network][discovery][watch]")
-{
+TEST_CASE("Live file reports unavailable empty and oversized files and recovers",
+          "[network][discovery][watch]") {
     WatchFile file;
     kns::LiveTopologyWatcher watcher;
     watcher.setSource(file.path.string(), true);
@@ -83,8 +91,7 @@ TEST_CASE("Live file reports unavailable empty and oversized files and recovers"
     REQUIRE(watcher.error().empty());
 }
 
-TEST_CASE("Switching live sources discards a pending snapshot", "[network][discovery][watch]")
-{
+TEST_CASE("Switching live sources discards a pending snapshot", "[network][discovery][watch]") {
     WatchFile first;
     WatchFile second;
     first.write(R"({"nodes":2,"links":[]})");
@@ -104,8 +111,8 @@ TEST_CASE("Switching live sources discards a pending snapshot", "[network][disco
     REQUIRE(check(watcher).has_value());
 }
 
-TEST_CASE("Live snapshots update a running engine without resetting sessions time or queues", "[network][discovery][watch]")
-{
+TEST_CASE("Live snapshots update a running engine without resetting sessions time or queues",
+          "[network][discovery][watch]") {
     WatchFile file;
     auto document = nlohmann::json::parse(R"({
         "schema_version":"1.0",

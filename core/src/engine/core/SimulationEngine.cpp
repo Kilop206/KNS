@@ -17,22 +17,10 @@
 namespace kns {
 
     SimulationEngine::SimulationEngine(const Topology& topology)
-        : loss_prob(0.01),
-        clock_(),
-        topology_(topology.cloneForRun()),
-        routing_tables_(),
-        stats_(),
-        event_queue_(),
-        packets_in_transit(),
-        globalLossProb(0.0f),
-        globalPacketSize(1500),
-        latencyObserver_(nullptr),
-        packetObserver(nullptr),
-        sessions(),
-        next_session_id(0),
-        handshake_offset_(0.0),
-        kPacketsPerRoute(20)
-    {
+        : loss_prob(0.01), clock_(), topology_(topology.cloneForRun()), routing_tables_(), stats_(),
+          event_queue_(), packets_in_transit(), globalLossProb(0.0f), globalPacketSize(1500),
+          latencyObserver_(nullptr), packetObserver(nullptr), sessions(), next_session_id(0),
+          handshake_offset_(0.0), kPacketsPerRoute(20) {
         rebuildRoutingTables();
     }
 
@@ -78,27 +66,35 @@ namespace kns {
         return stats_;
     }
 
-    void SimulationEngine::setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector) {
-        if (!collector || analytics_ || now() != 0 || stats_.packets_sent != 0 || stats_.packets_lost != 0 ||
-            stats_.packets_delivered != 0 || execution_statistics_.events_dispatched != 0 ||
-            execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed)
-            throw std::logic_error("Analytics must attach once at time zero before sending traffic");
+    void
+    SimulationEngine::setAnalyticsCollector(std::shared_ptr<analysis::MetricsCollector> collector) {
+        if (!collector || analytics_ || now() != 0 || stats_.packets_sent != 0 ||
+            stats_.packets_lost != 0 || stats_.packets_delivered != 0 ||
+            execution_statistics_.events_dispatched != 0 ||
+            execution_state_ == ExecutionState::Cancelled ||
+            execution_state_ == ExecutionState::Failed)
+            throw std::logic_error(
+                "Analytics must attach once at time zero before sending traffic");
         analytics_ = std::move(collector);
     }
 
     void SimulationEngine::observePacketDelivery(const Packet& packet) {
-        if (analytics_) analytics_->delivery(packet, now());
+        if (analytics_)
+            analytics_->delivery(packet, now());
     }
 
     void SimulationEngine::observeTCPPayloadReleased(const Packet& packet, std::uint32_t bytes) {
-        if (analytics_) analytics_->tcpPayloadReleased(packet, bytes, now());
+        if (analytics_)
+            analytics_->tcpPayloadReleased(packet, bytes, now());
     }
 
     void SimulationEngine::claimTrafficPlan() {
         if (traffic_plan_claimed_ || now() != 0 || execution_statistics_.events_dispatched != 0 ||
             stats_.packets_sent != 0 || stats_.packets_lost != 0 || stats_.packets_delivered != 0 ||
-            execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed)
-            throw std::logic_error("Traffic plan must attach once before execution or transmission");
+            execution_state_ == ExecutionState::Cancelled ||
+            execution_state_ == ExecutionState::Failed)
+            throw std::logic_error(
+                "Traffic plan must attach once before execution or transmission");
         traffic_plan_claimed_ = true;
     }
 
@@ -119,12 +115,10 @@ namespace kns {
         return rt_row[static_cast<std::size_t>(destination)].next_hop;
     }
 
-    std::span<const Routing::RoutingEntry>
-    SimulationEngine::getRoutingTable(int source) const {
+    std::span<const Routing::RoutingEntry> SimulationEngine::getRoutingTable(int source) const {
         refreshRoutingTablesIfNeeded();
 
-        if (source < 0 ||
-            static_cast<std::size_t>(source) >= routing_tables_.size()) {
+        if (source < 0 || static_cast<std::size_t>(source) >= routing_tables_.size()) {
             return {};
         }
 
@@ -135,23 +129,11 @@ namespace kns {
         return packets_in_transit;
     }
 
-    bool SimulationEngine::removePacketInTransit(
-        double departure_time,
-        double arrival_time,
-        int from,
-        int to,
-        std::uint64_t link_id) {
-
-        for (auto it = packets_in_transit.begin();
-            it != packets_in_transit.end();
-            ++it) {
-
-            if (it->departure_time == departure_time &&
-                it->arrival_time == arrival_time &&
-                it->from_node == from &&
-                it->to_node == to &&
-                it->link_id == link_id) {
-
+    bool SimulationEngine::removePacketInTransit(double departure_time, double arrival_time,
+                                                 int from, int to, std::uint64_t link_id) {
+        for (auto it = packets_in_transit.begin(); it != packets_in_transit.end(); ++it) {
+            if (it->departure_time == departure_time && it->arrival_time == arrival_time &&
+                it->from_node == from && it->to_node == to && it->link_id == link_id) {
                 packets_in_transit.erase(it);
                 return true;
             }
@@ -161,27 +143,33 @@ namespace kns {
     }
 
     void SimulationEngine::run() {
-        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
-        while (processEvent()) {}
+        if (executing_event_)
+            throw std::logic_error("Recursive engine execution is not supported");
+        while (processEvent()) {
+        }
     }
 
     void SimulationEngine::pause() noexcept {
-        if (execution_state_ == ExecutionState::Ready) execution_state_ = ExecutionState::Paused;
+        if (execution_state_ == ExecutionState::Ready)
+            execution_state_ = ExecutionState::Paused;
     }
 
     void SimulationEngine::resume() {
-        if (execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed) {
+        if (execution_state_ == ExecutionState::Cancelled ||
+            execution_state_ == ExecutionState::Failed) {
             throw std::logic_error("A terminal simulation requires a new engine");
         }
         execution_state_ = ExecutionState::Ready;
     }
 
     void SimulationEngine::cancel() noexcept {
-        if (execution_state_ != ExecutionState::Failed) execution_state_ = ExecutionState::Cancelled;
+        if (execution_state_ != ExecutionState::Failed)
+            execution_state_ = ExecutionState::Cancelled;
     }
 
     RunResult SimulationEngine::runUntil(double horizon_s, std::uint64_t max_events) {
-        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
+        if (executing_event_)
+            throw std::logic_error("Recursive engine execution is not supported");
         if (!std::isfinite(horizon_s) || horizon_s < now()) {
             throw std::invalid_argument("Run horizon must be finite and not in the past");
         }
@@ -190,30 +178,41 @@ namespace kns {
             return RunResult{reason, processed, now(), pendingEventCount()};
         };
         for (;;) {
-            if (execution_state_ == ExecutionState::Cancelled) return result(StopReason::Cancelled);
-            if (execution_state_ == ExecutionState::Failed) return result(StopReason::Failed);
-            if (execution_state_ == ExecutionState::Paused) return result(StopReason::Paused);
+            if (execution_state_ == ExecutionState::Cancelled)
+                return result(StopReason::Cancelled);
+            if (execution_state_ == ExecutionState::Failed)
+                return result(StopReason::Failed);
+            if (execution_state_ == ExecutionState::Paused)
+                return result(StopReason::Paused);
             // Do not jump to the horizon after the workload has drained.
-            if (!hasEvents()) return result(StopReason::QueueEmpty);
+            if (!hasEvents())
+                return result(StopReason::QueueEmpty);
             if (peekNextEventTime() > horizon_s) {
                 advanceTime(horizon_s);
                 return result(StopReason::TimeLimit);
             }
-            if (processed == max_events) return result(StopReason::EventBudget);
-            if (!processEvent()) return result(StopReason::QueueEmpty);
+            if (processed == max_events)
+                return result(StopReason::EventBudget);
+            if (!processEvent())
+                return result(StopReason::QueueEmpty);
             ++processed;
         }
     }
 
     bool SimulationEngine::processEvent() {
-        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
-        if (execution_state_ != ExecutionState::Ready) return false;
+        if (executing_event_)
+            throw std::logic_error("Recursive engine execution is not supported");
+        if (execution_state_ != ExecutionState::Ready)
+            return false;
         return dispatchEvent();
     }
 
     bool SimulationEngine::step() {
-        if (executing_event_) throw std::logic_error("Recursive engine execution is not supported");
-        if (execution_state_ == ExecutionState::Cancelled || execution_state_ == ExecutionState::Failed) return false;
+        if (executing_event_)
+            throw std::logic_error("Recursive engine execution is not supported");
+        if (execution_state_ == ExecutionState::Cancelled ||
+            execution_state_ == ExecutionState::Failed)
+            return false;
         return dispatchEvent();
     }
 
@@ -227,7 +226,8 @@ namespace kns {
                 const auto id = (it++)->first;
                 if (source && destination &&
                     (!deviceCapabilities(source->getDeviceInfo().type).tcp_client ||
-                     !deviceCapabilities(destination->getDeviceInfo().type).tcp_listener)) cancelTCPSession(id);
+                     !deviceCapabilities(destination->getDeviceInfo().type).tcp_listener))
+                    cancelTCPSession(id);
             }
             device_roles_revision_ = topology_.getRoutingRevision();
         }
@@ -261,41 +261,36 @@ namespace kns {
         return event_queue_.peekTimestamp();
     }
 
-    double SimulationEngine::compute_arrival_time(
-        const Packet& pkt,
-        const Link& link,
-        double now
-    ) {
+    double SimulationEngine::compute_arrival_time(const Packet& pkt, const Link& link, double now) {
         if (pkt.packet_size_bytes <= 0) {
             throw std::invalid_argument("Packet size must be positive");
         }
         const double transmission =
-            (static_cast<double>(pkt.packet_size_bytes) * 8.0 /
-                link.getBandwidthMbps()) / 1e6;
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0 / link.getBandwidthMbps()) / 1e6;
 
         const double propagation = link.getDelayMs() / 1000.0;
 
         return now + propagation + transmission;
     }
 
-    bool SimulationEngine::sendPacket(
-        const Packet& packet,
-        Link& link,
-        double now
-    )
-    {
+    bool SimulationEngine::sendPacket(const Packet& packet, Link& link, double now) {
         Packet pkt = packet;
         const auto* current = topology_.getNode(pkt.current_node);
         if (current && pkt.current_node == pkt.source) {
             const auto type = current->getDeviceInfo().type;
             const auto caps = deviceCapabilities(type);
-            const bool allowed = pkt.service
-                ? (pkt.service->response ? canHostService(type, pkt.service->kind) : caps.service_client)
-                : (caps.tcp_client || caps.tcp_listener);
-            if (!allowed) { stats_.packets_lost++; return false; }
+            const bool allowed =
+                pkt.service ? (pkt.service->response ? canHostService(type, pkt.service->kind)
+                                                     : caps.service_client)
+                            : (caps.tcp_client || caps.tcp_listener);
+            if (!allowed) {
+                stats_.packets_lost++;
+                return false;
+            }
         }
         if (pkt.current_node != pkt.source &&
-            (!current || !current->isActive() || !deviceCapabilities(current->getDeviceInfo().type).forward)) {
+            (!current || !current->isActive() ||
+             !deviceCapabilities(current->getDeviceInfo().type).forward)) {
             stats_.packets_lost++;
             return false;
         }
@@ -308,15 +303,14 @@ namespace kns {
         }
         const auto& owned_links = topology_.getLinks();
         if (std::none_of(owned_links.begin(), owned_links.end(),
-                [&link](const auto& owned) { return owned.get() == &link; })) {
+                         [&link](const auto& owned) { return owned.get() == &link; })) {
             return false;
         }
         if (!link.isUp()) {
             return false;
         }
 
-        const int next_node =
-            link.getOtherNode(pkt.current_node);
+        const int next_node = link.getOtherNode(pkt.current_node);
 
         if (next_node == -1) {
             return false;
@@ -329,8 +323,7 @@ namespace kns {
         }
 
         const double transmission_time =
-            (static_cast<double>(pkt.packet_size_bytes) * 8.0) /
-            (link.getBandwidthMbps() * 1e6);
+            (static_cast<double>(pkt.packet_size_bytes) * 8.0) / (link.getBandwidthMbps() * 1e6);
         const double early_drop_probability =
             link.sampleEarlyDropProbability(pkt.current_node, next_node, now, transmission_time);
         if (early_drop_probability > 0.0 && random() < early_drop_probability) {
@@ -344,11 +337,10 @@ namespace kns {
         const double actual_departure_time =
             link.getNextAvailableTime(pkt.current_node, next_node, now);
 
-        const double arrival_time =
-            actual_departure_time + transmission_time + propagation_time;
+        const double arrival_time = actual_departure_time + transmission_time + propagation_time;
 
-        if (!std::isfinite(actual_departure_time) ||
-            !std::isfinite(arrival_time) || arrival_time < this->now()) {
+        if (!std::isfinite(actual_departure_time) || !std::isfinite(arrival_time) ||
+            arrival_time < this->now()) {
             throw std::invalid_argument("Packet arrival time must be finite and not in the past");
         }
 
@@ -363,8 +355,10 @@ namespace kns {
         const double loss = loss_override_enabled_ ? globalLossProb : link.getLossProb();
         if (loss > 0.0 && random() < loss) {
             link.reserveTransmission(pkt.current_node, next_node,
-                actual_departure_time + transmission_time);
-            if (analytics_) analytics_->transmission(pkt, link, now, actual_departure_time, actual_departure_time + transmission_time);
+                                     actual_departure_time + transmission_time);
+            if (analytics_)
+                analytics_->transmission(pkt, link, now, actual_departure_time,
+                                         actual_departure_time + transmission_time);
             if (pkt.hop_count == 0) {
                 stats_.packets_sent++;
             }
@@ -373,42 +367,30 @@ namespace kns {
         }
 
         // Record in the FIFO queue so the arrival event can release the exact slot.
-        link.enqueueTransmission(
-            pkt.current_node, next_node,
-            actual_departure_time, arrival_time
-        );
+        link.enqueueTransmission(pkt.current_node, next_node, actual_departure_time, arrival_time);
 
         const auto previous_transit_size = packets_in_transit.size();
         try {
-            packets_in_transit.push_back(PacketTravelInfo{
-            actual_departure_time,
-            arrival_time,
-            pkt.current_node,
-            next_node,
-            pkt.packet_type,
-            link.getId()
-            });
+            packets_in_transit.push_back(PacketTravelInfo{actual_departure_time, arrival_time,
+                                                          pkt.current_node, next_node,
+                                                          pkt.packet_type, link.getId()});
             schedule(std::make_unique<PacketReceivedEvent>(arrival_time, new_pkt));
         } catch (...) {
             packets_in_transit.resize(previous_transit_size);
-            link.dequeueTransmission(pkt.current_node, next_node,
-                actual_departure_time, arrival_time);
+            link.dequeueTransmission(pkt.current_node, next_node, actual_departure_time,
+                                     arrival_time);
             throw;
         }
         link.reserveTransmission(pkt.current_node, next_node,
-            actual_departure_time + transmission_time);
-        if (analytics_) analytics_->transmission(pkt, link, now, actual_departure_time, actual_departure_time + transmission_time);
+                                 actual_departure_time + transmission_time);
+        if (analytics_)
+            analytics_->transmission(pkt, link, now, actual_departure_time,
+                                     actual_departure_time + transmission_time);
         if (pkt.hop_count == 0) {
             stats_.packets_sent++;
         }
 
-        emitPacketEvent(
-            pkt,
-            pkt.current_node,
-            next_node,
-            actual_departure_time,
-            arrival_time
-        );
+        emitPacketEvent(pkt, pkt.current_node, next_node, actual_departure_time, arrival_time);
 
         return true;
     }
@@ -420,7 +402,8 @@ namespace kns {
         }
 
         // Header
-        file << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,red_early_drops,schema_version,simulation_duration_s,seed\n";
+        file
+            << "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,red_early_drops,schema_version,simulation_duration_s,seed\n";
 
         // Values
         const int sent = stats_.packets_sent;
@@ -430,21 +413,15 @@ namespace kns {
         const int data_delivered = stats_.data_packets_delivered;
         const int queue_overflow_drops = stats_.queue_overflow_drops;
         const int red_early_drops = stats_.red_early_drops;
-        const double avg_latency = (data_delivered > 0)
-            ? total_latency / static_cast<double>(data_delivered) : 0.0;
+        const double avg_latency =
+            (data_delivered > 0) ? total_latency / static_cast<double>(data_delivered) : 0.0;
         const std::size_t in_transit = packets_in_transit.size();
         const std::size_t total_sessions = sessions.size();
 
-        file << sent << ','
-             << delivered << ','
-             << lost << ','
-             << total_latency << ','
-             << avg_latency << ','
-             << in_transit << ','
-             << total_sessions << ','
-             << data_delivered << ','
-             << queue_overflow_drops << ','
-             << red_early_drops << ",1," << now() << ',' << runConfig.seed << '\n';
+        file << sent << ',' << delivered << ',' << lost << ',' << total_latency << ','
+             << avg_latency << ',' << in_transit << ',' << total_sessions << ',' << data_delivered
+             << ',' << queue_overflow_drops << ',' << red_early_drops << ",1," << now() << ','
+             << runConfig.seed << '\n';
 
         file.close();
         if (!file) {
@@ -492,7 +469,8 @@ namespace kns {
     }
 
     void SimulationEngine::notifyLatencyDelivered(double latency) {
-        if (latencyObserver_) latencyObserver_(latency);
+        if (latencyObserver_)
+            latencyObserver_(latency);
     }
 
     int SimulationEngine::getGlobalPacketSize() const {
@@ -500,12 +478,14 @@ namespace kns {
     }
 
     void SimulationEngine::setPacketObserver(
-        std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
-    ) {
+        std::function<void(const Packet&, uint64_t session_id, int from, int to,
+                           double departure_time, double arrival_time)>
+            observer) {
         packetObserver = std::move(observer);
     }
 
-    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time) {
+    void SimulationEngine::emitPacketEvent(const Packet& p, int from, int to, double departure_time,
+                                           double arrival_time) {
         if (packetObserver) {
             // if a real session id is known in context, pass it instead of 0
             packetObserver(p, p.session_id, from, to, departure_time, arrival_time);
@@ -523,41 +503,25 @@ namespace kns {
         const auto* client = topology_.getNode(source);
         const auto* server = topology_.getNode(destination);
         return client && server && client->isActive() && server->isActive() &&
-            deviceCapabilities(client->getDeviceInfo().type).tcp_client &&
-            deviceCapabilities(server->getDeviceInfo().type).tcp_listener;
+               deviceCapabilities(client->getDeviceInfo().type).tcp_client &&
+               deviceCapabilities(server->getDeviceInfo().type).tcp_listener;
     }
 
-    TCPSession& SimulationEngine::createTCPSession(
-        int source,
-        int destination
-    ) {
+    TCPSession& SimulationEngine::createTCPSession(int source, int destination) {
         return createTCPSession(source, destination, 0, 0);
     }
 
-    TCPSession& SimulationEngine::createTCPSession(
-        int source,
-        int destination,
-        std::uint16_t source_port,
-        std::uint16_t destination_port
-    ) {
+    TCPSession& SimulationEngine::createTCPSession(int source, int destination,
+                                                   std::uint16_t source_port,
+                                                   std::uint16_t destination_port) {
         requireActiveTCPNode(source);
         requireActiveTCPNode(destination);
         if (!canStartTCPConnection(source, destination))
             throw std::invalid_argument("Device roles do not permit this TCP client/listener pair");
         const std::uint64_t id = next_session_id++;
 
-        sessions.emplace(
-            id,
-            TCPSession(
-                id,
-                source,
-                destination,
-                TCPState::CLOSED,
-                source_port,
-                destination_port,
-                congestion_control_
-            )
-        );
+        sessions.emplace(id, TCPSession(id, source, destination, TCPState::CLOSED, source_port,
+                                        destination_port, congestion_control_));
 
         return sessions.at(id);
     }
@@ -574,9 +538,7 @@ namespace kns {
         return sessions.find(session_id) != sessions.end();
     }
 
-    bool SimulationEngine::cancelTCPSession(
-        std::uint64_t session_id
-    ) noexcept {
+    bool SimulationEngine::cancelTCPSession(std::uint64_t session_id) noexcept {
         if (!hasTCPSession(session_id)) {
             return false;
         }
@@ -604,7 +566,8 @@ namespace kns {
             const auto& session = pair.second;
             const auto& client = session.getClientConnection();
             const auto& server = session.getServerConnection();
-            const bool drained = client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
+            const bool drained =
+                client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
                 client.getReceiveBufferSize() == 0 && server.getReceiveBufferSize() == 0;
             const bool failed = session.getFailureReason() != TCPSession::FailureReason::None;
             if (failed && drained && client.getTcpState() == TCPState::CLOSED &&
@@ -612,33 +575,28 @@ namespace kns {
                 r.failed_sessions++;
             }
             if (!failed && client.getTcpState() == TCPState::CLOSED &&
-                server.getTcpState() == TCPState::CLOSED &&
-                session.hasGeneratedTraffic() && session.isComplete() &&
-                client.getSendBufferSize() == 0 && server.getSendBufferSize() == 0 &&
-                client.getReceiveBufferSize() == 0 && server.getReceiveBufferSize() == 0) {
+                server.getTcpState() == TCPState::CLOSED && session.hasGeneratedTraffic() &&
+                session.isComplete() && client.getSendBufferSize() == 0 &&
+                server.getSendBufferSize() == 0 && client.getReceiveBufferSize() == 0 &&
+                server.getReceiveBufferSize() == 0) {
                 r.completed_sessions++;
             }
         }
 
-        r.sessions_ok =
-            (r.total_sessions == 0) ||
-            (r.completed_sessions == r.total_sessions);
+        r.sessions_ok = (r.total_sessions == 0) || (r.completed_sessions == r.total_sessions);
 
         r.traffic_ok =
             (execution_state_ != ExecutionState::Cancelled) &&
-            (execution_state_ != ExecutionState::Failed) &&
-            (r.packets_sent > 0) &&
-            (r.packets_delivered >= 0) &&
-            (r.packets_delivered <= r.packets_sent) &&
-            (r.packets_lost >= 0) &&
-            (stats_.queue_overflow_drops >= 0) &&
+            (execution_state_ != ExecutionState::Failed) && (r.packets_sent > 0) &&
+            (r.packets_delivered >= 0) && (r.packets_delivered <= r.packets_sent) &&
+            (r.packets_lost >= 0) && (stats_.queue_overflow_drops >= 0) &&
             (stats_.red_early_drops >= 0) &&
             (stats_.queue_overflow_drops + stats_.red_early_drops <= r.packets_lost) &&
             // Rejected sends also count as losses without incrementing sent.
-            (r.packets_sent - r.packets_delivered <= r.packets_lost) &&
-            !hasEvents() && packets_in_transit.empty() &&
+            (r.packets_sent - r.packets_delivered <= r.packets_lost) && !hasEvents() &&
+            packets_in_transit.empty() &&
             std::all_of(topology_.getLinks().begin(), topology_.getLinks().end(),
-                [](const auto& link) { return !link || link->getQueueSize() == 0; });
+                        [](const auto& link) { return !link || link->getQueueSize() == 0; });
 
         return r;
     }
@@ -647,19 +605,11 @@ namespace kns {
         startTCPConnection(source, dest, 0, 0);
     }
 
-    void SimulationEngine::startTCPConnection(
-        int source,
-        int dest,
-        std::uint16_t source_port,
-        std::uint16_t destination_port
-    ) {
-        TCPSession& session = createTCPSession(
-            source,
-            dest,
-            source_port,
-            destination_port
-        );
-        schedule(std::make_unique<TCPHandshakeEvent>(now() + handshake_offset_, source, dest, session.getSession_id()));
+    void SimulationEngine::startTCPConnection(int source, int dest, std::uint16_t source_port,
+                                              std::uint16_t destination_port) {
+        TCPSession& session = createTCPSession(source, dest, source_port, destination_port);
+        schedule(std::make_unique<TCPHandshakeEvent>(now() + handshake_offset_, source, dest,
+                                                     session.getSession_id()));
         handshake_offset_ += 0.05;
     }
 
@@ -667,89 +617,59 @@ namespace kns {
         return startTCPListen(node_id, 0, backlog);
     }
 
-    TCPListener& SimulationEngine::startTCPListen(
-        int node_id,
-        std::uint16_t port,
-        int backlog
-    ) {
+    TCPListener& SimulationEngine::startTCPListen(int node_id, std::uint16_t port, int backlog) {
         requireActiveTCPNode(node_id);
         if (!deviceCapabilities(topology_.getNode(node_id)->getDeviceInfo().type).tcp_listener)
             throw std::invalid_argument("This device role cannot listen for TCP connections");
-        auto [it, _] = listeners_.emplace(
-            std::make_pair(node_id, port),
-            TCPListener(node_id, port, backlog)
-        );
+        auto [it, _] =
+            listeners_.emplace(std::make_pair(node_id, port), TCPListener(node_id, port, backlog));
         return it->second;
     }
 
     bool SimulationEngine::hasListener(int node_id) const noexcept {
         const auto* node = topology_.getNode(node_id);
-        if (!node || !node->isActive() || !deviceCapabilities(node->getDeviceInfo().type).tcp_listener) return false;
-        return std::any_of(
-            listeners_.begin(),
-            listeners_.end(),
-            [node_id](const auto& entry) {
-                return entry.first.first == node_id && entry.second.isListening();
-            }
-        );
+        if (!node || !node->isActive() ||
+            !deviceCapabilities(node->getDeviceInfo().type).tcp_listener)
+            return false;
+        return std::any_of(listeners_.begin(), listeners_.end(), [node_id](const auto& entry) {
+            return entry.first.first == node_id && entry.second.isListening();
+        });
     }
 
-    bool SimulationEngine::hasListener(
-        int node_id,
-        std::uint16_t port
-    ) const noexcept {
+    bool SimulationEngine::hasListener(int node_id, std::uint16_t port) const noexcept {
         const auto* node = topology_.getNode(node_id);
-        if (!node || !node->isActive() || !deviceCapabilities(node->getDeviceInfo().type).tcp_listener) return false;
+        if (!node || !node->isActive() ||
+            !deviceCapabilities(node->getDeviceInfo().type).tcp_listener)
+            return false;
         const auto it = listeners_.find(std::make_pair(node_id, port));
         return it != listeners_.end() && it->second.isListening();
     }
 
-    std::uint64_t SimulationEngine::acceptOnListener(
-        int listening_node,
-        int connecting_node,
-        std::uint32_t connecting_seq
-    ) {
-        return acceptOnListener(
-            listening_node,
-            connecting_node,
-            connecting_seq,
-            0,
-            0
-        );
+    std::uint64_t SimulationEngine::acceptOnListener(int listening_node, int connecting_node,
+                                                     std::uint32_t connecting_seq) {
+        return acceptOnListener(listening_node, connecting_node, connecting_seq, 0, 0);
     }
 
-    std::uint64_t SimulationEngine::acceptOnListener(
-        int listening_node,
-        int connecting_node,
-        std::uint32_t connecting_seq,
-        std::uint16_t connecting_port,
-        std::uint16_t listening_port
-    ) {
+    std::uint64_t SimulationEngine::acceptOnListener(int listening_node, int connecting_node,
+                                                     std::uint32_t connecting_seq,
+                                                     std::uint16_t connecting_port,
+                                                     std::uint16_t listening_port) {
         const auto* listener_node = topology_.getNode(listening_node);
         const auto* peer_node = topology_.getNode(connecting_node);
-        if (!listener_node || !listener_node->isActive() ||
-            !peer_node || !peer_node->isActive() || !canStartTCPConnection(connecting_node, listening_node)) {
+        if (!listener_node || !listener_node->isActive() || !peer_node || !peer_node->isActive() ||
+            !canStartTCPConnection(connecting_node, listening_node)) {
             return TCPListener::INVALID_SESSION_ID;
         }
-        auto it = listeners_.find(
-            std::make_pair(listening_node, listening_port)
-        );
+        auto it = listeners_.find(std::make_pair(listening_node, listening_port));
 
         if (it == listeners_.end()) {
             return TCPListener::INVALID_SESSION_ID;
         }
 
-        return it->second.accept(
-            connecting_node,
-            connecting_port,
-            connecting_seq,
-            *this
-        );
+        return it->second.accept(connecting_node, connecting_port, connecting_seq, *this);
     }
 
-    bool SimulationEngine::releaseTCPListenerSession(
-        std::uint64_t session_id
-    ) noexcept {
+    bool SimulationEngine::releaseTCPListenerSession(std::uint64_t session_id) noexcept {
         auto session_it = sessions.find(session_id);
 
         if (session_it == sessions.end()) {
@@ -767,23 +687,17 @@ namespace kns {
         return true;
     }
 
-    void SimulationEngine::untrackTCPListenerSession(
-        const TCPSession& session
-    ) noexcept {
+    void SimulationEngine::untrackTCPListenerSession(const TCPSession& session) noexcept {
         const auto& server = session.getServerConnection();
-        const auto listener_it = listeners_.find(
-            std::make_pair(server.getLocalNode(), server.getLocalPort())
-        );
+        const auto listener_it =
+            listeners_.find(std::make_pair(server.getLocalNode(), server.getLocalPort()));
 
         if (listener_it != listeners_.end()) {
             listener_it->second.untrackSession(session.getSession_id());
         }
     }
 
-    void SimulationEngine::generatePackets(
-        double startTime,
-        TCPSession& session
-    ) {
+    void SimulationEngine::generatePackets(double startTime, TCPSession& session) {
         if (session.hasPendingGeneration()) {
             return;
         }
@@ -802,14 +716,8 @@ namespace kns {
             return;
         }
 
-        schedule(
-            std::make_unique<PacketGenerationEvent>(
-                startTime,
-                session.getSource(),
-                session.getDestination(),
-                session.getSession_id()
-            )
-        );
+        schedule(std::make_unique<PacketGenerationEvent>(
+            startTime, session.getSource(), session.getDestination(), session.getSession_id()));
         if (!session.hasGeneratedTraffic()) {
             session.setTotalPackets(static_cast<int>(kPacketsPerRoute));
             session.markTrafficGenerated();
@@ -825,59 +733,52 @@ namespace kns {
 
     bool SimulationEngine::synchronizeTopology(const Topology& snapshot) {
         const bool changed = topology_.synchronizeFrom(snapshot);
-        if (changed) rebuildRoutingTables();
+        if (changed)
+            rebuildRoutingTables();
         return changed;
     }
 
     bool SimulationEngine::deleteNode(int id) {
         const bool ok = topology_.removeNode(id);
-        if (ok) rebuildRoutingTables();
+        if (ok)
+            rebuildRoutingTables();
         return ok;
     }
 
-    Topology::LinkPtr SimulationEngine::createLink(
-        int a,
-        int b,
-        double bandwidth_mbps,
-        double delay_ms,
-        double link_loss_prob,
-        LinkMode mode,
-        int queue_capacity
-    ) {
-        auto ptr = topology_.addLinkPtr(
-            a,
-            b,
-            bandwidth_mbps,
-            delay_ms,
-            link_loss_prob,
-            mode,
-            queue_capacity
-        );
+    Topology::LinkPtr SimulationEngine::createLink(int a, int b, double bandwidth_mbps,
+                                                   double delay_ms, double link_loss_prob,
+                                                   LinkMode mode, int queue_capacity) {
+        auto ptr = topology_.addLinkPtr(a, b, bandwidth_mbps, delay_ms, link_loss_prob, mode,
+                                        queue_capacity);
         rebuildRoutingTables();
         return ptr;
     }
 
     bool SimulationEngine::deleteLink(int a, int b) {
         const bool ok = topology_.removeLink(a, b);
-        if (ok) rebuildRoutingTables();
+        if (ok)
+            rebuildRoutingTables();
         return ok;
     }
 
     bool SimulationEngine::deleteLinkById(std::uint64_t link_id) {
         const bool ok = topology_.removeLinkById(link_id);
-        if (ok) rebuildRoutingTables();
+        if (ok)
+            rebuildRoutingTables();
         return ok;
     }
 
     bool SimulationEngine::toggleLinkUp(int a, int b, bool up) {
         const bool ok = topology_.setLinkUp(a, b, up);
-        if (ok) rebuildRoutingTables();
+        if (ok)
+            rebuildRoutingTables();
         return ok;
     }
 
     bool SimulationEngine::toggleLinkUpById(std::uint64_t link_id, bool up) {
         const bool ok = topology_.setLinkUpById(link_id, up);
-        if (ok) rebuildRoutingTables();
+        if (ok)
+            rebuildRoutingTables();
         return ok;
     }
 
@@ -919,11 +820,7 @@ namespace kns {
         schedule(std::make_unique<LinkFailureEvent>(at_time, node_a, node_b, up));
     }
 
-    void SimulationEngine::scheduleLinkFailure(
-        double at_time,
-        std::uint64_t link_id,
-        bool up
-    ) {
+    void SimulationEngine::scheduleLinkFailure(double at_time, std::uint64_t link_id, bool up) {
         schedule(std::make_unique<LinkFailureEvent>(at_time, link_id, up));
     }
 

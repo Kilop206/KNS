@@ -1,11 +1,11 @@
-from contextlib import redirect_stderr, redirect_stdout
 import copy
 import io
 import json
 import os
-from pathlib import Path
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 
 import experiment_profile
 import trace_import
@@ -22,12 +22,23 @@ class TraceImportTests(unittest.TestCase):
     def test_csv_json_preserve_ties_sizes_and_suppress_original_labels(self):
         plans = []
         for format_name in ("csv", "json"):
-            plan, metadata = trace_import.convert((LAB / f"packets.{format_name}").read_bytes(), format_name, self.topology)
+            plan, metadata = trace_import.convert(
+                (LAB / f"packets.{format_name}").read_bytes(),
+                format_name,
+                self.topology,
+            )
             traffic_config.validate(plan, self.topology)
-            self.assertEqual([item["at_s"] for item in plan["replay_events"]], [0, 0, 0, 0.01, 0.02])
-            self.assertEqual([item["flow_id"] for item in plan["replay_events"]], [1, 1, 2, 3, 4])
+            self.assertEqual(
+                [item["at_s"] for item in plan["replay_events"]], [0, 0, 0, 0.01, 0.02]
+            )
+            self.assertEqual(
+                [item["flow_id"] for item in plan["replay_events"]], [1, 1, 2, 3, 4]
+            )
             self.assertEqual(metadata["source_flow_count"], 2)
-            self.assertEqual([group["source_flow_id"] for group in metadata["wire_groups"]], [1, 2, 1, 2])
+            self.assertEqual(
+                [group["source_flow_id"] for group in metadata["wire_groups"]],
+                [1, 2, 1, 2],
+            )
             self.assertEqual(metadata["wire_bytes_total"], 875)
             self.assertEqual(sum(metadata["interarrival_s"]["histogram"]["counts"]), 4)
             self.assertEqual(metadata["interarrival_s"]["mean"], 0.005)
@@ -35,22 +46,45 @@ class TraceImportTests(unittest.TestCase):
             self.assertNotIn("private-api", json.dumps((plan, metadata)))
             plans.append(plan)
         self.assertEqual(plans[0], plans[1])
-        _, metadata = trace_import.convert((LAB / "packets.csv").read_bytes(), "csv", self.topology, keep_flow_labels=True)
+        _, metadata = trace_import.convert(
+            (LAB / "packets.csv").read_bytes(),
+            "csv",
+            self.topology,
+            keep_flow_labels=True,
+        )
         self.assertIn("private-sensor", json.dumps(metadata))
 
     def test_analyze_returns_only_scoped_metadata_without_creating_outputs(self):
         with tempfile.TemporaryDirectory(prefix="KNS trace analysis ") as folder:
-            root = Path(folder); source = root / "private trace.csv"
+            root = Path(folder)
+            source = root / "private trace.csv"
             source.write_bytes((LAB / "packets.csv").read_bytes())
-            original = source.read_bytes(); stdout, stderr = io.StringIO(), io.StringIO()
+            original = source.read_bytes()
+            stdout, stderr = io.StringIO(), io.StringIO()
             with redirect_stdout(stdout), redirect_stderr(stderr):
-                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--analyze"]), 0)
+                self.assertEqual(
+                    trace_import.main(
+                        [
+                            str(source),
+                            "--topology",
+                            str(LAB / "topology.json"),
+                            "--analyze",
+                        ]
+                    ),
+                    0,
+                )
             report = json.loads(stdout.getvalue())
             self.assertEqual(report["status"], "analyzed")
             self.assertEqual(report["scope"], "source_record_metadata")
             self.assertFalse(report["simulation_executed"])
             self.assertEqual(report["topology_validation"], "structural_only")
-            self.assertEqual((report["metadata"]["packet_count"], report["metadata"]["wire_bytes_total"]), (5, 875))
+            self.assertEqual(
+                (
+                    report["metadata"]["packet_count"],
+                    report["metadata"]["wire_bytes_total"],
+                ),
+                (5, 875),
+            )
             self.assertNotIn("delivered", stdout.getvalue())
             self.assertNotIn("private-sensor", stdout.getvalue())
             self.assertEqual(stderr.getvalue(), "")
@@ -58,102 +92,227 @@ class TraceImportTests(unittest.TestCase):
             self.assertEqual(list(root.iterdir()), [source])
 
     def test_analyze_pcapng_uses_explicit_map_and_suppresses_capture_options(self):
-        from test_pcapng_trace import capture_ng
         from test_pcap_trace import ADDRESS_MAP
+        from test_pcapng_trace import capture_ng
+
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); source = root / "capture.pcapng"; source.write_bytes(capture_ng())
-            mapping = root / "mapping.json"; mapping.write_text(json.dumps(ADDRESS_MAP))
+            root = Path(folder)
+            source = root / "capture.pcapng"
+            source.write_bytes(capture_ng())
+            mapping = root / "mapping.json"
+            mapping.write_text(json.dumps(ADDRESS_MAP))
             stdout = io.StringIO()
             with redirect_stdout(stdout):
-                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--address-map", str(mapping), "--analyze"]), 0)
+                self.assertEqual(
+                    trace_import.main(
+                        [
+                            str(source),
+                            "--topology",
+                            str(LAB / "topology.json"),
+                            "--address-map",
+                            str(mapping),
+                            "--analyze",
+                        ]
+                    ),
+                    0,
+                )
             report = json.loads(stdout.getvalue())
-            self.assertEqual(report["metadata"]["pcapng"]["protocol_counts"], {"tcp": 1, "udp": 3})
+            self.assertEqual(
+                report["metadata"]["pcapng"]["protocol_counts"], {"tcp": 1, "udp": 3}
+            )
             self.assertNotIn("PRIVATE-CAPTURE", stdout.getvalue())
             self.assertNotIn("192.0.2.10", stdout.getvalue())
             self.assertEqual(set(root.iterdir()), {source, mapping})
 
     def test_analysis_errors_are_json_and_modes_are_mutually_exclusive(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); source = root / "bad.csv"; source.write_text("not-a-trace")
+            root = Path(folder)
+            source = root / "bad.csv"
+            source.write_text("not-a-trace")
             base = [str(source), "--topology", str(LAB / "topology.json"), "--analyze"]
             for extra in ([], ["--exe", "not-an-executable"]):
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with redirect_stdout(stdout), redirect_stderr(stderr):
                     self.assertEqual(trace_import.main(base + extra), 1)
                 self.assertEqual(stdout.getvalue(), "")
-                self.assertEqual(json.loads(stderr.getvalue())["status"], "invalid_input")
+                self.assertEqual(
+                    json.loads(stderr.getvalue())["status"], "invalid_input"
+                )
             with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
                 trace_import.main(base + ["--output", str(root / "output")])
             self.assertEqual(error.exception.code, 2)
             self.assertEqual(list(root.iterdir()), [source])
 
-    def test_nan_duplicates_unsorted_unknown_nodes_limits_and_existing_output_fail_safely(self):
+    def test_nan_duplicates_unsorted_unknown_nodes_limits_and_existing_output_fail_safely(
+        self,
+    ):
         valid = json.loads((LAB / "packets.json").read_text())
-        mutations = [lambda d: d.update(packets=[]), lambda d: d["packets"][1].update(time_s=-1),
-                     lambda d: d["packets"][0].update(source=99), lambda d: d["packets"][0].update(wire_bytes=0),
-                     lambda d: d["packets"][0].update(source=True), lambda d: d["packets"][0].update(flow_id=""),
-                     lambda d: d["packets"][0].update(time_s=float("nan")),
-                     lambda d: d["packets"][0].update(payload="forbidden"),
-                     lambda d: d.update(packets=d["packets"] * 2001)]
+        mutations = [
+            lambda d: d.update(packets=[]),
+            lambda d: d["packets"][1].update(time_s=-1),
+            lambda d: d["packets"][0].update(source=99),
+            lambda d: d["packets"][0].update(wire_bytes=0),
+            lambda d: d["packets"][0].update(source=True),
+            lambda d: d["packets"][0].update(flow_id=""),
+            lambda d: d["packets"][0].update(time_s=float("nan")),
+            lambda d: d["packets"][0].update(payload="forbidden"),
+            lambda d: d.update(packets=d["packets"] * 2001),
+        ]
         for mutate in mutations:
-            bad = copy.deepcopy(valid); mutate(bad)
-            with self.assertRaises(ValueError): trace_import.convert(json.dumps(bad).encode(), "json", self.topology)
-        with self.assertRaises(ValueError): trace_import.convert(b'{"schema_version":"1.0","schema_version":"2.0","packets":[]}', "json", self.topology)
-        with self.assertRaises(ValueError): trace_import.convert(b"x" * (trace_import.LIMIT + 1), "csv", self.topology)
-        with self.assertRaises(ValueError): trace_import.convert(b"time_s,flow_id,source,destination,wire_bytes,wire_bytes\n", "csv", self.topology)
-        with self.assertRaises(ValueError): trace_import.convert(b"pcap", "pcap", self.topology)
-        too_many_groups = {"schema_version": "1.0", "packets": [
-            {"time_s": 0, "flow_id": "one-flow", "source": 0, "destination": 1, "wire_bytes": size} for size in range(1, 258)]}
+            bad = copy.deepcopy(valid)
+            mutate(bad)
+            with self.assertRaises(ValueError):
+                trace_import.convert(json.dumps(bad).encode(), "json", self.topology)
+        with self.assertRaises(ValueError):
+            trace_import.convert(
+                b'{"schema_version":"1.0","schema_version":"2.0","packets":[]}',
+                "json",
+                self.topology,
+            )
+        with self.assertRaises(ValueError):
+            trace_import.convert(b"x" * (trace_import.LIMIT + 1), "csv", self.topology)
+        with self.assertRaises(ValueError):
+            trace_import.convert(
+                b"time_s,flow_id,source,destination,wire_bytes,wire_bytes\n",
+                "csv",
+                self.topology,
+            )
+        with self.assertRaises(ValueError):
+            trace_import.convert(b"pcap", "pcap", self.topology)
+        too_many_groups = {
+            "schema_version": "1.0",
+            "packets": [
+                {
+                    "time_s": 0,
+                    "flow_id": "one-flow",
+                    "source": 0,
+                    "destination": 1,
+                    "wire_bytes": size,
+                }
+                for size in range(1, 258)
+            ],
+        }
         with self.assertRaisesRegex(ValueError, "256"):
-            trace_import.convert(json.dumps(too_many_groups).encode(), "json", self.topology)
+            trace_import.convert(
+                json.dumps(too_many_groups).encode(), "json", self.topology
+            )
         with tempfile.TemporaryDirectory() as folder:
-            output = Path(folder) / "existing"; output.mkdir()
-            sentinel = output / "keep.txt"; sentinel.write_text("evidence")
+            output = Path(folder) / "existing"
+            output.mkdir()
+            sentinel = output / "keep.txt"
+            sentinel.write_text("evidence")
             with redirect_stderr(io.StringIO()):
-                self.assertEqual(trace_import.main([str(LAB / "packets.csv"), "--topology", str(LAB / "topology.json"), "--output", str(output)]), 1)
+                self.assertEqual(
+                    trace_import.main(
+                        [
+                            str(LAB / "packets.csv"),
+                            "--topology",
+                            str(LAB / "topology.json"),
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    1,
+                )
             self.assertEqual(sentinel.read_text(), "evidence")
             self.assertEqual(list(output.iterdir()), [sentinel])
 
     def test_timestamp_magnitude_is_checked_without_decimal_rounding_or_overflow(self):
         for value in ("1e999999999", "1000000000000000000.000000000000000000001"):
-            source = ("time_s,flow_id,source,destination,wire_bytes\n" + value + ",flow,0,1,125\n").encode()
-            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "magnitude"):
+            source = (
+                "time_s,flow_id,source,destination,wire_bytes\n"
+                + value
+                + ",flow,0,1,125\n"
+            ).encode()
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(ValueError, "magnitude"),
+            ):
                 trace_import.convert(source, "csv", self.topology)
 
-    def test_decimal_normalization_retains_nanoseconds_and_reports_clock_collisions(self):
+    def test_decimal_normalization_retains_nanoseconds_and_reports_clock_collisions(
+        self,
+    ):
         def rows(times):
-            return ("time_s,flow_id,source,destination,wire_bytes\n" + "".join(f"{at},flow,0,1,125\n" for at in times)).encode()
-        plan, meta = trace_import.convert(rows(["1700000000.000000001", "1700000000.000000002"]), "csv", self.topology)
+            return (
+                "time_s,flow_id,source,destination,wire_bytes\n"
+                + "".join(f"{at},flow,0,1,125\n" for at in times)
+            ).encode()
+
+        plan, meta = trace_import.convert(
+            rows(["1700000000.000000001", "1700000000.000000002"]), "csv", self.topology
+        )
         self.assertEqual(plan["replay_events"][1]["at_s"], 1e-9)
         self.assertEqual(meta["floating_time_collisions"], 0)
-        _, meta = trace_import.convert(rows(["0", "999999", "999999.000000000001"]), "csv", self.topology)
+        _, meta = trace_import.convert(
+            rows(["0", "999999", "999999.000000000001"]), "csv", self.topology
+        )
         self.assertEqual(meta["floating_time_collisions"], 1)
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for actual trace replay")
-    def test_actual_import_uses_network_queues_and_manifest_replay_survives_deleted_trace(self):
+    @unittest.skipUnless(
+        os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for actual trace replay"
+    )
+    def test_actual_import_uses_network_queues_and_manifest_replay_survives_deleted_trace(
+        self,
+    ):
         with tempfile.TemporaryDirectory(prefix="KNS trace ") as folder:
             root = Path(folder)
-            source = root / "private capture.csv"; original = (LAB / "packets.csv").read_bytes(); source.write_bytes(original)
+            source = root / "private capture.csv"
+            original = (LAB / "packets.csv").read_bytes()
+            source.write_bytes(original)
             output = root / "import bundle"
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                self.assertEqual(trace_import.main([str(source), "--topology", str(LAB / "topology.json"), "--output", str(output), "--exe", os.environ["KNS_TEST_EXE"]]), 0)
+                self.assertEqual(
+                    trace_import.main(
+                        [
+                            str(source),
+                            "--topology",
+                            str(LAB / "topology.json"),
+                            "--output",
+                            str(output),
+                            "--exe",
+                            os.environ["KNS_TEST_EXE"],
+                        ]
+                    ),
+                    0,
+                )
             self.assertEqual(source.read_bytes(), original)
             self.assertFalse((output / source.name).exists())
             for path in output.glob("*.json"):
                 self.assertNotIn("private-sensor", path.read_text())
-            benchmark = json.loads((output / "experiment/runs/benchmark.json").read_text())
+            benchmark = json.loads(
+                (output / "experiment/runs/benchmark.json").read_text()
+            )
             report_path = Path(benchmark["cases"][0]["traffic_report"])
             report = json.loads(report_path.read_text())
             traffic_config.validate_report(report, report["config"])
-            self.assertEqual((report["generated"], report["delivered"], report["dropped"]), (5, 4, 1))
+            self.assertEqual(
+                (report["generated"], report["delivered"], report["dropped"]), (5, 4, 1)
+            )
             self.assertEqual(report["flows"][1]["dropped"], 1)
-            self.assertEqual(sum(f["delivered_wire_bytes"] for f in report["flows"]), 625)
+            self.assertEqual(
+                sum(f["delivered_wire_bytes"] for f in report["flows"]), 625
+            )
             source.unlink()
             replay = root / "portable replay"
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                self.assertEqual(experiment_profile.main(["--replay", str(output / "experiment/manifest.json"), "--exe", os.environ["KNS_TEST_EXE"], "--output", str(replay)]), 0)
+                self.assertEqual(
+                    experiment_profile.main(
+                        [
+                            "--replay",
+                            str(output / "experiment/manifest.json"),
+                            "--exe",
+                            os.environ["KNS_TEST_EXE"],
+                            "--output",
+                            str(replay),
+                        ]
+                    ),
+                    0,
+                )
             for path in (output / "experiment/runs").glob("*.traffic.json"):
-                self.assertEqual(path.read_bytes(), (replay / "runs" / path.name).read_bytes())
+                self.assertEqual(
+                    path.read_bytes(), (replay / "runs" / path.name).read_bytes()
+                )
 
 
 if __name__ == "__main__":

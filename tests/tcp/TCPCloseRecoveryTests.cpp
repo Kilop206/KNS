@@ -4,8 +4,7 @@
 
 using namespace kns;
 
-TEST_CASE("Close recovers independently lost FINs and final ACK", "[tcp][close][loss]")
-{
+TEST_CASE("Close recovers independently lost FINs and final ACK", "[tcp][close][loss]") {
     for (int loss_position : {0, 1, 2, 3}) {
         CAPTURE(loss_position);
         Topology topology(2);
@@ -20,9 +19,11 @@ TEST_CASE("Close recovers independently lost FINs and final ACK", "[tcp][close][
         client = TCPConnection(TCPState::ESTABLISHED, 100, 500, 0, 1);
         server = TCPConnection(TCPState::ESTABLISHED, 500, 100, 1, 0);
         REQUIRE(listener.getActiveConnections() == 1);
-        if (loss_position == 0 || loss_position == 3) engine.setGlobalLossProb(1.0f);
+        if (loss_position == 0 || loss_position == 3)
+            engine.setGlobalLossProb(1.0f);
         TCPConnectionCloseEvent(0.0, id).execute(engine);
-        if (loss_position == 0) engine.clearGlobalLossOverride();
+        if (loss_position == 0)
+            engine.clearGlobalLossOverride();
         if (loss_position == 1) {
             engine.setPacketObserver([&](const Packet& packet, auto, int from, auto, auto, auto) {
                 if (from == 1 && packet.packet_type == PacketType::ACK)

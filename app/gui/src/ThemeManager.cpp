@@ -8,102 +8,75 @@
 
 namespace {
 
-std::filesystem::path findFirstExistingFont(
-    std::span<const std::string_view> candidates
-)
-{
-    std::error_code ec;
-    for (const std::string_view candidate : candidates) {
-        const std::filesystem::path path(candidate);
-        if (std::filesystem::exists(path, ec)) {
-            return path;
+    std::filesystem::path findFirstExistingFont(std::span<const std::string_view> candidates) {
+        std::error_code ec;
+        for (const std::string_view candidate : candidates) {
+            const std::filesystem::path path(candidate);
+            if (std::filesystem::exists(path, ec)) {
+                return path;
+            }
+            ec.clear();
         }
-        ec.clear();
+
+        return {};
     }
 
-    return {};
-}
+    void mergeSystemFont(ImGuiIO& io, std::span<const std::string_view> candidates,
+                         const ImWchar* glyph_ranges, float size) {
+        const std::filesystem::path path = findFirstExistingFont(candidates);
+        if (path.empty()) {
+            return;
+        }
 
-void mergeSystemFont(
-    ImGuiIO& io,
-    std::span<const std::string_view> candidates,
-    const ImWchar* glyph_ranges,
-    float size
-)
-{
-    const std::filesystem::path path = findFirstExistingFont(candidates);
-    if (path.empty()) {
-        return;
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.PixelSnapH = true;
+        config.OversampleH = 1;
+        config.OversampleV = 1;
+
+        if (io.Fonts->AddFontFromFileTTF(path.string().c_str(), size, &config, glyph_ranges) ==
+            nullptr) {
+            std::fprintf(stderr, "Failed to load CJK fallback font: %s\n", path.string().c_str());
+        }
     }
 
-    ImFontConfig config;
-    config.MergeMode = true;
-    config.PixelSnapH = true;
-    config.OversampleH = 1;
-    config.OversampleV = 1;
-
-    if (io.Fonts->AddFontFromFileTTF(
-            path.string().c_str(),
-            size,
-            &config,
-            glyph_ranges
-        ) == nullptr) {
-        std::fprintf(
-            stderr,
-            "Failed to load CJK fallback font: %s\n",
-            path.string().c_str()
-        );
-    }
-}
-
-void mergeCjkFallbacks(ImGuiIO& io, float size)
-{
+    void mergeCjkFallbacks(ImGuiIO& io, float size) {
 #ifdef _WIN32
-    constexpr std::array<std::string_view, 3> japanese_fonts{
-        "C:/Windows/Fonts/YuGothM.ttc",
-        "C:/Windows/Fonts/meiryo.ttc",
-        "C:/Windows/Fonts/msgothic.ttc",
-    };
-    constexpr std::array<std::string_view, 3> chinese_fonts{
-        "C:/Windows/Fonts/msyh.ttc",
-        "C:/Windows/Fonts/msyhbd.ttc",
-        "C:/Windows/Fonts/simhei.ttf",
-    };
+        constexpr std::array<std::string_view, 3> japanese_fonts{
+            "C:/Windows/Fonts/YuGothM.ttc",
+            "C:/Windows/Fonts/meiryo.ttc",
+            "C:/Windows/Fonts/msgothic.ttc",
+        };
+        constexpr std::array<std::string_view, 3> chinese_fonts{
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+        };
 #elif defined(__APPLE__)
-    constexpr std::array<std::string_view, 2> japanese_fonts{
-        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-        "/System/Library/Fonts/AppleSDGothicNeo.ttc",
-    };
-    constexpr std::array<std::string_view, 2> chinese_fonts{
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/STHeiti Light.ttc",
-    };
+        constexpr std::array<std::string_view, 2> japanese_fonts{
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+            "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+        };
+        constexpr std::array<std::string_view, 2> chinese_fonts{
+            "/System/Library/Fonts/PingFang.ttc",
+            "/System/Library/Fonts/STHeiti Light.ttc",
+        };
 #else
-    constexpr std::array<std::string_view, 3> japanese_fonts{
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
-        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
-    };
-    constexpr std::array<std::string_view, 3> chinese_fonts{
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
-        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-    };
+        constexpr std::array<std::string_view, 3> japanese_fonts{
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
+            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        };
+        constexpr std::array<std::string_view, 3> chinese_fonts{
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        };
 #endif
 
-    mergeSystemFont(
-        io,
-        japanese_fonts,
-        io.Fonts->GetGlyphRangesJapanese(),
-        size
-    );
-    mergeSystemFont(
-        io,
-        chinese_fonts,
-        io.Fonts->GetGlyphRangesChineseSimplifiedCommon(),
-        size
-    );
-}
+        mergeSystemFont(io, japanese_fonts, io.Fonts->GetGlyphRangesJapanese(), size);
+        mergeSystemFont(io, chinese_fonts, io.Fonts->GetGlyphRangesChineseSimplifiedCommon(), size);
+    }
 
 } // namespace
 
@@ -113,22 +86,20 @@ namespace gui {
     ImFont* ThemeManager::bold_ = nullptr;
     ImFont* ThemeManager::mono_ = nullptr;
 
-    void ThemeManager::apply(const char* fontPathRegular,
-                            const char* fontPathBold,
-                            const char* fontPathMono)
-    {
+    void ThemeManager::apply(const char* fontPathRegular, const char* fontPathBold,
+                             const char* fontPathMono) {
         ImGui::StyleColorsLight();
 
         ImGuiStyle& style = ImGui::GetStyle();
-        style.Colors[ImGuiCol_WindowBg]       = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_ChildBg]        = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_PopupBg]        = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        style.Colors[ImGuiCol_WindowBg] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        style.Colors[ImGuiCol_ChildBg] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        style.Colors[ImGuiCol_PopupBg] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
         style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        style.Colors[ImGuiCol_Text]           = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
-        style.Colors[ImGuiCol_FrameBg]        = ImVec4(0.92f, 0.92f, 0.92f, 1.0f);
-        style.Colors[ImGuiCol_TitleBg]        = ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
-        style.Colors[ImGuiCol_MenuBarBg]      = ImVec4(0.95f, 0.95f, 0.95f, 1.0f);
-        style.Colors[ImGuiCol_Border]         = ImVec4(0.75f, 0.75f, 0.75f, 1.0f);
+        style.Colors[ImGuiCol_Text] = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+        style.Colors[ImGuiCol_FrameBg] = ImVec4(0.92f, 0.92f, 0.92f, 1.0f);
+        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
+        style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.95f, 0.95f, 0.95f, 1.0f);
+        style.Colors[ImGuiCol_Border] = ImVec4(0.75f, 0.75f, 0.75f, 1.0f);
 
         ImGuiIO& io = ImGui::GetIO();
         io.Fonts->Clear();

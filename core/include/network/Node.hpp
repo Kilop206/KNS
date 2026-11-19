@@ -45,42 +45,74 @@ namespace kns {
             : id_(id), label_(std::move(label)) {}
 
         /// Stable numeric identity (index in the Topology adjacency list).
-        int getId() const noexcept { return id_; }
+        int getId() const noexcept {
+            return id_;
+        }
 
         /// Optional human-readable name for display in the GUI / logs.
-        const std::string& getLabel() const noexcept { return label_; }
-        void setLabel(std::string label) { label_ = std::move(label); }
+        const std::string& getLabel() const noexcept {
+            return label_;
+        }
 
-        const DeviceInfo& getDeviceInfo() const noexcept { return device_; }
+        void setLabel(std::string label) {
+            label_ = std::move(label);
+        }
+
+        const DeviceInfo& getDeviceInfo() const noexcept {
+            return device_;
+        }
+
         void setDeviceInfo(DeviceInfo device) {
             if (static_cast<std::size_t>(device.type) >= deviceTypeNames.size())
                 throw std::invalid_argument("Invalid device type");
             validateDeviceServices(device.type, services_);
             if (device_.type != device.type) {
                 ++services_revision_;
-                for (auto& [name, revision] : service_revisions_) revision = services_revision_;
+                for (auto& [name, revision] : service_revisions_)
+                    revision = services_revision_;
             }
             device_ = std::move(device);
         }
 
-        const std::optional<NodePosition>& getPosition() const noexcept { return position_; }
-        void setPosition(NodePosition position) noexcept { position_ = position; }
+        const std::optional<NodePosition>& getPosition() const noexcept {
+            return position_;
+        }
 
-        const std::vector<NetworkService>& getServices() const noexcept { return services_; }
-        bool hasServiceConfiguration() const noexcept { return services_configured_; }
-        std::uint64_t getServicesRevision() const noexcept { return services_revision_; }
+        void setPosition(NodePosition position) noexcept {
+            position_ = position;
+        }
+
+        const std::vector<NetworkService>& getServices() const noexcept {
+            return services_;
+        }
+
+        bool hasServiceConfiguration() const noexcept {
+            return services_configured_;
+        }
+
+        std::uint64_t getServicesRevision() const noexcept {
+            return services_revision_;
+        }
+
         std::uint64_t getServiceRevision(const std::string& name) const noexcept {
             const auto found = service_revisions_.find(name);
             return found == service_revisions_.end() ? 0 : found->second;
         }
+
         void setServices(std::vector<NetworkService> services) {
             validateDeviceServices(device_.type, services);
-            if (services != services_) ++services_revision_;
+            if (services != services_)
+                ++services_revision_;
             std::map<std::string, std::uint64_t> revisions;
             for (const auto& service : services) {
                 bool unchanged = false;
-                for (const auto& previous : services_) if (previous == service) { unchanged = true; break; }
-                revisions[service.name] = unchanged ? getServiceRevision(service.name) : services_revision_;
+                for (const auto& previous : services_)
+                    if (previous == service) {
+                        unchanged = true;
+                        break;
+                    }
+                revisions[service.name] =
+                    unchanged ? getServiceRevision(service.name) : services_revision_;
             }
             services_ = std::move(services);
             service_revisions_ = std::move(revisions);
@@ -90,8 +122,13 @@ namespace kns {
         /// Whether this node is considered active. A node that has been
         /// removed from the topology is marked inactive but its ID is not
         /// recycled (preserving referential integrity of in-flight packets).
-        bool isActive() const noexcept { return active_; }
-        void setActive(bool active) noexcept { active_ = active; }
+        bool isActive() const noexcept {
+            return active_;
+        }
+
+        void setActive(bool active) noexcept {
+            active_ = active;
+        }
 
     private:
         int id_;

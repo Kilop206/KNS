@@ -8,8 +8,7 @@ using kns::TCPSession;
 using kns::TCPConnection;
 using kns::TCPState;
 
-TEST_CASE("TCPSession initial state belongs to its endpoints", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession initial state belongs to its endpoints", "[tcp][session][state]") {
     TCPSession session(1, 0, 1, TCPState::ESTABLISHED);
     REQUIRE(session.getClientConnection().getTcpState() == TCPState::ESTABLISHED);
     REQUIRE(session.getServerConnection().getTcpState() == TCPState::ESTABLISHED);
@@ -20,8 +19,7 @@ TEST_CASE("TCPSession initial state belongs to its endpoints", "[tcp][session][s
     REQUIRE(session.getState() == TCPState::CLOSED);
 }
 
-TEST_CASE("TCPSession aggregate state tracks 3-way handshake lifecycle", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession aggregate state tracks 3-way handshake lifecycle", "[tcp][session][state]") {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
 
     auto& client = session.getClientConnection();
@@ -58,8 +56,7 @@ TEST_CASE("TCPSession aggregate state tracks 3-way handshake lifecycle", "[tcp][
     REQUIRE(session.getState() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE("TCPSession aggregate state tracks active close lifecycle", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession aggregate state tracks active close lifecycle", "[tcp][session][state]") {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
 
     // Establish connections
@@ -114,8 +111,7 @@ TEST_CASE("TCPSession aggregate state tracks active close lifecycle", "[tcp][ses
     REQUIRE(session.getState() == TCPState::CLOSED);
 }
 
-TEST_CASE("TCPSession aggregate state tracks passive close lifecycle", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession aggregate state tracks passive close lifecycle", "[tcp][session][state]") {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
 
     // Server initiates close
@@ -166,8 +162,7 @@ TEST_CASE("TCPSession aggregate state tracks passive close lifecycle", "[tcp][se
     REQUIRE(session.getState() == TCPState::CLOSED);
 }
 
-TEST_CASE("TCPSession aggregate state evaluates required state matrix", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession aggregate state evaluates required state matrix", "[tcp][session][state]") {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
 
     auto test_matrix = [&](TCPState client_st, TCPState server_st, TCPState expected_session_st) {
@@ -176,8 +171,7 @@ TEST_CASE("TCPSession aggregate state evaluates required state matrix", "[tcp][s
         REQUIRE(session.getState() == expected_session_st);
     };
 
-    SECTION("Required combinations from issue #99 specification")
-    {
+    SECTION("Required combinations from issue #99 specification") {
         test_matrix(TCPState::CLOSED, TCPState::CLOSED, TCPState::CLOSED);
         test_matrix(TCPState::CLOSED, TCPState::SYN_RECEIVED, TCPState::SYN_RECEIVED);
         test_matrix(TCPState::SYN_SENT, TCPState::SYN_RECEIVED, TCPState::SYN_RECEIVED);
@@ -189,8 +183,7 @@ TEST_CASE("TCPSession aggregate state evaluates required state matrix", "[tcp][s
         test_matrix(TCPState::CLOSED, TCPState::LAST_ACK, TCPState::LAST_ACK);
     }
 
-    SECTION("Symmetrical combinations")
-    {
+    SECTION("Symmetrical combinations") {
         test_matrix(TCPState::SYN_RECEIVED, TCPState::CLOSED, TCPState::SYN_RECEIVED);
         test_matrix(TCPState::CLOSE_WAIT, TCPState::ESTABLISHED, TCPState::CLOSE_WAIT);
         test_matrix(TCPState::ESTABLISHED, TCPState::FIN_WAIT_1, TCPState::FIN_WAIT_1);
@@ -199,21 +192,19 @@ TEST_CASE("TCPSession aggregate state evaluates required state matrix", "[tcp][s
         test_matrix(TCPState::LAST_ACK, TCPState::CLOSED, TCPState::LAST_ACK);
     }
 
-    SECTION("Simultaneous close (CLOSING)")
-    {
+    SECTION("Simultaneous close (CLOSING)") {
         test_matrix(TCPState::CLOSING, TCPState::CLOSING, TCPState::CLOSING);
         test_matrix(TCPState::CLOSING, TCPState::TIME_WAIT, TCPState::CLOSING);
     }
 
-    SECTION("Listen states")
-    {
+    SECTION("Listen states") {
         test_matrix(TCPState::LISTEN, TCPState::LISTEN, TCPState::LISTEN);
         test_matrix(TCPState::SYN_SENT, TCPState::LISTEN, TCPState::SYN_SENT);
     }
 }
 
-TEST_CASE("TCPSession aggregate state updates immediately without stale caching", "[tcp][session][state]")
-{
+TEST_CASE("TCPSession aggregate state updates immediately without stale caching",
+          "[tcp][session][state]") {
     TCPSession session(1, 10, 20, TCPState::CLOSED);
 
     REQUIRE(session.getState() == TCPState::CLOSED);

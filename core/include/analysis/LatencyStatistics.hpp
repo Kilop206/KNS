@@ -11,6 +11,7 @@ namespace kns::analysis {
         explicit LatencyStatistics(std::size_t retention = 4096);
         void add(double seconds);
         nlohmann::json toJson() const;
+
     private:
         std::size_t retention_;
         std::uint64_t count_ = 0;

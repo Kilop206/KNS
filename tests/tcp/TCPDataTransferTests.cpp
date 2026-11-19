@@ -13,8 +13,7 @@ using kns::TCPSession;
 using kns::TCPState;
 using kns::Topology;
 
-TEST_CASE("TCPSession tracks packet completion", "[tcp][session]")
-{
+TEST_CASE("TCPSession tracks packet completion", "[tcp][session]") {
     TCPSession session(42, 1, 2, TCPState::ESTABLISHED);
 
     session.setTotalPackets(2);
@@ -27,8 +26,7 @@ TEST_CASE("TCPSession tracks packet completion", "[tcp][session]")
     REQUIRE(session.isComplete());
 }
 
-TEST_CASE("TCPSession owns client and server endpoints", "[tcp][session]")
-{
+TEST_CASE("TCPSession owns client and server endpoints", "[tcp][session]") {
     TCPSession session(42, 1, 2, TCPState::CLOSED);
 
     REQUIRE(session.getSession_id() == 42);
@@ -40,8 +38,7 @@ TEST_CASE("TCPSession owns client and server endpoints", "[tcp][session]")
     REQUIRE(session.getServerConnection().getRemoteNode() == 1);
 }
 
-TEST_CASE("TCPSession default constructor is defined", "[tcp][session]")
-{
+TEST_CASE("TCPSession default constructor is defined", "[tcp][session]") {
     TCPSession session;
 
     REQUIRE(session.getSession_id() == 0);
@@ -58,21 +55,10 @@ TEST_CASE("TCPSession default constructor is defined", "[tcp][session]")
     REQUIRE(sessions.at(7).getState() == TCPState::CLOSED);
 }
 
-TEST_CASE(
-    "Simulation generates DATA packets after TCP handshake",
-    "[tcp][data][integration]"
-)
-{
+TEST_CASE("Simulation generates DATA packets after TCP handshake", "[tcp][data][integration]") {
     Topology topology(2);
 
-    auto link = topology.addLinkPtr(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX);
 
     REQUIRE(link != nullptr);
 

@@ -17,20 +17,16 @@ namespace gui {
     class TranslationService;
 
     class PacketRenderer {
-        public:
-            void render(
-                ImDrawList* draw_list,
-                const std::vector<std::pair<float, float>>& positions,
-                const std::vector<VisualPacket>& packets,
-                double visual_time,
-                TranslationService& translations
-            ) const;
+    public:
+        void render(ImDrawList* draw_list, const std::vector<std::pair<float, float>>& positions,
+                    const std::vector<VisualPacket>& packets, double visual_time,
+                    TranslationService& translations) const;
 
-            static const char* packetTypeToString(kns::PacketType type);
-            
-            static ImU32 packetColorByType(kns::PacketType type);
+        static const char* packetTypeToString(kns::PacketType type);
 
-        private:
-            static ImU32 packetBorderColor(kns::PacketType type);
-        };
+        static ImU32 packetColorByType(kns::PacketType type);
+
+    private:
+        static ImU32 packetBorderColor(kns::PacketType type);
+    };
 }

@@ -10,41 +10,38 @@
 
 namespace {
 
-struct DiffFile {
-    std::filesystem::path path = std::filesystem::temp_directory_path() /
-        ("kns-discovery-diff-" +
-         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) +
-         ".json");
+    struct DiffFile {
+        std::filesystem::path path =
+            std::filesystem::temp_directory_path() /
+            ("kns-discovery-diff-" +
+             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
 
-    ~DiffFile()
-    {
-        std::error_code error;
-        std::filesystem::remove(path, error);
-    }
+        ~DiffFile() {
+            std::error_code error;
+            std::filesystem::remove(path, error);
+        }
 
-    void write(const std::string& contents) const
-    {
-        std::ofstream(path) << contents;
-    }
-};
+        void write(const std::string& contents) const {
+            std::ofstream(path) << contents;
+        }
+    };
 
-std::optional<kns::DiscoveryDiff> check(kns::DiscoveryDiffWatcher& watcher)
-{
-    const auto checks = watcher.completedChecks();
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (std::chrono::steady_clock::now() < deadline) {
-        auto result = watcher.poll(true);
-        if (watcher.completedChecks() > checks) return result;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::optional<kns::DiscoveryDiff> check(kns::DiscoveryDiffWatcher& watcher) {
+        const auto checks = watcher.completedChecks();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (std::chrono::steady_clock::now() < deadline) {
+            auto result = watcher.poll(true);
+            if (watcher.completedChecks() > checks)
+                return result;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        FAIL("Discovery diff watcher did not finish reading");
+        return std::nullopt;
     }
-    FAIL("Discovery diff watcher did not finish reading");
-    return std::nullopt;
-}
 
 } // namespace
 
-TEST_CASE("Discovery diff parser accepts canonical v1 payload", "[network][discovery][diff]")
-{
+TEST_CASE("Discovery diff parser accepts canonical v1 payload", "[network][discovery][diff]") {
     const auto diff = kns::parseDiscoveryDiff(nlohmann::json::parse(R"({
         "schema_version":"1.0",
         "baseline_available":true,
@@ -65,8 +62,8 @@ TEST_CASE("Discovery diff parser accepts canonical v1 payload", "[network][disco
     REQUIRE(diff.summary().find("links +1 / -0 / ~1") != std::string::npos);
 }
 
-TEST_CASE("Discovery diff parser is strict about schema and identities", "[network][discovery][diff]")
-{
+TEST_CASE("Discovery diff parser is strict about schema and identities",
+          "[network][discovery][diff]") {
     REQUIRE_THROWS(kns::parseDiscoveryDiff(nlohmann::json::parse(R"({
         "schema_version":"2.0",
         "baseline_available":true
@@ -90,8 +87,8 @@ TEST_CASE("Discovery diff parser is strict about schema and identities", "[netwo
     })")));
 }
 
-TEST_CASE("Discovery diff watcher recovers after partial file", "[network][discovery][diff][watch]")
-{
+TEST_CASE("Discovery diff watcher recovers after partial file",
+          "[network][discovery][diff][watch]") {
     DiffFile file;
     kns::DiscoveryDiffWatcher watcher;
     watcher.setSource(file.path.string(), true);

@@ -7,14 +7,17 @@
 namespace kns {
 
     class TCPHandshakeTimeoutEvent : public Event {
-        public:
-            TCPHandshakeTimeoutEvent(double timestamp, std::uint64_t session_id);
+    public:
+        TCPHandshakeTimeoutEvent(double timestamp, std::uint64_t session_id);
 
-            void execute(SimulationEngine& engine) override;
-            const char* getName() const noexcept override { return "TCPHandshakeTimeoutEvent"; }
+        void execute(SimulationEngine& engine) override;
 
-        private:
-            std::uint64_t session_id_;
+        const char* getName() const noexcept override {
+            return "TCPHandshakeTimeoutEvent";
+        }
+
+    private:
+        std::uint64_t session_id_;
     };
 
 }

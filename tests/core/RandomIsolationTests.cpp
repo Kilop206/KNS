@@ -3,8 +3,7 @@
 
 using namespace kns;
 
-TEST_CASE("Engine random streams survive unrelated configuration and interleaving", "[random]")
-{
+TEST_CASE("Engine random streams survive unrelated configuration and interleaving", "[random]") {
     SimulationEngine alone{Topology(2)};
     SimulationEngine interleaved{Topology(2)};
     SimulationEngine other{Topology(2)};
@@ -22,8 +21,7 @@ TEST_CASE("Engine random streams survive unrelated configuration and interleavin
     }
 }
 
-TEST_CASE("Interleaved simulations preserve TCP sequences and packet loss", "[random][tcp]")
-{
+TEST_CASE("Interleaved simulations preserve TCP sequences and packet loss", "[random][tcp]") {
     auto make = [] {
         Topology topology(2);
         topology.addLink(0, 1, 100.0, 1.0, 0.1);

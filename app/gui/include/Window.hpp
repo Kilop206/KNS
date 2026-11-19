@@ -8,7 +8,7 @@
 
 namespace gui {
     class Window {
-        public:
-            GLFWwindow* generate_window();
+    public:
+        GLFWwindow* generate_window();
     };
 }

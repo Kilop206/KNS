@@ -24,7 +24,8 @@ TEST_CASE("Topology validates capacity before allocation or mutation", "[topolog
     const auto revision = topology.getRoutingRevision();
     REQUIRE_THROWS_AS(topology.addNode(), std::invalid_argument);
     REQUIRE_THROWS_AS(topology.addLink(0, 4096, 10, 5), std::invalid_argument);
-    REQUIRE_THROWS_AS(topology.addLink(0, std::numeric_limits<int>::max(), 10, 5), std::invalid_argument);
+    REQUIRE_THROWS_AS(topology.addLink(0, std::numeric_limits<int>::max(), 10, 5),
+                      std::invalid_argument);
     REQUIRE(topology.size() == 4096);
     REQUIRE(topology.getLinks().empty());
     REQUIRE(topology.getRoutingRevision() == revision);
@@ -48,26 +49,32 @@ TEST_CASE("Topology add/remove nodes and links", "[network][topology]") {
     const auto& links_from_0 = topo.getLinksFromNode(0);
     bool found = false;
     for (const auto& l : links_from_0) {
-        if (l->getOtherNode(0) == 2) { found = true; break; }
+        if (l->getOtherNode(0) == 2) {
+            found = true;
+            break;
+        }
     }
     REQUIRE(found);
 
     // toggle down
-    REQUIRE(topo.setLinkUp(0,2, false) == true);
+    REQUIRE(topo.setLinkUp(0, 2, false) == true);
     REQUIRE(link->isUp() == false);
 
     // toggle up
-    REQUIRE(topo.setLinkUp(0,2, true) == true);
+    REQUIRE(topo.setLinkUp(0, 2, true) == true);
     REQUIRE(link->isUp() == true);
 
     // remove link
-    REQUIRE(topo.removeLink(0,2) == true);
+    REQUIRE(topo.removeLink(0, 2) == true);
 
     // after removal, adjacency list for node 0 should not contain the link
     const auto& links_after = topo.getLinksFromNode(0);
     bool still = false;
     for (const auto& l : links_after) {
-        if (l->getOtherNode(0) == 2) { still = true; break; }
+        if (l->getOtherNode(0) == 2) {
+            still = true;
+            break;
+        }
     }
     REQUIRE(still == false);
 
@@ -76,7 +83,8 @@ TEST_CASE("Topology add/remove nodes and links", "[network][topology]") {
     REQUIRE(topo.getLinksFromNode(2).empty());
 }
 
-TEST_CASE("Topology requires link ids for ambiguous parallel-link mutations", "[network][topology]") {
+TEST_CASE("Topology requires link ids for ambiguous parallel-link mutations",
+          "[network][topology]") {
     Topology topo(2);
     auto first = topo.addLinkPtr(0, 1, 10.0, 5.0);
     auto second = topo.addLinkPtr(0, 1, 20.0, 10.0);

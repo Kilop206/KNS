@@ -5,8 +5,7 @@
 
 namespace gui {
     CircularBuffer::CircularBuffer(std::size_t capacity)
-        : capacity_(capacity == 0 ? 1 : capacity),
-          buffer_(capacity_ > 0 ? capacity_ : 1, 0.0f) {}
+        : capacity_(capacity == 0 ? 1 : capacity), buffer_(capacity_ > 0 ? capacity_ : 1, 0.0f) {}
 
     void CircularBuffer::recomputeStatistics() {
         if (count_ == 0) {

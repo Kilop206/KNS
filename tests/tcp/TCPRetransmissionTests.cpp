@@ -4,8 +4,7 @@
 using kns::TCPConnection;
 using kns::TCPState;
 
-TEST_CASE("TCPConnection tracks SYN retransmission limits correctly", "[tcp][retransmission]")
-{
+TEST_CASE("TCPConnection tracks SYN retransmission limits correctly", "[tcp][retransmission]") {
     TCPConnection client(TCPState::CLOSED, 100, 0, 1, 2);
 
     REQUIRE(client.getSynRetries() == 0);

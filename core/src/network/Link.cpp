@@ -9,45 +9,39 @@
 
 namespace {
 
-kns::LinkMode validateMode(kns::LinkMode mode)
-{
-    switch (mode) {
-        case kns::LinkMode::FULL_DUPLEX:
-        case kns::LinkMode::HALF_DUPLEX:
-        case kns::LinkMode::SIMPLEX:
-            return mode;
-    }
-    throw std::invalid_argument("Unknown link mode");
-}
-
-double validateBandwidthMbps(double value)
-{
-    if (!std::isfinite(value) || value <= 0.0) {
-        throw std::invalid_argument("Bandwidth must be finite and positive");
+    kns::LinkMode validateMode(kns::LinkMode mode) {
+        switch (mode) {
+            case kns::LinkMode::FULL_DUPLEX:
+            case kns::LinkMode::HALF_DUPLEX:
+            case kns::LinkMode::SIMPLEX:
+                return mode;
+        }
+        throw std::invalid_argument("Unknown link mode");
     }
 
-    return value;
-}
+    double validateBandwidthMbps(double value) {
+        if (!std::isfinite(value) || value <= 0.0) {
+            throw std::invalid_argument("Bandwidth must be finite and positive");
+        }
 
-double validateDelayMs(double value)
-{
-    if (!std::isfinite(value) || value < 0.0) {
-        throw std::invalid_argument("Delay must be finite and non-negative");
+        return value;
     }
 
-    return value;
-}
+    double validateDelayMs(double value) {
+        if (!std::isfinite(value) || value < 0.0) {
+            throw std::invalid_argument("Delay must be finite and non-negative");
+        }
 
-double validateLossProbability(double value)
-{
-    if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
-        throw std::invalid_argument(
-            "Loss probability must be finite and between 0.0 and 1.0"
-        );
+        return value;
     }
 
-    return value;
-}
+    double validateLossProbability(double value) {
+        if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
+            throw std::invalid_argument("Loss probability must be finite and between 0.0 and 1.0");
+        }
+
+        return value;
+    }
 
 } // namespace
 
@@ -55,45 +49,28 @@ namespace kns {
 
     std::atomic<std::uint64_t> Link::next_id_{0};
 
-    Link::Link(
-        int a,
-        int b,
-        double bandwidth_mbps,
-        double delay_ms,
-        double loss_prob,
-        LinkMode mode,
-        int queue_capacity
-    )
-        : id_(next_id_++),
-        a_(a),
-        b_(b),
-        bandwidth_mbps_(validateBandwidthMbps(bandwidth_mbps)),
-        delay_ms_(validateDelayMs(delay_ms)),
-        loss_prob_(validateLossProbability(loss_prob)),
-        mode_(validateMode(mode)),
-        up_(true),
-        routing_revision_(std::make_shared<std::uint64_t>(0))
-    {
+    Link::Link(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob,
+               LinkMode mode, int queue_capacity)
+        : id_(next_id_++), a_(a), b_(b), bandwidth_mbps_(validateBandwidthMbps(bandwidth_mbps)),
+          delay_ms_(validateDelayMs(delay_ms)), loss_prob_(validateLossProbability(loss_prob)),
+          mode_(validateMode(mode)), up_(true),
+          routing_revision_(std::make_shared<std::uint64_t>(0)) {
         setQueueCapacity(queue_capacity);
     }
 
-    std::uint64_t Link::getId() const noexcept
-    {
+    std::uint64_t Link::getId() const noexcept {
         return id_;
     }
 
-    int Link::getA() const noexcept
-    {
+    int Link::getA() const noexcept {
         return a_;
     }
 
-    int Link::getB() const noexcept
-    {
+    int Link::getB() const noexcept {
         return b_;
     }
 
-    int Link::getOtherNode(int node) const noexcept
-    {
+    int Link::getOtherNode(int node) const noexcept {
         if (node == a_) {
             return b_;
         }
@@ -105,18 +82,15 @@ namespace kns {
         return -1;
     }
 
-    bool Link::allowsTransmission(int from, int to) const noexcept
-    {
+    bool Link::allowsTransmission(int from, int to) const noexcept {
         return getQueueSlot(from, to) != DirectionSlot::Invalid;
     }
 
-    double Link::getBandwidthMbps() const noexcept
-    {
+    double Link::getBandwidthMbps() const noexcept {
         return bandwidth_mbps_;
     }
 
-    void Link::setBandwidthMbps(double value)
-    {
+    void Link::setBandwidthMbps(double value) {
         const double validated_value = validateBandwidthMbps(value);
         if (bandwidth_mbps_ != validated_value) {
             bandwidth_mbps_ = validated_value;
@@ -124,13 +98,11 @@ namespace kns {
         }
     }
 
-    double Link::getDelayMs() const noexcept
-    {
+    double Link::getDelayMs() const noexcept {
         return delay_ms_;
     }
 
-    void Link::setDelayMs(double value)
-    {
+    void Link::setDelayMs(double value) {
         const double validated_value = validateDelayMs(value);
         if (delay_ms_ != validated_value) {
             delay_ms_ = validated_value;
@@ -138,23 +110,19 @@ namespace kns {
         }
     }
 
-    double Link::getLossProb() const noexcept
-    {
+    double Link::getLossProb() const noexcept {
         return loss_prob_;
     }
 
-    void Link::setLossProb(double value)
-    {
+    void Link::setLossProb(double value) {
         loss_prob_ = validateLossProbability(value);
     }
 
-    LinkMode Link::getMode() const noexcept
-    {
+    LinkMode Link::getMode() const noexcept {
         return mode_;
     }
 
-    void Link::setMode(LinkMode mode)
-    {
+    void Link::setMode(LinkMode mode) {
         validateMode(mode);
         if (mode == mode_) {
             return;
@@ -162,20 +130,15 @@ namespace kns {
         if (getQueueSize() != 0) {
             throw std::logic_error("Cannot change link mode with pending transmissions");
         }
-        const double reserved_until = std::max({
-            busy_until_ab_, busy_until_ba_, busy_until_shared_
-        });
+        const double reserved_until =
+            std::max({busy_until_ab_, busy_until_ba_, busy_until_shared_});
         busy_until_ab_ = busy_until_ba_ = busy_until_shared_ = reserved_until;
         mode_ = mode;
         resetRedState();
         markRoutingChanged();
     }
 
-    Link::DirectionSlot Link::getDirectionSlot(
-        int from,
-        int to
-    ) const noexcept
-    {
+    Link::DirectionSlot Link::getDirectionSlot(int from, int to) const noexcept {
         if (from == a_ && to == b_) {
             return DirectionSlot::AB;
         }
@@ -187,12 +150,7 @@ namespace kns {
         return DirectionSlot::Invalid;
     }
 
-    double Link::getNextAvailableTime(
-        int from,
-        int to,
-        double now
-    ) const noexcept
-    {
+    double Link::getNextAvailableTime(int from, int to, double now) const noexcept {
         const DirectionSlot slot = getDirectionSlot(from, to);
 
         switch (mode_) {
@@ -226,36 +184,27 @@ namespace kns {
         }
     }
 
-    void Link::reserveTransmission(
-        int from,
-        int to,
-        double busy_until
-    ) const noexcept
-    {
+    void Link::reserveTransmission(int from, int to, double busy_until) const noexcept {
         const DirectionSlot slot = getDirectionSlot(from, to);
 
         switch (mode_) {
             case LinkMode::FULL_DUPLEX:
                 if (slot == DirectionSlot::AB) {
-                    busy_until_ab_ =
-                        std::max(busy_until_ab_, busy_until);
+                    busy_until_ab_ = std::max(busy_until_ab_, busy_until);
                 } else if (slot == DirectionSlot::BA) {
-                    busy_until_ba_ =
-                        std::max(busy_until_ba_, busy_until);
+                    busy_until_ba_ = std::max(busy_until_ba_, busy_until);
                 }
                 break;
 
             case LinkMode::HALF_DUPLEX:
                 if (slot != DirectionSlot::Invalid) {
-                    busy_until_shared_ =
-                        std::max(busy_until_shared_, busy_until);
+                    busy_until_shared_ = std::max(busy_until_shared_, busy_until);
                 }
                 break;
 
             case LinkMode::SIMPLEX:
                 if (slot == DirectionSlot::AB) {
-                    busy_until_ab_ =
-                        std::max(busy_until_ab_, busy_until);
+                    busy_until_ab_ = std::max(busy_until_ab_, busy_until);
                 }
                 break;
 
@@ -264,17 +213,11 @@ namespace kns {
         }
     }
 
-    bool Link::isBusy(
-        int from,
-        int to,
-        double now
-    ) const noexcept
-    {
+    bool Link::isBusy(int from, int to, double now) const noexcept {
         return now < getNextAvailableTime(from, to, now);
     }
 
-    bool Link::should_drop() const
-    {
+    bool Link::should_drop() const {
         if (loss_prob_ <= 0.0) {
             return false;
         }
@@ -283,12 +226,7 @@ namespace kns {
         return r < loss_prob_;
     }
 
-    std::size_t Link::estimatedQueueSize(
-        double /*now*/,
-        int from,
-        int to
-    ) const
-    {
+    std::size_t Link::estimatedQueueSize(double /*now*/, int from, int to) const {
         const DirectionSlot slot = getQueueSlot(from, to);
 
         switch (mode_) {
@@ -322,8 +260,7 @@ namespace kns {
         }
     }
 
-    bool Link::canQueue(int from, int to) const noexcept
-    {
+    bool Link::canQueue(int from, int to) const noexcept {
         if (!up_) {
             return false;
         }
@@ -361,34 +298,18 @@ namespace kns {
         }
     }
 
-    void Link::enqueueTransmission(
-        int from,
-        int to,
-        double departure_time,
-        double arrival_time
-    )
-    {
+    void Link::enqueueTransmission(int from, int to, double departure_time, double arrival_time) {
         const DirectionSlot slot = getQueueSlot(from, to);
 
         if (!canQueue(from, to)) {
             return;
         }
 
-        queueForSlot(slot).push_back({
-            from,
-            to,
-            departure_time,
-            arrival_time
-        });
+        queueForSlot(slot).push_back({from, to, departure_time, arrival_time});
     }
 
-    bool Link::dequeueTransmission(
-        int from,
-        int to,
-        double departure_time,
-        double arrival_time
-    ) noexcept
-    {
+    bool Link::dequeueTransmission(int from, int to, double departure_time,
+                                   double arrival_time) noexcept {
         const DirectionSlot slot = getQueueSlot(from, to);
 
         if (slot == DirectionSlot::Invalid) {
@@ -398,14 +319,11 @@ namespace kns {
         auto& queue = queueForSlot(slot);
 
         for (auto it = queue.begin(); it != queue.end(); ++it) {
-            if (
-                it->from == from &&
-                it->to == to &&
-                it->departure_time == departure_time &&
-                it->arrival_time == arrival_time
-            ) {
+            if (it->from == from && it->to == to && it->departure_time == departure_time &&
+                it->arrival_time == arrival_time) {
                 queue.erase(it);
-                if (queue.empty()) redStateForSlot(slot).idle_since = arrival_time;
+                if (queue.empty())
+                    redStateForSlot(slot).idle_since = arrival_time;
                 return true;
             }
         }
@@ -413,20 +331,15 @@ namespace kns {
         return false;
     }
 
-    std::size_t Link::getQueueSize() const noexcept
-    {
-        return queue_ab_.size()
-            + queue_ba_.size()
-            + queue_shared_.size();
+    std::size_t Link::getQueueSize() const noexcept {
+        return queue_ab_.size() + queue_ba_.size() + queue_shared_.size();
     }
 
-    std::size_t Link::getQueueCapacity() const noexcept
-    {
+    std::size_t Link::getQueueCapacity() const noexcept {
         return queue_capacity_;
     }
 
-    void Link::setQueueCapacity(int capacity)
-    {
+    void Link::setQueueCapacity(int capacity) {
         if (capacity <= 0) {
             throw std::invalid_argument("Link queue capacity must be positive");
         }
@@ -435,35 +348,23 @@ namespace kns {
             throw std::invalid_argument("Link queue capacity cannot be smaller than its occupancy");
         }
         if (queue_discipline_ == QueueDiscipline::RED && value < red_max_threshold_) {
-            throw std::invalid_argument("Link queue capacity cannot be smaller than RED max threshold");
+            throw std::invalid_argument(
+                "Link queue capacity cannot be smaller than RED max threshold");
         }
         queue_capacity_ = value;
     }
 
-    void Link::configureRed(
-        int min_threshold,
-        int max_threshold,
-        double max_drop_probability,
-        double queue_weight
-    )
-    {
-        if (
-            min_threshold < 0 ||
-            max_threshold <= min_threshold ||
-            static_cast<std::size_t>(max_threshold) > queue_capacity_
-        ) {
+    void Link::configureRed(int min_threshold, int max_threshold, double max_drop_probability,
+                            double queue_weight) {
+        if (min_threshold < 0 || max_threshold <= min_threshold ||
+            static_cast<std::size_t>(max_threshold) > queue_capacity_) {
             throw std::invalid_argument(
-                "RED thresholds must satisfy 0 <= min < max <= queue capacity"
-            );
+                "RED thresholds must satisfy 0 <= min < max <= queue capacity");
         }
-        if (
-            !std::isfinite(max_drop_probability) ||
-            max_drop_probability < 0.0 ||
-            max_drop_probability > 1.0
-        ) {
+        if (!std::isfinite(max_drop_probability) || max_drop_probability < 0.0 ||
+            max_drop_probability > 1.0) {
             throw std::invalid_argument(
-                "RED max drop probability must be finite and between 0.0 and 1.0"
-            );
+                "RED max drop probability must be finite and between 0.0 and 1.0");
         }
 
         if (!std::isfinite(queue_weight) || queue_weight <= 0.0 || queue_weight > 1.0) {
@@ -478,39 +379,46 @@ namespace kns {
         queue_discipline_ = QueueDiscipline::RED;
     }
 
-    Link::RedState& Link::redStateForSlot(DirectionSlot slot) noexcept
-    {
-        if (slot == DirectionSlot::AB) return red_ab_;
-        if (slot == DirectionSlot::BA) return red_ba_;
+    Link::RedState& Link::redStateForSlot(DirectionSlot slot) noexcept {
+        if (slot == DirectionSlot::AB)
+            return red_ab_;
+        if (slot == DirectionSlot::BA)
+            return red_ba_;
         return red_shared_;
     }
 
-    const Link::RedState& Link::redStateForSlot(DirectionSlot slot) const noexcept
-    {
-        if (slot == DirectionSlot::AB) return red_ab_;
-        if (slot == DirectionSlot::BA) return red_ba_;
+    const Link::RedState& Link::redStateForSlot(DirectionSlot slot) const noexcept {
+        if (slot == DirectionSlot::AB)
+            return red_ab_;
+        if (slot == DirectionSlot::BA)
+            return red_ba_;
         return red_shared_;
     }
 
-    double Link::getAverageQueueSize(int from, int to) const noexcept
-    {
+    double Link::getAverageQueueSize(int from, int to) const noexcept {
         const auto slot = getQueueSlot(from, to);
-        if (slot == DirectionSlot::Invalid) return 0.0;
-        if (red_queue_weight_ == 1.0) return static_cast<double>(queueForSlot(slot).size());
+        if (slot == DirectionSlot::Invalid)
+            return 0.0;
+        if (red_queue_weight_ == 1.0)
+            return static_cast<double>(queueForSlot(slot).size());
         return redStateForSlot(slot).average;
     }
 
-    double Link::sampleEarlyDropProbability(int from, int to, double now, double transmission_seconds)
-    {
-        if (!std::isfinite(now) || now < 0.0 || !std::isfinite(transmission_seconds) || transmission_seconds <= 0.0) {
-            throw std::invalid_argument("RED sampling requires finite time and positive transmission duration");
+    double Link::sampleEarlyDropProbability(int from, int to, double now,
+                                            double transmission_seconds) {
+        if (!std::isfinite(now) || now < 0.0 || !std::isfinite(transmission_seconds) ||
+            transmission_seconds <= 0.0) {
+            throw std::invalid_argument(
+                "RED sampling requires finite time and positive transmission duration");
         }
         const auto slot = getQueueSlot(from, to);
-        if (queue_discipline_ != QueueDiscipline::RED || slot == DirectionSlot::Invalid) return 0.0;
+        if (queue_discipline_ != QueueDiscipline::RED || slot == DirectionSlot::Invalid)
+            return 0.0;
         auto& state = redStateForSlot(slot);
         const double occupancy = static_cast<double>(queueForSlot(slot).size());
         if (occupancy == 0.0 && red_queue_weight_ < 1.0) {
-            const double idle_packets = std::max(0.0, now - state.idle_since) / transmission_seconds;
+            const double idle_packets =
+                std::max(0.0, now - state.idle_since) / transmission_seconds;
             state.average *= std::pow(1.0 - red_queue_weight_, idle_packets);
             state.idle_since = now;
         }
@@ -518,8 +426,7 @@ namespace kns {
         return earlyDropProbability(from, to);
     }
 
-    double Link::earlyDropProbability(int from, int to) const noexcept
-    {
+    double Link::earlyDropProbability(int from, int to) const noexcept {
         if (queue_discipline_ != QueueDiscipline::RED) {
             return 0.0;
         }
@@ -532,43 +439,33 @@ namespace kns {
             return 1.0;
         }
 
-        const double span = static_cast<double>(
-            red_max_threshold_ - red_min_threshold_
-        );
+        const double span = static_cast<double>(red_max_threshold_ - red_min_threshold_);
         const double position = occupancy - static_cast<double>(red_min_threshold_);
         return red_max_drop_probability_ * (position / span);
     }
 
-    bool Link::isUp() const noexcept
-    {
+    bool Link::isUp() const noexcept {
         return up_;
     }
 
-    void Link::setUp(bool up) noexcept
-    {
+    void Link::setUp(bool up) noexcept {
         if (up_ != up) {
             up_ = up;
             markRoutingChanged();
         }
     }
 
-    void Link::attachRoutingRevision(
-        const std::shared_ptr<std::uint64_t>& revision
-    ) noexcept
-    {
+    void Link::attachRoutingRevision(const std::shared_ptr<std::uint64_t>& revision) noexcept {
         routing_revision_ = revision;
     }
 
-    void Link::markRoutingChanged() noexcept
-    {
+    void Link::markRoutingChanged() noexcept {
         if (routing_revision_) {
             ++(*routing_revision_);
         }
     }
 
-    std::deque<Link::LinkTransmission>&
-    Link::queueForSlot(DirectionSlot slot) noexcept
-    {
+    std::deque<Link::LinkTransmission>& Link::queueForSlot(DirectionSlot slot) noexcept {
         switch (slot) {
             case DirectionSlot::AB:
                 return queue_ab_;
@@ -586,8 +483,7 @@ namespace kns {
     }
 
     const std::deque<Link::LinkTransmission>&
-    Link::queueForSlot(DirectionSlot slot) const noexcept
-    {
+    Link::queueForSlot(DirectionSlot slot) const noexcept {
         switch (slot) {
             case DirectionSlot::AB:
                 return queue_ab_;
@@ -604,11 +500,7 @@ namespace kns {
         }
     }
 
-    Link::DirectionSlot Link::getQueueSlot(
-        int from,
-        int to
-    ) const noexcept
-    {
+    Link::DirectionSlot Link::getQueueSlot(int from, int to) const noexcept {
         const DirectionSlot direction = getDirectionSlot(from, to);
 
         switch (mode_) {
@@ -616,19 +508,14 @@ namespace kns {
                 return direction;
 
             case LinkMode::HALF_DUPLEX:
-                if (
-                    direction == DirectionSlot::AB ||
-                    direction == DirectionSlot::BA
-                ) {
+                if (direction == DirectionSlot::AB || direction == DirectionSlot::BA) {
                     return DirectionSlot::Shared;
                 }
 
                 return DirectionSlot::Invalid;
 
             case LinkMode::SIMPLEX:
-                return direction == DirectionSlot::AB
-                    ? DirectionSlot::AB
-                    : DirectionSlot::Invalid;
+                return direction == DirectionSlot::AB ? DirectionSlot::AB : DirectionSlot::Invalid;
 
             default:
                 return DirectionSlot::Invalid;

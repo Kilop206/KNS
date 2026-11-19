@@ -13,27 +13,33 @@
 
 namespace kns {
 
-    inline PacketType inferPacketType(const TCPSegment& seg)
-    {
+    inline PacketType inferPacketType(const TCPSegment& seg) {
         const bool syn = (seg.flags & TCPFlag::SYN) == TCPFlag::SYN;
         const bool ack = (seg.flags & TCPFlag::ACK) == TCPFlag::ACK;
         const bool fin = (seg.flags & TCPFlag::FIN) == TCPFlag::FIN;
         const bool psh = (seg.flags & TCPFlag::PSH) == TCPFlag::PSH;
         const bool rst = (seg.flags & TCPFlag::RST) == TCPFlag::RST;
 
-        if (rst) return PacketType::RST;
+        if (rst)
+            return PacketType::RST;
 
-        if (syn && ack) return PacketType::SYN_ACK;
+        if (syn && ack)
+            return PacketType::SYN_ACK;
 
-        if (fin && ack) return PacketType::FIN;
+        if (fin && ack)
+            return PacketType::FIN;
 
-        if (syn) return PacketType::SYN;
+        if (syn)
+            return PacketType::SYN;
 
-        if (fin) return PacketType::FIN;
+        if (fin)
+            return PacketType::FIN;
 
-        if (psh) return PacketType::DATA;
+        if (psh)
+            return PacketType::DATA;
 
-        if (ack) return PacketType::ACK;
+        if (ack)
+            return PacketType::ACK;
 
         return PacketType::DATA;
     }
@@ -43,14 +49,15 @@ namespace kns {
 
         int serializedSize() const {
             if (service) {
-                if (service->payload.size() > 4096) throw std::invalid_argument("Service payload exceeds 4096 bytes");
+                if (service->payload.size() > 4096)
+                    throw std::invalid_argument("Service payload exceeds 4096 bytes");
                 return 28 + static_cast<int>(service->payload.size());
             }
             if (tcp.flags == TCPFlag::None && tcp.payload.empty()) {
                 return packet_size_bytes;
             }
-            if (tcp.payload.size() > static_cast<std::size_t>(
-                    std::numeric_limits<int>::max() - TCP_IPV4_HEADER_BYTES)) {
+            if (tcp.payload.size() >
+                static_cast<std::size_t>(std::numeric_limits<int>::max() - TCP_IPV4_HEADER_BYTES)) {
                 throw std::invalid_argument("TCP wire size exceeds supported range");
             }
             return TCP_IPV4_HEADER_BYTES + static_cast<int>(tcp.payload.size());
@@ -64,7 +71,8 @@ namespace kns {
 
         double creation_time = 0.0;
         double departure_time = 0.0;
-        double arrival_time = 0.0;  ///< Simulation time at which this packet arrived at current_node.
+        double arrival_time =
+            0.0; ///< Simulation time at which this packet arrived at current_node.
 
         int packet_size_bytes = 0;
         int hop_count = 0;
@@ -84,22 +92,11 @@ namespace kns {
 
         Packet() = default;
 
-        Packet(
-            int source,
-            int destination,
-            int current_node,
-            double creation_time,
-            int packet_size_bytes,
-            std::uint64_t session_id
-        )
-            : source(source),
-              destination(destination),
-              current_node(current_node),
-              creation_time(creation_time),
-              packet_size_bytes(packet_size_bytes),
-              session_id(session_id)
-        {
-        }
+        Packet(int source, int destination, int current_node, double creation_time,
+               int packet_size_bytes, std::uint64_t session_id)
+            : source(source), destination(destination), current_node(current_node),
+              creation_time(creation_time), packet_size_bytes(packet_size_bytes),
+              session_id(session_id) {}
     };
 
 }

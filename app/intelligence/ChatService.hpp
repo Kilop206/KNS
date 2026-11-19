@@ -13,45 +13,65 @@
 
 namespace kns::app::intelligence {
 
-struct ChatMessage {
-    std::string role;
-    std::string content;
-    std::size_t history_turns_omitted = 0;
-};
+    struct ChatMessage {
+        std::string role;
+        std::string content;
+        std::size_t history_turns_omitted = 0;
+    };
 
-// Owned by the UI thread. Workers receive only copied request/transport values.
-class ChatService {
-public:
-    using Transport = std::function<ChatReply(const nlohmann::json&)>;
-    explicit ChatService(Transport transport);
-    void synchronizeTopology(std::uint64_t revision);
-    void clear();
-    void send(const kns::analysis::NetworkAnalysis& analysis, std::string question);
-    void send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats, std::string question);
-    void retry();
-    void discardFailedQuestion();
-    void update();
-    [[nodiscard]] std::string transcript() const;
-    [[nodiscard]] bool busy() const { return future_.valid(); }
-    [[nodiscard]] bool canRetry() const { return !busy() && failed_request_.has_value(); }
-    [[nodiscard]] const std::vector<ChatMessage>& messages() const { return messages_; }
-    [[nodiscard]] const std::string& error() const { return error_; }
-    [[nodiscard]] const std::string& last_plan() const { return last_plan_; }
-    [[nodiscard]] const std::optional<int>& last_quota_remaining() const { return last_quota_remaining_; }
+    // Owned by the UI thread. Workers receive only copied request/transport values.
+    class ChatService {
+    public:
+        using Transport = std::function<ChatReply(const nlohmann::json&)>;
+        explicit ChatService(Transport transport);
+        void synchronizeTopology(std::uint64_t revision);
+        void clear();
+        void send(const kns::analysis::NetworkAnalysis& analysis, std::string question);
+        void send(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats& stats,
+                  std::string question);
+        void retry();
+        void discardFailedQuestion();
+        void update();
+        [[nodiscard]] std::string transcript() const;
 
-private:
-    void sendSnapshot(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats* stats, std::string question);
-    void launch(nlohmann::json request);
-    Transport transport_;
-    std::future<ChatReply> future_;
-    std::vector<ChatMessage> messages_;
-    std::optional<nlohmann::json> failed_request_;
-    std::uint64_t revision_ = 0;
-    std::uint64_t generation_ = 0;
-    std::uint64_t active_generation_ = 0;
-    std::string error_;
-    std::string last_plan_;
-    std::optional<int> last_quota_remaining_;
-};
+        [[nodiscard]] bool busy() const {
+            return future_.valid();
+        }
+
+        [[nodiscard]] bool canRetry() const {
+            return !busy() && failed_request_.has_value();
+        }
+
+        [[nodiscard]] const std::vector<ChatMessage>& messages() const {
+            return messages_;
+        }
+
+        [[nodiscard]] const std::string& error() const {
+            return error_;
+        }
+
+        [[nodiscard]] const std::string& last_plan() const {
+            return last_plan_;
+        }
+
+        [[nodiscard]] const std::optional<int>& last_quota_remaining() const {
+            return last_quota_remaining_;
+        }
+
+    private:
+        void sendSnapshot(const kns::analysis::NetworkAnalysis& analysis, const kns::Stats* stats,
+                          std::string question);
+        void launch(nlohmann::json request);
+        Transport transport_;
+        std::future<ChatReply> future_;
+        std::vector<ChatMessage> messages_;
+        std::optional<nlohmann::json> failed_request_;
+        std::uint64_t revision_ = 0;
+        std::uint64_t generation_ = 0;
+        std::uint64_t active_generation_ = 0;
+        std::string error_;
+        std::string last_plan_;
+        std::optional<int> last_quota_remaining_;
+    };
 
 }

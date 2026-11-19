@@ -7,19 +7,14 @@
 
 namespace kns::intelligence {
 
-class IntelligenceRequestBuilder {
-public:
-    [[nodiscard]]
-    static IntelligenceRequest build(
-        const analysis::NetworkAnalysis& analysis,
-        AnalysisMode mode =
-            AnalysisMode::Detailed
-    );
+    class IntelligenceRequestBuilder {
+    public:
+        [[nodiscard]]
+        static IntelligenceRequest build(const analysis::NetworkAnalysis& analysis,
+                                         AnalysisMode mode = AnalysisMode::Detailed);
 
-    [[nodiscard]]
-    static nlohmann::json toJson(
-        const IntelligenceRequest& request
-    );
-};
+        [[nodiscard]]
+        static nlohmann::json toJson(const IntelligenceRequest& request);
+    };
 
 }

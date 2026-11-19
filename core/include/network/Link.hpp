@@ -14,24 +14,15 @@
 
 namespace kns {
 
-class Topology;
+    class Topology;
 
-class Link {
-    mutable Random random_;
+    class Link {
+        mutable Random random_;
+
     public:
-        enum class QueueDiscipline {
-            DROP_TAIL,
-            RED
-        };
-        Link(
-            int a,
-            int b,
-            double bandwidth_mbps,
-            double delay_ms,
-            double loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX,
-            int queue_capacity = 32
-        );
+        enum class QueueDiscipline { DROP_TAIL, RED };
+        Link(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob = 0.0,
+             LinkMode mode = LinkMode::FULL_DUPLEX, int queue_capacity = 32);
 
         /// Stable numeric identity assigned at construction. Unique within a simulation run.
         std::uint64_t getId() const noexcept;
@@ -68,21 +59,12 @@ class Link {
 
         /// Record a transmission if capacity is available. Allocation failures
         /// propagate without changing queue contents.
-        void enqueueTransmission(
-            int from,
-            int to,
-            double departure_time,
-            double arrival_time
-        );
+        void enqueueTransmission(int from, int to, double departure_time, double arrival_time);
 
         /// Remove the oldest matching transmission from the FIFO queue.
         /// Returns true if a matching entry was found and removed.
-        bool dequeueTransmission(
-            int from,
-            int to,
-            double departure_time,
-            double arrival_time
-        ) noexcept;
+        bool dequeueTransmission(int from, int to, double departure_time,
+                                 double arrival_time) noexcept;
 
         /// Legacy counter-only helpers kept for callers that have not yet been
         /// migrated to the typed FIFO methods.
@@ -95,30 +77,53 @@ class Link {
         /// Cannot shrink below the current occupancy of any queue.
         void setQueueCapacity(int capacity);
 
-        QueueDiscipline getQueueDiscipline() const noexcept { return queue_discipline_; }
-        void setDropTail() noexcept { queue_discipline_ = QueueDiscipline::DROP_TAIL; resetRedState(); }
-        void configureRed(
-            int min_threshold,
-            int max_threshold,
-            double max_drop_probability,
-            double queue_weight = 1.0
-        );
-        std::size_t getRedMinThreshold() const noexcept { return red_min_threshold_; }
-        std::size_t getRedMaxThreshold() const noexcept { return red_max_threshold_; }
-        double getRedMaxDropProbability() const noexcept { return red_max_drop_probability_; }
-        double getRedQueueWeight() const noexcept { return red_queue_weight_; }
+        QueueDiscipline getQueueDiscipline() const noexcept {
+            return queue_discipline_;
+        }
+
+        void setDropTail() noexcept {
+            queue_discipline_ = QueueDiscipline::DROP_TAIL;
+            resetRedState();
+        }
+
+        void configureRed(int min_threshold, int max_threshold, double max_drop_probability,
+                          double queue_weight = 1.0);
+
+        std::size_t getRedMinThreshold() const noexcept {
+            return red_min_threshold_;
+        }
+
+        std::size_t getRedMaxThreshold() const noexcept {
+            return red_max_threshold_;
+        }
+
+        double getRedMaxDropProbability() const noexcept {
+            return red_max_drop_probability_;
+        }
+
+        double getRedQueueWeight() const noexcept {
+            return red_queue_weight_;
+        }
+
         double getAverageQueueSize(int from, int to) const noexcept;
         /// Update the EWMA once per admission attempt, decaying idle queues in
         /// virtual packet-transmission intervals. Weight 1 preserves instantaneous RED.
-        double sampleEarlyDropProbability(int from, int to, double now, double transmission_seconds);
+        double sampleEarlyDropProbability(int from, int to, double now,
+                                          double transmission_seconds);
         double earlyDropProbability(int from, int to) const noexcept;
 
         // Up/down state for GUI toggling
         bool isUp() const noexcept;
         void setUp(bool up) noexcept;
 
-        bool isInferred() const noexcept { return inferred_; }
-        const std::string& getEvidence() const noexcept { return evidence_; }
+        bool isInferred() const noexcept {
+            return inferred_;
+        }
+
+        const std::string& getEvidence() const noexcept {
+            return evidence_;
+        }
+
         void setDiscoveryMetadata(bool inferred, std::string evidence) {
             if (inferred_ != inferred || evidence_ != evidence) {
                 inferred_ = inferred;
@@ -130,17 +135,10 @@ class Link {
     private:
         friend class Topology;
 
-        void attachRoutingRevision(
-            const std::shared_ptr<std::uint64_t>& revision
-        ) noexcept;
+        void attachRoutingRevision(const std::shared_ptr<std::uint64_t>& revision) noexcept;
         void markRoutingChanged() noexcept;
-        
-        enum class DirectionSlot {
-            AB,
-            BA,
-            Shared,
-            Invalid
-        };
+
+        enum class DirectionSlot { AB, BA, Shared, Invalid };
 
         struct LinkTransmission {
             int from = -1;
@@ -153,11 +151,9 @@ class Link {
 
         DirectionSlot getDirectionSlot(int from, int to) const noexcept;
 
-        std::deque<LinkTransmission>&
-        queueForSlot(DirectionSlot slot) noexcept;
+        std::deque<LinkTransmission>& queueForSlot(DirectionSlot slot) noexcept;
 
-        const std::deque<LinkTransmission>&
-        queueForSlot(DirectionSlot slot) const noexcept;
+        const std::deque<LinkTransmission>& queueForSlot(DirectionSlot slot) const noexcept;
 
         const std::uint64_t id_;
         static std::atomic<std::uint64_t> next_id_;
@@ -184,14 +180,21 @@ class Link {
         std::size_t red_max_threshold_ = 0;
         double red_max_drop_probability_ = 0.0;
         double red_queue_weight_ = 1.0;
+
         struct RedState {
             double average = 0.0;
             double idle_since = 0.0;
         };
+
         RedState red_ab_, red_ba_, red_shared_;
         RedState& redStateForSlot(DirectionSlot slot) noexcept;
         const RedState& redStateForSlot(DirectionSlot slot) const noexcept;
-        void resetRedState() noexcept { red_ab_ = {}; red_ba_ = {}; red_shared_ = {}; }
+
+        void resetRedState() noexcept {
+            red_ab_ = {};
+            red_ba_ = {};
+            red_shared_ = {};
+        }
 
         bool up_ = true;
         bool inferred_ = false;

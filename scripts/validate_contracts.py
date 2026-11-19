@@ -48,12 +48,13 @@ def main() -> int:
         documents[path] = schema
 
     registry = Registry().with_resources(
-        (schema["$id"], Resource.from_contents(schema))
-        for schema in documents.values()
+        (schema["$id"], Resource.from_contents(schema)) for schema in documents.values()
     )
     fixture_count = 0
     for path, schema in documents.items():
-        validator = Draft202012Validator(schema, registry=registry, format_checker=FormatChecker())
+        validator = Draft202012Validator(
+            schema, registry=registry, format_checker=FormatChecker()
+        )
         stem = path.name.removesuffix(".schema.json")
         for outcome in ("valid", "invalid"):
             fixtures = sorted(FIXTURES.glob(f"{stem}.{outcome}*.json"))
@@ -68,8 +69,12 @@ def main() -> int:
                     raise SystemExit(f"{fixture}: expected schema rejection")
                 fixture_count += 1
 
-    topology_schema = json.loads((CONTRACTS / "topology-v1.schema.json").read_text(encoding="utf-8"))
-    topology_validator = Draft202012Validator(topology_schema, registry=registry, format_checker=FormatChecker())
+    topology_schema = json.loads(
+        (CONTRACTS / "topology-v1.schema.json").read_text(encoding="utf-8")
+    )
+    topology_validator = Draft202012Validator(
+        topology_schema, registry=registry, format_checker=FormatChecker()
+    )
     examples = sorted((ROOT / "app" / "topologies").glob("*.json"))
     for path in examples:
         payload = json.loads(path.read_text(encoding="utf-8"))

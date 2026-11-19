@@ -4,8 +4,8 @@
 
 using namespace kns;
 
-TEST_CASE("ACKs resume a workload larger than the send window exactly once", "[tcp][generation][window]")
-{
+TEST_CASE("ACKs resume a workload larger than the send window exactly once",
+          "[tcp][generation][window]") {
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);
@@ -36,14 +36,14 @@ TEST_CASE("ACKs resume a workload larger than the send window exactly once", "[t
     REQUIRE(session.isDataAcknowledged());
     REQUIRE_FALSE(session.hasPendingGeneration());
     REQUIRE(server.getExpectedAckNum() - 1000 ==
-        static_cast<std::uint32_t>(engine.getPacketsPerRoute()) * 100U);
+            static_cast<std::uint32_t>(engine.getPacketsPerRoute()) * 100U);
     REQUIRE(engine.getStats().data_packets_delivered == engine.getPacketsPerRoute());
     engine.run();
     REQUIRE(session.getState() == TCPState::CLOSED);
 }
 
-TEST_CASE("Oversized payload fails before starting generation and can be retried", "[tcp][generation][window]")
-{
+TEST_CASE("Oversized payload fails before starting generation and can be retried",
+          "[tcp][generation][window]") {
     SimulationEngine engine(Topology(2));
     auto& session = engine.createTCPSession(0, 1);
     session.getClientConnection() = TCPConnection(TCPState::ESTABLISHED, 1000, 500, 0, 1);

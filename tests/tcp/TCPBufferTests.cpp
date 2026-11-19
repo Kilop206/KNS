@@ -9,11 +9,7 @@ using kns::TCPSegment;
 using kns::TCPSendBuffer;
 using kns::TCPSendEntry;
 
-TEST_CASE(
-    "TCPSendBuffer preserves insertion order",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPSendBuffer preserves insertion order", "[tcp][buffer]") {
     TCPSendBuffer buffer;
 
     TCPSegment first;
@@ -32,11 +28,7 @@ TEST_CASE(
     REQUIRE(buffer.front()->segment.seq == 100);
 }
 
-TEST_CASE(
-    "TCPSendBuffer releases cumulatively acknowledged entries",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPSendBuffer releases cumulatively acknowledged entries", "[tcp][buffer]") {
     TCPSendBuffer buffer;
 
     TCPSegment first;
@@ -60,11 +52,7 @@ TEST_CASE(
     REQUIRE(buffer.front()->segment.seq == 120);
 }
 
-TEST_CASE(
-    "TCPSendBuffer enforces capacity",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPSendBuffer enforces capacity", "[tcp][buffer]") {
     TCPSendBuffer buffer(2);
 
     TCPSegment segment;
@@ -78,11 +66,7 @@ TEST_CASE(
     REQUIRE(buffer.size() == 2);
 }
 
-TEST_CASE(
-    "TCPReceiveBuffer orders segments by sequence",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPReceiveBuffer orders segments by sequence", "[tcp][buffer]") {
     TCPReceiveBuffer buffer(100);
 
     TCPSegment third;
@@ -106,11 +90,7 @@ TEST_CASE(
     REQUIRE(buffer.front()->segment.seq == 100);
 }
 
-TEST_CASE(
-    "TCPReceiveBuffer consumes contiguous segments",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPReceiveBuffer consumes contiguous segments", "[tcp][buffer]") {
     TCPReceiveBuffer buffer(100);
 
     TCPSegment third;
@@ -134,11 +114,7 @@ TEST_CASE(
     REQUIRE(buffer.nextSequence() == 130);
 }
 
-TEST_CASE(
-    "TCPReceiveBuffer rejects duplicate and already consumed segments",
-    "[tcp][buffer]"
-)
-{
+TEST_CASE("TCPReceiveBuffer rejects duplicate and already consumed segments", "[tcp][buffer]") {
     TCPReceiveBuffer buffer(100);
 
     TCPSegment segment;

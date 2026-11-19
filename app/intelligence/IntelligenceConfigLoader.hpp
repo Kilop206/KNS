@@ -4,10 +4,10 @@
 
 namespace kns::app::intelligence {
 
-class IntelligenceConfigLoader {
-public:
-    [[nodiscard]]
-    static IntelligenceClientConfig fromEnvironment();
-};
+    class IntelligenceConfigLoader {
+    public:
+        [[nodiscard]]
+        static IntelligenceClientConfig fromEnvironment();
+    };
 
 }

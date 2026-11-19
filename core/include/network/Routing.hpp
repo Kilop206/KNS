@@ -25,31 +25,29 @@ namespace kns {
     std::string_view routingMetricName(RoutingMetric metric) noexcept;
 
     /// Parses a stable routing metric name, or std::nullopt when unsupported.
-    std::optional<RoutingMetric> parseRoutingMetric(
-        std::string_view name
-    ) noexcept;
+    std::optional<RoutingMetric> parseRoutingMetric(std::string_view name) noexcept;
 
     class Routing {
-        public:
-            struct DijkstraResult {
-                std::vector<double> dist;
-                std::vector<int> parent;
-                std::vector<std::optional<std::uint64_t>> parent_link;
-            };
+    public:
+        struct DijkstraResult {
+            std::vector<double> dist;
+            std::vector<int> parent;
+            std::vector<std::optional<std::uint64_t>> parent_link;
+        };
 
-            struct RoutingEntry {
-                int destination = -1;
-                int next_hop = -1;
-                double distance = 0.0;
-                std::optional<std::uint64_t> link_id;
-            };
+        struct RoutingEntry {
+            int destination = -1;
+            int next_hop = -1;
+            double distance = 0.0;
+            std::optional<std::uint64_t> link_id;
+        };
 
-            /// Throws out_of_range for an invalid source, invalid_argument for an unknown metric.
-            DijkstraResult buildDijkstra(const Topology& topology, int src,
-                                          RoutingMetric metric = RoutingMetric::Delay);
+        /// Throws out_of_range for an invalid source, invalid_argument for an unknown metric.
+        DijkstraResult buildDijkstra(const Topology& topology, int src,
+                                     RoutingMetric metric = RoutingMetric::Delay);
 
-            std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src,
-                                                         RoutingMetric metric = RoutingMetric::Delay);
+        std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src,
+                                                    RoutingMetric metric = RoutingMetric::Delay);
     };
 
 }

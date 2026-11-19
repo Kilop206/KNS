@@ -11,10 +11,9 @@ using kns::LinkMode;
 using kns::Topology;
 
 static_assert(!noexcept(std::declval<Link&>().enqueueTransmission(0, 1, 0.0, 1.0)),
-    "Queue allocation errors must propagate instead of terminating the process");
+              "Queue allocation errors must propagate instead of terminating the process");
 
-TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]")
-{
+TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]") {
     const auto invalid = static_cast<LinkMode>(999);
     REQUIRE_THROWS_AS(Link(0, 1, 10.0, 1.0, 0.0, invalid), std::invalid_argument);
     Link link(0, 1, 10.0, 1.0);
@@ -30,11 +29,10 @@ TEST_CASE("Invalid link modes leave topology unchanged", "[network][link][mode]"
     REQUIRE(topology.getRoutingRevision() == revision);
 }
 
-TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][mode]")
-{
+TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][mode]") {
     for (const auto initial : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
-        const auto next = initial == LinkMode::FULL_DUPLEX
-            ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
+        const auto next =
+            initial == LinkMode::FULL_DUPLEX ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
         Link link(0, 1, 10.0, 1.0, 0.0, initial);
         link.enqueueTransmission(0, 1, 0.0, 1.0);
         link.enqueueTransmission(1, 0, 1.0, 2.0);
@@ -49,8 +47,7 @@ TEST_CASE("Link mode changes preserve pending transmissions", "[network][link][m
     }
 }
 
-TEST_CASE("Configurable link capacity bounds each transmission queue", "[network][link][queue]")
-{
+TEST_CASE("Configurable link capacity bounds each transmission queue", "[network][link][queue]") {
     for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX, LinkMode::SIMPLEX}) {
         for (const int capacity : {1, 5}) {
             CAPTURE(mode, capacity);
@@ -84,8 +81,7 @@ TEST_CASE("Configurable link capacity bounds each transmission queue", "[network
     REQUIRE(topology.getLinks().front()->getQueueCapacity() == 7);
 }
 
-TEST_CASE("Link construction and basic attributes", "[network][link]")
-{
+TEST_CASE("Link construction and basic attributes", "[network][link]") {
     Link link(1, 2, 100.0, 10.0, 0.05, LinkMode::FULL_DUPLEX);
 
     REQUIRE(link.getA() == 1);
@@ -112,8 +108,7 @@ TEST_CASE("Link construction and basic attributes", "[network][link]")
     REQUIRE(link.getMode() == LinkMode::HALF_DUPLEX);
 }
 
-TEST_CASE("Link rejects invalid transmission parameters", "[network][link]")
-{
+TEST_CASE("Link rejects invalid transmission parameters", "[network][link]") {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const double infinity = std::numeric_limits<double>::infinity();
 
@@ -149,8 +144,7 @@ TEST_CASE("Link rejects invalid transmission parameters", "[network][link]")
     REQUIRE(link.getLossProb() == 0.25);
 }
 
-TEST_CASE("Link full-duplex transmission model", "[network][link]")
-{
+TEST_CASE("Link full-duplex transmission model", "[network][link]") {
     Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
 
     // Initial state: not busy
@@ -166,8 +160,7 @@ TEST_CASE("Link full-duplex transmission model", "[network][link]")
     REQUIRE_FALSE(link.isBusy(2, 1, 10.0));
 }
 
-TEST_CASE("Link half-duplex transmission model", "[network][link]")
-{
+TEST_CASE("Link half-duplex transmission model", "[network][link]") {
     Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::HALF_DUPLEX);
 
     REQUIRE_FALSE(link.isBusy(1, 2, 0.0));
@@ -184,8 +177,7 @@ TEST_CASE("Link half-duplex transmission model", "[network][link]")
     REQUIRE_FALSE(link.isBusy(2, 1, 20.0));
 }
 
-TEST_CASE("Link simplex transmission model", "[network][link]")
-{
+TEST_CASE("Link simplex transmission model", "[network][link]") {
     Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::SIMPLEX);
 
     // A->B is allowed
@@ -200,8 +192,7 @@ TEST_CASE("Link simplex transmission model", "[network][link]")
     REQUIRE(link.isBusy(1, 2, 10.0));
 }
 
-TEST_CASE("Link queue management limits", "[network][link][queue]")
-{
+TEST_CASE("Link queue management limits", "[network][link][queue]") {
     Link link(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
 
     REQUIRE(link.getQueueSize() == 0);
@@ -211,32 +202,19 @@ TEST_CASE("Link queue management limits", "[network][link][queue]")
     for (std::size_t i = 0; i < link.getQueueCapacity(); ++i) {
         REQUIRE(link.canQueue(1, 2));
 
-        link.enqueueTransmission(
-            1,
-            2,
-            static_cast<double>(i),
-            static_cast<double>(i + 1)
-        );
+        link.enqueueTransmission(1, 2, static_cast<double>(i), static_cast<double>(i + 1));
     }
 
     REQUIRE(link.getQueueSize() == link.getQueueCapacity());
     REQUIRE_FALSE(link.canQueue(1, 2));
 
-    REQUIRE(
-        link.dequeueTransmission(
-            1,
-            2,
-            0.0,
-            1.0
-        )
-    );
+    REQUIRE(link.dequeueTransmission(1, 2, 0.0, 1.0));
 
     REQUIRE(link.getQueueSize() == 31);
     REQUIRE(link.canQueue(1, 2));
 }
 
-TEST_CASE("Link drop behavior based on probability", "[network][link]")
-{
+TEST_CASE("Link drop behavior based on probability", "[network][link]") {
     Link link_no_loss(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
     REQUIRE_FALSE(link_no_loss.should_drop());
 
@@ -244,8 +222,7 @@ TEST_CASE("Link drop behavior based on probability", "[network][link]")
     REQUIRE(link_total_loss.should_drop());
 }
 
-TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[network][topology]")
-{
+TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[network][topology]") {
     Topology topo(2);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
     const auto& const_topo = topo;
@@ -268,8 +245,7 @@ TEST_CASE("Topology getLinksFromNode bounds safety and const consistency", "[net
     REQUIRE_THROWS_AS(const_topo.getLinksFromNode(99), std::out_of_range);
 }
 
-TEST_CASE("Topology programmatic API validation", "[network][topology]")
-{
+TEST_CASE("Topology programmatic API validation", "[network][topology]") {
     // Constructor negative node count
     REQUIRE_THROWS_AS(Topology(-1), std::invalid_argument);
     REQUIRE_THROWS_AS(Topology(-10), std::invalid_argument);
@@ -323,9 +299,8 @@ TEST_CASE("Topology programmatic API validation", "[network][topology]")
     REQUIRE_NOTHROW(topo.setGlobalLossProb(0.25));
 }
 
-
-TEST_CASE("RED computes early-drop probability from queue occupancy", "[network][link][queue][red]")
-{
+TEST_CASE("RED computes early-drop probability from queue occupancy",
+          "[network][link][queue][red]") {
     Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 10);
     REQUIRE(link.getQueueDiscipline() == Link::QueueDiscipline::DROP_TAIL);
     REQUIRE(link.earlyDropProbability(0, 1) == 0.0);
@@ -347,8 +322,8 @@ TEST_CASE("RED computes early-drop probability from queue occupancy", "[network]
     REQUIRE(link.earlyDropProbability(0, 1) == 1.0);
 }
 
-TEST_CASE("RED rejects invalid configuration and incompatible capacity shrink", "[network][link][queue][red]")
-{
+TEST_CASE("RED rejects invalid configuration and incompatible capacity shrink",
+          "[network][link][queue][red]") {
     Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 8);
     REQUIRE_THROWS_AS(link.configureRed(-1, 4, 0.2), std::invalid_argument);
     REQUIRE_THROWS_AS(link.configureRed(4, 4, 0.2), std::invalid_argument);
@@ -362,9 +337,7 @@ TEST_CASE("RED rejects invalid configuration and incompatible capacity shrink", 
     REQUIRE_NOTHROW(link.setQueueCapacity(5));
 }
 
-
-TEST_CASE("Topology link copies preserve RED queue discipline", "[network][topology][queue][red]")
-{
+TEST_CASE("Topology link copies preserve RED queue discipline", "[network][topology][queue][red]") {
     Link configured(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 12);
     configured.configureRed(3, 9, 0.4);
 

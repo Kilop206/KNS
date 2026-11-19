@@ -11,12 +11,7 @@ namespace kns {
 
     class TCPSendBuffer {
     public:
-        explicit TCPSendBuffer(
-            std::size_t capacity = 0
-        ) noexcept
-            : capacity_(capacity)
-        {
-        }
+        explicit TCPSendBuffer(std::size_t capacity = 0) noexcept : capacity_(capacity) {}
 
         bool push(TCPSendEntry entry);
 
@@ -32,10 +27,7 @@ namespace kns {
             return capacity_;
         }
 
-        void setCapacity(
-            std::size_t capacity
-        ) noexcept
-        {
+        void setCapacity(std::size_t capacity) noexcept {
             capacity_ = capacity;
         }
 
@@ -55,33 +47,20 @@ namespace kns {
             return &entries_.front();
         }
 
-        const TCPSendEntry* find(
-            std::uint32_t sequence
-        ) const noexcept;
+        const TCPSendEntry* find(std::uint32_t sequence) const noexcept;
 
-        TCPSendEntry* find(
-            std::uint32_t sequence
-        ) noexcept;
+        TCPSendEntry* find(std::uint32_t sequence) noexcept;
 
-        bool contains(
-            std::uint32_t sequence
-        ) const noexcept;
+        bool contains(std::uint32_t sequence) const noexcept;
 
-        std::size_t acknowledge(
-            std::uint32_t ack_number
-        );
+        std::size_t acknowledge(std::uint32_t ack_number);
 
         std::optional<TCPSendEntry> popFront();
 
-        bool markRetransmitted(
-            std::uint32_t sequence,
-            double retransmission_time
-        ) noexcept;
+        bool markRetransmitted(std::uint32_t sequence, double retransmission_time) noexcept;
 
-        std::optional<double> acknowledgeAndGetRtt(
-            std::uint32_t ack_number,
-            double acknowledgement_time
-        );
+        std::optional<double> acknowledgeAndGetRtt(std::uint32_t ack_number,
+                                                   double acknowledgement_time);
 
         void clear() noexcept {
             entries_.clear();

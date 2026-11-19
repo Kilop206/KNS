@@ -3,8 +3,8 @@
 
 using namespace kns;
 
-TEST_CASE("Topology synchronization preserves RED for new and retained links", "[network][discovery][red]")
-{
+TEST_CASE("Topology synchronization preserves RED for new and retained links",
+          "[network][discovery][red]") {
     Topology snapshot(2);
     auto incoming = snapshot.addLinkPtr(0, 1, 100.0, 1.0);
     incoming->configureRed(2, 8, 0.5);
@@ -34,8 +34,7 @@ TEST_CASE("Topology synchronization preserves RED for new and retained links", "
     REQUIRE_FALSE(topology.synchronizeFrom(snapshot));
 }
 
-TEST_CASE("Topology synchronization reports loss-only edits", "[network][discovery]")
-{
+TEST_CASE("Topology synchronization reports loss-only edits", "[network][discovery]") {
     Topology snapshot(2);
     auto incoming = snapshot.addLinkPtr(0, 1, 100.0, 1.0);
     Topology topology(2);

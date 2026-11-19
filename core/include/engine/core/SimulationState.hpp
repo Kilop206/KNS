@@ -1,8 +1,3 @@
 namespace gui {
-    enum class SimulationState {
-        Ready,
-        Running,
-        Paused,
-        Finished
-    };
+    enum class SimulationState { Ready, Running, Paused, Finished };
 }

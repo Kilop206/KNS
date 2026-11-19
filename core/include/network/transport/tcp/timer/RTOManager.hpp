@@ -15,9 +15,7 @@ namespace kns {
 
         double onTimeout() noexcept;
 
-        void onAcknowledgement(
-            double measured_rtt
-        ) noexcept;
+        void onAcknowledgement(double measured_rtt) noexcept;
 
         void reset() noexcept;
 

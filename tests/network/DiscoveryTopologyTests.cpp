@@ -11,9 +11,8 @@
 using namespace kns;
 
 namespace {
-nlohmann::json discoverySnapshot()
-{
-    return nlohmann::json::parse(R"({
+    nlohmann::json discoverySnapshot() {
+        return nlohmann::json::parse(R"({
         "schema_version":"1.0","name":"Discovered LAN",
         "nodes":[
             {"id":0,"external_id":"host:a","label":"Laptop","type":"computer","addresses":["192.0.2.10"]},
@@ -25,23 +24,24 @@ nlohmann::json discoverySnapshot()
             {"from":1,"to":2,"bandwidth":100,"delay":1,"loss":0,"inferred":true,"evidence":"shared_segment"}
         ]
     })");
-}
+    }
 }
 
-TEST_CASE("Device topology JSON round trips metadata and tombstones", "[network][discovery]")
-{
+TEST_CASE("Device topology JSON round trips metadata and tombstones", "[network][discovery]") {
     auto topology = TopologyLoader::fromJson(discoverySnapshot());
     REQUIRE(topology.getNode(0)->getDeviceInfo().type == DeviceType::Computer);
-    REQUIRE(topology.getNode(0)->getDeviceInfo().addresses == std::vector<std::string>{"192.0.2.10"});
+    REQUIRE(topology.getNode(0)->getDeviceInfo().addresses ==
+            std::vector<std::string>{"192.0.2.10"});
     REQUIRE(topology.getLinks().front()->isInferred());
     topology.removeNode(2);
     const auto document = TopologyLoader::toJson(topology);
     REQUIRE(TopologyLoader::toJson(TopologyLoader::fromJson(document)) == document);
-    REQUIRE(topology.cloneForRun().getNode(0)->getDeviceInfo() == topology.getNode(0)->getDeviceInfo());
+    REQUIRE(topology.cloneForRun().getNode(0)->getDeviceInfo() ==
+            topology.getNode(0)->getDeviceInfo());
 }
 
-TEST_CASE("Typed topology imports sparse Hub IDs as deterministic local indices", "[network][discovery][loader]")
-{
+TEST_CASE("Typed topology imports sparse Hub IDs as deterministic local indices",
+          "[network][discovery][loader]") {
     const auto source = nlohmann::json::parse(R"({
         "schema_version":"1.0",
         "nodes":[
@@ -65,33 +65,44 @@ TEST_CASE("Typed topology imports sparse Hub IDs as deterministic local indices"
     for (const auto& invalid : {"duplicate", "missing", "negative", "overflow"}) {
         CAPTURE(invalid);
         auto document = source;
-        if (std::string(invalid) == "duplicate") document["nodes"][0]["id"] = 10;
-        if (std::string(invalid) == "missing") document["links"][0]["to"] = 30;
-        if (std::string(invalid) == "negative") document["nodes"][0]["id"] = -1;
-        if (std::string(invalid) == "overflow") document["nodes"][0]["id"] = 2147483648LL;
+        if (std::string(invalid) == "duplicate")
+            document["nodes"][0]["id"] = 10;
+        if (std::string(invalid) == "missing")
+            document["links"][0]["to"] = 30;
+        if (std::string(invalid) == "negative")
+            document["nodes"][0]["id"] = -1;
+        if (std::string(invalid) == "overflow")
+            document["nodes"][0]["id"] = 2147483648LL;
         REQUIRE_THROWS_AS(TopologyLoader::fromJson(document), std::invalid_argument);
     }
 }
 
-TEST_CASE("Typed topology rejects invalid identities before replacing live state", "[network][discovery]")
-{
+TEST_CASE("Typed topology rejects invalid identities before replacing live state",
+          "[network][discovery]") {
     const auto original = discoverySnapshot();
-    for (const auto& mutation : {"duplicate_id", "duplicate_identity", "missing_endpoint", "unknown_type", "fractional_id", "version"}) {
+    for (const auto& mutation : {"duplicate_id", "duplicate_identity", "missing_endpoint",
+                                 "unknown_type", "fractional_id", "version"}) {
         CAPTURE(mutation);
         auto document = original;
         const std::string change = mutation;
-        if (change == "duplicate_id") document["nodes"][1]["id"] = 0;
-        if (change == "duplicate_identity") document["nodes"][1]["external_id"] = "host:a";
-        if (change == "missing_endpoint") document["links"][0]["to"] = 9;
-        if (change == "unknown_type") document["nodes"][0]["type"] = "magic";
-        if (change == "fractional_id") document["nodes"][0]["id"] = 0.5;
-        if (change == "version") document["schema_version"] = "9.0";
+        if (change == "duplicate_id")
+            document["nodes"][1]["id"] = 0;
+        if (change == "duplicate_identity")
+            document["nodes"][1]["external_id"] = "host:a";
+        if (change == "missing_endpoint")
+            document["links"][0]["to"] = 9;
+        if (change == "unknown_type")
+            document["nodes"][0]["type"] = "magic";
+        if (change == "fractional_id")
+            document["nodes"][0]["id"] = 0.5;
+        if (change == "version")
+            document["schema_version"] = "9.0";
         REQUIRE_THROWS(TopologyLoader::fromJson(document));
     }
 }
 
-TEST_CASE("Live discovery preserves active identities and unchanged link queues", "[network][discovery][dynamic]")
-{
+TEST_CASE("Live discovery preserves active identities and unchanged link queues",
+          "[network][discovery][dynamic]") {
     const auto snapshot = TopologyLoader::fromJson(discoverySnapshot());
     SimulationEngine engine(snapshot);
     auto& topology = engine.getTopology();
@@ -115,8 +126,8 @@ TEST_CASE("Live discovery preserves active identities and unchanged link queues"
     REQUIRE(engine.getNextHop(0, 2) == 1);
 }
 
-TEST_CASE("Removed discovery devices never recycle in-flight numeric identities", "[network][discovery][dynamic]")
-{
+TEST_CASE("Removed discovery devices never recycle in-flight numeric identities",
+          "[network][discovery][dynamic]") {
     SimulationEngine engine(TopologyLoader::fromJson(discoverySnapshot()));
     // The gateway may initiate diagnostics; it cannot act as a TCP listener.
     auto& session = engine.createTCPSession(2, 0);

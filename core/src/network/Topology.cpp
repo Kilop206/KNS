@@ -8,7 +8,8 @@ namespace kns {
 
     void Topology::setNodeServices(int id, std::vector<NetworkService> services) {
         const auto* node = getNode(id);
-        if (!node || !node->isActive()) throw std::invalid_argument("Device is missing or inactive");
+        if (!node || !node->isActive())
+            throw std::invalid_argument("Device is missing or inactive");
         nodes_[static_cast<std::size_t>(id)].setServices(std::move(services));
     }
 
@@ -37,9 +38,7 @@ namespace kns {
         return result;
     }
 
-    Topology::Topology(int nodes)
-        : routing_revision_(std::make_shared<std::uint64_t>(0))
-    {
+    Topology::Topology(int nodes) : routing_revision_(std::make_shared<std::uint64_t>(0)) {
         if (nodes < 0 || nodes > MAX_NODES) {
             throw std::invalid_argument("Node count must be between 0 and 4096");
         }
@@ -52,15 +51,8 @@ namespace kns {
         }
     }
 
-    Topology::LinkPtr Topology::addLinkPtr(
-        int a,
-        int b,
-        double bandwidth_mbps,
-        double delay_ms,
-        double loss_prob,
-        LinkMode mode,
-        int queue_capacity
-    ) {
+    Topology::LinkPtr Topology::addLinkPtr(int a, int b, double bandwidth_mbps, double delay_ms,
+                                           double loss_prob, LinkMode mode, int queue_capacity) {
         if (a < 0 || b < 0 || a >= MAX_NODES || b >= MAX_NODES) {
             throw std::invalid_argument("Node indices must be between 0 and 4095");
         }
@@ -68,8 +60,8 @@ namespace kns {
             throw std::invalid_argument("Self-loops are not supported");
         }
         const auto isInactiveNode = [this](int node) {
-            return static_cast<std::size_t>(node) < nodes_.size()
-                && !nodes_[static_cast<std::size_t>(node)].isActive();
+            return static_cast<std::size_t>(node) < nodes_.size() &&
+                   !nodes_[static_cast<std::size_t>(node)].isActive();
         };
         if (isInactiveNode(a) || isInactiveNode(b)) {
             throw std::invalid_argument("Cannot link to an inactive node");
@@ -81,12 +73,11 @@ namespace kns {
             throw std::invalid_argument("Delay must be finite and non-negative");
         }
         if (!std::isfinite(loss_prob) || loss_prob < 0.0 || loss_prob > 1.0) {
-            throw std::invalid_argument(
-                "Loss probability must be finite and between 0.0 and 1.0"
-            );
+            throw std::invalid_argument("Loss probability must be finite and between 0.0 and 1.0");
         }
 
-        auto ptr = std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
+        auto ptr =
+            std::make_shared<Link>(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
         ptr->attachRoutingRevision(routing_revision_);
 
         const int max_node = std::max(a, b);
@@ -111,39 +102,22 @@ namespace kns {
     }
 
     void Topology::addLink(const Link& link) {
-        auto copy = addLinkPtr(
-            link.getA(),
-            link.getB(),
-            link.getBandwidthMbps(),
-            link.getDelayMs(),
-            link.getLossProb(),
-            link.getMode(),
-            static_cast<int>(link.getQueueCapacity())
-        );
+        auto copy = addLinkPtr(link.getA(), link.getB(), link.getBandwidthMbps(), link.getDelayMs(),
+                               link.getLossProb(), link.getMode(),
+                               static_cast<int>(link.getQueueCapacity()));
         copy->setUp(link.isUp());
         copy->setDiscoveryMetadata(link.isInferred(), link.getEvidence());
         if (link.getQueueDiscipline() == Link::QueueDiscipline::RED) {
-            copy->configureRed(
-                static_cast<int>(link.getRedMinThreshold()),
-                static_cast<int>(link.getRedMaxThreshold()),
-                link.getRedMaxDropProbability(),
-                link.getRedQueueWeight()
-            );
+            copy->configureRed(static_cast<int>(link.getRedMinThreshold()),
+                               static_cast<int>(link.getRedMaxThreshold()),
+                               link.getRedMaxDropProbability(), link.getRedQueueWeight());
         }
     }
 
-    void Topology::addLink(
-        int a,
-        int b,
-        double bandwidth_mbps,
-        double delay_ms,
-        double loss_prob,
-        LinkMode mode,
-        int queue_capacity
-    ) {
+    void Topology::addLink(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob,
+                           LinkMode mode, int queue_capacity) {
         addLinkPtr(a, b, bandwidth_mbps, delay_ms, loss_prob, mode, queue_capacity);
     }
-
 
     const std::vector<Topology::LinkPtr>& Topology::getLinksFromNode(int node) const {
         if (node < 0 || static_cast<std::size_t>(node) >= adjacency_list_.size()) {
@@ -162,9 +136,7 @@ namespace kns {
 
     void Topology::setGlobalLossProb(double value) {
         if (!std::isfinite(value) || value < 0.0 || value > 1.0) {
-            throw std::invalid_argument(
-                "Loss probability must be finite and between 0.0 and 1.0"
-            );
+            throw std::invalid_argument("Loss probability must be finite and between 0.0 and 1.0");
         }
         for (auto& link : links_) {
             link->setLossProb(value);
@@ -194,7 +166,8 @@ namespace kns {
     }
 
     bool Topology::removeNode(int id) {
-        if (id < 0 || static_cast<std::size_t>(id) >= adjacency_list_.size() || !nodes_[id].isActive()) {
+        if (id < 0 || static_cast<std::size_t>(id) >= adjacency_list_.size() ||
+            !nodes_[id].isActive()) {
             return false;
         }
 
@@ -245,9 +218,8 @@ namespace kns {
     bool Topology::removeLink(int a, int b) {
         LinkPtr match;
         for (const auto& link : links_) {
-            const bool has_endpoints =
-                (link->getA() == a && link->getB() == b) ||
-                (link->getA() == b && link->getB() == a);
+            const bool has_endpoints = (link->getA() == a && link->getB() == b) ||
+                                       (link->getA() == b && link->getB() == a);
             if (has_endpoints) {
                 if (match) {
                     return false;
@@ -260,11 +232,9 @@ namespace kns {
     }
 
     bool Topology::removeLinkById(std::uint64_t link_id) {
-        const auto it = std::find_if(
-            links_.begin(),
-            links_.end(),
-            [link_id](const LinkPtr& link) { return link->getId() == link_id; }
-        );
+        const auto it = std::find_if(links_.begin(), links_.end(), [link_id](const LinkPtr& link) {
+            return link->getId() == link_id;
+        });
         if (it == links_.end()) {
             return false;
         }
@@ -272,26 +242,17 @@ namespace kns {
         const auto& link = *it;
         const int endpoints[] = {link->getA(), link->getB()};
         for (const int endpoint : endpoints) {
-            if (endpoint >= 0 &&
-                static_cast<std::size_t>(endpoint) < adjacency_list_.size()) {
+            if (endpoint >= 0 && static_cast<std::size_t>(endpoint) < adjacency_list_.size()) {
                 auto& adjacent = adjacency_list_[static_cast<std::size_t>(endpoint)];
-                adjacent.erase(
-                    std::remove(adjacent.begin(), adjacent.end(), link),
-                    adjacent.end()
-                );
+                adjacent.erase(std::remove(adjacent.begin(), adjacent.end(), link), adjacent.end());
             }
         }
 
-        interfaces_.erase(
-            std::remove_if(
-                interfaces_.begin(),
-                interfaces_.end(),
-                [link_id](const Interface& iface) {
-                    return iface.getLinkId() == link_id;
-                }
-            ),
-            interfaces_.end()
-        );
+        interfaces_.erase(std::remove_if(interfaces_.begin(), interfaces_.end(),
+                                         [link_id](const Interface& iface) {
+                                             return iface.getLinkId() == link_id;
+                                         }),
+                          interfaces_.end());
 
         links_.erase(it);
         markRoutingChanged();
@@ -301,9 +262,8 @@ namespace kns {
     bool Topology::setLinkUp(int a, int b, bool up) {
         LinkPtr match;
         for (const auto& link : links_) {
-            const bool has_endpoints =
-                (link->getA() == a && link->getB() == b) ||
-                (link->getA() == b && link->getB() == a);
+            const bool has_endpoints = (link->getA() == a && link->getB() == b) ||
+                                       (link->getA() == b && link->getB() == a);
             if (has_endpoints) {
                 if (match) {
                     return false;
@@ -316,11 +276,9 @@ namespace kns {
     }
 
     bool Topology::setLinkUpById(std::uint64_t link_id, bool up) {
-        const auto it = std::find_if(
-            links_.begin(),
-            links_.end(),
-            [link_id](const LinkPtr& link) { return link->getId() == link_id; }
-        );
+        const auto it = std::find_if(links_.begin(), links_.end(), [link_id](const LinkPtr& link) {
+            return link->getId() == link_id;
+        });
         if (it == links_.end()) {
             return false;
         }
@@ -330,14 +288,17 @@ namespace kns {
     }
 
     const Node* Topology::getNode(int id) const noexcept {
-        if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size()) return nullptr;
+        if (id < 0 || static_cast<std::size_t>(id) >= nodes_.size())
+            return nullptr;
         return &nodes_[static_cast<std::size_t>(id)];
     }
 
     bool Topology::setNodeLabel(int id, std::string label) {
         const auto* node = getNode(id);
-        if (!node || !node->isActive()) return false;
-        if (node->getLabel() == label) return true;
+        if (!node || !node->isActive())
+            return false;
+        if (node->getLabel() == label)
+            return true;
         nodes_[static_cast<std::size_t>(id)].setLabel(std::move(label));
         markRoutingChanged();
         return true;
@@ -345,8 +306,10 @@ namespace kns {
 
     bool Topology::setNodeDeviceInfo(int id, DeviceInfo device) {
         const auto* node = getNode(id);
-        if (!node || !node->isActive()) return false;
-        if (node->getDeviceInfo() == device) return true;
+        if (!node || !node->isActive())
+            return false;
+        if (node->getDeviceInfo() == device)
+            return true;
         if (!device.external_id.empty()) {
             for (const auto& existing : nodes_) {
                 if (existing.isActive() && existing.getId() != id &&
@@ -372,7 +335,8 @@ namespace kns {
             throw std::invalid_argument("Node position must be finite and within +/-1000000");
         }
         const auto* node = getNode(id);
-        if (!node || !node->isActive()) return false;
+        if (!node || !node->isActive())
+            return false;
         nodes_[static_cast<std::size_t>(id)].setPosition(position);
         return true;
     }

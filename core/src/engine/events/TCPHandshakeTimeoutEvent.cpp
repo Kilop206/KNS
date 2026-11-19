@@ -12,17 +12,10 @@ namespace kns {
 
     static constexpr double TCP_SYN_TIMEOUT = 1.0;
 
-    TCPHandshakeTimeoutEvent::TCPHandshakeTimeoutEvent(
-        double timestamp,
-        std::uint64_t session_id
-    )
-        : Event(timestamp),
-          session_id_(session_id)
-    {
-    }
+    TCPHandshakeTimeoutEvent::TCPHandshakeTimeoutEvent(double timestamp, std::uint64_t session_id)
+        : Event(timestamp), session_id_(session_id) {}
 
-    void TCPHandshakeTimeoutEvent::execute(SimulationEngine& engine)
-    {
+    void TCPHandshakeTimeoutEvent::execute(SimulationEngine& engine) {
         if (!engine.hasTCPSession(session_id_)) {
             return;
         }
@@ -31,7 +24,7 @@ namespace kns {
         auto& client = session.getClientConnection();
         auto& server = session.getServerConnection();
         const bool awaiting_final_ack = client.getTcpState() == TCPState::ESTABLISHED &&
-            server.getTcpState() == TCPState::SYN_RECEIVED;
+                                        server.getTcpState() == TCPState::SYN_RECEIVED;
 
         if (client.getTcpState() != TCPState::SYN_SENT && !awaiting_final_ack) {
             return;
@@ -42,30 +35,17 @@ namespace kns {
             if (session.failHandshake()) {
                 engine.releaseTCPListenerSession(session_id_);
             }
-            KNS_DEBUG_LOG(
-                "[TCP][SESSION "
-                << session_id_
-                << "] SYN_RETRIES_EXHAUSTED\n");
+            KNS_DEBUG_LOG("[TCP][SESSION " << session_id_ << "] SYN_RETRIES_EXHAUSTED\n");
             return;
         }
 
         sender.incrementSynRetries();
 
-        KNS_DEBUG_LOG(
-            "[TCP][SESSION "
-            << session_id_
-            << "] SYN_TIMEOUT retry="
-            << sender.getSynRetries()
-            << '\n');
+        KNS_DEBUG_LOG("[TCP][SESSION " << session_id_
+                                       << "] SYN_TIMEOUT retry=" << sender.getSynRetries() << '\n');
 
-        Packet syn(
-            sender.getLocalNode(),
-            sender.getRemoteNode(),
-            sender.getLocalNode(),
-            engine.now(),
-            engine.getGlobalPacketSize(),
-            session_id_
-        );
+        Packet syn(sender.getLocalNode(), sender.getRemoteNode(), sender.getLocalNode(),
+                   engine.now(), engine.getGlobalPacketSize(), session_id_);
 
         syn.tcp = awaiting_final_ack ? sender.buildSynAck() : sender.buildSyn();
         syn.packet_type = inferPacketType(syn.tcp);
@@ -73,12 +53,8 @@ namespace kns {
 
         PacketUtils::sendPacketThroughTopology(engine, syn);
         {
-            engine.schedule(
-                std::make_unique<TCPHandshakeTimeoutEvent>(
-                    engine.now() + TCP_SYN_TIMEOUT,
-                    session_id_
-                )
-            );
+            engine.schedule(std::make_unique<TCPHandshakeTimeoutEvent>(
+                engine.now() + TCP_SYN_TIMEOUT, session_id_));
         }
     }
 

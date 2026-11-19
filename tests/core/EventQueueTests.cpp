@@ -8,10 +8,12 @@ namespace kns {
     class TestEvent : public Event {
     public:
         TestEvent(double timestamp) : Event(timestamp) {}
+
         void execute(SimulationEngine&) override {}
     };
 
-    TEST_CASE("Canceling events preserves timestamp and ID order without phantom work", "[core][event-queue][audit]") {
+    TEST_CASE("Canceling events preserves timestamp and ID order without phantom work",
+              "[core][event-queue][audit]") {
         EventQueue queue;
         auto first = std::make_unique<TestEvent>(1);
         auto removed = std::make_unique<TestEvent>(2);
@@ -35,8 +37,7 @@ namespace kns {
         REQUIRE_FALSE(queue.hasEvents());
     }
 
-    TEST_CASE("EventQueue schedules and retrieves events in correct order", "[core][event-queue]")
-    {
+    TEST_CASE("EventQueue schedules and retrieves events in correct order", "[core][event-queue]") {
         EventQueue queue;
 
         REQUIRE_FALSE(queue.hasEvents());
@@ -70,8 +71,8 @@ namespace kns {
         REQUIRE(queue.next() == nullptr);
     }
 
-    TEST_CASE("EventQueue resolves timestamp ties using event ID (FIFO ordering)", "[core][event-queue]")
-    {
+    TEST_CASE("EventQueue resolves timestamp ties using event ID (FIFO ordering)",
+              "[core][event-queue]") {
         EventQueue queue;
 
         // Schedule events with same timestamp
@@ -94,8 +95,7 @@ namespace kns {
         REQUIRE(e2->getId() < e3->getId());
     }
 
-    TEST_CASE("EventQueue clear resets queue state", "[core][event-queue]")
-    {
+    TEST_CASE("EventQueue clear resets queue state", "[core][event-queue]") {
         EventQueue queue;
 
         queue.schedule(std::make_unique<TestEvent>(1.0));

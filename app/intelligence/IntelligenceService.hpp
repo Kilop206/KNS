@@ -12,81 +12,58 @@
 
 namespace kns::app::intelligence {
 
-enum class IntelligenceServiceState {
-    Idle,
-    Analyzing,
-    Success,
-    Error
-};
+    enum class IntelligenceServiceState { Idle, Analyzing, Success, Error };
 
-class IntelligenceService {
-public:
-    explicit IntelligenceService(
-        IntelligenceClient client
-    );
+    class IntelligenceService {
+    public:
+        explicit IntelligenceService(IntelligenceClient client);
 
-    ~IntelligenceService();
+        ~IntelligenceService();
 
-    IntelligenceService(
-        const IntelligenceService&
-    ) = delete;
+        IntelligenceService(const IntelligenceService&) = delete;
 
-    IntelligenceService& operator=(
-        const IntelligenceService&
-    ) = delete;
+        IntelligenceService& operator=(const IntelligenceService&) = delete;
 
-    void startAnalysis(
-        const kns::analysis::NetworkAnalysis& analysis,
-        std::uint64_t topologyRevision,
-        kns::intelligence::AnalysisMode mode =
-            kns::intelligence::AnalysisMode::Detailed
-    );
+        void startAnalysis(
+            const kns::analysis::NetworkAnalysis& analysis, std::uint64_t topologyRevision,
+            kns::intelligence::AnalysisMode mode = kns::intelligence::AnalysisMode::Detailed);
 
-    void update();
+        void update();
 
-    [[nodiscard]]
-    IntelligenceServiceState getState() const;
+        [[nodiscard]]
+        IntelligenceServiceState getState() const;
 
-    [[nodiscard]]
-    bool isAnalyzing() const;
+        [[nodiscard]]
+        bool isAnalyzing() const;
 
-    [[nodiscard]]
-    std::optional<
-        kns::intelligence::IntelligenceResponse
-    > getResponse() const;
+        [[nodiscard]]
+        std::optional<kns::intelligence::IntelligenceResponse> getResponse() const;
 
-    [[nodiscard]]
-    std::string getError() const;
+        [[nodiscard]]
+        std::string getError() const;
 
-    void reset();
+        void reset();
 
-    [[nodiscard]]
-    std::uint64_t getCompletedTopologyRevision() const;
+        [[nodiscard]]
+        std::uint64_t getCompletedTopologyRevision() const;
 
-private:
-    void setError(
-        const std::string& message
-    );
+    private:
+        void setError(const std::string& message);
 
-    mutable std::mutex mutex_;
+        mutable std::mutex mutex_;
 
-    IntelligenceClient client_;
+        IntelligenceClient client_;
 
-    IntelligenceServiceState state_ =
-        IntelligenceServiceState::Idle;
+        IntelligenceServiceState state_ = IntelligenceServiceState::Idle;
 
-    std::optional<
-        kns::intelligence::IntelligenceResponse
-    > response_;
+        std::optional<kns::intelligence::IntelligenceResponse> response_;
 
-    std::string error_;
+        std::string error_;
 
-    std::future<
-        kns::intelligence::IntelligenceResponse
-    > future_;
+        std::future<kns::intelligence::IntelligenceResponse> future_;
 
-    std::uint64_t active_topology_revision_ = 0;
-    std::uint64_t completed_topology_revision_ = 0;
-};
+        std::uint64_t active_topology_revision_ = 0;
+        std::uint64_t completed_topology_revision_ = 0;
+    };
 
 }

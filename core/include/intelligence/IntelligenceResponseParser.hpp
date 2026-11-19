@@ -8,17 +8,13 @@
 
 namespace kns::intelligence {
 
-class IntelligenceResponseParser {
-public:
-    [[nodiscard]]
-    static IntelligenceResponse parse(
-        const nlohmann::json& json
-    );
+    class IntelligenceResponseParser {
+    public:
+        [[nodiscard]]
+        static IntelligenceResponse parse(const nlohmann::json& json);
 
-    [[nodiscard]]
-    static IntelligenceResponse parse(
-        const std::string& jsonText
-    );
-};
+        [[nodiscard]]
+        static IntelligenceResponse parse(const std::string& jsonText);
+    };
 
 }

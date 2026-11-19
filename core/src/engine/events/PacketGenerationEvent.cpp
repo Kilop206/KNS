@@ -11,21 +11,11 @@
 
 namespace kns {
 
-    PacketGenerationEvent::PacketGenerationEvent(
-        double timestamp,
-        int source,
-        int destination,
-        std::uint64_t session_id
-    )
-        : Event(timestamp),
-          source_(source),
-          destination_(destination),
-          session_id_(session_id)
-    {
-    }
+    PacketGenerationEvent::PacketGenerationEvent(double timestamp, int source, int destination,
+                                                 std::uint64_t session_id)
+        : Event(timestamp), source_(source), destination_(destination), session_id_(session_id) {}
 
-    void PacketGenerationEvent::execute(SimulationEngine& engine)
-    {
+    void PacketGenerationEvent::execute(SimulationEngine& engine) {
         if (!engine.hasTCPSession(session_id_)) {
             return;
         }
@@ -44,23 +34,15 @@ namespace kns {
 
         const std::size_t payload_size =
             engine.getGlobalPacketSize() > 0
-                ? static_cast<std::size_t>(
-                      engine.getGlobalPacketSize()
-                  )
+                ? static_cast<std::size_t>(engine.getGlobalPacketSize())
                 : 1;
 
         if (!client.canSend(payload_size)) {
             return;
         }
 
-        Packet pkt(
-            source_,
-            destination_,
-            source_,
-            engine.now(),
-            engine.getGlobalPacketSize(),
-            session_id_
-        );
+        Packet pkt(source_, destination_, source_, engine.now(), engine.getGlobalPacketSize(),
+                   session_id_);
 
         pkt.packet_type = PacketType::DATA;
         pkt.tcp.source_port = client.getLocalPort();
@@ -68,36 +50,22 @@ namespace kns {
         pkt.tcp.seq = client.getSendNext();
         pkt.tcp.ack = client.getExpectedAckNum();
 
-        pkt.tcp.window = static_cast<std::uint16_t>(
-            std::min<std::uint32_t>(
-                client.getReceiveWindow(),
-                65535U
-            )
-        );
+        pkt.tcp.window =
+            static_cast<std::uint16_t>(std::min<std::uint32_t>(client.getReceiveWindow(), 65535U));
 
         pkt.tcp.flags = TCPFlag::ACK | TCPFlag::PSH;
         pkt.tcp.payload.assign(payload_size, 0x41);
         pkt.departure_time = engine.now();
 
-        const bool hadOutstandingData =
-            client.getSendBufferSize() != 0;
+        const bool hadOutstandingData = client.getSendBufferSize() != 0;
 
-        if (!client.queueSentSegment(
-                pkt.tcp,
-                engine.now()
-            )) {
+        if (!client.queueSentSegment(pkt.tcp, engine.now())) {
             return;
         }
 
         if (!hadOutstandingData) {
-            engine.schedule(
-                std::make_unique<TCPTimeoutEvent>(
-                    engine.now() +
-                        client.getCurrentRTO(),
-                    session_id_,
-                    pkt.tcp.seq
-                )
-            );
+            engine.schedule(std::make_unique<TCPTimeoutEvent>(engine.now() + client.getCurrentRTO(),
+                                                              session_id_, pkt.tcp.seq));
         }
 
         session.incrementPacketsSent();

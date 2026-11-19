@@ -5,8 +5,7 @@
 using kns::TCPState;
 using kns::TCPStateMachine;
 
-TEST_CASE("TCPStateMachine opens an active connection", "[tcp][state-machine]")
-{
+TEST_CASE("TCPStateMachine opens an active connection", "[tcp][state-machine]") {
     TCPStateMachine machine;
 
     REQUIRE(machine.state() == TCPState::CLOSED);
@@ -16,24 +15,21 @@ TEST_CASE("TCPStateMachine opens an active connection", "[tcp][state-machine]")
     REQUIRE(machine.state() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE("TCPStateMachine accepts KNS simplified passive open", "[tcp][state-machine]")
-{
+TEST_CASE("TCPStateMachine accepts KNS simplified passive open", "[tcp][state-machine]") {
     TCPStateMachine machine;
 
     REQUIRE(machine.onSynReceived());
     REQUIRE(machine.state() == TCPState::SYN_RECEIVED);
 }
 
-TEST_CASE("TCPStateMachine rejects invalid active open transition", "[tcp][state-machine]")
-{
+TEST_CASE("TCPStateMachine rejects invalid active open transition", "[tcp][state-machine]") {
     TCPStateMachine machine(TCPState::ESTABLISHED);
 
     REQUIRE_FALSE(machine.onSynSent());
     REQUIRE(machine.state() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE("TCPStateMachine follows active close path", "[tcp][state-machine]")
-{
+TEST_CASE("TCPStateMachine follows active close path", "[tcp][state-machine]") {
     TCPStateMachine machine(TCPState::ESTABLISHED);
 
     REQUIRE(machine.onFinSent());
@@ -46,8 +42,7 @@ TEST_CASE("TCPStateMachine follows active close path", "[tcp][state-machine]")
     REQUIRE(machine.state() == TCPState::CLOSED);
 }
 
-TEST_CASE("TCPStateMachine follows passive close path", "[tcp][state-machine]")
-{
+TEST_CASE("TCPStateMachine follows passive close path", "[tcp][state-machine]") {
     TCPStateMachine machine(TCPState::ESTABLISHED);
 
     REQUIRE(machine.onPeerFin());

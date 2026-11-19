@@ -4,8 +4,7 @@
 
 using namespace kns;
 
-TEST_CASE("Valid zero window and reopen ACKs suspend and resume generation", "[tcp][peer-window]")
-{
+TEST_CASE("Valid zero window and reopen ACKs suspend and resume generation", "[tcp][peer-window]") {
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);
@@ -42,21 +41,22 @@ TEST_CASE("Valid zero window and reopen ACKs suspend and resume generation", "[t
             observed = true;
         }
     });
-    for (int i = 0; i < 4 && !observed; ++i) REQUIRE(engine.processEvent());
+    for (int i = 0; i < 4 && !observed; ++i)
+        REQUIRE(engine.processEvent());
     REQUIRE(observed);
     REQUIRE(client.getSendNext() - client.getSendUnacknowledged() == 100);
     REQUIRE_FALSE(client.canSend(1));
 }
 
-TEST_CASE("Handshake transfers peer receive capacity", "[tcp][peer-window]")
-{
+TEST_CASE("Handshake transfers peer receive capacity", "[tcp][peer-window]") {
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);
     engine.startTCPConnection(0, 1);
     auto& session = engine.getTCPSession(0);
     session.getServerConnection().setReceiveWindow(0);
-    for (int i = 0; i < 3; ++i) REQUIRE(engine.processEvent());
+    for (int i = 0; i < 3; ++i)
+        REQUIRE(engine.processEvent());
     REQUIRE(session.getClientConnection().getPeerWindow() == 0);
     REQUIRE_FALSE(session.hasPendingGeneration());
 }

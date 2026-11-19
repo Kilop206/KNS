@@ -7,54 +7,48 @@
 
 namespace {
 
-void setEnvironment(const char* name, const char* value)
-{
+    void setEnvironment(const char* name, const char* value) {
 #ifdef _WIN32
-    _putenv_s(name, value);
+        _putenv_s(name, value);
 #else
-    setenv(name, value, 1);
+        setenv(name, value, 1);
 #endif
-}
-
-void clearEnvironment(const char* name)
-{
-#ifdef _WIN32
-    _putenv_s(name, "");
-#else
-    unsetenv(name);
-#endif
-}
-
-struct EnvironmentCleanup {
-    ~EnvironmentCleanup()
-    {
-        clearEnvironment("KNS_INTELLIGENCE_TOKEN");
-        clearEnvironment("KNS_TOPOLOGY_STORE_TOKEN");
     }
-};
+
+    void clearEnvironment(const char* name) {
+#ifdef _WIN32
+        _putenv_s(name, "");
+#else
+        unsetenv(name);
+#endif
+    }
+
+    struct EnvironmentCleanup {
+        ~EnvironmentCleanup() {
+            clearEnvironment("KNS_INTELLIGENCE_TOKEN");
+            clearEnvironment("KNS_TOPOLOGY_STORE_TOKEN");
+        }
+    };
 
 } // namespace
 
-TEST_CASE("intelligence token falls back to Topology Store desktop token", "[intelligence][config]")
-{
+TEST_CASE("intelligence token falls back to Topology Store desktop token",
+          "[intelligence][config]") {
     EnvironmentCleanup cleanup;
     clearEnvironment("KNS_INTELLIGENCE_TOKEN");
     setEnvironment("KNS_TOPOLOGY_STORE_TOKEN", "example-hub-token");
 
-    const auto config =
-        kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
+    const auto config = kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
 
     REQUIRE(config.bearer_token == "example-hub-token");
 }
 
-TEST_CASE("explicit intelligence token overrides Topology Store token", "[intelligence][config]")
-{
+TEST_CASE("explicit intelligence token overrides Topology Store token", "[intelligence][config]") {
     EnvironmentCleanup cleanup;
     setEnvironment("KNS_TOPOLOGY_STORE_TOKEN", "example-hub-token");
     setEnvironment("KNS_INTELLIGENCE_TOKEN", "sentient-override");
 
-    const auto config =
-        kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
+    const auto config = kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
 
     REQUIRE(config.bearer_token == "sentient-override");
 }

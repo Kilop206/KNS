@@ -15,10 +15,12 @@ namespace fs = std::filesystem;
 
 struct TempJsonFile {
     std::string path;
+
     TempJsonFile(const std::string& filename, const std::string& content) : path(filename) {
         std::ofstream out(path);
         out << content;
     }
+
     ~TempJsonFile() {
         if (fs::exists(path)) {
             fs::remove(path);
@@ -26,8 +28,8 @@ struct TempJsonFile {
     }
 };
 
-TEST_CASE("Topology JSON rejects oversized unsigned RED thresholds before conversion", "[network][loader][red]")
-{
+TEST_CASE("Topology JSON rejects oversized unsigned RED thresholds before conversion",
+          "[network][loader][red]") {
     auto graph = nlohmann::json::parse(R"({"nodes":2,"links":[
         {"from":0,"to":1,"bandwidth":100,"delay":1,"loss":0,"queue_capacity":16,
         "queue_policy":"red","red_min_threshold":4,"red_max_threshold":12,"red_max_drop_probability":0.25}
@@ -37,11 +39,13 @@ TEST_CASE("Topology JSON rejects oversized unsigned RED thresholds before conver
     REQUIRE_THROWS_AS(TopologyLoader::fromJson(graph), std::invalid_argument);
 }
 
-TEST_CASE("Topology JSON validates optional queue capacity", "[network][loader][queue]")
-{
+TEST_CASE("Topology JSON validates optional queue capacity", "[network][loader][queue]") {
     for (const auto capacity : {"1", "5", "0", "-1", "1.5", "2147483648", "\"4\""}) {
         CAPTURE(capacity);
-        const std::string content = std::string(R"({"nodes":2,"links":[{"from":0,"to":1,"bandwidth":10,"delay":1,"loss":0,"queue_capacity":)") + capacity + "}]}";
+        const std::string content =
+            std::string(
+                R"({"nodes":2,"links":[{"from":0,"to":1,"bandwidth":10,"delay":1,"loss":0,"queue_capacity":)") +
+            capacity + "}]}";
         TempJsonFile file("temp_queue_capacity.json", content);
         if (std::string(capacity) == "1" || std::string(capacity) == "5") {
             const auto topology = TopologyLoader::load_topology(file.path);
@@ -52,8 +56,8 @@ TEST_CASE("Topology JSON validates optional queue capacity", "[network][loader][
     }
 }
 
-TEST_CASE("TopologyLoader parses valid topologies with mode and isolated nodes", "[network][loader]")
-{
+TEST_CASE("TopologyLoader parses valid topologies with mode and isolated nodes",
+          "[network][loader]") {
     std::string json_content = R"({
         "name": "custom_topo",
         "nodes": 5,
@@ -103,10 +107,11 @@ TEST_CASE("TopologyLoader parses valid topologies with mode and isolated nodes",
     REQUIRE(topo.getLinksFromNode(4).empty());
 }
 
-TEST_CASE("TopologyLoader rejects invalid JSON and throws descriptive exceptions", "[network][loader]")
-{
+TEST_CASE("TopologyLoader rejects invalid JSON and throws descriptive exceptions",
+          "[network][loader]") {
     SECTION("File does not exist") {
-        REQUIRE_THROWS_AS(TopologyLoader::load_topology("non_existent_file_12345.json"), std::runtime_error);
+        REQUIRE_THROWS_AS(TopologyLoader::load_topology("non_existent_file_12345.json"),
+                          std::runtime_error);
     }
 
     SECTION("Missing required link field (e.g. bandwidth)") {
@@ -158,9 +163,7 @@ TEST_CASE("TopologyLoader rejects invalid JSON and throws descriptive exceptions
     }
 }
 
-
-TEST_CASE("Topology JSON loads and preserves RED queue policy", "[network][loader][queue][red]")
-{
+TEST_CASE("Topology JSON loads and preserves RED queue policy", "[network][loader][queue][red]") {
     TempJsonFile file("temp_red_queue.json", R"({
       "schema_version":"1.0",
       "nodes":2,
@@ -195,25 +198,24 @@ TEST_CASE("Topology JSON loads and preserves RED queue policy", "[network][loade
     const auto restored = TopologyLoader::fromJson(averaged);
     REQUIRE(restored.getLinks().front()->getRedQueueWeight() == 0.125);
     REQUIRE(TopologyLoader::toJson(restored)["links"][0]["red_queue_weight"] == 0.125);
-    for (const auto& weight : {json(0), json(-0.1), json(1.1), json(nullptr), json("0.5"), json(true)}) {
+    for (const auto& weight :
+         {json(0), json(-0.1), json(1.1), json(nullptr), json("0.5"), json(true)}) {
         averaged["links"][0]["red_queue_weight"] = weight;
         REQUIRE_THROWS_AS(TopologyLoader::fromJson(averaged), std::invalid_argument);
     }
 }
 
-TEST_CASE("Topology JSON rejects malformed RED queue policies", "[network][loader][queue][red]")
-{
-    for (const auto* linkConfig : {
-        R"("queue_policy":"red")",
-        R"("queue_policy":"magic")",
-        R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":4,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":20,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4,"red_max_drop_probability":2.0)",
-        R"("queue_policy":"red","red_min_threshold":4294967297,"red_max_threshold":4,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4294967300,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":-4294967295,"red_max_threshold":4,"red_max_drop_probability":0.2)",
-        R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":18446744073709551615,"red_max_drop_probability":0.2)"
-    }) {
+TEST_CASE("Topology JSON rejects malformed RED queue policies", "[network][loader][queue][red]") {
+    for (
+        const auto* linkConfig :
+        {R"("queue_policy":"red")", R"("queue_policy":"magic")",
+         R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":4,"red_max_drop_probability":0.2)",
+         R"("queue_policy":"red","red_min_threshold":4,"red_max_threshold":20,"red_max_drop_probability":0.2)",
+         R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4,"red_max_drop_probability":2.0)",
+         R"("queue_policy":"red","red_min_threshold":4294967297,"red_max_threshold":4,"red_max_drop_probability":0.2)",
+         R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":4294967300,"red_max_drop_probability":0.2)",
+         R"("queue_policy":"red","red_min_threshold":-4294967295,"red_max_threshold":4,"red_max_drop_probability":0.2)",
+         R"("queue_policy":"red","red_min_threshold":1,"red_max_threshold":18446744073709551615,"red_max_drop_probability":0.2)"}) {
         CAPTURE(linkConfig);
         const std::string content =
             R"({"nodes":2,"links":[{"from":0,"to":1,"bandwidth":100,"delay":1,"loss":0,"queue_capacity":8,)" +

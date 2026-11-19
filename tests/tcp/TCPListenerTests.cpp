@@ -27,21 +27,15 @@ namespace {
     class ResponseObserver {
     public:
         ResponseObserver(int source, int destination) noexcept
-            : source_(source), destination_(destination)
-        {
-        }
+            : source_(source), destination_(destination) {}
 
-        void observe(const Packet& packet)
-        {
-            if (packet.source == source_ &&
-                packet.destination == destination_)
-            {
+        void observe(const Packet& packet) {
+            if (packet.source == source_ && packet.destination == destination_) {
                 responses_.push_back(packet);
             }
         }
 
-        const std::vector<Packet>& responses() const noexcept
-        {
+        const std::vector<Packet>& responses() const noexcept {
             return responses_;
         }
 
@@ -51,34 +45,14 @@ namespace {
         std::vector<Packet> responses_;
     };
 
-    void observeResponses(
-        SimulationEngine& engine,
-        ResponseObserver& observer
-    )
-    {
-        engine.setPacketObserver(
-            [&observer](
-                const Packet& packet,
-                std::uint64_t,
-                int,
-                int,
-                double,
-                double
-            )
-            {
-                observer.observe(packet);
-            }
-        );
+    void observeResponses(SimulationEngine& engine, ResponseObserver& observer) {
+        engine.setPacketObserver([&observer](const Packet& packet, std::uint64_t, int, int, double,
+                                             double) { observer.observe(packet); });
     }
 
-    void requireSingleReset(
-        const ResponseObserver& observer,
-        int expected_source,
-        int expected_destination,
-        std::uint64_t expected_session_id,
-        std::uint32_t expected_ack
-    )
-    {
+    void requireSingleReset(const ResponseObserver& observer, int expected_source,
+                            int expected_destination, std::uint64_t expected_session_id,
+                            std::uint32_t expected_ack) {
         const auto& responses = observer.responses();
 
         REQUIRE(responses.size() == 1);
@@ -97,11 +71,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE(
-    "TCPListener tracks each accepted session only once",
-    "[tcp][listener][bookkeeping]"
-)
-{
+TEST_CASE("TCPListener tracks each accepted session only once", "[tcp][listener][bookkeeping]") {
     TCPListener listener(1);
 
     listener.trackSession(42);
@@ -114,108 +84,63 @@ TEST_CASE(
     REQUIRE(listener.getActiveConnections() == 0);
 }
 
-TEST_CASE(
-    "TCPListener accepts an incoming connection in LISTEN state",
-    "[tcp][listener][passive-open]"
-)
-{
+TEST_CASE("TCPListener accepts an incoming connection in LISTEN state",
+          "[tcp][listener][passive-open]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    TCPListener& listener =
-        engine.startTCPListen(1);
+    TCPListener& listener = engine.startTCPListen(1);
 
     REQUIRE(listener.isListening());
     REQUIRE(listener.getNodeId() == 1);
     REQUIRE(listener.getActiveConnections() == 0);
 
-    const std::uint64_t session_id =
-        engine.acceptOnListener(1, 0, 1000);
+    const std::uint64_t session_id = engine.acceptOnListener(1, 0, 1000);
 
-    REQUIRE(
-        session_id != TCPListener::INVALID_SESSION_ID
-    );
+    REQUIRE(session_id != TCPListener::INVALID_SESSION_ID);
 
     REQUIRE(listener.getActiveConnections() == 1);
     REQUIRE(engine.hasTCPSession(session_id));
 
-    TCPSession& session =
-        engine.getTCPSession(session_id);
+    TCPSession& session = engine.getTCPSession(session_id);
 
-    auto& server =
-        session.getServerConnection();
+    auto& server = session.getServerConnection();
 
     REQUIRE(server.getLocalNode() == 1);
     REQUIRE(server.getRemoteNode() == 0);
     REQUIRE(server.getTcpState() == TCPState::LISTEN);
 
-    REQUIRE(
-        server.receive_syn(1000)
-    );
+    REQUIRE(server.receive_syn(1000));
 
-    REQUIRE(
-        server.getTcpState() == TCPState::SYN_RECEIVED
-    );
+    REQUIRE(server.getTcpState() == TCPState::SYN_RECEIVED);
 
-    REQUIRE(
-        server.getExpectedAckNum() == 1001
-    );
+    REQUIRE(server.getExpectedAckNum() == 1001);
 }
 
-TEST_CASE(
-    "TCPListener accepts SYN through PacketReceivedEvent",
-    "[tcp][listener][passive-open][integration]"
-)
-{
+TEST_CASE("TCPListener accepts SYN through PacketReceivedEvent",
+          "[tcp][listener][passive-open][integration]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
     engine.setGlobalPacketSize(1000);
 
-    TCPListener& listener =
-        engine.startTCPListen(1);
+    TCPListener& listener = engine.startTCPListen(1);
 
     REQUIRE(listener.isListening());
 
-    Packet syn(
-        0,
-        1,
-        0,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        0
-    );
+    Packet syn(0, 1, 0, engine.now(), engine.getGlobalPacketSize(), 0);
 
     syn.tcp.seq = 1000;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
-    REQUIRE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            syn
-        )
-    );
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
 
     REQUIRE(listener.getActiveConnections() == 0);
 
@@ -224,89 +149,52 @@ TEST_CASE(
     REQUIRE(listener.getActiveConnections() == 1);
     REQUIRE(engine.getTCPSessions().size() == 1);
 
-    const auto& sessions =
-        engine.getTCPSessions();
+    const auto& sessions = engine.getTCPSessions();
 
-    const std::uint64_t session_id =
-        sessions.begin()->first;
+    const std::uint64_t session_id = sessions.begin()->first;
 
-    const auto& session =
-        engine.getTCPSession(session_id);
+    const auto& session = engine.getTCPSession(session_id);
 
-    REQUIRE(
-        session.getClientConnection().getLocalNode() == 0
-    );
+    REQUIRE(session.getClientConnection().getLocalNode() == 0);
 
-    REQUIRE(
-        session.getClientConnection().getRemoteNode() == 1
-    );
+    REQUIRE(session.getClientConnection().getRemoteNode() == 1);
 
-    REQUIRE(
-        session.getServerConnection().getLocalNode() == 1
-    );
+    REQUIRE(session.getServerConnection().getLocalNode() == 1);
 
-    REQUIRE(
-        session.getServerConnection().getRemoteNode() == 0
-    );
+    REQUIRE(session.getServerConnection().getRemoteNode() == 0);
 
-    REQUIRE(
-        session.getServerConnection().getTcpState() ==
-        TCPState::SYN_RECEIVED
-    );
+    REQUIRE(session.getServerConnection().getTcpState() == TCPState::SYN_RECEIVED);
 }
 
-TEST_CASE(
-    "TCPListener ignores a colliding unrelated session ID",
-    "[tcp][listener][passive-open][session-id]"
-)
-{
+TEST_CASE("TCPListener ignores a colliding unrelated session ID",
+          "[tcp][listener][passive-open][session-id]") {
     Topology topology(4);
 
-    topology.addLink(
-        2,
-        3,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(2, 3, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
     engine.setGlobalPacketSize(1000);
 
-    auto& unrelated_session =
-        engine.createTCPSession(0, 1);
+    auto& unrelated_session = engine.createTCPSession(0, 1);
 
     REQUIRE(unrelated_session.getSession_id() == 0);
 
-    auto& listener =
-        engine.startTCPListen(3);
+    auto& listener = engine.startTCPListen(3);
 
     constexpr std::uint32_t syn_sequence = 4000;
 
     ResponseObserver response_observer(3, 2);
     observeResponses(engine, response_observer);
 
-    Packet syn(
-        2,
-        3,
-        2,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        unrelated_session.getSession_id()
-    );
+    Packet syn(2, 3, 2, engine.now(), engine.getGlobalPacketSize(),
+               unrelated_session.getSession_id());
 
     syn.tcp.seq = syn_sequence;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
-    REQUIRE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            syn
-        )
-    );
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
 
     REQUIRE(engine.processEvent());
 
@@ -326,61 +214,32 @@ TEST_CASE(
     REQUIRE(syn_ack.session_id == 1);
     REQUIRE(syn_ack.tcp.ack == syn_sequence + 1);
 
-    REQUIRE(
-        unrelated_session.getClientConnection().getTcpState() ==
-        TCPState::CLOSED
-    );
+    REQUIRE(unrelated_session.getClientConnection().getTcpState() == TCPState::CLOSED);
 
-    REQUIRE(
-        unrelated_session.getServerConnection().getTcpState() ==
-        TCPState::CLOSED
-    );
+    REQUIRE(unrelated_session.getServerConnection().getTcpState() == TCPState::CLOSED);
 }
 
-TEST_CASE(
-    "TCPListener completes passive TCP handshake",
-    "[tcp][listener][passive-open][handshake]"
-)
-{
+TEST_CASE("TCPListener completes passive TCP handshake",
+          "[tcp][listener][passive-open][handshake]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
     engine.setGlobalPacketSize(1000);
 
-    auto& listener =
-        engine.startTCPListen(1);
+    auto& listener = engine.startTCPListen(1);
 
     REQUIRE(listener.isListening());
 
-    Packet syn(
-        0,
-        1,
-        0,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        0
-    );
+    Packet syn(0, 1, 0, engine.now(), engine.getGlobalPacketSize(), 0);
 
     syn.tcp.seq = 1000;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
-    REQUIRE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            syn
-        )
-    );
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
 
     /*
      * Process the incoming SYN.
@@ -394,21 +253,13 @@ TEST_CASE(
 
     REQUIRE(engine.getTCPSessions().size() == 1);
 
-    const auto session_id =
-        engine.getTCPSessions().begin()->first;
+    const auto session_id = engine.getTCPSessions().begin()->first;
 
-    auto& session =
-        engine.getTCPSession(session_id);
+    auto& session = engine.getTCPSession(session_id);
 
-    REQUIRE(
-        session.getClientConnection().getTcpState() ==
-        TCPState::SYN_SENT
-    );
+    REQUIRE(session.getClientConnection().getTcpState() == TCPState::SYN_SENT);
 
-    REQUIRE(
-        session.getServerConnection().getTcpState() ==
-        TCPState::SYN_RECEIVED
-    );
+    REQUIRE(session.getServerConnection().getTcpState() == TCPState::SYN_RECEIVED);
 
     /*
      * The listener created the server-side SYN-ACK and
@@ -418,15 +269,9 @@ TEST_CASE(
      */
     REQUIRE(engine.processEvent());
 
-    REQUIRE(
-        session.getClientConnection().getTcpState() ==
-        TCPState::ESTABLISHED
-    );
+    REQUIRE(session.getClientConnection().getTcpState() == TCPState::ESTABLISHED);
 
-    REQUIRE(
-        session.getServerConnection().getTcpState() ==
-        TCPState::SYN_RECEIVED
-    );
+    REQUIRE(session.getServerConnection().getTcpState() == TCPState::SYN_RECEIVED);
 
     /*
      * The client generated an ACK in response to the SYN-ACK.
@@ -434,153 +279,74 @@ TEST_CASE(
      */
     REQUIRE(engine.processEvent());
 
-    REQUIRE(
-        session.getClientConnection().getTcpState() ==
-        TCPState::ESTABLISHED
-    );
+    REQUIRE(session.getClientConnection().getTcpState() == TCPState::ESTABLISHED);
 
-    REQUIRE(
-        session.getServerConnection().getTcpState() ==
-        TCPState::ESTABLISHED
-    );
+    REQUIRE(session.getServerConnection().getTcpState() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE(
-    "TCPListener accepts multiple independent TCP connections",
-    "[tcp][listener][backlog][multiple-connections]"
-)
-{
+TEST_CASE("TCPListener accepts multiple independent TCP connections",
+          "[tcp][listener][backlog][multiple-connections]") {
     Topology topology(3);
 
-    topology.addLink(
-        0,
-        2,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 2, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
-    topology.addLink(
-        1,
-        2,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(1, 2, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    TCPListener& listener =
-        engine.startTCPListen(2, 2);
+    TCPListener& listener = engine.startTCPListen(2, 2);
 
-    const std::uint64_t first_session =
-        engine.acceptOnListener(2, 0, 1000);
+    const std::uint64_t first_session = engine.acceptOnListener(2, 0, 1000);
 
-    const std::uint64_t second_session =
-        engine.acceptOnListener(2, 1, 2000);
+    const std::uint64_t second_session = engine.acceptOnListener(2, 1, 2000);
 
-    REQUIRE(
-        first_session != TCPListener::INVALID_SESSION_ID
-    );
+    REQUIRE(first_session != TCPListener::INVALID_SESSION_ID);
 
-    REQUIRE(
-        second_session != TCPListener::INVALID_SESSION_ID
-    );
+    REQUIRE(second_session != TCPListener::INVALID_SESSION_ID);
 
     REQUIRE(first_session != second_session);
 
     REQUIRE(listener.getActiveConnections() == 2);
     REQUIRE(engine.getTCPSessions().size() == 2);
 
-    auto& first =
-        engine.getTCPSession(first_session);
+    auto& first = engine.getTCPSession(first_session);
 
-    auto& second =
-        engine.getTCPSession(second_session);
+    auto& second = engine.getTCPSession(second_session);
 
-    REQUIRE(
-        first.getClientConnection().getLocalNode() == 0
-    );
+    REQUIRE(first.getClientConnection().getLocalNode() == 0);
 
-    REQUIRE(
-        first.getClientConnection().getRemoteNode() == 2
-    );
+    REQUIRE(first.getClientConnection().getRemoteNode() == 2);
 
-    REQUIRE(
-        first.getServerConnection().getLocalNode() == 2
-    );
+    REQUIRE(first.getServerConnection().getLocalNode() == 2);
 
-    REQUIRE(
-        first.getServerConnection().getRemoteNode() == 0
-    );
+    REQUIRE(first.getServerConnection().getRemoteNode() == 0);
 
-    REQUIRE(
-        second.getClientConnection().getLocalNode() == 1
-    );
+    REQUIRE(second.getClientConnection().getLocalNode() == 1);
 
-    REQUIRE(
-        second.getClientConnection().getRemoteNode() == 2
-    );
+    REQUIRE(second.getClientConnection().getRemoteNode() == 2);
 
-    REQUIRE(
-        second.getServerConnection().getLocalNode() == 2
-    );
+    REQUIRE(second.getServerConnection().getLocalNode() == 2);
 
-    REQUIRE(
-        second.getServerConnection().getRemoteNode() == 1
-    );
+    REQUIRE(second.getServerConnection().getRemoteNode() == 1);
 
-    REQUIRE(
-        first.getServerConnection().getTcpState() ==
-        TCPState::LISTEN
-    );
+    REQUIRE(first.getServerConnection().getTcpState() == TCPState::LISTEN);
 
-    REQUIRE(
-        second.getServerConnection().getTcpState() ==
-        TCPState::LISTEN
-    );
+    REQUIRE(second.getServerConnection().getTcpState() == TCPState::LISTEN);
 
-    REQUIRE(
-        first.getClientConnection().getTcpState() ==
-        TCPState::SYN_SENT
-    );
+    REQUIRE(first.getClientConnection().getTcpState() == TCPState::SYN_SENT);
 
-    REQUIRE(
-        second.getClientConnection().getTcpState() ==
-        TCPState::SYN_SENT
-    );
+    REQUIRE(second.getClientConnection().getTcpState() == TCPState::SYN_SENT);
 }
 
-TEST_CASE(
-    "TCPListener dispatches connections by node and port",
-    "[tcp][listener][port]"
-)
-{
+TEST_CASE("TCPListener dispatches connections by node and port", "[tcp][listener][port]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    auto& http = engine.startTCPListen(
-        1,
-        static_cast<std::uint16_t>(80),
-        1
-    );
-    auto& https = engine.startTCPListen(
-        1,
-        static_cast<std::uint16_t>(443),
-        1
-    );
+    auto& http = engine.startTCPListen(1, static_cast<std::uint16_t>(80), 1);
+    auto& https = engine.startTCPListen(1, static_cast<std::uint16_t>(443), 1);
 
     REQUIRE(engine.hasListener(1));
     REQUIRE(engine.hasListener(1, 80));
@@ -589,20 +355,8 @@ TEST_CASE(
     REQUIRE(http.getPort() == 80);
     REQUIRE(https.getPort() == 443);
 
-    const auto http_session = engine.acceptOnListener(
-        1,
-        0,
-        1000,
-        49152,
-        80
-    );
-    const auto https_session = engine.acceptOnListener(
-        1,
-        0,
-        2000,
-        49153,
-        443
-    );
+    const auto http_session = engine.acceptOnListener(1, 0, 1000, 49152, 80);
+    const auto https_session = engine.acceptOnListener(1, 0, 2000, 49153, 443);
 
     REQUIRE(http_session != TCPListener::INVALID_SESSION_ID);
     REQUIRE(https_session != TCPListener::INVALID_SESSION_ID);
@@ -610,37 +364,21 @@ TEST_CASE(
     REQUIRE(http.getActiveConnections() == 1);
     REQUIRE(https.getActiveConnections() == 1);
 
-    const auto& http_client =
-        engine.getTCPSession(http_session).getClientConnection();
-    const auto& https_server =
-        engine.getTCPSession(https_session).getServerConnection();
+    const auto& http_client = engine.getTCPSession(http_session).getClientConnection();
+    const auto& https_server = engine.getTCPSession(https_session).getServerConnection();
 
     REQUIRE(http_client.getLocalPort() == 49152);
     REQUIRE(http_client.getRemotePort() == 80);
     REQUIRE(https_server.getLocalPort() == 443);
     REQUIRE(https_server.getRemotePort() == 49153);
 
-    REQUIRE(
-        engine.acceptOnListener(1, 0, 3000, 49154, 22) ==
-        TCPListener::INVALID_SESSION_ID
-    );
+    REQUIRE(engine.acceptOnListener(1, 0, 3000, 49154, 22) == TCPListener::INVALID_SESSION_ID);
 }
 
-TEST_CASE(
-    "TCPListener resets a SYN sent to an unopened port",
-    "[tcp][listener][port][rst]"
-)
-{
+TEST_CASE("TCPListener resets a SYN sent to an unopened port", "[tcp][listener][port][rst]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
     engine.setGlobalPacketSize(1000);
@@ -649,14 +387,7 @@ TEST_CASE(
     ResponseObserver response_observer(1, 0);
     observeResponses(engine, response_observer);
 
-    Packet syn(
-        0,
-        1,
-        0,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        99
-    );
+    Packet syn(0, 1, 0, engine.now(), engine.getGlobalPacketSize(), 99);
 
     syn.tcp.source_port = 49152;
     syn.tcp.destination_port = 80;
@@ -676,8 +407,8 @@ TEST_CASE(
     REQUIRE(engine.getTCPSessions().empty());
 }
 
-TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp][listener][port][integration]")
-{
+TEST_CASE("Passive handshakes dispatch independently by destination port",
+          "[tcp][listener][port][integration]") {
     Topology topology(2);
     topology.addLink(0, 1, 10.0, 10.0);
     SimulationEngine engine(topology);
@@ -695,9 +426,11 @@ TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp
         REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
     }
     const auto established = [&] {
-        if (engine.getTCPSessions().size() != 2) return false;
+        if (engine.getTCPSessions().size() != 2)
+            return false;
         for (const auto& [id, session] : engine.getTCPSessions()) {
-            if (session.getState() != TCPState::ESTABLISHED) return false;
+            if (session.getState() != TCPState::ESTABLISHED)
+                return false;
         }
         return true;
     };
@@ -718,52 +451,24 @@ TEST_CASE("Passive handshakes dispatch independently by destination port", "[tcp
     REQUIRE(engine.getTCPSessions().size() == 2);
 }
 
-TEST_CASE(
-    "TCPListener sends RST when backlog is full",
-    "[tcp][listener][backlog][rst]"
-)
-{
+TEST_CASE("TCPListener sends RST when backlog is full", "[tcp][listener][backlog][rst]") {
     Topology topology(4);
 
-    topology.addLink(
-        0,
-        3,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 3, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
-    topology.addLink(
-        1,
-        3,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(1, 3, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
-    topology.addLink(
-        2,
-        3,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(2, 3, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
     engine.setGlobalPacketSize(1000);
 
-    auto& listener =
-        engine.startTCPListen(3, 2);
+    auto& listener = engine.startTCPListen(3, 2);
 
-    const auto first_session =
-        engine.acceptOnListener(3, 0, 1000);
+    const auto first_session = engine.acceptOnListener(3, 0, 1000);
 
-    const auto second_session =
-        engine.acceptOnListener(3, 1, 2000);
+    const auto second_session = engine.acceptOnListener(3, 1, 2000);
 
     REQUIRE(first_session == 0);
     REQUIRE(second_session == 1);
@@ -779,35 +484,17 @@ TEST_CASE(
     ResponseObserver response_observer(3, 2);
     observeResponses(engine, response_observer);
 
-    Packet syn(
-        2,
-        3,
-        2,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        unknown_session_id
-    );
+    Packet syn(2, 3, 2, engine.now(), engine.getGlobalPacketSize(), unknown_session_id);
 
     syn.tcp.seq = syn_sequence;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
-    REQUIRE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            syn
-        )
-    );
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
 
     REQUIRE(engine.processEvent());
 
-    requireSingleReset(
-        response_observer,
-        3,
-        2,
-        unknown_session_id,
-        syn_sequence + 1
-    );
+    requireSingleReset(response_observer, 3, 2, unknown_session_id, syn_sequence + 1);
 
     REQUIRE(listener.getActiveConnections() == 2);
     REQUIRE(engine.getTCPSessions().size() == 2);
@@ -816,13 +503,7 @@ TEST_CASE(
     REQUIRE_FALSE(engine.hasEvents());
     REQUIRE(engine.getPacketsInTransit().empty());
 
-    requireSingleReset(
-        response_observer,
-        3,
-        2,
-        unknown_session_id,
-        syn_sequence + 1
-    );
+    requireSingleReset(response_observer, 3, 2, unknown_session_id, syn_sequence + 1);
 
     REQUIRE(listener.getActiveConnections() == 2);
     REQUIRE(engine.hasTCPSession(first_session));
@@ -830,29 +511,17 @@ TEST_CASE(
     REQUIRE_FALSE(engine.hasTCPSession(2));
 }
 
-TEST_CASE(
-    "TCP sends RST when SYN arrives without listener",
-    "[tcp][listener][rst][no-listener]"
-)
-{
+TEST_CASE("TCP sends RST when SYN arrives without listener", "[tcp][listener][rst][no-listener]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
     engine.setGlobalPacketSize(1000);
 
     constexpr std::uint64_t unknown_session_id = 999;
-    constexpr std::uint32_t syn_sequence =
-        std::numeric_limits<std::uint32_t>::max();
+    constexpr std::uint32_t syn_sequence = std::numeric_limits<std::uint32_t>::max();
     constexpr std::uint32_t expected_ack = std::uint32_t{0};
 
     REQUIRE_FALSE(engine.hasListener(1));
@@ -861,35 +530,17 @@ TEST_CASE(
     ResponseObserver response_observer(1, 0);
     observeResponses(engine, response_observer);
 
-    Packet syn(
-        0,
-        1,
-        0,
-        engine.now(),
-        engine.getGlobalPacketSize(),
-        unknown_session_id
-    );
+    Packet syn(0, 1, 0, engine.now(), engine.getGlobalPacketSize(), unknown_session_id);
 
     syn.tcp.seq = syn_sequence;
     syn.tcp.flags = TCPFlag::SYN;
     syn.packet_type = PacketType::SYN;
 
-    REQUIRE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            syn
-        )
-    );
+    REQUIRE(PacketUtils::sendPacketThroughTopology(engine, syn));
 
     REQUIRE(engine.processEvent());
 
-    requireSingleReset(
-        response_observer,
-        1,
-        0,
-        unknown_session_id,
-        expected_ack
-    );
+    requireSingleReset(response_observer, 1, 0, unknown_session_id, expected_ack);
 
     REQUIRE(engine.getTCPSessions().empty());
 
@@ -897,12 +548,6 @@ TEST_CASE(
     REQUIRE_FALSE(engine.hasEvents());
     REQUIRE(engine.getPacketsInTransit().empty());
 
-    requireSingleReset(
-        response_observer,
-        1,
-        0,
-        unknown_session_id,
-        expected_ack
-    );
+    requireSingleReset(response_observer, 1, 0, unknown_session_id, expected_ack);
     REQUIRE(engine.getTCPSessions().empty());
 }

@@ -8,19 +8,29 @@
 namespace {
     class ActionEvent final : public kns::Event {
         std::function<void(kns::SimulationEngine&)> action_;
+
     public:
         ActionEvent(double at, std::function<void(kns::SimulationEngine&)> action)
             : Event(at), action_(std::move(action)) {}
-        void execute(kns::SimulationEngine& engine) override { action_(engine); }
+
+        void execute(kns::SimulationEngine& engine) override {
+            action_(engine);
+        }
     };
-    void schedule(kns::SimulationEngine& engine, double at,
-                  std::function<void(kns::SimulationEngine&)> action = [](auto&) {}) {
+
+    void schedule(
+        kns::SimulationEngine& engine, double at,
+        std::function<void(kns::SimulationEngine&)> action = [](auto&) {}) {
         engine.schedule(std::make_unique<ActionEvent>(at, std::move(action)));
     }
-    void repeat(kns::SimulationEngine& engine) { schedule(engine, engine.now(), repeat); }
+
+    void repeat(kns::SimulationEngine& engine) {
+        schedule(engine, engine.now(), repeat);
+    }
 }
 
-TEST_CASE("Bounded execution includes horizon ties and preserves later events", "[core][execution]") {
+TEST_CASE("Bounded execution includes horizon ties and preserves later events",
+          "[core][execution]") {
     kns::SimulationEngine engine{kns::Topology(2)};
     std::vector<int> trace;
     schedule(engine, 1, [&](auto&) { trace.push_back(1); });
@@ -126,21 +136,23 @@ TEST_CASE("Execution rejects recursive dispatch without skipping events", "[core
     REQUIRE(engine.now() == 2);
 }
 
-TEST_CASE("Invalid horizons preserve state and drained runs do not invent duration", "[core][execution]") {
+TEST_CASE("Invalid horizons preserve state and drained runs do not invent duration",
+          "[core][execution]") {
     kns::SimulationEngine engine{kns::Topology(2)};
     REQUIRE(engine.runUntil(100).reason == kns::StopReason::QueueEmpty);
     REQUIRE(engine.now() == 0);
     schedule(engine, 2);
     engine.runUntil(1);
     for (double time : {0.0, -1.0, std::numeric_limits<double>::infinity(),
-                       std::numeric_limits<double>::quiet_NaN()}) {
+                        std::numeric_limits<double>::quiet_NaN()}) {
         REQUIRE_THROWS_AS(engine.runUntil(time), std::invalid_argument);
         REQUIRE(engine.now() == 1);
         REQUIRE(engine.pendingEventCount() == 1);
     }
 }
 
-TEST_CASE("Segmented TCP execution reproduces uninterrupted execution", "[integration][execution][determinism]") {
+TEST_CASE("Segmented TCP execution reproduces uninterrupted execution",
+          "[integration][execution][determinism]") {
     kns::Topology topology(3);
     topology.addLink(0, 1, 10, 2, 0.02);
     topology.addLink(1, 2, 10, 2, 0.02);
@@ -161,14 +173,14 @@ TEST_CASE("Segmented TCP execution reproduces uninterrupted execution", "[integr
     REQUIRE(segmented.getStats().packets_lost == continuous.getStats().packets_lost);
     REQUIRE(segmented.getStats().packets_delivered == continuous.getStats().packets_delivered);
     REQUIRE(segmented.getStats().total_latency == continuous.getStats().total_latency);
-    REQUIRE(segmented.executionStatistics().events_completed == continuous.executionStatistics().events_completed);
+    REQUIRE(segmented.executionStatistics().events_completed ==
+            continuous.executionStatistics().events_completed);
 }
 
 TEST_CASE("Cancelled pending events do not count as processed callbacks", "[core][execution]") {
     kns::SimulationEngine engine{kns::Topology(2)};
-    auto removed = std::make_unique<ActionEvent>(1, [](auto&) {
-        FAIL("Cancelled event must never execute");
-    });
+    auto removed =
+        std::make_unique<ActionEvent>(1, [](auto&) { FAIL("Cancelled event must never execute"); });
     const auto id = removed->getId();
     engine.schedule(std::move(removed));
     schedule(engine, 2);
@@ -180,7 +192,8 @@ TEST_CASE("Cancelled pending events do not count as processed callbacks", "[core
     REQUIRE(engine.executionStatistics().events_failed == 0);
 }
 
-TEST_CASE("Terminal cancellation cannot validate as a completed simulation", "[core][execution][validation]") {
+TEST_CASE("Terminal cancellation cannot validate as a completed simulation",
+          "[core][execution][validation]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);
@@ -191,7 +204,8 @@ TEST_CASE("Terminal cancellation cannot validate as a completed simulation", "[c
     REQUIRE_FALSE(engine.validateSimulation().passed());
 }
 
-TEST_CASE("Time limits and cancellation retain physically pending packets", "[integration][execution][timing]") {
+TEST_CASE("Time limits and cancellation retain physically pending packets",
+          "[integration][execution][timing]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 1.0, 10.0);
     kns::SimulationEngine engine(topology);

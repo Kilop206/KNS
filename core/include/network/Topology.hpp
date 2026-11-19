@@ -21,31 +21,20 @@ namespace kns {
         Topology cloneForRun() const;
 
         void addLink(const Link& link);
-        LinkPtr addLinkPtr(
-            int a,
-            int b,
-            double bandwidth_mbps,
-            double delay_ms,
-            double loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX,
-            int queue_capacity = 32
-        );
+        LinkPtr addLinkPtr(int a, int b, double bandwidth_mbps, double delay_ms,
+                           double loss_prob = 0.0, LinkMode mode = LinkMode::FULL_DUPLEX,
+                           int queue_capacity = 32);
 
-        void addLink(
-            int a,
-            int b,
-            double bandwidth_mbps,
-            double delay_ms,
-            double loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX,
-            int queue_capacity = 32
-        );
+        void addLink(int a, int b, double bandwidth_mbps, double delay_ms, double loss_prob = 0.0,
+                     LinkMode mode = LinkMode::FULL_DUPLEX, int queue_capacity = 32);
 
         /// Returns a const reference to the list of links connected to the given node.
         /// Throws std::out_of_range if node < 0 or node >= size().
         const std::vector<LinkPtr>& getLinksFromNode(int node) const;
 
-        const std::vector<LinkPtr>& getLinks() const noexcept { return links_; }
+        const std::vector<LinkPtr>& getLinks() const noexcept {
+            return links_;
+        }
 
         int size() const noexcept;
 
@@ -58,34 +47,34 @@ namespace kns {
 
         const std::string& getName() const noexcept;
         void setName(std::string name);
-    /// define how in-flight packets and scheduled events are affected:
-    ///
-    /// 1. Packets already in transit (in packets_in_transit and scheduled as
-    ///    PacketReceivedEvent) CONTINUE to their destination. They carry a
-    ///    stable link_id that was valid when sendPacket() was called; on
-    ///    arrival the release step simply becomes a no-op if the link has
-    ///    since been removed.
-    ///
-    /// 2. A packet arriving at a node that has been removed is processed
-    ///    normally until the TCP session lookup. hasTCPSession() guards
-    ///    against use-after-free; unrecognised packets are silently dropped.
-    ///
-    /// 3. A packet mid-route (not yet at destination) whose next hop
-    ///    no longer exists is counted as lost (sendPacketThroughTopology
-    ///    returns false, stats.packets_lost incremented).
-    ///
-    /// 4. TCP sessions are NOT automatically torn down when a topology
-    ///    mutation makes their path unreachable. The session stays open until
-    ///    the SYN handshake timeout exhausts retries and declares it failed.
-    ///
-    /// 5. Every routing-relevant topology or Link mutation increments a shared
-    ///    revision. SimulationEngine APIs rebuild synchronously, while direct
-    ///    mutations through getTopology() are rebuilt on the next getNextHop()
-    ///    or getRoutingTable() call. Consequently, newly forwarded packets
-    ///    never use a stale route. Packets already scheduled continue hop by
-    ///    hop and consult getNextHop() again when they arrive at a router.
+        /// define how in-flight packets and scheduled events are affected:
+        ///
+        /// 1. Packets already in transit (in packets_in_transit and scheduled as
+        ///    PacketReceivedEvent) CONTINUE to their destination. They carry a
+        ///    stable link_id that was valid when sendPacket() was called; on
+        ///    arrival the release step simply becomes a no-op if the link has
+        ///    since been removed.
+        ///
+        /// 2. A packet arriving at a node that has been removed is processed
+        ///    normally until the TCP session lookup. hasTCPSession() guards
+        ///    against use-after-free; unrecognised packets are silently dropped.
+        ///
+        /// 3. A packet mid-route (not yet at destination) whose next hop
+        ///    no longer exists is counted as lost (sendPacketThroughTopology
+        ///    returns false, stats.packets_lost incremented).
+        ///
+        /// 4. TCP sessions are NOT automatically torn down when a topology
+        ///    mutation makes their path unreachable. The session stays open until
+        ///    the SYN handshake timeout exhausts retries and declares it failed.
+        ///
+        /// 5. Every routing-relevant topology or Link mutation increments a shared
+        ///    revision. SimulationEngine APIs rebuild synchronously, while direct
+        ///    mutations through getTopology() are rebuilt on the next getNextHop()
+        ///    or getRoutingTable() call. Consequently, newly forwarded packets
+        ///    never use a stale route. Packets already scheduled continue hop by
+        ///    hop and consult getNextHop() again when they arrive at a router.
 
-    // Node/link management for GUI
+        // Node/link management for GUI
         int addNode();
         bool removeNode(int id);
 
@@ -121,7 +110,9 @@ namespace kns {
         bool synchronizeFrom(const Topology& snapshot);
 
         /// All interface objects (one per link endpoint on a node).
-        const std::vector<Interface>& getInterfaces() const noexcept { return interfaces_; }
+        const std::vector<Interface>& getInterfaces() const noexcept {
+            return interfaces_;
+        }
 
     private:
         std::vector<LinkPtr> links_;

@@ -17,8 +17,8 @@ using kns::TCPState;
 using kns::TCPTimeWaitTimeoutEvent;
 using kns::Topology;
 
-TEST_CASE("Listener cleanup rejects nonterminal sessions without mutation", "[tcp][session][cleanup]")
-{
+TEST_CASE("Listener cleanup rejects nonterminal sessions without mutation",
+          "[tcp][session][cleanup]") {
     SimulationEngine engine(Topology(2));
     auto& listener = engine.startTCPListen(1, 1);
     const auto id = engine.acceptOnListener(1, 0, 1000);
@@ -54,11 +54,8 @@ TEST_CASE("Listener cleanup rejects nonterminal sessions without mutation", "[tc
     REQUIRE(engine.hasTCPSession(id));
 }
 
-TEST_CASE(
-    "SimulationEngine cancels a TCP session and frees listener capacity",
-    "[tcp][session][cancel]"
-)
-{
+TEST_CASE("SimulationEngine cancels a TCP session and frees listener capacity",
+          "[tcp][session][cancel]") {
     Topology topology(2);
     topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
@@ -77,11 +74,8 @@ TEST_CASE(
     REQUIRE_FALSE(engine.cancelTCPSession(session_id));
 }
 
-TEST_CASE(
-    "Canceled TCP sessions make pending time-wait events harmless",
-    "[tcp][session][cancel][event]"
-)
-{
+TEST_CASE("Canceled TCP sessions make pending time-wait events harmless",
+          "[tcp][session][cancel][event]") {
     Topology topology(2);
     topology.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
 
@@ -89,17 +83,9 @@ TEST_CASE(
     auto& session = engine.createTCPSession(0, 1);
     const auto session_id = session.getSession_id();
 
-    session.getClientConnection() = TCPConnection(
-        TCPState::TIME_WAIT,
-        0,
-        0,
-        0,
-        1
-    );
+    session.getClientConnection() = TCPConnection(TCPState::TIME_WAIT, 0, 0, 0, 1);
 
-    engine.schedule(
-        std::make_unique<TCPTimeWaitTimeoutEvent>(0.0, session_id)
-    );
+    engine.schedule(std::make_unique<TCPTimeWaitTimeoutEvent>(0.0, session_id));
 
     REQUIRE(engine.cancelTCPSession(session_id));
     REQUIRE(engine.processEvent());

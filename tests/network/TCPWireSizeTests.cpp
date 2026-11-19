@@ -4,10 +4,9 @@
 
 using namespace kns;
 
-TEST_CASE("TCP control serialization is independent of application payload size", "[tcp][wire]")
-{
-    for (auto flag : {TCPFlag::SYN, TCPFlag::SYN | TCPFlag::ACK, TCPFlag::ACK,
-                      TCPFlag::FIN, TCPFlag::RST | TCPFlag::ACK}) {
+TEST_CASE("TCP control serialization is independent of application payload size", "[tcp][wire]") {
+    for (auto flag : {TCPFlag::SYN, TCPFlag::SYN | TCPFlag::ACK, TCPFlag::ACK, TCPFlag::FIN,
+                      TCPFlag::RST | TCPFlag::ACK}) {
         for (int size : {64, 65535}) {
             Topology topology(2);
             topology.addLink(0, 1, 1.0, 0.0);
@@ -24,8 +23,7 @@ TEST_CASE("TCP control serialization is independent of application payload size"
     }
 }
 
-TEST_CASE("TCP DATA serialized size includes headers exactly once", "[tcp][wire]")
-{
+TEST_CASE("TCP DATA serialized size includes headers exactly once", "[tcp][wire]") {
     Topology topology(2);
     topology.addLink(0, 1, 1.0, 0.0);
     SimulationEngine engine(topology);

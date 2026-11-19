@@ -5,8 +5,7 @@
 
 using namespace kns;
 
-TEST_CASE("DATA acknowledgement is distinct from workload generation", "[tcp][close]")
-{
+TEST_CASE("DATA acknowledgement is distinct from workload generation", "[tcp][close]") {
     TCPSession session;
     REQUIRE_FALSE(session.isDataAcknowledged());
     session.markTrafficGenerated();
@@ -26,8 +25,8 @@ TEST_CASE("DATA acknowledgement is distinct from workload generation", "[tcp][cl
     REQUIRE(session.isDataAcknowledged());
 }
 
-TEST_CASE("Automatic FIN waits for lost tail DATA to be recovered and acknowledged", "[tcp][close][loss]")
-{
+TEST_CASE("Automatic FIN waits for lost tail DATA to be recovered and acknowledged",
+          "[tcp][close][loss]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0);
     SimulationEngine engine(topology);

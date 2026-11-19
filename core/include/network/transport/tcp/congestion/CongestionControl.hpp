@@ -2,8 +2,7 @@
 
 #include <cstdint>
 
-namespace kns
-{
+namespace kns {
     /**
      * @brief Common interface for TCP congestion control algorithms.
      *
@@ -16,8 +15,7 @@ namespace kns
      * Concrete implementations (Tahoe, Reno, NewReno and CUBIC)
      * define how this state evolves over time.
      */
-    class CongestionControl
-    {
+    class CongestionControl {
     public:
         virtual ~CongestionControl() = default;
 
@@ -45,17 +43,13 @@ namespace kns
          *
          * @return true if the new segment fits within the current cwnd.
          */
-        virtual bool canSend(
-            std::uint32_t bytes_in_flight,
-            std::uint32_t segment_size
-        ) const noexcept = 0;
+        virtual bool canSend(std::uint32_t bytes_in_flight,
+                             std::uint32_t segment_size) const noexcept = 0;
 
         /**
          * @brief Notifies the algorithm that new bytes were acknowledged.
          */
-        virtual void onAck(
-            std::uint32_t acknowledged_bytes
-        ) noexcept = 0;
+        virtual void onAck(std::uint32_t acknowledged_bytes) noexcept = 0;
 
         /**
          * @brief Notifies the algorithm that packet loss was detected
@@ -71,10 +65,7 @@ namespace kns
          *
          * @param flight_size Current amount of outstanding data.
          */
-        virtual void onFastRetransmit(
-            std::uint32_t flight_size
-        ) noexcept
-        {
+        virtual void onFastRetransmit(std::uint32_t flight_size) noexcept {
             static_cast<void>(flight_size);
             onLoss();
         }
@@ -83,9 +74,7 @@ namespace kns
          * @brief Notifies the algorithm that another duplicate ACK
          * arrived while recovering from fast retransmit.
          */
-        virtual void onDuplicateAck() noexcept
-        {
-        }
+        virtual void onDuplicateAck() noexcept {}
 
         /**
          * @brief Notifies the algorithm that an ACK was received
@@ -95,11 +84,8 @@ namespace kns
          * @param recovery_complete true when the ACK covers all data
          *                           outstanding when fast recovery began.
          */
-        virtual void onRecoveryAck(
-            std::uint32_t acknowledged_bytes,
-            bool recovery_complete = true
-        ) noexcept
-        {
+        virtual void onRecoveryAck(std::uint32_t acknowledged_bytes,
+                                   bool recovery_complete = true) noexcept {
             static_cast<void>(acknowledged_bytes);
             static_cast<void>(recovery_complete);
         }

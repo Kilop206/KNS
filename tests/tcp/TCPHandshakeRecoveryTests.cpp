@@ -6,8 +6,8 @@
 
 using namespace kns;
 
-TEST_CASE("Duplicate SYN-ACK is acknowledged without resetting established state", "[tcp][handshake][loss]")
-{
+TEST_CASE("Duplicate SYN-ACK is acknowledged without resetting established state",
+          "[tcp][handshake][loss]") {
     TCPConnection client(TCPState::SYN_SENT, 1000, 0, 0, 1);
     REQUIRE(client.receive_syn_ack(500, 1001));
     REQUIRE_FALSE(client.receive_syn_ack(501, 1001));
@@ -18,8 +18,8 @@ TEST_CASE("Duplicate SYN-ACK is acknowledged without resetting established state
     REQUIRE(client.getTcpState() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE("Lost final handshake ACK is recovered or terminates within its retry budget", "[tcp][handshake][loss]")
-{
+TEST_CASE("Lost final handshake ACK is recovered or terminates within its retry budget",
+          "[tcp][handshake][loss]") {
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0, 0.0);
     SimulationEngine engine(topology);
@@ -61,8 +61,8 @@ TEST_CASE("Lost final handshake ACK is recovered or terminates within its retry 
     REQUIRE(listener.getActiveConnections() == 0);
 }
 
-TEST_CASE("Duplicate SYN preserves sequence state and rejects a different SYN", "[tcp][handshake][loss]")
-{
+TEST_CASE("Duplicate SYN preserves sequence state and rejects a different SYN",
+          "[tcp][handshake][loss]") {
     TCPConnection server(TCPState::LISTEN, 500, 0, 1, 0);
     REQUIRE(server.receive_syn(1000));
     const auto original = server.buildSynAck();
@@ -75,8 +75,8 @@ TEST_CASE("Duplicate SYN preserves sequence state and rejects a different SYN", 
     REQUIRE(server.getReceiveBufferedBytes() == 0);
 }
 
-TEST_CASE("Lost SYN-ACK recovers through a duplicate SYN without another listener slot", "[tcp][handshake][loss]")
-{
+TEST_CASE("Lost SYN-ACK recovers through a duplicate SYN without another listener slot",
+          "[tcp][handshake][loss]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 1.0);
     SimulationEngine engine(topology);
@@ -105,8 +105,7 @@ TEST_CASE("Lost SYN-ACK recovers through a duplicate SYN without another listene
     REQUIRE(session.getFailureReason() == TCPSession::FailureReason::None);
 }
 
-TEST_CASE("SYN loss preserves bounded handshake retries", "[tcp][handshake][loss]")
-{
+TEST_CASE("SYN loss preserves bounded handshake retries", "[tcp][handshake][loss]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 1.0);
     SimulationEngine engine(topology);
@@ -121,11 +120,13 @@ TEST_CASE("SYN loss preserves bounded handshake retries", "[tcp][handshake][loss
 
     SECTION("Connectivity returns before retries are exhausted") {
         link->setLossProb(0.0);
-        for (int i = 0; i < 10 &&
-                engine.getTCPSession(id).getClientConnection().getTcpState() == TCPState::SYN_SENT; ++i) {
+        for (int i = 0; i < 10 && engine.getTCPSession(id).getClientConnection().getTcpState() ==
+                                      TCPState::SYN_SENT;
+             ++i) {
             REQUIRE(engine.processEvent());
         }
-        REQUIRE(engine.getTCPSession(id).getClientConnection().getTcpState() == TCPState::ESTABLISHED);
+        REQUIRE(engine.getTCPSession(id).getClientConnection().getTcpState() ==
+                TCPState::ESTABLISHED);
     }
     SECTION("Permanent loss has a finite retry budget") {
         int events = 0;
@@ -138,12 +139,12 @@ TEST_CASE("SYN loss preserves bounded handshake retries", "[tcp][handshake][loss
         REQUIRE_FALSE(engine.getTCPSession(id).getClientConnection().canRetrySyn());
         REQUIRE(engine.getTCPSession(id).getState() == TCPState::CLOSED);
         REQUIRE(engine.getTCPSession(id).getFailureReason() ==
-            TCPSession::FailureReason::SynRetriesExhausted);
+                TCPSession::FailureReason::SynRetriesExhausted);
     }
 }
 
-TEST_CASE("Exhausted handshake terminates endpoints and releases listener capacity", "[tcp][handshake][loss]")
-{
+TEST_CASE("Exhausted handshake terminates endpoints and releases listener capacity",
+          "[tcp][handshake][loss]") {
     SimulationEngine engine(Topology(2));
     auto& listener = engine.startTCPListen(1, 1);
     const auto id = engine.acceptOnListener(1, 0, 1000);

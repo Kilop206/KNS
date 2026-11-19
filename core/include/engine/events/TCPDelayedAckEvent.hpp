@@ -4,26 +4,17 @@
 
 #include "engine/core/Event.hpp"
 
-namespace kns
-{
-    class TCPDelayedAckEvent : public Event
-    {
+namespace kns {
+    class TCPDelayedAckEvent : public Event {
     public:
         static constexpr double DEFAULT_DELAY = 0.2;
 
-        TCPDelayedAckEvent(
-            double timestamp,
-            std::uint64_t session_id,
-            int receiver_node,
-            std::uint32_t acknowledgement
-        );
+        TCPDelayedAckEvent(double timestamp, std::uint64_t session_id, int receiver_node,
+                           std::uint32_t acknowledgement);
 
-        void execute(
-            SimulationEngine& engine
-        ) override;
+        void execute(SimulationEngine& engine) override;
 
-        const char* getName() const noexcept override
-        {
+        const char* getName() const noexcept override {
             return "TCPDelayedAckEvent";
         }
 

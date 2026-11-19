@@ -11,10 +11,7 @@ namespace gui {
 
     class TranslationService;
 
-    enum class TcpConnectionActionType {
-        Open,
-        Cancel
-    };
+    enum class TcpConnectionActionType { Open, Cancel };
 
     struct TcpConnectionAction {
         TcpConnectionActionType type = TcpConnectionActionType::Open;
@@ -27,10 +24,8 @@ namespace gui {
 
     class TcpConnectionPanel {
     public:
-        [[nodiscard]] std::optional<TcpConnectionAction> render(
-            const kns::SimulationEngine& engine,
-            TranslationService& translations
-        );
+        [[nodiscard]] std::optional<TcpConnectionAction> render(const kns::SimulationEngine& engine,
+                                                                TranslationService& translations);
 
     private:
         int source_node_ = 0;

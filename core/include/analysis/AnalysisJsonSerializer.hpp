@@ -6,12 +6,10 @@
 
 namespace kns::analysis {
 
-class AnalysisJsonSerializer {
-public:
-    [[nodiscard]]
-    static nlohmann::json toJson(
-        const NetworkAnalysis& analysis
-    );
-};
+    class AnalysisJsonSerializer {
+    public:
+        [[nodiscard]]
+        static nlohmann::json toJson(const NetworkAnalysis& analysis);
+    };
 
 }

@@ -7,15 +7,8 @@
 
 using namespace kns;
 
-TEST_CASE(
-    "Reno starts with one MSS congestion window",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno starts with one MSS congestion window", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     REQUIRE(control.getMss() == 1000);
     REQUIRE(control.getCwnd() == 1000);
@@ -23,15 +16,9 @@ TEST_CASE(
     REQUIRE_FALSE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno slow start increases cwnd by acknowledged bytes up to one MSS",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        8000
-    );
+TEST_CASE("Reno slow start increases cwnd by acknowledged bytes up to one MSS",
+          "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 8000);
 
     control.onAck(1000);
 
@@ -46,15 +33,9 @@ TEST_CASE(
     REQUIRE(control.getCwnd() == 3500);
 }
 
-TEST_CASE(
-    "Reno congestion avoidance increases cwnd using MSS squared over cwnd",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        2000
-    );
+TEST_CASE("Reno congestion avoidance increases cwnd using MSS squared over cwnd",
+          "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 2000);
 
     control.onAck(1000);
 
@@ -65,15 +46,8 @@ TEST_CASE(
     REQUIRE(control.getCwnd() == 2500);
 }
 
-TEST_CASE(
-    "Reno fast retransmit enters fast recovery",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno fast retransmit enters fast recovery", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onAck(1000);
     control.onAck(1000);
@@ -88,15 +62,8 @@ TEST_CASE(
     REQUIRE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno duplicate ACKs inflate cwnd during fast recovery",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno duplicate ACKs inflate cwnd during fast recovery", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onFastRetransmit(10000);
 
@@ -113,15 +80,8 @@ TEST_CASE(
     REQUIRE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno new ACK exits fast recovery at ssthresh",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno new ACK exits fast recovery at ssthresh", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onFastRetransmit(10000);
 
@@ -133,15 +93,8 @@ TEST_CASE(
     REQUIRE_FALSE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno timeout loss resets cwnd to one MSS",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno timeout loss resets cwnd to one MSS", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onAck(1000);
     control.onAck(1000);
@@ -156,15 +109,8 @@ TEST_CASE(
     REQUIRE_FALSE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno fast retransmit uses a two MSS minimum ssthresh",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno fast retransmit uses a two MSS minimum ssthresh", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onFastRetransmit(1000);
 
@@ -172,15 +118,8 @@ TEST_CASE(
     REQUIRE(control.getCwnd() == 5000);
 }
 
-TEST_CASE(
-    "Reno ignores duplicate ACKs outside fast recovery",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        64000
-    );
+TEST_CASE("Reno ignores duplicate ACKs outside fast recovery", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 64000);
 
     control.onDuplicateAck();
 
@@ -188,15 +127,8 @@ TEST_CASE(
     REQUIRE_FALSE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno reset restores the initial congestion state",
-    "[tcp][congestion][reno]"
-)
-{
-    RenoCongestionControl control(
-        1000,
-        8000
-    );
+TEST_CASE("Reno reset restores the initial congestion state", "[tcp][congestion][reno]") {
+    RenoCongestionControl control(1000, 8000);
 
     control.onAck(1000);
     control.onFastRetransmit(2000);
@@ -209,13 +141,6 @@ TEST_CASE(
     REQUIRE_FALSE(control.inFastRecovery());
 }
 
-TEST_CASE(
-    "Reno rejects a zero MSS",
-    "[tcp][congestion][reno]"
-)
-{
-    REQUIRE_THROWS_AS(
-        RenoCongestionControl(0),
-        std::invalid_argument
-    );
+TEST_CASE("Reno rejects a zero MSS", "[tcp][congestion][reno]") {
+    REQUIRE_THROWS_AS(RenoCongestionControl(0), std::invalid_argument);
 }

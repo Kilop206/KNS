@@ -79,12 +79,11 @@ namespace fs = std::filesystem;
 
 constexpr double kBasePacketsPerSecond = 1.0;
 constexpr double kBasePacketsPerMinute = kBasePacketsPerSecond * 60.0;
-constexpr double kSimToVisualScale     = 20.0;
+constexpr double kSimToVisualScale = 20.0;
 
 namespace {
 
-    void printUsage(std::ostream& output)
-    {
+    void printUsage(std::ostream& output) {
         output
             << "Usage:\n"
             << "  KNS [topology.json]\n"
@@ -117,14 +116,16 @@ namespace {
             << "  tahoe, reno (default), newreno, cubic\n";
     }
 
-    [[nodiscard]] std::optional<CongestionControlType> parseCongestionControl(
-        std::string_view value
-    ) noexcept
-    {
-        if (value == "tahoe") return CongestionControlType::TAHOE;
-        if (value == "reno") return CongestionControlType::RENO;
-        if (value == "newreno") return CongestionControlType::NEW_RENO;
-        if (value == "cubic") return CongestionControlType::CUBIC;
+    [[nodiscard]] std::optional<CongestionControlType>
+    parseCongestionControl(std::string_view value) noexcept {
+        if (value == "tahoe")
+            return CongestionControlType::TAHOE;
+        if (value == "reno")
+            return CongestionControlType::RENO;
+        if (value == "newreno")
+            return CongestionControlType::NEW_RENO;
+        if (value == "cubic")
+            return CongestionControlType::CUBIC;
         return std::nullopt;
     }
 
@@ -135,21 +136,21 @@ namespace {
         bool up = false;
     };
 
-    [[nodiscard]] std::optional<HeadlessLinkEvent> parseHeadlessLinkEvent(
-        std::string_view value
-    ) noexcept
-    {
+    [[nodiscard]] std::optional<HeadlessLinkEvent>
+    parseHeadlessLinkEvent(std::string_view value) noexcept {
         try {
             std::array<std::string, 4> parts;
             std::size_t start = 0;
             for (std::size_t index = 0; index < parts.size(); ++index) {
                 const auto separator = value.find(':', start);
                 if (index + 1 < parts.size()) {
-                    if (separator == std::string_view::npos) return std::nullopt;
+                    if (separator == std::string_view::npos)
+                        return std::nullopt;
                     parts[index] = std::string(value.substr(start, separator - start));
                     start = separator + 1;
                 } else {
-                    if (separator != std::string_view::npos) return std::nullopt;
+                    if (separator != std::string_view::npos)
+                        return std::nullopt;
                     parts[index] = std::string(value.substr(start));
                 }
             }
@@ -162,13 +163,15 @@ namespace {
 
             parsed = 0;
             const long node_a = std::stol(parts[1], &parsed);
-            if (parsed != parts[1].size() || node_a < 0 || node_a > std::numeric_limits<int>::max()) {
+            if (parsed != parts[1].size() || node_a < 0 ||
+                node_a > std::numeric_limits<int>::max()) {
                 return std::nullopt;
             }
 
             parsed = 0;
             const long node_b = std::stol(parts[2], &parsed);
-            if (parsed != parts[2].size() || node_b < 0 || node_b > std::numeric_limits<int>::max()) {
+            if (parsed != parts[2].size() || node_b < 0 ||
+                node_b > std::numeric_limits<int>::max()) {
                 return std::nullopt;
             }
 
@@ -179,56 +182,36 @@ namespace {
                 return std::nullopt;
             }
 
-            return HeadlessLinkEvent{
-                at_time,
-                static_cast<int>(node_a),
-                static_cast<int>(node_b),
-                up
-            };
+            return HeadlessLinkEvent{at_time, static_cast<int>(node_a), static_cast<int>(node_b),
+                                     up};
         } catch (...) {
             return std::nullopt;
         }
     }
 
-    [[nodiscard]] bool isAutoStartEnabledValue(
-        std::string_view value
-    ) noexcept
-    {
-        return value != "0" &&
-            value != "false" &&
-            value != "False";
+    [[nodiscard]] bool isAutoStartEnabledValue(std::string_view value) noexcept {
+        return value != "0" && value != "false" && value != "False";
     }
 
-    [[nodiscard]] bool autoStartFromEnvironment(
-        bool default_value
-    ) noexcept
-    {
-        const auto raw_value =
-            kns::app::readEnvironmentVariable("KNS_AUTO_START");
+    [[nodiscard]] bool autoStartFromEnvironment(bool default_value) noexcept {
+        const auto raw_value = kns::app::readEnvironmentVariable("KNS_AUTO_START");
 
-        return !raw_value.has_value()
-            ? default_value
-            : isAutoStartEnabledValue(*raw_value);
+        return !raw_value.has_value() ? default_value : isAutoStartEnabledValue(*raw_value);
     }
 
-    [[nodiscard]] kns::app::hub::TopologyStoreClientConfig topologyStoreConfigFromEnvironment()
-    {
+    [[nodiscard]] kns::app::hub::TopologyStoreClientConfig topologyStoreConfigFromEnvironment() {
         kns::app::hub::TopologyStoreClientConfig config;
-        if (const auto base_url =
-                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_URL")) {
+        if (const auto base_url = kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_URL")) {
             config.base_url = *base_url;
         }
-        if (const auto token =
-                kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_TOKEN")) {
+        if (const auto token = kns::app::readEnvironmentVariable("KNS_TOPOLOGY_STORE_TOKEN")) {
             config.bearer_token = *token;
         }
         return config;
     }
 
-    [[nodiscard]] kns::app::hub::StoredTopology loadTopologyFromHub(
-        const std::string& topology_id
-    )
-    {
+    [[nodiscard]] kns::app::hub::StoredTopology
+    loadTopologyFromHub(const std::string& topology_id) {
         return kns::app::hub::TopologyStoreClient(topologyStoreConfigFromEnvironment())
             .fetchTopology(topology_id);
     }
@@ -248,56 +231,49 @@ struct EventLog {
     std::deque<LogEntry> lines;
     std::size_t max_lines = 300;
 
-    void add(
-        double time,
-        kns::PacketType type,
-        int from,
-        int to,
-        std::uint64_t session_id,
-        std::string line
-    ) {
-        lines.push_back(LogEntry{
-            time,
-            type,
-            from,
-            to,
-            session_id,
-            std::move(line)
-        });
+    void add(double time, kns::PacketType type, int from, int to, std::uint64_t session_id,
+             std::string line) {
+        lines.push_back(LogEntry{time, type, from, to, session_id, std::move(line)});
 
         if (lines.size() > max_lines) {
             lines.pop_front();
         }
     }
 
-    void clear() noexcept
-    {
+    void clear() noexcept {
         lines.clear();
     }
 };
 
-static const char* tcpStateToString(kns::TCPState state)
-{
-    switch (state)
-    {
-        case kns::TCPState::CLOSED:       return "CLOSED";
-        case kns::TCPState::SYN_SENT:     return "SYN_SENT";
-        case kns::TCPState::SYN_RECEIVED: return "SYN_RECEIVED";
-        case kns::TCPState::ESTABLISHED:  return "ESTABLISHED";
-        case kns::TCPState::FIN_WAIT_1:   return "FIN_WAIT_1";
-        case kns::TCPState::FIN_WAIT_2:   return "FIN_WAIT_2";
-        case kns::TCPState::CLOSE_WAIT:   return "CLOSE_WAIT";
-        case kns::TCPState::LAST_ACK:     return "LAST_ACK";
-        case kns::TCPState::TIME_WAIT:    return "TIME_WAIT";
-        case kns::TCPState::CLOSING:      return "CLOSING";
-        default:                          return "UNKNOWN";
+static const char* tcpStateToString(kns::TCPState state) {
+    switch (state) {
+        case kns::TCPState::CLOSED:
+            return "CLOSED";
+        case kns::TCPState::SYN_SENT:
+            return "SYN_SENT";
+        case kns::TCPState::SYN_RECEIVED:
+            return "SYN_RECEIVED";
+        case kns::TCPState::ESTABLISHED:
+            return "ESTABLISHED";
+        case kns::TCPState::FIN_WAIT_1:
+            return "FIN_WAIT_1";
+        case kns::TCPState::FIN_WAIT_2:
+            return "FIN_WAIT_2";
+        case kns::TCPState::CLOSE_WAIT:
+            return "CLOSE_WAIT";
+        case kns::TCPState::LAST_ACK:
+            return "LAST_ACK";
+        case kns::TCPState::TIME_WAIT:
+            return "TIME_WAIT";
+        case kns::TCPState::CLOSING:
+            return "CLOSING";
+        default:
+            return "UNKNOWN";
     }
 }
 
-static ImU32 tcpStateColor(kns::TCPState state)
-{
-    switch (state)
-    {
+static ImU32 tcpStateColor(kns::TCPState state) {
+    switch (state) {
         case kns::TCPState::ESTABLISHED:
             return IM_COL32(200, 255, 200, 255);
 
@@ -324,46 +300,29 @@ static ImU32 tcpStateColor(kns::TCPState state)
     }
 }
 
-static void renderTCPSessionsWindow(
-    const kns::SimulationEngine& engine,
-    TranslationService& translations
-)
-{
-    const std::string window_label =
-        translations.label("TCP Sessions", "tcp-sessions-window");
+static void renderTCPSessionsWindow(const kns::SimulationEngine& engine,
+                                    TranslationService& translations) {
+    const std::string window_label = translations.label("TCP Sessions", "tcp-sessions-window");
     ImGui::Begin(window_label.c_str());
 
     const auto& sessions = engine.getTCPSessions();
 
-    if (ImGui::BeginTable(
-        "TCPSessionsTable",
-        4,
-        ImGuiTableFlags_RowBg |
-        ImGuiTableFlags_Borders |
-        ImGuiTableFlags_Resizable))
-    {
+    if (ImGui::BeginTable("TCPSessionsTable", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_Resizable)) {
         ImGui::TableSetupColumn(translations.translate("Session").c_str());
         ImGui::TableSetupColumn(translations.translate("Source").c_str());
         ImGui::TableSetupColumn(translations.translate("Destination").c_str());
         ImGui::TableSetupColumn(translations.translate("State").c_str());
         ImGui::TableHeadersRow();
 
-        for (const auto& [id, session] : sessions)
-        {
+        for (const auto& [id, session] : sessions) {
             ImGui::TableNextRow();
 
-            ImGui::TableSetBgColor(
-                ImGuiTableBgTarget_RowBg0,
-                tcpStateColor(session.getState())
-            );
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, tcpStateColor(session.getState()));
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text(
-                "%llu",
-                static_cast<unsigned long long>(
-                    session.getSession_id()
-                )
-            );
+            ImGui::Text("%llu", static_cast<unsigned long long>(session.getSession_id()));
 
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%i", session.getSource());
@@ -373,10 +332,7 @@ static void renderTCPSessionsWindow(
 
             ImGui::TableSetColumnIndex(3);
             ImGui::TextUnformatted(
-                translations.translate(
-                    tcpStateToString(session.getState())
-                ).c_str()
-            );
+                translations.translate(tcpStateToString(session.getState())).c_str());
         }
 
         ImGui::EndTable();
@@ -385,24 +341,14 @@ static void renderTCPSessionsWindow(
     ImGui::End();
 }
 
-static void renderEventLogWindow(
-    const EventLog& log,
-    TranslationService& translations
-)
-{
-    const std::string window_label =
-        translations.label("Event Log", "event-log-window");
+static void renderEventLogWindow(const EventLog& log, TranslationService& translations) {
+    const std::string window_label = translations.label("Event Log", "event-log-window");
     ImGui::Begin(window_label.c_str());
 
-    if (ImGui::BeginTable(
-        "EventLogTable",
-        6,
-        ImGuiTableFlags_RowBg |
-        ImGuiTableFlags_Borders |
-        ImGuiTableFlags_Resizable |
-        ImGuiTableFlags_ScrollY,
-        ImVec2(0.0f, 0.0f)))
-    {
+    if (ImGui::BeginTable("EventLogTable", 6,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY,
+                          ImVec2(0.0f, 0.0f))) {
         ImGui::TableSetupColumn(translations.translate("Time").c_str());
         ImGui::TableSetupColumn(translations.translate("Type").c_str());
         ImGui::TableSetupColumn(translations.translate("From").c_str());
@@ -411,14 +357,12 @@ static void renderEventLogWindow(
         ImGui::TableSetupColumn(translations.translate("Details").c_str());
         ImGui::TableHeadersRow();
 
-        for (const auto& entry : log.lines)
-        {
+        for (const auto& entry : log.lines) {
             ImGui::TableNextRow();
 
             ImU32 rowColor = IM_COL32(255, 255, 255, 255);
 
-            switch (entry.type)
-            {
+            switch (entry.type) {
                 case kns::PacketType::SYN:
                     rowColor = IM_COL32(255, 240, 170, 255);
                     break;
@@ -447,18 +391,13 @@ static void renderEventLogWindow(
                     break;
             }
 
-            ImGui::TableSetBgColor(
-                ImGuiTableBgTarget_RowBg0,
-                rowColor
-            );
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, rowColor);
 
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%.3f", entry.time);
 
             ImGui::TableSetColumnIndex(1);
-            ImGui::TextUnformatted(
-                PacketRenderer::packetTypeToString(entry.type)
-            );
+            ImGui::TextUnformatted(PacketRenderer::packetTypeToString(entry.type));
 
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%d", entry.from);
@@ -467,12 +406,7 @@ static void renderEventLogWindow(
             ImGui::Text("%d", entry.to);
 
             ImGui::TableSetColumnIndex(4);
-            ImGui::Text(
-                "%llu",
-                static_cast<unsigned long long>(
-                    entry.session_id
-                )
-            );
+            ImGui::Text("%llu", static_cast<unsigned long long>(entry.session_id));
 
             ImGui::TableSetColumnIndex(5);
             ImGui::TextUnformatted(entry.text.c_str());
@@ -488,52 +422,33 @@ static void renderEventLogWindow(
     ImGui::End();
 }
 
-static std::vector<std::pair<int, int>> buildConnectionPlan(
-    const Topology& topo
-)
-{
+static std::vector<std::pair<int, int>> buildConnectionPlan(const Topology& topo) {
     std::set<std::pair<int, int>> connections;
 
-    for (std::size_t i = 0;
-         i < static_cast<std::size_t>(topo.size());
-         ++i)
-    {
-        for (const auto& link :
-             topo.getLinksFromNode(static_cast<int>(i)))
-        {
-            if (link &&
-                link->getA() >= 0 &&
-                link->getB() >= 0)
-            {
-                connections.insert({
-                    link->getA(),
-                    link->getB()
-                });
+    for (std::size_t i = 0; i < static_cast<std::size_t>(topo.size()); ++i) {
+        for (const auto& link : topo.getLinksFromNode(static_cast<int>(i))) {
+            if (link && link->getA() >= 0 && link->getB() >= 0) {
+                connections.insert({link->getA(), link->getB()});
             }
         }
     }
 
-    return {
-        connections.begin(),
-        connections.end()
-    };
+    return {connections.begin(), connections.end()};
 }
 
-static void generatePackets(
-    std::unique_ptr<SimulationEngine>& engine,
-    const Topology& topo
-)
-{
+static void generatePackets(std::unique_ptr<SimulationEngine>& engine, const Topology& topo) {
     if (!engine || topo.size() <= 0) {
         return;
     }
 
     bool typed = false;
     for (int id = 0; id < topo.size(); ++id)
-        typed |= topo.getNode(id)->isActive() && topo.getNode(id)->getDeviceInfo().type != DeviceType::Unknown;
+        typed |= topo.getNode(id)->isActive() &&
+                 topo.getNode(id)->getDeviceInfo().type != DeviceType::Unknown;
     if (!typed) {
         for (const auto& [from, to] : buildConnectionPlan(topo)) {
-            if (engine->canStartTCPConnection(from, to)) engine->startTCPConnection(from, to);
+            if (engine->canStartTCPConnection(from, to))
+                engine->startTCPConnection(from, to);
         }
         return;
     }
@@ -541,37 +456,31 @@ static void generatePackets(
     // Choose one reachable peer per client, preferring servers in stable ID order.
     for (int from = 0; from < topo.size(); ++from) {
         const auto caps = deviceCapabilities(topo.getNode(from)->getDeviceInfo().type);
-        if (!caps.tcp_client || caps.forward) continue;
+        if (!caps.tcp_client || caps.forward)
+            continue;
         int destination = -1;
         for (const auto& route : engine->getRoutingTable(from)) {
             const int to = route.destination;
-            if (to == from || route.next_hop < 0 || !engine->canStartTCPConnection(from, to)) continue;
-            if (destination < 0) destination = to;
-            if (topo.getNode(to)->getDeviceInfo().type == DeviceType::Server) { destination = to; break; }
+            if (to == from || route.next_hop < 0 || !engine->canStartTCPConnection(from, to))
+                continue;
+            if (destination < 0)
+                destination = to;
+            if (topo.getNode(to)->getDeviceInfo().type == DeviceType::Server) {
+                destination = to;
+                break;
+            }
         }
-        if (destination >= 0) engine->startTCPConnection(from, destination);
+        if (destination >= 0)
+            engine->startTCPConnection(from, destination);
     }
 }
 
-static void renderStatsWindow(
-    SimulationEngine& engine,
-    TranslationService& translations,
-    SimulationState& state,
-    const Stats& stats,
-    CircularBuffer& buffer,
-    int& packetSize,
-    float& lossProb,
-    bool& lossOverride,
-    float& speedMultiplier,
-    bool& stepRequested,
-    bool engineHasEvents,
-    bool& restartRequested
-)
-{
-    const auto label = [&translations](
-        std::string_view english,
-        std::string_view stable_id
-    ) {
+static void renderStatsWindow(SimulationEngine& engine, TranslationService& translations,
+                              SimulationState& state, const Stats& stats, CircularBuffer& buffer,
+                              int& packetSize, float& lossProb, bool& lossOverride,
+                              float& speedMultiplier, bool& stepRequested, bool engineHasEvents,
+                              bool& restartRequested) {
+    const auto label = [&translations](std::string_view english, std::string_view stable_id) {
         return translations.label(english, stable_id);
     };
 
@@ -587,16 +496,11 @@ static void renderStatsWindow(
         }
     }
 
-    if (ImGui::BeginCombo(
-            label("Language", "interface-language").c_str(),
-            language_options[selected_language].display_name.data()
-        )) {
+    if (ImGui::BeginCombo(label("Language", "interface-language").c_str(),
+                          language_options[selected_language].display_name.data())) {
         for (std::size_t i = 0; i < language_options.size(); ++i) {
             const bool selected = i == selected_language;
-            if (ImGui::Selectable(
-                    language_options[i].display_name.data(),
-                    selected
-                )) {
+            if (ImGui::Selectable(language_options[i].display_name.data(), selected)) {
                 translations.setLanguage(language_options[i].language);
             }
             if (selected) {
@@ -607,37 +511,25 @@ static void renderStatsWindow(
     }
 
     if (translations.isTranslating()) {
-        ImGui::TextDisabled(
-            "%s",
-            translations.translate("Translating interface...").c_str()
-        );
+        ImGui::TextDisabled("%s", translations.translate("Translating interface...").c_str());
     }
 
     if (const std::string error = translations.getLastError(); !error.empty()) {
-        ImGui::TextWrapped(
-            "%s: %s",
-            translations.translate("Translation unavailable").c_str(),
-            error.c_str()
-        );
+        ImGui::TextWrapped("%s: %s", translations.translate("Translation unavailable").c_str(),
+                           error.c_str());
         if (ImGui::SmallButton(label("Retry", "retry-translation").c_str())) {
             translations.retry();
         }
     }
 
-    if (ImGui::CollapsingHeader(
-        label("Simulation", "simulation-section").c_str(),
-        ImGuiTreeNodeFlags_DefaultOpen))
-    {
+    if (ImGui::CollapsingHeader(label("Simulation", "simulation-section").c_str(),
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
         // --------------------------------------------------
         // READY
         // --------------------------------------------------
 
-        if (state == SimulationState::Ready)
-        {
-            ImGui::TextDisabled(
-                "%s",
-                translations.translate("Simulation ready.").c_str()
-            );
+        if (state == SimulationState::Ready) {
+            ImGui::TextDisabled("%s", translations.translate("Simulation ready.").c_str());
 
             ImGui::BeginDisabled(!engineHasEvents);
 
@@ -652,12 +544,9 @@ static void renderStatsWindow(
         // RUNNING
         // --------------------------------------------------
 
-        else if (state == SimulationState::Running)
-        {
-            if (ImGui::Button(label("Pause", "pause-simulation").c_str()))
-            {
-                state =
-                    SimulationState::Paused;
+        else if (state == SimulationState::Running) {
+            if (ImGui::Button(label("Pause", "pause-simulation").c_str())) {
+                state = SimulationState::Paused;
             }
         }
 
@@ -665,23 +554,17 @@ static void renderStatsWindow(
         // PAUSED
         // --------------------------------------------------
 
-        else if (state == SimulationState::Paused)
-        {
-            if (ImGui::Button(label("Resume", "resume-simulation").c_str()))
-            {
-                if (engineHasEvents)
-                {
-                    state =
-                        SimulationState::Running;
+        else if (state == SimulationState::Paused) {
+            if (ImGui::Button(label("Resume", "resume-simulation").c_str())) {
+                if (engineHasEvents) {
+                    state = SimulationState::Running;
                 }
             }
 
-            if (engineHasEvents)
-            {
+            if (engineHasEvents) {
                 ImGui::SameLine();
 
-                if (ImGui::Button(label("Step", "step-simulation").c_str()))
-                {
+                if (ImGui::Button(label("Step", "step-simulation").c_str())) {
                     stepRequested = true;
                 }
             }
@@ -691,33 +574,19 @@ static void renderStatsWindow(
         // FINISHED
         // --------------------------------------------------
 
-        else if (state == SimulationState::Finished)
-        {
-            ImGui::TextDisabled(
-                "%s",
-                translations.translate("Simulation finished.").c_str()
-            );
+        else if (state == SimulationState::Finished) {
+            ImGui::TextDisabled("%s", translations.translate("Simulation finished.").c_str());
         }
 
         if (ImGui::Button(label("Restart", "restart-simulation").c_str())) {
             restartRequested = true;
         }
 
-        ImGui::SliderFloat(
-            label("Simulation speed", "simulation-speed").c_str(),
-            &speedMultiplier,
-            0.18f,
-            4.0f,
-            "%.2fx"
-        );
+        ImGui::SliderFloat(label("Simulation speed", "simulation-speed").c_str(), &speedMultiplier,
+                           0.18f, 4.0f, "%.2fx");
 
-        if (state == SimulationState::Ready &&
-            !engineHasEvents)
-        {
-            ImGui::TextDisabled(
-                "%s",
-                translations.translate("No traffic scheduled.").c_str()
-            );
+        if (state == SimulationState::Ready && !engineHasEvents) {
+            ImGui::TextDisabled("%s", translations.translate("No traffic scheduled.").c_str());
         }
     }
 
@@ -725,62 +594,41 @@ static void renderStatsWindow(
     // Traffic
     // ------------------------------------------------------
 
-    if (ImGui::CollapsingHeader(
-        label("Traffic", "traffic-section").c_str(),
-        ImGuiTreeNodeFlags_DefaultOpen))
-    {
+    if (ImGui::CollapsingHeader(label("Traffic", "traffic-section").c_str(),
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Checkbox(label("Override link loss", "loss-override").c_str(), &lossOverride)) {
-            if (lossOverride) engine.setGlobalLossProb(lossProb);
-            else engine.clearGlobalLossOverride();
+            if (lossOverride)
+                engine.setGlobalLossProb(lossProb);
+            else
+                engine.clearGlobalLossOverride();
         }
         ImGui::BeginDisabled(!lossOverride);
-        float lossPercent =
-            lossProb * 100.0f;
+        float lossPercent = lossProb * 100.0f;
 
-        if (ImGui::SliderFloat(
-            label("Loss probability", "loss-probability").c_str(),
-            &lossPercent,
-            0.0f,
-            100.0f,
-            "%.0f %%"))
-        {
-            lossProb =
-                lossPercent / 100.0f;
+        if (ImGui::SliderFloat(label("Loss probability", "loss-probability").c_str(), &lossPercent,
+                               0.0f, 100.0f, "%.0f %%")) {
+            lossProb = lossPercent / 100.0f;
 
-            engine.setGlobalLossProb(
-                lossProb
-            );
+            engine.setGlobalLossProb(lossProb);
         }
 
         ImGui::EndDisabled();
 
-        if (ImGui::SliderInt(
-            label("Packet size (bytes)", "packet-size").c_str(),
-            &packetSize,
-            64,
-            65535,
-            "%d B"))
-        {
-            engine.setGlobalPacketSize(
-                packetSize
-            );
+        if (ImGui::SliderInt(label("Packet size (bytes)", "packet-size").c_str(), &packetSize, 64,
+                             65535, "%d B")) {
+            engine.setGlobalPacketSize(packetSize);
         }
 
-        ImGui::Text(
-            "%s: %s",
-            translations.translate("Current size").c_str(),
-            formatBytes(packetSize).c_str()
-        );
+        ImGui::Text("%s: %s", translations.translate("Current size").c_str(),
+                    formatBytes(packetSize).c_str());
     }
 
     // ------------------------------------------------------
     // Statistics
     // ------------------------------------------------------
 
-    if (ImGui::CollapsingHeader(
-        label("Statistics", "statistics-section").c_str(),
-        ImGuiTreeNodeFlags_DefaultOpen))
-    {
+    if (ImGui::CollapsingHeader(label("Statistics", "statistics-section").c_str(),
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
         MetricsPannel panel;
         panel.render(stats, buffer, translations);
     }
@@ -789,10 +637,8 @@ static void renderStatsWindow(
     // Congestion Control
     // ------------------------------------------------------
 
-    if (ImGui::CollapsingHeader(
-        label("TCP Congestion Control", "tcp-congestion-section").c_str(),
-        ImGuiTreeNodeFlags_DefaultOpen))
-    {
+    if (ImGui::CollapsingHeader(label("TCP Congestion Control", "tcp-congestion-section").c_str(),
+                                ImGuiTreeNodeFlags_DefaultOpen)) {
         TcpCongestionPanel panel;
         panel.render(engine, translations);
     }
@@ -802,81 +648,47 @@ static void renderStatsWindow(
     // ------------------------------------------------------
 
     if (ImGui::CollapsingHeader(
-        label("Network Configuration", "network-configuration-section").c_str()))
-    {
-        ImGui::Text(
-            "%s: %.0f %s",
-            translations.translate("Base rate").c_str(),
-            kBasePacketsPerMinute,
-            translations.translate("packets/min at 1.0x").c_str()
-        );
+            label("Network Configuration", "network-configuration-section").c_str())) {
+        ImGui::Text("%s: %.0f %s", translations.translate("Base rate").c_str(),
+                    kBasePacketsPerMinute, translations.translate("packets/min at 1.0x").c_str());
 
-        ImGui::Text(
-            "%s: %d",
-            translations.translate("Packets per route").c_str(),
-            engine.getPacketsPerRoute()
-        );
+        ImGui::Text("%s: %d", translations.translate("Packets per route").c_str(),
+                    engine.getPacketsPerRoute());
     }
 
     // ------------------------------------------------------
     // Validation
     // ------------------------------------------------------
 
-    if (ImGui::CollapsingHeader(
-        label("Validation", "validation-section").c_str()))
-    {
-        ImGui::Text(
-            "%s: %d",
-            translations.translate("Packets sent").c_str(),
-            stats.packets_sent
-        );
+    if (ImGui::CollapsingHeader(label("Validation", "validation-section").c_str())) {
+        ImGui::Text("%s: %d", translations.translate("Packets sent").c_str(), stats.packets_sent);
 
-        ImGui::Text(
-            "%s: %d",
-            translations.translate("Packets delivered").c_str(),
-            stats.packets_delivered
-        );
+        ImGui::Text("%s: %d", translations.translate("Packets delivered").c_str(),
+                    stats.packets_delivered);
 
-        ImGui::Text(
-            "%s: %d",
-            translations.translate("Packets lost").c_str(),
-            stats.packets_lost
-        );
+        ImGui::Text("%s: %d", translations.translate("Packets lost").c_str(), stats.packets_lost);
     }
 
     ImGui::End();
 }
 
-static void renderSelectedNodePanel(
-    const Topology& topo,
-    int selected_node,
-    std::span<const Routing::RoutingEntry> routingTable,
-    TranslationService& translations
-)
-{
-    const std::string window_label =
-        translations.label("Node Details", "node-details-window");
+static void renderSelectedNodePanel(const Topology& topo, int selected_node,
+                                    std::span<const Routing::RoutingEntry> routingTable,
+                                    TranslationService& translations) {
+    const std::string window_label = translations.label("Node Details", "node-details-window");
     ImGui::Begin(window_label.c_str());
 
-    if (selected_node < 0)
-    {
-        ImGui::TextUnformatted(
-            translations.translate("No node selected.").c_str()
-        );
+    if (selected_node < 0) {
+        ImGui::TextUnformatted(translations.translate("No node selected.").c_str());
         ImGui::End();
         return;
     }
 
-    ImGui::Text(
-        "%s: %d",
-        translations.translate("Selected node").c_str(),
-        selected_node
-    );
+    ImGui::Text("%s: %d", translations.translate("Selected node").c_str(), selected_node);
 
     ImGui::Separator();
 
-    if (selected_node >= topo.size() || !topo.getNode(selected_node)->isActive())
-    {
+    if (selected_node >= topo.size() || !topo.getNode(selected_node)->isActive()) {
         ImGui::TextUnformatted(translations.translate("Invalid node.").c_str());
         ImGui::End();
         return;
@@ -886,81 +698,55 @@ static void renderSelectedNodePanel(
     const auto& device = selected.getDeviceInfo();
     ImGui::TextWrapped("%s", selected.getLabel().c_str());
     ImGui::Text("Device type: %s", toString(device.type).data());
-    if (!device.mac.empty()) ImGui::Text("MAC: %s", device.mac.c_str());
-    for (const auto& address : device.addresses) ImGui::Text("IP: %s", address.c_str());
-    if (!device.evidence.empty()) ImGui::TextWrapped("Evidence: %s", device.evidence.c_str());
-    if (!device.external_id.empty()) ImGui::TextWrapped("Identity: %s", device.external_id.c_str());
+    if (!device.mac.empty())
+        ImGui::Text("MAC: %s", device.mac.c_str());
+    for (const auto& address : device.addresses)
+        ImGui::Text("IP: %s", address.c_str());
+    if (!device.evidence.empty())
+        ImGui::TextWrapped("Evidence: %s", device.evidence.c_str());
+    if (!device.external_id.empty())
+        ImGui::TextWrapped("Identity: %s", device.external_id.c_str());
     ImGui::Separator();
     ImGui::Text("%s:", translations.translate("Neighbors").c_str());
 
-    const auto& links =
-        topo.getLinksFromNode(selected_node);
+    const auto& links = topo.getLinksFromNode(selected_node);
 
     bool hasNeighbors = false;
 
-    for (const auto& link : links)
-    {
+    for (const auto& link : links) {
         if (!link) {
             continue;
         }
 
-        const int other =
-            link->getOtherNode(selected_node);
+        const int other = link->getOtherNode(selected_node);
 
-        if (other != -1)
-        {
+        if (other != -1) {
             hasNeighbors = true;
-            ImGui::BulletText(
-                "%d",
-                other
-            );
+            ImGui::BulletText("%d", other);
         }
     }
 
-    if (!hasNeighbors)
-    {
-        ImGui::TextDisabled(
-            "%s",
-            translations.translate("No neighbors.").c_str()
-        );
+    if (!hasNeighbors) {
+        ImGui::TextDisabled("%s", translations.translate("No neighbors.").c_str());
     }
 
     ImGui::Separator();
     ImGui::Text("%s:", translations.translate("Routing table").c_str());
 
-    if (routingTable.empty())
-    {
-        ImGui::TextDisabled(
-            "%s",
-            translations.translate("Routing table is empty.").c_str()
-        );
-    }
-    else
-    {
-        for (const auto& entry : routingTable)
-        {
-            if (entry.distance ==
-                std::numeric_limits<double>::infinity())
-            {
-                ImGui::Text(
-                    "%s: %d | %s: - | %s: inf",
-                    translations.translate("Destination").c_str(),
-                    entry.destination,
-                    translations.translate("Next hop").c_str(),
-                    translations.translate("Distance").c_str()
-                );
-            }
-            else
-            {
-                ImGui::Text(
-                    "%s: %d | %s: %d | %s: %.2f",
-                    translations.translate("Destination").c_str(),
-                    entry.destination,
-                    translations.translate("Next hop").c_str(),
-                    entry.next_hop,
-                    translations.translate("Distance").c_str(),
-                    entry.distance
-                );
+    if (routingTable.empty()) {
+        ImGui::TextDisabled("%s", translations.translate("Routing table is empty.").c_str());
+    } else {
+        for (const auto& entry : routingTable) {
+            if (entry.distance == std::numeric_limits<double>::infinity()) {
+                ImGui::Text("%s: %d | %s: - | %s: inf",
+                            translations.translate("Destination").c_str(), entry.destination,
+                            translations.translate("Next hop").c_str(),
+                            translations.translate("Distance").c_str());
+            } else {
+                ImGui::Text("%s: %d | %s: %d | %s: %.2f",
+                            translations.translate("Destination").c_str(), entry.destination,
+                            translations.translate("Next hop").c_str(), entry.next_hop,
+                            translations.translate("Distance").c_str(), entry.distance);
             }
         }
     }
@@ -968,74 +754,34 @@ static void renderSelectedNodePanel(
     ImGui::End();
 }
 
-static void SetupDockingLayout()
-{
-    const ImGuiID dockspace_id =
-        ImGui::GetID("MainDockSpace");
+static void SetupDockingLayout() {
+    const ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
 
-    ImGui::DockBuilderRemoveNode(
-        dockspace_id
-    );
+    ImGui::DockBuilderRemoveNode(dockspace_id);
 
-    ImGui::DockBuilderAddNode(
-        dockspace_id,
-        ImGuiDockNodeFlags_DockSpace
-    );
+    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
 
-    ImGui::DockBuilderSetNodeSize(
-        dockspace_id,
-        ImGui::GetMainViewport()->WorkSize
-    );
+    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->WorkSize);
 
-    ImGuiID dock_main =
-        dockspace_id;
+    ImGuiID dock_main = dockspace_id;
 
-    ImGuiID dock_left =
-        0;
+    ImGuiID dock_left = 0;
 
-    ImGuiID dock_right =
-        0;
+    ImGuiID dock_right = 0;
 
-    ImGui::DockBuilderSplitNode(
-        dock_main,
-        ImGuiDir_Left,
-        0.18f,
-        &dock_left,
-        &dock_main
-    );
+    ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, 0.18f, &dock_left, &dock_main);
 
-    ImGui::DockBuilderSplitNode(
-        dock_main,
-        ImGuiDir_Right,
-        0.23f,
-        &dock_right,
-        &dock_main
-    );
+    ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Right, 0.23f, &dock_right, &dock_main);
 
-    ImGui::DockBuilderDockWindow(
-        "Stats###stats-window",
-        dock_left
-    );
+    ImGui::DockBuilderDockWindow("Stats###stats-window", dock_left);
 
-    ImGui::DockBuilderDockWindow(
-        "Settings###settings-window",
-        dock_right
-    );
+    ImGui::DockBuilderDockWindow("Settings###settings-window", dock_right);
 
-    ImGui::DockBuilderDockWindow(
-        "Node Details###node-details-window",
-        dock_right
-    );
+    ImGui::DockBuilderDockWindow("Node Details###node-details-window", dock_right);
 
-    ImGui::DockBuilderDockWindow(
-        "KNS Intelligence",
-        dock_right
-    );
+    ImGui::DockBuilderDockWindow("KNS Intelligence", dock_right);
 
-    ImGui::DockBuilderDockWindow(
-        "Network###network-window",
-        dock_main
-    );
+    ImGui::DockBuilderDockWindow("Network###network-window", dock_main);
     ImGui::DockBuilderDockWindow("Topology###topology-window", dock_right);
     ImGui::DockBuilderDockWindow("TCP Connections###tcp-connections-window", dock_right);
     ImGui::DockBuilderDockWindow("Device Services###device-services-window", dock_right);
@@ -1043,71 +789,37 @@ static void SetupDockingLayout()
     ImGui::DockBuilderDockWindow("Event Log###event-log-window", dock_left);
     ImGui::DockBuilderDockWindow("TCP Congestion Control###tcp-congestion-window", dock_left);
 
-    ImGui::DockBuilderFinish(
-        dockspace_id
-    );
+    ImGui::DockBuilderFinish(dockspace_id);
 }
 
-static void BeginDockSpaceHost(
-    bool& dock_initialized
-)
-{
-    ImGuiWindowFlags dockspace_flags =
-        ImGuiWindowFlags_MenuBar |
-        ImGuiWindowFlags_NoDocking;
+static void BeginDockSpaceHost(bool& dock_initialized) {
+    ImGuiWindowFlags dockspace_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 
-    const ImGuiViewport* viewport =
-        ImGui::GetMainViewport();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    ImGui::SetNextWindowPos(
-        viewport->WorkPos
-    );
+    ImGui::SetNextWindowPos(viewport->WorkPos);
 
-    ImGui::SetNextWindowSize(
-        viewport->WorkSize
-    );
+    ImGui::SetNextWindowSize(viewport->WorkSize);
 
-    ImGui::SetNextWindowViewport(
-        viewport->ID
-    );
+    ImGui::SetNextWindowViewport(viewport->ID);
 
-    dockspace_flags |=
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoNavFocus;
+    dockspace_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                       ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                       ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-    ImGui::PushStyleVar(
-        ImGuiStyleVar_WindowRounding,
-        0.0f
-    );
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 
-    ImGui::PushStyleVar(
-        ImGuiStyleVar_WindowBorderSize,
-        0.0f
-    );
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-    ImGui::Begin(
-        "DockSpace Host",
-        nullptr,
-        dockspace_flags
-    );
+    ImGui::Begin("DockSpace Host", nullptr, dockspace_flags);
 
     ImGui::PopStyleVar(2);
 
-    const ImGuiID dockspace_id =
-        ImGui::GetID("MainDockSpace");
+    const ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
 
-    ImGui::DockSpace(
-        dockspace_id,
-        ImVec2(0.0f, 0.0f),
-        ImGuiDockNodeFlags_PassthruCentralNode
-    );
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    if (!dock_initialized)
-    {
+    if (!dock_initialized) {
         SetupDockingLayout();
         dock_initialized = true;
     }
@@ -1115,60 +827,52 @@ static void BeginDockSpaceHost(
     ImGui::End();
 }
 
-static void renderConfigWindow(
-    TranslationService& translations,
-    const std::string& topologyPath,
-    bool& watchTopology,
-    const std::string& liveError,
-    const std::string& discoveryDiffStatus,
-    const std::string& discoveryDiffError,
-    const std::string& fileStatus,
-    bool& loadRequested,
-    bool& saveRequested,
-    bool& saveHubRequested
-)
-{
-    const std::string window_label =
-        translations.label("Settings", "settings-window");
+static void renderConfigWindow(TranslationService& translations, const std::string& topologyPath,
+                               bool& watchTopology, const std::string& liveError,
+                               const std::string& discoveryDiffStatus,
+                               const std::string& discoveryDiffError, const std::string& fileStatus,
+                               bool& loadRequested, bool& saveRequested, bool& saveHubRequested) {
+    const std::string window_label = translations.label("Settings", "settings-window");
     ImGui::Begin(window_label.c_str());
 
-    ImGui::Text(
-        "%s",
-        translations.translate("Load a JSON Topology.").c_str()
-    );
+    ImGui::Text("%s", translations.translate("Load a JSON Topology.").c_str());
 
     ImGui::Separator();
 
-    const std::string load_label =
-        translations.label("Load Topology", "load-topology");
-    if (ImGui::Button(load_label.c_str()))
-    {
+    const std::string load_label = translations.label("Load Topology", "load-topology");
+    if (ImGui::Button(load_label.c_str())) {
         loadRequested = true;
     }
 
     if (ImGui::Button(translations.label("Save Topology As...", "save-topology").c_str())) {
         saveRequested = true;
     }
-    if (ImGui::Button(translations.label("Save to Topology Store", "save-topology-store").c_str())) {
+    if (ImGui::Button(
+            translations.label("Save to Topology Store", "save-topology-store").c_str())) {
         saveHubRequested = true;
     }
-    if (!fileStatus.empty()) ImGui::TextWrapped("%s", fileStatus.c_str());
+    if (!fileStatus.empty())
+        ImGui::TextWrapped("%s", fileStatus.c_str());
 
     ImGui::BeginDisabled(topologyPath.empty());
-    ImGui::Checkbox(translations.label("Follow topology file", "follow-topology").c_str(), &watchTopology);
+    ImGui::Checkbox(translations.label("Follow topology file", "follow-topology").c_str(),
+                    &watchTopology);
     ImGui::EndDisabled();
-    if (!topologyPath.empty()) ImGui::TextWrapped("Source: %s", topologyPath.c_str());
-    if (watchTopology) ImGui::TextWrapped("File updates replace the graph configuration, including manual edits. Simulation time and sessions are preserved.");
-    if (!liveError.empty()) ImGui::TextWrapped("Live update: %s", liveError.c_str());
-    if (!discoveryDiffStatus.empty()) ImGui::TextWrapped("%s", discoveryDiffStatus.c_str());
-    if (!discoveryDiffError.empty()) ImGui::TextWrapped("Discovery diff: %s", discoveryDiffError.c_str());
+    if (!topologyPath.empty())
+        ImGui::TextWrapped("Source: %s", topologyPath.c_str());
+    if (watchTopology)
+        ImGui::TextWrapped(
+            "File updates replace the graph configuration, including manual edits. Simulation time and sessions are preserved.");
+    if (!liveError.empty())
+        ImGui::TextWrapped("Live update: %s", liveError.c_str());
+    if (!discoveryDiffStatus.empty())
+        ImGui::TextWrapped("%s", discoveryDiffStatus.c_str());
+    if (!discoveryDiffError.empty())
+        ImGui::TextWrapped("Discovery diff: %s", discoveryDiffError.c_str());
     ImGui::End();
 }
 
-static void exportNetworkAnalysis(
-    const kns::Topology& topology
-)
-{
+static void exportNetworkAnalysis(const kns::Topology& topology) {
     if (topology.size() <= 0) {
         return;
     }
@@ -1176,52 +880,34 @@ static void exportNetworkAnalysis(
     try {
         const kns::analysis::NetworkAnalyzer analyzer;
 
-        const auto analysis =
-            analyzer.analyze(topology);
+        const auto analysis = analyzer.analyze(topology);
 
         // ============================================
         // Build intelligence request
         // ============================================
 
-        const auto intelligenceRequest =
-            kns::intelligence::
-                IntelligenceRequestBuilder::build(
-                    analysis,
-                    kns::intelligence::
-                        AnalysisMode::Detailed
-                );
+        const auto intelligenceRequest = kns::intelligence::IntelligenceRequestBuilder::build(
+            analysis, kns::intelligence::AnalysisMode::Detailed);
 
         // ============================================
         // Output directory
         // ============================================
 
-        const auto outputDirectory =
-            std::filesystem::current_path() /
-            "results";
+        const auto outputDirectory = std::filesystem::current_path() / "results";
 
-        std::filesystem::create_directories(
-            outputDirectory
-        );
+        std::filesystem::create_directories(outputDirectory);
 
         // ============================================
         // Full deterministic analysis
         // ============================================
 
-        const auto analysisJson =
-            kns::analysis::
-                AnalysisJsonSerializer::toJson(
-                    analysis
-                );
+        const auto analysisJson = kns::analysis::AnalysisJsonSerializer::toJson(analysis);
 
         {
-            std::ofstream output(
-                outputDirectory /
-                "network_analysis.json"
-            );
+            std::ofstream output(outputDirectory / "network_analysis.json");
 
             if (output.is_open()) {
-                output
-                    << analysisJson.dump(4);
+                output << analysisJson.dump(4);
             }
         }
 
@@ -1229,21 +915,13 @@ static void exportNetworkAnalysis(
         // Compact AI context
         // ============================================
 
-        const auto aiContext =
-            kns::analysis::
-                AIContextBuilder::build(
-                    analysis
-                );
+        const auto aiContext = kns::analysis::AIContextBuilder::build(analysis);
 
         {
-            std::ofstream output(
-                outputDirectory /
-                "ai_context.json"
-            );
+            std::ofstream output(outputDirectory / "ai_context.json");
 
             if (output.is_open()) {
-                output
-                    << aiContext.dump(4);
+                output << aiContext.dump(4);
             }
         }
 
@@ -1252,71 +930,40 @@ static void exportNetworkAnalysis(
         // ============================================
 
         const auto requestJson =
-            kns::intelligence::
-                IntelligenceRequestBuilder::toJson(
-                    intelligenceRequest
-                );
+            kns::intelligence::IntelligenceRequestBuilder::toJson(intelligenceRequest);
 
         {
-            std::ofstream output(
-                outputDirectory /
-                "intelligence_request.json"
-            );
+            std::ofstream output(outputDirectory / "intelligence_request.json");
 
             if (output.is_open()) {
-                output
-                    << requestJson.dump(4);
+                output << requestJson.dump(4);
             }
         }
 
-        std::cout
-            << "[ANALYSIS] Export completed\n";
-    }
-    catch (const std::exception& e) {
-        std::cerr
-            << "[ANALYSIS] Export failed: "
-            << e.what()
-            << '\n';
+        std::cout << "[ANALYSIS] Export completed\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[ANALYSIS] Export failed: " << e.what() << '\n';
     }
 }
 
-static std::optional<
-    kns::analysis::NetworkAnalysis
->
-analyzeTopology(
-    const kns::Topology& topology
-)
-{
+static std::optional<kns::analysis::NetworkAnalysis>
+analyzeTopology(const kns::Topology& topology) {
     if (topology.size() <= 0) {
         return std::nullopt;
     }
 
     const kns::analysis::NetworkAnalyzer analyzer;
 
-    return analyzer.analyze(
-        topology
-    );
+    return analyzer.analyze(topology);
 }
 
-static void visualizeWindow(
-    std::unique_ptr<SimulationEngine>& engine,
-    Topology& topo,
-    SimulationState& state,
-    GLFWwindow* window,
-    CircularBuffer& buffer,
-    int& packetSize,
-    RunConfig runConfig,
-    std::string topologyPath,
-    std::string topologyDiffPath,
-    bool watchTopology,
-    std::optional<kns::app::hub::StoredTopology> hubDocument
-)
-{
+static void visualizeWindow(std::unique_ptr<SimulationEngine>& engine, Topology& topo,
+                            SimulationState& state, GLFWwindow* window, CircularBuffer& buffer,
+                            int& packetSize, RunConfig runConfig, std::string topologyPath,
+                            std::string topologyDiffPath, bool watchTopology,
+                            std::optional<kns::app::hub::StoredTopology> hubDocument) {
     if (!engine) {
-        engine =
-            std::make_unique<
-                SimulationEngine
-            >(topo);
+        engine = std::make_unique<SimulationEngine>(topo);
     }
 
     VisualPacketManager visualManager;
@@ -1342,67 +989,33 @@ static void visualizeWindow(
 
     EventLog eventLog;
 
-    auto configureEngine =
-        [&](std::unique_ptr<SimulationEngine>& eng)
-    {
+    auto configureEngine = [&](std::unique_ptr<SimulationEngine>& eng) {
         RunConfig config = runConfig;
         config.packet_size = packetSize;
         eng->configureRun(config);
 
-        if (lossOverride) eng->setGlobalLossProb(lossProb);
+        if (lossOverride)
+            eng->setGlobalLossProb(lossProb);
 
         eng->setLatencyObserver(
-            [&buffer](double lat)
-            {
-                buffer.addLatencyToBuffer(
-                    static_cast<float>(lat)
-                );
-            }
-        );
+            [&buffer](double lat) { buffer.addLatencyToBuffer(static_cast<float>(lat)); });
 
         eng->setPacketObserver(
-            [&visualManager, &eventLog](
-                const Packet& p,
-                std::uint64_t session_id,
-                int from,
-                int to,
-                double departureTime,
-                double arrivalTime
-            )
-            {
-                visualManager.observePacket(
-                    p,
-                    session_id,
-                    from,
-                    to,
-                    departureTime,
-                    arrivalTime
-                );
+            [&visualManager, &eventLog](const Packet& p, std::uint64_t session_id, int from, int to,
+                                        double departureTime, double arrivalTime) {
+                visualManager.observePacket(p, session_id, from, to, departureTime, arrivalTime);
 
                 std::ostringstream oss;
 
-                oss << std::fixed
-                    << std::setprecision(3)
-                    << departureTime
-                    << " "
-                    << from
-                    << " -> "
-                    << to
-                    << (p.service ? " service-request=" : " session=")
+                oss << std::fixed << std::setprecision(3) << departureTime << " " << from << " -> "
+                    << to << (p.service ? " service-request=" : " session=")
                     << (p.service ? p.service->request_id : session_id);
-                if (p.service) oss << ' ' << serviceKindName(p.service->kind)
-                    << (p.service->response ? " response" : " request");
+                if (p.service)
+                    oss << ' ' << serviceKindName(p.service->kind)
+                        << (p.service->response ? " response" : " request");
 
-                eventLog.add(
-                    departureTime,
-                    p.packet_type,
-                    from,
-                    to,
-                    session_id,
-                    oss.str()
-                );
-            }
-        );
+                eventLog.add(departureTime, p.packet_type, from, to, session_id, oss.str());
+            });
     };
 
     configureEngine(engine);
@@ -1411,22 +1024,19 @@ static void visualizeWindow(
     // Optional environment-based auto start
     // --------------------------------------------------
 
-    const bool gui_auto_start =
-        autoStartFromEnvironment(false);
+    const bool gui_auto_start = autoStartFromEnvironment(false);
 
     if (gui_auto_start) {
         generatePackets(engine, topo);
     }
 
-    state =
-        engine->hasEvents()
-            ? (gui_auto_start ? SimulationState::Running : SimulationState::Paused)
-            : SimulationState::Ready;
+    state = engine->hasEvents()
+                ? (gui_auto_start ? SimulationState::Running : SimulationState::Paused)
+                : SimulationState::Ready;
 
     double visualTime = 0.0;
 
-    double lastRealTime =
-        glfwGetTime();
+    double lastRealTime = glfwGetTime();
 
     int selected_node = -1;
 
@@ -1435,8 +1045,7 @@ static void visualizeWindow(
     TopologyPanel topologyPanel;
     TopologyCanvas topologyCanvas;
 
-    auto restartSimulation = [&]()
-    {
+    auto restartSimulation = [&]() {
         networkServicesPanel.reset();
         topo = engine->getTopology().cloneForRun();
         visualTime = 0.0;
@@ -1453,9 +1062,7 @@ static void visualizeWindow(
 
     bool dock_initialized = false;
 
-    std::optional<
-        kns::analysis::NetworkAnalysis
-    > currentAnalysis;
+    std::optional<kns::analysis::NetworkAnalysis> currentAnalysis;
 
     std::uint64_t topologyRevision = 0;
     std::uint64_t observedRevision = engine->getTopology().getRoutingRevision();
@@ -1466,25 +1073,18 @@ static void visualizeWindow(
     std::string fileStatus;
 
     if (topo.size() > 0) {
-        currentAnalysis =
-            analyzeTopology(topo);
+        currentAnalysis = analyzeTopology(topo);
     }
 
     const auto intelligenceConfig =
-        kns::app::intelligence::
-            IntelligenceConfigLoader::fromEnvironment();
+        kns::app::intelligence::IntelligenceConfigLoader::fromEnvironment();
 
-    kns::app::gui::IntelligencePanel intelligencePanel(
-        intelligenceConfig
-    );
+    kns::app::gui::IntelligencePanel intelligencePanel(intelligenceConfig);
 
-    while (!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         liveWatcher.setSource(topologyPath, watchTopology);
-        discoveryDiffWatcher.setSource(
-            topologyDiffPath,
-            watchTopology && !topologyDiffPath.empty()
-        );
+        discoveryDiffWatcher.setSource(topologyDiffPath,
+                                       watchTopology && !topologyDiffPath.empty());
         if (auto snapshot = liveWatcher.poll()) {
             try {
                 engine->synchronizeTopology(*snapshot);
@@ -1496,53 +1096,34 @@ static void visualizeWindow(
         if (auto diff = discoveryDiffWatcher.poll()) {
             discoveryDiffStatus = diff->summary();
         }
-        const double currentRealTime =
-            glfwGetTime();
+        const double currentRealTime = glfwGetTime();
 
-        const double deltaRealTime =
-            currentRealTime -
-            lastRealTime;
+        const double deltaRealTime = currentRealTime - lastRealTime;
 
-        lastRealTime =
-            currentRealTime;
+        lastRealTime = currentRealTime;
 
         // --------------------------------------------------
         // Run simulation
         // --------------------------------------------------
 
-        if (state == SimulationState::Running)
-        {
-            visualTime +=
-                (
-                    deltaRealTime *
-                    speedMultiplier
-                ) /
-                kSimToVisualScale;
+        if (state == SimulationState::Running) {
+            visualTime += (deltaRealTime * speedMultiplier) / kSimToVisualScale;
 
             int safetyCounter = 0;
 
-            while (
-                engine->hasEvents() &&
-                visualTime >=
-                    engine->peekNextEventTime() &&
-                safetyCounter < 1000
-            )
-            {
+            while (engine->hasEvents() && visualTime >= engine->peekNextEventTime() &&
+                   safetyCounter < 1000) {
                 engine->processEvent();
 
                 ++safetyCounter;
             }
 
-            if (!engine->hasEvents())
-            {
-                state =
-                    SimulationState::Finished;
+            if (!engine->hasEvents()) {
+                state = SimulationState::Finished;
             }
         }
 
-        visualManager.update(
-            visualTime
-        );
+        visualManager.update(visualTime);
 
         glfwPollEvents();
 
@@ -1551,9 +1132,7 @@ static void visualizeWindow(
 
         ImGui::NewFrame();
 
-        BeginDockSpaceHost(
-            dock_initialized
-        );
+        BeginDockSpaceHost(dock_initialized);
 
         // --------------------------------------------------
         // Automatic topology dialog
@@ -1570,20 +1149,9 @@ static void visualizeWindow(
         // Statistics / simulation controls
         // --------------------------------------------------
 
-        renderStatsWindow(
-            *engine,
-            translations,
-            state,
-            engine->getStats(),
-            buffer,
-            packetSize,
-            lossProb,
-            lossOverride,
-            speedMultiplier,
-            stepRequested,
-            engine->hasEvents(),
-            restartRequested
-        );
+        renderStatsWindow(*engine, translations, state, engine->getStats(), buffer, packetSize,
+                          lossProb, lossOverride, speedMultiplier, stepRequested,
+                          engine->hasEvents(), restartRequested);
 
         if (restartRequested) {
             restartSimulation();
@@ -1593,18 +1161,14 @@ static void visualizeWindow(
         // Step
         // --------------------------------------------------
 
-        if (stepRequested &&
-            engine->hasEvents())
-        {
+        if (stepRequested && engine->hasEvents()) {
             engine->processEvent();
             visualTime = engine->now();
             lastRealTime = glfwGetTime();
             visualManager.update(visualTime);
 
-            if (!engine->hasEvents())
-            {
-                state =
-                    SimulationState::Finished;
+            if (!engine->hasEvents()) {
+                state = SimulationState::Finished;
             }
         }
 
@@ -1612,37 +1176,20 @@ static void visualizeWindow(
         // Settings
         // --------------------------------------------------
 
-        renderConfigWindow(
-            translations,
-            topologyPath,
-            watchTopology,
-            liveWatcher.error().empty() ? liveError : liveWatcher.error(),
-            discoveryDiffStatus,
-            discoveryDiffWatcher.error(),
-            fileStatus,
-            loadRequested,
-            saveRequested,
-            saveHubRequested
-        );
+        renderConfigWindow(translations, topologyPath, watchTopology,
+                           liveWatcher.error().empty() ? liveError : liveWatcher.error(),
+                           discoveryDiffStatus, discoveryDiffWatcher.error(), fileStatus,
+                           loadRequested, saveRequested, saveHubRequested);
 
         topologyPanel.render(*engine, translations);
 
-        if (const auto action = tcpConnectionPanel.render(
-                *engine,
-                translations
-            );
-            action.has_value())
-        {
+        if (const auto action = tcpConnectionPanel.render(*engine, translations);
+            action.has_value()) {
             if (action->type == TcpConnectionActionType::Open) {
-                engine->startTCPConnection(
-                    action->source,
-                    action->destination,
-                    action->source_port,
-                    action->destination_port
-                );
+                engine->startTCPConnection(action->source, action->destination, action->source_port,
+                                           action->destination_port);
                 state = SimulationState::Paused;
-            } else if (engine->cancelTCPSession(action->session_id) &&
-                       !engine->hasEvents()) {
+            } else if (engine->cancelTCPSession(action->session_id) && !engine->hasEvents()) {
                 state = SimulationState::Ready;
             }
         }
@@ -1651,34 +1198,29 @@ static void visualizeWindow(
         // Network interaction
         // --------------------------------------------------
 
-        if (const auto connection = topologyCanvas.render(*engine, selected_node,
-                visualManager.getActivePackets(), visualTime, translations)) {
+        if (const auto connection =
+                topologyCanvas.render(*engine, selected_node, visualManager.getActivePackets(),
+                                      visualTime, translations)) {
             engine->startTCPConnection(connection->first, connection->second);
             state = SimulationState::Paused;
         }
 
-        renderSelectedNodePanel(
-            engine->getTopology(),
-            selected_node,
-            engine->getRoutingTable(selected_node),
-            translations
-        );
+        renderSelectedNodePanel(engine->getTopology(), selected_node,
+                                engine->getRoutingTable(selected_node), translations);
 
-        if (networkServicesPanel.render(*engine, selected_node, translations) && state != SimulationState::Running)
+        if (networkServicesPanel.render(*engine, selected_node, translations) &&
+            state != SimulationState::Running)
             state = SimulationState::Paused;
 
         // --------------------------------------------------
         // Topology loading
         // --------------------------------------------------
 
-        if (loadRequested)
-        {
-            try
-            {
-                const auto path = gui::chooseTopologyFile(window, false,
-                    translations.translate("Select file"));
-                if (path)
-                {
+        if (loadRequested) {
+            try {
+                const auto path =
+                    gui::chooseTopologyFile(window, false, translations.translate("Select file"));
+                if (path) {
                     topo = TopologyLoader::load_topology(*path);
                     hubDocument.reset();
                     topologyPath = *path;
@@ -1688,8 +1230,7 @@ static void visualizeWindow(
                     liveError.clear();
                     fileStatus.clear();
 
-                    currentAnalysis =
-                        analyzeTopology(topo);
+                    currentAnalysis = analyzeTopology(topo);
 
                     ++topologyRevision;
 
@@ -1699,34 +1240,24 @@ static void visualizeWindow(
                     lastRealTime = glfwGetTime();
                     visualManager.clear();
 
-                    engine =
-                        std::make_unique<SimulationEngine>(
-                            topo
-                        );
+                    engine = std::make_unique<SimulationEngine>(topo);
 
                     configureEngine(engine);
 
                     restartSimulation();
 
-                    const bool loaded_auto_start =
-                        autoStartFromEnvironment(false);
+                    const bool loaded_auto_start = autoStartFromEnvironment(false);
 
-                    if (loaded_auto_start)
-                    {
+                    if (loaded_auto_start) {
                         generatePackets(engine, topo);
                     }
 
                     selected_node = -1;
                     observedRevision = engine->getTopology().getRoutingRevision();
 
-                    state =
-                        engine->hasEvents()
-                            ? SimulationState::Paused
-                            : SimulationState::Ready;
+                    state = engine->hasEvents() ? SimulationState::Paused : SimulationState::Ready;
                 }
-            }
-            catch (const std::exception& e)
-            {
+            } catch (const std::exception& e) {
                 fileStatus = translations.translate("Load failed:") + " " + e.what();
                 std::cerr << "Load error: " << e.what() << '\n';
             }
@@ -1736,8 +1267,8 @@ static void visualizeWindow(
 
         if (saveRequested) {
             try {
-                const auto path = gui::chooseTopologyFile(window, true,
-                    translations.translate("Save topology"));
+                const auto path =
+                    gui::chooseTopologyFile(window, true, translations.translate("Save topology"));
                 if (path) {
                     TopologyLoader::save_topology(engine->getTopology(), *path);
                     fileStatus = translations.translate("Topology saved:") + " " + *path;
@@ -1749,41 +1280,64 @@ static void visualizeWindow(
         }
 
         if (saveHubRequested) {
-            copyHubField(hubTitle, hubDocument ? hubDocument->title :
-                (engine->getTopology().getName().empty() ? "KNS topology" : engine->getTopology().getName()));
+            copyHubField(hubTitle, hubDocument ? hubDocument->title
+                                               : (engine->getTopology().getName().empty()
+                                                      ? "KNS topology"
+                                                      : engine->getTopology().getName()));
             copyHubField(hubDescription, hubDocument ? hubDocument->description : "");
             hubPublic = hubDocument && hubDocument->visibility == "PUBLIC";
             hubError.clear();
             ImGui::OpenPopup("Topology Store###hub-upload");
         }
         ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Appearing);
-        if (ImGui::BeginPopupModal("Topology Store###hub-upload", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::TextWrapped("%s", translations.translate(
-                hubDocument ? "Update this topology on the Hub." : "Upload this topology to your Hub account.").c_str());
-            ImGui::InputText(translations.label("Hub URL", "hub-url").c_str(), hubUrl.data(), hubUrl.size());
-            ImGui::InputText(translations.label("Desktop token", "hub-token").c_str(), hubToken.data(), hubToken.size(), ImGuiInputTextFlags_Password);
-            ImGui::TextWrapped("%s", translations.translate("Create a token in your topology store. The token is kept only for this KNS session.").c_str());
-            ImGui::InputText(translations.label("Title", "hub-title").c_str(), hubTitle.data(), hubTitle.size());
-            ImGui::InputTextMultiline(translations.label("Description", "hub-description").c_str(), hubDescription.data(), hubDescription.size(), ImVec2(-1, 80));
-            ImGui::Checkbox(translations.label("Public topology", "hub-public").c_str(), &hubPublic);
-            if (!hubError.empty()) ImGui::TextWrapped("%s", hubError.c_str());
+        if (ImGui::BeginPopupModal("Topology Store###hub-upload", nullptr,
+                                   ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped(
+                "%s", translations
+                          .translate(hubDocument ? "Update this topology on the Hub."
+                                                 : "Upload this topology to your Hub account.")
+                          .c_str());
+            ImGui::InputText(translations.label("Hub URL", "hub-url").c_str(), hubUrl.data(),
+                             hubUrl.size());
+            ImGui::InputText(translations.label("Desktop token", "hub-token").c_str(),
+                             hubToken.data(), hubToken.size(), ImGuiInputTextFlags_Password);
+            ImGui::TextWrapped(
+                "%s",
+                translations
+                    .translate(
+                        "Create a token in your topology store. The token is kept only for this KNS session.")
+                    .c_str());
+            ImGui::InputText(translations.label("Title", "hub-title").c_str(), hubTitle.data(),
+                             hubTitle.size());
+            ImGui::InputTextMultiline(translations.label("Description", "hub-description").c_str(),
+                                      hubDescription.data(), hubDescription.size(), ImVec2(-1, 80));
+            ImGui::Checkbox(translations.label("Public topology", "hub-public").c_str(),
+                            &hubPublic);
+            if (!hubError.empty())
+                ImGui::TextWrapped("%s", hubError.c_str());
             ImGui::BeginDisabled(hubToken[0] == '\0' || hubTitle[0] == '\0' || hubUrl[0] == '\0');
-            if (ImGui::Button(translations.label(hubDocument ? "Save changes" : "Upload topology", "hub-submit").c_str())) {
+            if (ImGui::Button(
+                    translations
+                        .label(hubDocument ? "Save changes" : "Upload topology", "hub-submit")
+                        .c_str())) {
                 try {
                     auto config = initialHubConfig;
                     config.base_url = hubUrl.data();
                     config.bearer_token = hubToken.data();
                     kns::app::hub::TopologyStoreClient client(config);
                     kns::app::hub::StoredTopology document;
-                    if (hubDocument) document = *hubDocument;
+                    if (hubDocument)
+                        document = *hubDocument;
                     document.title = hubTitle.data();
                     document.description = hubDescription.data();
                     document.visibility = hubPublic ? "PUBLIC" : "PRIVATE";
                     document.topology = engine->getTopology().cloneForRun();
-                    auto saved = hubDocument ? client.saveTopology(document) : client.createTopology(document);
+                    auto saved = hubDocument ? client.saveTopology(document)
+                                             : client.createTopology(document);
                     hubDocument = std::move(saved);
                     topo = hubDocument->topology.cloneForRun();
-                    fileStatus = translations.translate("Topology saved to Hub. ID:") + " " + hubDocument->id;
+                    fileStatus = translations.translate("Topology saved to Hub. ID:") + " " +
+                                 hubDocument->id;
                     ImGui::CloseCurrentPopup();
                 } catch (const std::exception& exception) {
                     hubError = exception.what();
@@ -1792,19 +1346,14 @@ static void visualizeWindow(
             }
             ImGui::EndDisabled();
             ImGui::SameLine();
-            if (ImGui::Button(translations.label("Cancel", "hub-cancel").c_str())) ImGui::CloseCurrentPopup();
+            if (ImGui::Button(translations.label("Cancel", "hub-cancel").c_str()))
+                ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
 
-        renderEventLogWindow(
-            eventLog,
-            translations
-        );
+        renderEventLogWindow(eventLog, translations);
 
-        renderTCPSessionsWindow(
-            *engine,
-            translations
-        );
+        renderTCPSessionsWindow(*engine, translations);
 
         // ============================================
         // KNS Intelligence
@@ -1816,39 +1365,21 @@ static void visualizeWindow(
             ++topologyRevision;
             currentAnalysis = analyzeTopology(engine->getTopology());
         }
-        intelligencePanel.render(
-            currentAnalysis,
-            engine->getStats(),
-            topologyRevision
-        );
+        intelligencePanel.render(currentAnalysis, engine->getStats(), topologyRevision);
 
         ImGui::Render();
 
-        glClearColor(
-            1.0f,
-            1.0f,
-            1.0f,
-            1.0f
-        );
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-        glClear(
-            GL_COLOR_BUFFER_BIT
-        );
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        ImGui_ImplOpenGL3_RenderDrawData(
-            ImGui::GetDrawData()
-        );
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        glfwSwapBuffers(
-            window
-        );
+        glfwSwapBuffers(window);
     }
 }
 
-static void shutdownWindow(
-    GLFWwindow* window
-)
-{
+static void shutdownWindow(GLFWwindow* window) {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 
@@ -1858,8 +1389,7 @@ static void shutdownWindow(
     glfwTerminate();
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     bool headless = false;
     std::optional<fs::path> faultPlanPath;
     std::optional<fs::path> analyticsPath;
@@ -1884,19 +1414,19 @@ int main(int argc, char* argv[])
     // Parse command-line arguments
     // --------------------------------------------------
 
-    for (int i = 1; i < argc; ++i)
-    {
-        const std::string_view arg =
-            argv[i];
+    for (int i = 1; i < argc; ++i) {
+        const std::string_view arg = argv[i];
 
-        if (arg == "--headless")
-        {
+        if (arg == "--headless") {
             headless = true;
             continue;
         }
 
         if (arg == "--device-cli") {
-            if (i + 1 >= argc) { std::cerr << "Missing device ID\n"; return 1; }
+            if (i + 1 >= argc) {
+                std::cerr << "Missing device ID\n";
+                return 1;
+            }
             const std::string_view value = argv[++i];
             int id = -1;
             const auto result = std::from_chars(value.data(), value.data() + value.size(), id);
@@ -1908,16 +1438,13 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--help" || arg == "-h")
-        {
+        if (arg == "--help" || arg == "-h") {
             printUsage(std::cout);
             return 0;
         }
 
-        if (arg == "--hub-topology")
-        {
-            if (i + 1 >= argc)
-            {
+        if (arg == "--hub-topology") {
+            if (i + 1 >= argc) {
                 std::cerr << "Missing value for --hub-topology\n";
                 printUsage(std::cerr);
                 return 1;
@@ -1927,12 +1454,9 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--topology" || arg == "--watch-topology")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr
-                    << "Missing value for " << arg << '\n';
+        if (arg == "--topology" || arg == "--watch-topology") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for " << arg << '\n';
                 printUsage(std::cerr);
 
                 return 1;
@@ -1943,10 +1467,8 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--watch-topology-diff")
-        {
-            if (i + 1 >= argc)
-            {
+        if (arg == "--watch-topology-diff") {
+            if (i + 1 >= argc) {
                 std::cerr << "Missing value for --watch-topology-diff\n";
                 printUsage(std::cerr);
                 return 1;
@@ -1955,12 +1477,9 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--output")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr
-                    << "Missing value for --output\n";
+        if (arg == "--output") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --output\n";
                 printUsage(std::cerr);
 
                 return 1;
@@ -1971,20 +1490,38 @@ int main(int argc, char* argv[])
         }
 
         if (arg == "--traffic-plan") {
-            if (i + 1 >= argc) { std::cerr << "Missing value for --traffic-plan\n"; return 1; }
-            if (trafficPlanPath) { std::cerr << "Duplicate --traffic-plan\n"; return 1; }
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --traffic-plan\n";
+                return 1;
+            }
+            if (trafficPlanPath) {
+                std::cerr << "Duplicate --traffic-plan\n";
+                return 1;
+            }
             trafficPlanPath = argv[++i];
             continue;
         }
         if (arg == "--analytics") {
-            if (i + 1 >= argc) { std::cerr << "Missing value for --analytics\n"; return 1; }
-            if (analyticsPath) { std::cerr << "Duplicate --analytics\n"; return 1; }
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --analytics\n";
+                return 1;
+            }
+            if (analyticsPath) {
+                std::cerr << "Duplicate --analytics\n";
+                return 1;
+            }
             analyticsPath = argv[++i];
             continue;
         }
         if (arg == "--fault-plan") {
-            if (i + 1 >= argc) { std::cerr << "Missing value for --fault-plan\n"; return 1; }
-            if (faultPlanPath) { std::cerr << "Duplicate --fault-plan\n"; return 1; }
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --fault-plan\n";
+                return 1;
+            }
+            if (faultPlanPath) {
+                std::cerr << "Duplicate --fault-plan\n";
+                return 1;
+            }
             faultPlanPath = argv[++i];
             continue;
         }
@@ -1995,7 +1532,8 @@ int main(int argc, char* argv[])
             }
             const std::string_view value = argv[++i];
             double parsed = 0;
-            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            const auto [end, error] =
+                std::from_chars(value.data(), value.data() + value.size(), parsed);
             if (error != std::errc{} || end != value.data() + value.size() ||
                 !std::isfinite(parsed) || parsed < 0) {
                 std::cerr << "Invalid value for --until: " << value << '\n';
@@ -2012,9 +1550,11 @@ int main(int argc, char* argv[])
             }
             const std::string_view value = argv[++i];
             std::uint64_t parsed = 0;
-            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            const auto [end, error] =
+                std::from_chars(value.data(), value.data() + value.size(), parsed);
             if (error != std::errc{} || end != value.data() + value.size() ||
-                (arg == "--packet-size" && (parsed == 0 || parsed > std::numeric_limits<int>::max()))) {
+                (arg == "--packet-size" &&
+                 (parsed == 0 || parsed > std::numeric_limits<int>::max()))) {
                 std::cerr << "Invalid value for " << arg << ": " << value << '\n';
                 return 1;
             }
@@ -2028,18 +1568,15 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--congestion-control")
-        {
-            if (i + 1 >= argc)
-            {
+        if (arg == "--congestion-control") {
+            if (i + 1 >= argc) {
                 std::cerr << "Missing value for --congestion-control\n";
                 printUsage(std::cerr);
                 return 1;
             }
             const std::string_view value = argv[++i];
             const auto parsed = parseCongestionControl(value);
-            if (!parsed)
-            {
+            if (!parsed) {
                 std::cerr << "Invalid value for --congestion-control: " << value << '\n';
                 printUsage(std::cerr);
                 return 1;
@@ -2048,18 +1585,15 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--link-event")
-        {
-            if (i + 1 >= argc)
-            {
+        if (arg == "--link-event") {
+            if (i + 1 >= argc) {
                 std::cerr << "Missing value for --link-event\n";
                 printUsage(std::cerr);
                 return 1;
             }
             const std::string_view value = argv[++i];
             const auto parsed = parseHeadlessLinkEvent(value);
-            if (!parsed)
-            {
+            if (!parsed) {
                 std::cerr << "Invalid value for --link-event: " << value
                           << " (expected time:nodeA:nodeB:down|up)\n";
                 return 1;
@@ -2068,24 +1602,17 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (arg == "--routing-metric")
-        {
-            if (i + 1 >= argc)
-            {
-                std::cerr
-                    << "Missing value for --routing-metric\n";
+        if (arg == "--routing-metric") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --routing-metric\n";
                 printUsage(std::cerr);
                 return 1;
             }
 
             const std::string_view value = argv[++i];
             routingMetric = parseRoutingMetric(value);
-            if (!routingMetric)
-            {
-                std::cerr
-                    << "Invalid value for --routing-metric: "
-                    << value
-                    << '\n';
+            if (!routingMetric) {
+                std::cerr << "Invalid value for --routing-metric: " << value << '\n';
                 printUsage(std::cerr);
                 return 1;
             }
@@ -2093,30 +1620,28 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (!arg.starts_with("--") &&
-            topologyPathIndex == -1)
-        {
+        if (!arg.starts_with("--") && topologyPathIndex == -1) {
             topologyPathIndex = i;
             continue;
         }
 
-        std::cerr
-            << "Unknown argument: "
-            << arg
-            << '\n';
+        std::cerr << "Unknown argument: " << arg << '\n';
         printUsage(std::cerr);
 
         return 1;
     }
 
-    if ((runHorizon || eventBudget || faultPlanPath || analyticsPath || trafficPlanPath) && !headless) {
-        std::cerr << "--until, --max-events, --fault-plan, --analytics and --traffic-plan require --headless\n";
+    if ((runHorizon || eventBudget || faultPlanPath || analyticsPath || trafficPlanPath) &&
+        !headless) {
+        std::cerr
+            << "--until, --max-events, --fault-plan, --analytics and --traffic-plan require --headless\n";
         return 1;
     }
     if (cliDevice) {
-        if (topologyPathIndex < 0 || headless || hubTopologyId || watchTopology || topologyDiffPathIndex >= 0 ||
-            outputPathIndex >= 0 || !headlessLinkEvents.empty()) {
-            std::cerr << "--device-cli requires a local --topology and cannot be combined with headless, Hub, watch, output or link-event options\n";
+        if (topologyPathIndex < 0 || headless || hubTopologyId || watchTopology ||
+            topologyDiffPathIndex >= 0 || outputPathIndex >= 0 || !headlessLinkEvents.empty()) {
+            std::cerr
+                << "--device-cli requires a local --topology and cannot be combined with headless, Hub, watch, output or link-event options\n";
             return 1;
         }
         try {
@@ -2146,15 +1671,12 @@ int main(int argc, char* argv[])
         std::cerr << "--watch-topology-diff requires --watch-topology\n";
         return 1;
     }
-    if (!headlessLinkEvents.empty() && !headless)
-    {
+    if (!headlessLinkEvents.empty() && !headless) {
         std::cerr << "--link-event is only valid with --headless\n";
         return 1;
     }
-    if (routingMetric && !headless)
-    {
-        std::cerr
-            << "--routing-metric is only valid with --headless\n";
+    if (routingMetric && !headless) {
+        std::cerr << "--routing-metric is only valid with --headless\n";
         printUsage(std::cerr);
         return 1;
     }
@@ -2163,20 +1685,15 @@ int main(int argc, char* argv[])
     // Headless mode
     // --------------------------------------------------
 
-    if (headless)
-    {
-        if (!hubTopologyId &&
-            (topologyPathIndex < 0 || topologyPathIndex >= argc))
-        {
-            std::cerr
-                << "Missing required --topology or --hub-topology for headless mode\n";
+    if (headless) {
+        if (!hubTopologyId && (topologyPathIndex < 0 || topologyPathIndex >= argc)) {
+            std::cerr << "Missing required --topology or --hub-topology for headless mode\n";
             printUsage(std::cerr);
 
             return 1;
         }
 
-        try
-        {
+        try {
             if (hubTopologyId) {
                 hubDocument = loadTopologyFromHub(*hubTopologyId);
                 topo = hubDocument->topology.cloneForRun();
@@ -2184,49 +1701,33 @@ int main(int argc, char* argv[])
                 topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
             }
 
-            auto currentAnalysis =
-                analyzeTopology(
-                    topo
-                );
-            
+            auto currentAnalysis = analyzeTopology(topo);
+
             exportNetworkAnalysis(topo);
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr
-                << "Topology load error: "
-                << e.what()
-                << '\n';
+        } catch (const std::exception& e) {
+            std::cerr << "Topology load error: " << e.what() << '\n';
 
             return 1;
         }
 
-        auto engine =
-            std::make_unique<SimulationEngine>(
-                topo
-            );
+        auto engine = std::make_unique<SimulationEngine>(topo);
 
-        engine->setRoutingMetric(
-            routingMetric.value_or(RoutingMetric::Delay)
-        );
+        engine->setRoutingMetric(routingMetric.value_or(RoutingMetric::Delay));
 
         engine->configureRun(runConfig);
 
         for (const auto& event : headlessLinkEvents) {
-            engine->scheduleLinkFailure(
-                event.at_time,
-                event.node_a,
-                event.node_b,
-                event.up
-            );
+            engine->scheduleLinkFailure(event.at_time, event.node_a, event.node_b, event.up);
         }
 
         std::shared_ptr<FaultReport> faultReport;
         if (faultPlanPath) {
             try {
-                if (fs::file_size(*faultPlanPath) > 4 * 1024 * 1024) throw std::invalid_argument("Fault plan exceeds 4 MiB");
+                if (fs::file_size(*faultPlanPath) > 4 * 1024 * 1024)
+                    throw std::invalid_argument("Fault plan exceeds 4 MiB");
                 std::ifstream input(*faultPlanPath);
-                if (!input) throw std::runtime_error("Cannot open fault plan");
+                if (!input)
+                    throw std::runtime_error("Cannot open fault plan");
                 nlohmann::json plan;
                 input >> plan;
                 faultReport = FaultLab::schedule(*engine, plan);
@@ -2238,9 +1739,11 @@ int main(int argc, char* argv[])
         std::shared_ptr<kns::analysis::MetricsCollector> analytics;
         if (analyticsPath) {
             try {
-                if (fs::file_size(*analyticsPath) > 256 * 1024) throw std::invalid_argument("Analytics config exceeds 256 KiB");
+                if (fs::file_size(*analyticsPath) > 256 * 1024)
+                    throw std::invalid_argument("Analytics config exceeds 256 KiB");
                 std::ifstream input(*analyticsPath);
-                if (!input) throw std::runtime_error("Cannot open analytics config");
+                if (!input)
+                    throw std::runtime_error("Cannot open analytics config");
                 nlohmann::json config;
                 input >> config;
                 analytics = kns::analysis::MetricsCollector::attach(*engine, config);
@@ -2252,9 +1755,11 @@ int main(int argc, char* argv[])
         std::shared_ptr<kns::traffic::TrafficRun> traffic;
         if (trafficPlanPath) {
             try {
-                if (fs::file_size(*trafficPlanPath) > 4 * 1024 * 1024) throw std::invalid_argument("Traffic plan exceeds 4 MiB");
+                if (fs::file_size(*trafficPlanPath) > 4 * 1024 * 1024)
+                    throw std::invalid_argument("Traffic plan exceeds 4 MiB");
                 std::ifstream input(*trafficPlanPath);
-                if (!input) throw std::runtime_error("Cannot open traffic plan");
+                if (!input)
+                    throw std::runtime_error("Cannot open traffic plan");
                 nlohmann::json plan;
                 input >> plan;
                 traffic = kns::traffic::TrafficRun::schedule(*engine, plan);
@@ -2263,25 +1768,18 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
-        const bool headless_auto_start =
-            autoStartFromEnvironment(
-                runConfig.auto_start
-            );
+        const bool headless_auto_start = autoStartFromEnvironment(runConfig.auto_start);
 
-        if (headless_auto_start && !traffic)
-        {
-            generatePackets(
-                engine,
-                topo
-            );
+        if (headless_auto_start && !traffic) {
+            generatePackets(engine, topo);
         }
 
         std::optional<RunResult> boundedResult;
         try {
             if (runHorizon || eventBudget) {
-                boundedResult = engine->runUntil(
-                    runHorizon.value_or(std::numeric_limits<double>::max()),
-                    eventBudget.value_or(1000000));
+                boundedResult =
+                    engine->runUntil(runHorizon.value_or(std::numeric_limits<double>::max()),
+                                     eventBudget.value_or(1000000));
             } else {
                 engine->run();
             }
@@ -2290,16 +1788,10 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        if (outputPathIndex >= 0 &&
-            outputPathIndex < argc)
-        {
-            runConfig.filename =
-                argv[outputPathIndex];
-        }
-        else
-        {
-            runConfig.filename =
-                "results/results.csv";
+        if (outputPathIndex >= 0 && outputPathIndex < argc) {
+            runConfig.filename = argv[outputPathIndex];
+        } else {
+            runConfig.filename = "results/results.csv";
         }
 
         try {
@@ -2310,40 +1802,48 @@ int main(int argc, char* argv[])
             engine->exportStatsCSV(runConfig);
             if (traffic) {
                 std::ofstream output(runConfig.filename + ".traffic.json");
-                if (!output) throw std::runtime_error("Cannot open traffic report output");
+                if (!output)
+                    throw std::runtime_error("Cannot open traffic report output");
                 auto report = traffic->toJson(engine->now());
                 report["pending_events"] = engine->pendingEventCount();
                 report["network_seed"] = runConfig.seed;
                 output << report.dump(2) << '\n';
-                if (!output) throw std::runtime_error("Traffic report write failed");
+                if (!output)
+                    throw std::runtime_error("Traffic report write failed");
             }
             if (analytics) {
                 std::ofstream metrics(runConfig.filename + ".analytics.json");
-                if (!metrics) throw std::runtime_error("Cannot open analytics report output");
+                if (!metrics)
+                    throw std::runtime_error("Cannot open analytics report output");
                 auto report = analytics->toJson();
                 report["simulation_end_s"] = engine->now();
                 report["pending_events"] = engine->pendingEventCount();
                 metrics << report.dump(2) << '\n';
-                if (!metrics) throw std::runtime_error("Analytics report write failed");
+                if (!metrics)
+                    throw std::runtime_error("Analytics report write failed");
             }
             if (faultReport) {
                 std::ofstream faults(runConfig.filename + ".faults.json");
-                if (!faults) throw std::runtime_error("Cannot open fault report output");
+                if (!faults)
+                    throw std::runtime_error("Cannot open fault report output");
                 auto report = faultReport->toJson();
-                report["execution_state"] = engine->executionState() == ExecutionState::Ready ? "ready" : "stopped";
+                report["execution_state"] =
+                    engine->executionState() == ExecutionState::Ready ? "ready" : "stopped";
                 report["simulation_time_s"] = engine->now();
                 report["pending_events"] = engine->pendingEventCount();
                 faults << report.dump(2) << '\n';
-                if (!faults) throw std::runtime_error("Fault report write failed");
+                if (!faults)
+                    throw std::runtime_error("Fault report write failed");
             }
         } catch (const std::exception& error) {
-            std::cerr << "CSV export failed for " << runConfig.filename
-                      << ": " << error.what() << '\n';
+            std::cerr << "CSV export failed for " << runConfig.filename << ": " << error.what()
+                      << '\n';
             return 1;
         }
 
         if (boundedResult && boundedResult->reason != StopReason::QueueEmpty) {
-            const char* reason = boundedResult->reason == StopReason::TimeLimit ? "time_limit" : "event_budget";
+            const char* reason =
+                boundedResult->reason == StopReason::TimeLimit ? "time_limit" : "event_budget";
             std::cerr << "{\"status\":\"incomplete\",\"reason\":\"" << reason
                       << "\",\"simulation_time_s\":" << std::setprecision(17) << engine->now()
                       << ",\"events_processed\":" << boundedResult->events_processed
@@ -2353,8 +1853,10 @@ int main(int argc, char* argv[])
         if (traffic) {
             const auto workload = traffic->toJson(engine->now());
             if (workload.at("generation_limit_reached").get<bool>() ||
-                workload.at("generation_pending").get<bool>() || workload.at("pending").get<std::uint64_t>() != 0) {
-                std::cerr << "{\"status\":\"incomplete\",\"reason\":\"traffic_budget_or_pending_work\"}\n";
+                workload.at("generation_pending").get<bool>() ||
+                workload.at("pending").get<std::uint64_t>() != 0) {
+                std::cerr
+                    << "{\"status\":\"incomplete\",\"reason\":\"traffic_budget_or_pending_work\"}\n";
                 return 3;
             }
             // A completed abstract workload may legitimately offer no packets
@@ -2362,67 +1864,52 @@ int main(int argc, char* argv[])
             // rather than the legacy automatic-TCP completion requirement.
             return 0;
         }
-        const ValidationReport report =
-            engine->validateSimulation();
+        const ValidationReport report = engine->validateSimulation();
 
         if (!report.passed()) {
             std::cerr << "Simulation validation failed: completed_sessions="
                       << report.completed_sessions << '/' << report.total_sessions
                       << ", traffic_ok=" << report.traffic_ok << '\n';
             for (const auto& [id, session] : engine->getTCPSessions()) {
-                std::cerr << "  session=" << id
-                          << " client_state=" << static_cast<int>(session.getClientConnection().getTcpState())
-                          << " server_state=" << static_cast<int>(session.getServerConnection().getTcpState())
+                std::cerr << "  session=" << id << " client_state="
+                          << static_cast<int>(session.getClientConnection().getTcpState())
+                          << " server_state="
+                          << static_cast<int>(session.getServerConnection().getTcpState())
                           << " failure=" << static_cast<int>(session.getFailureReason())
                           << " generated=" << session.hasGeneratedTraffic()
                           << " complete=" << session.isComplete() << '\n';
             }
         }
 
-        return report.passed()
-            ? 0
-            : (report.transportFailed() ? 2 : 1);
+        return report.passed() ? 0 : (report.transportFailed() ? 2 : 1);
     }
 
     // --------------------------------------------------
     // GUI mode
     // --------------------------------------------------
 
-    if (hubTopologyId ||
-        (topologyPathIndex >= 0 && topologyPathIndex < argc))
-        {
-            try {
-                if (hubTopologyId) {
-                    hubDocument = loadTopologyFromHub(*hubTopologyId);
-                    topo = hubDocument->topology.cloneForRun();
-                } else {
-                    topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
-                }
-
-                auto currentAnalysis =
-                    analyzeTopology(
-                        topo
-                    );
-
-                exportNetworkAnalysis(topo);
+    if (hubTopologyId || (topologyPathIndex >= 0 && topologyPathIndex < argc)) {
+        try {
+            if (hubTopologyId) {
+                hubDocument = loadTopologyFromHub(*hubTopologyId);
+                topo = hubDocument->topology.cloneForRun();
+            } else {
+                topo = TopologyLoader::load_topology(argv[topologyPathIndex]);
             }
-            catch (const std::exception& e) {
-                std::cerr
-                    << "Topology load error: "
-                    << e.what()
-                    << '\n';
 
-                return 1;
-            }
+            auto currentAnalysis = analyzeTopology(topo);
+
+            exportNetworkAnalysis(topo);
+        } catch (const std::exception& e) {
+            std::cerr << "Topology load error: " << e.what() << '\n';
+
+            return 1;
         }
+    }
 
-    SimulationState state =
-        SimulationState::Ready;
+    SimulationState state = SimulationState::Ready;
 
-    auto engine =
-        std::make_unique<SimulationEngine>(
-            topo
-        );
+    auto engine = std::make_unique<SimulationEngine>(topo);
 
     CircularBuffer buffer;
 
@@ -2430,37 +1917,22 @@ int main(int argc, char* argv[])
 
     Window windowMethods;
 
-    GLFWwindow* window =
-        windowMethods.generate_window();
+    GLFWwindow* window = windowMethods.generate_window();
 
-    if (!window)
-    {
+    if (!window) {
         return 1;
     }
 
-    ImGuiIO& io =
-        ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
 
-    io.ConfigFlags |=
-        ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    visualizeWindow(
-        engine,
-        topo,
-        state,
-        window,
-        buffer,
-        packetSize,
-        runConfig,
-        topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
-        topologyDiffPathIndex >= 0 ? argv[topologyDiffPathIndex] : "",
-        watchTopology,
-        std::move(hubDocument)
-    );
+    visualizeWindow(engine, topo, state, window, buffer, packetSize, runConfig,
+                    topologyPathIndex >= 0 ? argv[topologyPathIndex] : "",
+                    topologyDiffPathIndex >= 0 ? argv[topologyDiffPathIndex] : "", watchTopology,
+                    std::move(hubDocument));
 
-    shutdownWindow(
-        window
-    );
+    shutdownWindow(window);
 
     engine->validateSimulation();
     return 0;

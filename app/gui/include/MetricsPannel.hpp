@@ -13,10 +13,7 @@ namespace gui {
 
     class MetricsPannel {
     public:
-        void render(
-            const kns::Stats& stats,
-            const CircularBuffer& buffer,
-            TranslationService& translations
-        );
+        void render(const kns::Stats& stats, const CircularBuffer& buffer,
+                    TranslationService& translations);
     };
 }

@@ -11,50 +11,30 @@
 
 namespace kns {
 
-    TCPHandshakeEvent::TCPHandshakeEvent(
-        double timestamp,
-        int source,
-        int destination,
-        std::uint64_t session_id
-    )
-        : Event(timestamp),
-          source_(source),
-          destination_(destination),
-          session_id_(session_id)
-    {
-    }
+    TCPHandshakeEvent::TCPHandshakeEvent(double timestamp, int source, int destination,
+                                         std::uint64_t session_id)
+        : Event(timestamp), source_(source), destination_(destination), session_id_(session_id) {}
 
-    void TCPHandshakeEvent::execute(SimulationEngine& engine)
-    {
-        if (!engine.hasTCPSession(session_id_)) return;
-        KNS_DEBUG_LOG(
-            "[TCP] Handshake session "
-            << session_id_
-            << '\n');
+    void TCPHandshakeEvent::execute(SimulationEngine& engine) {
+        if (!engine.hasTCPSession(session_id_))
+            return;
+        KNS_DEBUG_LOG("[TCP] Handshake session " << session_id_ << '\n');
 
         auto& session = engine.getTCPSession(session_id_);
         auto& client = session.getClientConnection();
 
         const auto initial_seq = client.getTcpState() == TCPState::SYN_SENT
-            ? client.getSeqNum() : engine.randomSequence();
+                                     ? client.getSeqNum()
+                                     : engine.randomSequence();
         if (!client.send_syn(initial_seq)) {
-            KNS_DEBUG_LOG(
-                "[TCP][SESSION "
-                << session_id_
-                << "] send_syn() rejected in state "
-                << static_cast<int>(client.getTcpState())
-                << " — handshake aborted\n");
+            KNS_DEBUG_LOG("[TCP][SESSION " << session_id_ << "] send_syn() rejected in state "
+                                           << static_cast<int>(client.getTcpState())
+                                           << " — handshake aborted\n");
             return;
         }
 
-        Packet syn(
-            source_,
-            destination_,
-            source_,
-            engine.now(),
-            engine.getGlobalPacketSize(),
-            session_id_
-        );
+        Packet syn(source_, destination_, source_, engine.now(), engine.getGlobalPacketSize(),
+                   session_id_);
 
         syn.tcp = client.buildSyn();
         syn.packet_type = inferPacketType(syn.tcp);
@@ -64,18 +44,10 @@ namespace kns {
         PacketUtils::sendPacketThroughTopology(engine, syn);
         {
             engine.schedule(
-                std::make_unique<TCPHandshakeTimeoutEvent>(
-                    engine.now() + 1.0,
-                    session_id_
-                )
-            );
+                std::make_unique<TCPHandshakeTimeoutEvent>(engine.now() + 1.0, session_id_));
 
-            KNS_DEBUG_LOG(
-                "[TCP][SESSION "
-                << session_id_
-                << "] SYN timeout scheduled at "
-                << engine.now() + 1.0
-                << '\n');
+            KNS_DEBUG_LOG("[TCP][SESSION " << session_id_ << "] SYN timeout scheduled at "
+                                           << engine.now() + 1.0 << '\n');
         }
     }
 }

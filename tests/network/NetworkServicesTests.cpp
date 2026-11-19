@@ -7,49 +7,55 @@
 #include <limits>
 
 using namespace kns;
+
 namespace {
-Topology serviceTopology() {
-    Topology topology(3);
-    DeviceInfo client, router, server;
-    client.type = DeviceType::Computer;
-    router.type = DeviceType::Router;
-    server.type = DeviceType::Server;
-    topology.setNodeDeviceInfo(0, client);
-    topology.setNodeDeviceInfo(1, router);
-    topology.setNodeDeviceInfo(2, server);
-    topology.addLink(0, 1, 100, 10, 0);
-    topology.addLink(1, 2, 100, 10, 0);
-    NetworkService http;
-    http.name = "web";
-    http.delay_ms = 25;
-    http.pages["/"] = {200, "Hello KNS"};
-    NetworkService dns;
-    dns.name = "names";
-    dns.kind = ServiceKind::Dns;
-    dns.port = 53;
-    dns.records["web.example"] = "192.0.2.20";
-    topology.setNodeServices(2, {http, dns});
-    return topology;
-}
+    Topology serviceTopology() {
+        Topology topology(3);
+        DeviceInfo client, router, server;
+        client.type = DeviceType::Computer;
+        router.type = DeviceType::Router;
+        server.type = DeviceType::Server;
+        topology.setNodeDeviceInfo(0, client);
+        topology.setNodeDeviceInfo(1, router);
+        topology.setNodeDeviceInfo(2, server);
+        topology.addLink(0, 1, 100, 10, 0);
+        topology.addLink(1, 2, 100, 10, 0);
+        NetworkService http;
+        http.name = "web";
+        http.delay_ms = 25;
+        http.pages["/"] = {200, "Hello KNS"};
+        NetworkService dns;
+        dns.name = "names";
+        dns.kind = ServiceKind::Dns;
+        dns.port = 53;
+        dns.records["web.example"] = "192.0.2.20";
+        topology.setNodeServices(2, {http, dns});
+        return topology;
+    }
 }
 
-TEST_CASE("Completed service requests do not keep an idle simulation running until timeout", "[services][audit]") {
+TEST_CASE("Completed service requests do not keep an idle simulation running until timeout",
+          "[services][audit]") {
     SimulationEngine engine(serviceTopology());
     const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
     engine.run();
     REQUIRE(engine.now() == engine.networkServices().requests().at(id).finished_at);
 }
 
-TEST_CASE("Service cancellation removes pending work without advancing time", "[services][cancel]") {
+TEST_CASE("Service cancellation removes pending work without advancing time",
+          "[services][cancel]") {
     SimulationEngine engine(serviceTopology());
     const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 60);
-    const auto other = engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "web.example");
+    const auto other =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "web.example");
     SECTION("cancel before request delivery") {}
     SECTION("cancel during server processing") {
-        while (engine.now() < 0.02) REQUIRE(engine.processEvent());
+        while (engine.now() < 0.02)
+            REQUIRE(engine.processEvent());
     }
     SECTION("cancel with reply already in flight") {
-        while (engine.getStats().packets_sent < 4) REQUIRE(engine.processEvent());
+        while (engine.getStats().packets_sent < 4)
+            REQUIRE(engine.processEvent());
     }
     const double cancelled_at = engine.now();
     REQUIRE(engine.networkServices().cancel(engine, id));
@@ -64,14 +70,17 @@ TEST_CASE("Service cancellation removes pending work without advancing time", "[
     REQUIRE(engine.networkServices().requests().at(other).state == ServiceRequestState::Complete);
     REQUIRE(engine.now() < 1.0);
     REQUIRE(engine.getPacketsInTransit().empty());
-    for (const auto& link : engine.getTopology().getLinks()) REQUIRE(link->getQueueSize() == 0);
+    for (const auto& link : engine.getTopology().getLinks())
+        REQUIRE(link->getQueueSize() == 0);
     REQUIRE(engine.validateSimulation().passed());
 }
 
-TEST_CASE("Service cancellation is harmless for missing and terminal requests", "[services][cancel]") {
+TEST_CASE("Service cancellation is harmless for missing and terminal requests",
+          "[services][cancel]") {
     SimulationEngine engine(serviceTopology());
     REQUIRE_FALSE(engine.networkServices().cancel(engine, 999));
-    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.001);
+    const auto id =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.001);
     engine.run();
     const auto before = engine.networkServices().requests().at(id);
     REQUIRE_FALSE(engine.networkServices().cancel(engine, id));
@@ -88,8 +97,9 @@ TEST_CASE("Device CLI cancels only its own pending requests", "[services][cancel
     const auto command = "request cancel " + std::to_string(id);
     REQUIRE_FALSE(DeviceCLI::execute(engine, 2, command).ok);
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Pending);
-    for (const auto* invalid : {"request cancel", "request cancel 0", "request cancel -1",
-            "request cancel 1.0", "request cancel 18446744073709551616", "request cancel 999", "request cancel 1 extra"}) {
+    for (const auto* invalid :
+         {"request cancel", "request cancel 0", "request cancel -1", "request cancel 1.0",
+          "request cancel 18446744073709551616", "request cancel 999", "request cancel 1 extra"}) {
         INFO(invalid);
         REQUIRE_FALSE(DeviceCLI::execute(engine, 0, invalid).ok);
         REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Pending);
@@ -98,7 +108,8 @@ TEST_CASE("Device CLI cancels only its own pending requests", "[services][cancel
     REQUIRE(result.ok);
     REQUIRE_FALSE(result.scheduled);
     REQUIRE_FALSE(DeviceCLI::execute(engine, 0, command).ok);
-    REQUIRE(DeviceCLI::execute(engine, 0, "show requests").output.find("cancelled") != std::string::npos);
+    REQUIRE(DeviceCLI::execute(engine, 0, "show requests").output.find("cancelled") !=
+            std::string::npos);
     engine.run();
     REQUIRE(engine.now() < 1.0);
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Cancelled);
@@ -109,21 +120,25 @@ TEST_CASE("DNS records reject signed IPv4 octets atomically", "[services][audit]
     const auto before = engine.getTopology().getNode(2)->getServices();
     for (const auto* address : {"-1.2.3.4", "1.-2.3.4", "1.2.-0.4", "1.2.3.-1", "+1.2.3.4"}) {
         INFO(address);
-        REQUIRE_FALSE(DeviceCLI::execute(engine, 2, std::string("service record names bad.example ") + address).ok);
+        REQUIRE_FALSE(DeviceCLI::execute(engine, 2,
+                                         std::string("service record names bad.example ") + address)
+                          .ok);
         REQUIRE(engine.getTopology().getNode(2)->getServices() == before);
     }
 }
 
 TEST_CASE("Timed out service processing never emits a late response", "[services][audit]") {
     SimulationEngine engine(serviceTopology());
-    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.04);
+    const auto id =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.04);
     engine.run();
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::TimedOut);
     REQUIRE(engine.getStats().packets_sent == 1);
     REQUIRE(engine.now() == 0.04);
 }
 
-TEST_CASE("Editing DNS does not cancel a different service's pending HTTP response", "[services][audit]") {
+TEST_CASE("Editing DNS does not cancel a different service's pending HTTP response",
+          "[services][audit]") {
     SimulationEngine engine(serviceTopology());
     const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
     engine.processEvent();
@@ -133,10 +148,12 @@ TEST_CASE("Editing DNS does not cancel a different service's pending HTTP respon
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::Complete);
 }
 
-TEST_CASE("HTTP and DNS services traverse routed links and return measured responses", "[services]") {
+TEST_CASE("HTTP and DNS services traverse routed links and return measured responses",
+          "[services]") {
     SimulationEngine engine(serviceTopology());
     const auto http = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
-    const auto dns = engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "WEB.Example.");
+    const auto dns =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "WEB.Example.");
     REQUIRE(engine.networkServices().requests().at(http).state == ServiceRequestState::Pending);
     REQUIRE_FALSE(engine.getPacketsInTransit().empty());
     engine.run();
@@ -156,8 +173,10 @@ TEST_CASE("HTTP and DNS services traverse routed links and return measured respo
 
 TEST_CASE("HTTP missing pages and DNS missing names produce protocol results", "[services]") {
     SimulationEngine engine(serviceTopology());
-    const auto http = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/missing");
-    const auto dns = engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "missing.example");
+    const auto http =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/missing");
+    const auto dns =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Dns, 53, "missing.example");
     engine.run();
     REQUIRE(engine.networkServices().requests().at(http).status == 404);
     REQUIRE(engine.networkServices().requests().at(dns).status == 3);
@@ -172,20 +191,28 @@ TEST_CASE("Unavailable services and broken network paths time out", "[services]"
         services[0].enabled = false;
         topology.setNodeServices(2, services);
     }
-    SECTION("wrong port") { port = 8080; }
-    SECTION("disconnected") { topology.setLinkUp(0, 1, false); }
-    SECTION("complete packet loss") { topology.setGlobalLossProb(1.0); }
+    SECTION("wrong port") {
+        port = 8080;
+    }
+    SECTION("disconnected") {
+        topology.setLinkUp(0, 1, false);
+    }
+    SECTION("complete packet loss") {
+        topology.setGlobalLossProb(1.0);
+    }
     SECTION("one way path") {
         topology.removeLink(1, 2);
         topology.addLink(1, 2, 100, 10, 0, LinkMode::SIMPLEX);
     }
     SimulationEngine engine(topology);
-    const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, port, "/", 0.1);
+    const auto id =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, port, "/", 0.1);
     engine.run();
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::TimedOut);
     REQUIRE(engine.networkServices().requests().at(id).finished_at == Catch::Approx(0.1));
     REQUIRE(engine.getPacketsInTransit().empty());
-    for (const auto& link : engine.getTopology().getLinks()) REQUIRE(link->getQueueSize() == 0);
+    for (const auto& link : engine.getTopology().getLinks())
+        REQUIRE(link->getQueueSize() == 0);
 }
 
 TEST_CASE("Service replies respect deletion restart and timeout during processing", "[services]") {
@@ -193,14 +220,22 @@ TEST_CASE("Service replies respect deletion restart and timeout during processin
     const auto id = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.1);
     REQUIRE(engine.processEvent()); // first hop
     REQUIRE(engine.processEvent()); // server schedules reply
-    SECTION("server deleted") { engine.deleteNode(2); }
-    SECTION("client deleted") { engine.deleteNode(0); }
+    SECTION("server deleted") {
+        engine.deleteNode(2);
+    }
+    SECTION("client deleted") {
+        engine.deleteNode(0);
+    }
     SECTION("service stopped and restarted") {
         REQUIRE(DeviceCLI::execute(engine, 2, "service stop web").ok);
         REQUIRE(DeviceCLI::execute(engine, 2, "service start web").ok);
     }
-    SECTION("service removed") { REQUIRE(DeviceCLI::execute(engine, 2, "service remove web").ok); }
-    SECTION("return link fails") { engine.toggleLinkUp(1, 2, false); }
+    SECTION("service removed") {
+        REQUIRE(DeviceCLI::execute(engine, 2, "service remove web").ok);
+    }
+    SECTION("return link fails") {
+        engine.toggleLinkUp(1, 2, false);
+    }
     engine.run();
     REQUIRE(engine.networkServices().requests().at(id).state == ServiceRequestState::TimedOut);
     REQUIRE(engine.getPacketsInTransit().empty());
@@ -208,8 +243,10 @@ TEST_CASE("Service replies respect deletion restart and timeout during processin
 
 TEST_CASE("Late replies cannot overwrite a timeout and local queries are supported", "[services]") {
     SimulationEngine engine(serviceTopology());
-    const auto late = engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.01);
-    const auto local = engine.networkServices().request(engine, 2, 2, ServiceKind::Dns, 53, "web.example");
+    const auto late =
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", 0.01);
+    const auto local =
+        engine.networkServices().request(engine, 2, 2, ServiceKind::Dns, 53, "web.example");
     engine.run();
     REQUIRE(engine.networkServices().requests().at(late).state == ServiceRequestState::TimedOut);
     REQUIRE(engine.networkServices().requests().at(local).state == ServiceRequestState::Complete);
@@ -217,7 +254,8 @@ TEST_CASE("Late replies cannot overwrite a timeout and local queries are support
     REQUIRE(engine.validateSimulation().passed());
 }
 
-TEST_CASE("Device commands configure services atomically and reject malformed inputs", "[services][cli]") {
+TEST_CASE("Device commands configure services atomically and reject malformed inputs",
+          "[services][cli]") {
     SimulationEngine engine(Topology(2));
     DeviceInfo server;
     server.type = DeviceType::Server;
@@ -227,21 +265,26 @@ TEST_CASE("Device commands configure services atomically and reject malformed in
     REQUIRE(DeviceCLI::execute(engine, 1, "service add dns names 53").ok);
     REQUIRE(DeviceCLI::execute(engine, 1, "service record names WEB.Example. 192.0.2.1").ok);
     const auto before = TopologyLoader::toJson(engine.getTopology());
-    for (const auto& command : {"service add http duplicate 8080", "service add http web 80", "service add dns bad 65536",
-        "service page web / 200.5 hi", "service page web / 999 hi", "service page names / 200 hi",
-        "service record names invalid.example 999.0.0.1", "service record names -bad.example 1.2.3.4",
-        "service delay web -1", "service stop web extra", "service remove missing", "service page web / 200 \"unterminated"}) {
+    for (const auto& command :
+         {"service add http duplicate 8080", "service add http web 80", "service add dns bad 65536",
+          "service page web / 200.5 hi", "service page web / 999 hi", "service page names / 200 hi",
+          "service record names invalid.example 999.0.0.1",
+          "service record names -bad.example 1.2.3.4", "service delay web -1",
+          "service stop web extra", "service remove missing",
+          "service page web / 200 \"unterminated"}) {
         INFO(command);
         REQUIRE_FALSE(DeviceCLI::execute(engine, 1, command).ok);
         REQUIRE(TopologyLoader::toJson(engine.getTopology()) == before);
     }
-    REQUIRE(DeviceCLI::execute(engine, 1, "show services").output.find("hello world") != std::string::npos);
+    REQUIRE(DeviceCLI::execute(engine, 1, "show services").output.find("hello world") !=
+            std::string::npos);
     REQUIRE(DeviceCLI::execute(engine, 1, "service unrecord names web.example").ok);
     REQUIRE(DeviceCLI::execute(engine, 1, "service unpage web /").ok);
     REQUIRE_FALSE(DeviceCLI::execute(engine, -1, "show services").ok);
 }
 
-TEST_CASE("Service configuration round trips and isolated runs discard runtime requests", "[services][save]") {
+TEST_CASE("Service configuration round trips and isolated runs discard runtime requests",
+          "[services][save]") {
     auto topology = serviceTopology();
     topology.removeNode(2);
     const auto document = TopologyLoader::toJson(topology);
@@ -251,22 +294,35 @@ TEST_CASE("Service configuration round trips and isolated runs discard runtime r
     SimulationEngine second(first.getTopology());
     REQUIRE(second.networkServices().requests().empty());
     REQUIRE_FALSE(second.hasEvents());
-    REQUIRE(second.getTopology().getNode(2)->getServices() == first.getTopology().getNode(2)->getServices());
+    REQUIRE(second.getTopology().getNode(2)->getServices() ==
+            first.getTopology().getNode(2)->getServices());
     REQUIRE(DeviceCLI::execute(second, 2, "service stop web").ok);
     REQUIRE(first.getTopology().getNode(2)->getServices()[0].enabled);
 }
 
-TEST_CASE("Topology loading validates service schema without numeric truncation", "[services][save]") {
+TEST_CASE("Topology loading validates service schema without numeric truncation",
+          "[services][save]") {
     auto document = TopologyLoader::toJson(serviceTopology());
-    SECTION("fractional port") { document["nodes"][2]["services"][0]["port"] = 80.5; }
-    SECTION("overflowing port") { document["nodes"][2]["services"][0]["port"] = 4294967376ULL; }
-    SECTION("fractional status") { document["nodes"][2]["services"][0]["pages"]["/"]["status"] = 200.5; }
-    SECTION("wrong collection type") { document["nodes"][2]["services"] = nlohmann::json::object(); }
-    SECTION("ambiguous DNS names") { document["nodes"][2]["services"][1]["records"]["WEB.EXAMPLE."] = "192.0.2.22"; }
+    SECTION("fractional port") {
+        document["nodes"][2]["services"][0]["port"] = 80.5;
+    }
+    SECTION("overflowing port") {
+        document["nodes"][2]["services"][0]["port"] = 4294967376ULL;
+    }
+    SECTION("fractional status") {
+        document["nodes"][2]["services"][0]["pages"]["/"]["status"] = 200.5;
+    }
+    SECTION("wrong collection type") {
+        document["nodes"][2]["services"] = nlohmann::json::object();
+    }
+    SECTION("ambiguous DNS names") {
+        document["nodes"][2]["services"][1]["records"]["WEB.EXAMPLE."] = "192.0.2.22";
+    }
     REQUIRE_THROWS(TopologyLoader::fromJson(document));
 }
 
-TEST_CASE("Discovery preserves local services unless it supplies explicit configuration", "[services][discovery]") {
+TEST_CASE("Discovery preserves local services unless it supplies explicit configuration",
+          "[services][discovery]") {
     auto topology = serviceTopology();
     auto snapshot = TopologyLoader::toJson(topology);
     snapshot["nodes"][2].erase("services");
@@ -277,15 +333,19 @@ TEST_CASE("Discovery preserves local services unless it supplies explicit config
     REQUIRE(topology.getNode(2)->getServices().empty());
 }
 
-TEST_CASE("Service request validation is bounded and has no side effects on failure", "[services]") {
+TEST_CASE("Service request validation is bounded and has no side effects on failure",
+          "[services]") {
     SimulationEngine engine(serviceTopology());
     REQUIRE_THROWS(engine.networkServices().request(engine, -1, 2, ServiceKind::Http, 80, "/"));
     REQUIRE_THROWS(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 0, "/"));
-    REQUIRE_THROWS(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "bad path"));
-    REQUIRE_THROWS(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/", std::numeric_limits<double>::quiet_NaN()));
+    REQUIRE_THROWS(
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "bad path"));
+    REQUIRE_THROWS(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/",
+                                                    std::numeric_limits<double>::quiet_NaN()));
     REQUIRE(engine.networkServices().requests().empty());
     REQUIRE_FALSE(engine.hasEvents());
-    for (int i = 0; i < 256; ++i) engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
+    for (int i = 0; i < 256; ++i)
+        engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/");
     REQUIRE_THROWS(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/"));
     engine.run();
     REQUIRE_NOTHROW(engine.networkServices().request(engine, 0, 2, ServiceKind::Http, 80, "/"));

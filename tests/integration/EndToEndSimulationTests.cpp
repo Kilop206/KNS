@@ -11,8 +11,8 @@ using kns::TCPSession;
 using kns::TCPState;
 using kns::LinkMode;
 
-TEST_CASE("End-to-end simulation establishes TCP connection and completes session", "[integration][simulation]")
-{
+TEST_CASE("End-to-end simulation establishes TCP connection and completes session",
+          "[integration][simulation]") {
     // 1. Create a topology of 2 nodes
     Topology topo(2);
     topo.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -28,7 +28,7 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
     // Verify a session has been created
     const auto& sessions = engine.getTCPSessions();
     REQUIRE(sessions.size() == 1);
-    
+
     // Get the session ID
     std::uint64_t session_id = sessions.begin()->first;
     auto& session = engine.getTCPSession(session_id);
@@ -40,7 +40,8 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
     // 5. Verify the TCP session has progressed through established state or closed
     // After running the simulation to completion:
     // - Handshake completes -> transitions to ESTABLISHED.
-    // - Traffic is generated (since it is hardcoded to generate traffic on ESTABLISHED in some parts).
+    // - Traffic is generated (since it is hardcoded to generate traffic on ESTABLISHED in some
+    // parts).
     // - Eventually it closes, transitioning to CLOSED.
     // Let's verify that the session has transitioned out of CLOSED or completed successfully.
     // Let's print some stats for debugging.
@@ -51,16 +52,11 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
     // The validation function can be run to check the simulation sanity
     const auto report = engine.validateSimulation();
 
-    INFO("Session state: "
-        << static_cast<int>(session.getState()));
+    INFO("Session state: " << static_cast<int>(session.getState()));
 
-    INFO("Client state: "
-        << static_cast<int>(
-                session.getClientConnection().getTcpState()));
+    INFO("Client state: " << static_cast<int>(session.getClientConnection().getTcpState()));
 
-    INFO("Server state: "
-        << static_cast<int>(
-                session.getServerConnection().getTcpState()));
+    INFO("Server state: " << static_cast<int>(session.getServerConnection().getTcpState()));
 
     INFO("Total sessions: " << report.total_sessions);
     INFO("Completed sessions: " << report.completed_sessions);
@@ -70,21 +66,10 @@ TEST_CASE("End-to-end simulation establishes TCP connection and completes sessio
     REQUIRE(report.passed());
 }
 
-TEST_CASE(
-    "End-to-end simulation completes TCP four-way close",
-    "[tcp][integration][close]"
-)
-{
+TEST_CASE("End-to-end simulation completes TCP four-way close", "[tcp][integration][close]") {
     Topology topology(2);
 
-    auto link = topology.addLinkPtr(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX);
 
     REQUIRE(link != nullptr);
 
@@ -99,36 +84,23 @@ TEST_CASE(
 
     const auto& session = engine.getTCPSession(0);
 
-    const auto clientState =
-        session.getClientConnection().getTcpState();
+    const auto clientState = session.getClientConnection().getTcpState();
 
-    const auto serverState =
-        session.getServerConnection().getTcpState();
+    const auto serverState = session.getServerConnection().getTcpState();
 
-    INFO("Session state: "
-         << static_cast<int>(session.getState()));
+    INFO("Session state: " << static_cast<int>(session.getState()));
 
-    INFO("Client state: "
-         << static_cast<int>(clientState));
+    INFO("Client state: " << static_cast<int>(clientState));
 
-    INFO("Server state: "
-         << static_cast<int>(serverState));
+    INFO("Server state: " << static_cast<int>(serverState));
 
-    INFO("Packets sent: "
-         << engine.getStats().packets_sent);
+    INFO("Packets sent: " << engine.getStats().packets_sent);
 
-    INFO("Packets delivered: "
-         << engine.getStats().packets_delivered);
+    INFO("Packets delivered: " << engine.getStats().packets_delivered);
 
     // The complete TCP session must not remain in an active
     // connection state after the simulation finishes.
-    REQUIRE(
-        (clientState == TCPState::TIME_WAIT ||
-        clientState == TCPState::CLOSED)
-    );
+    REQUIRE((clientState == TCPState::TIME_WAIT || clientState == TCPState::CLOSED));
 
-    REQUIRE(
-        (serverState == TCPState::CLOSED ||
-        serverState == TCPState::TIME_WAIT)
-    );
+    REQUIRE((serverState == TCPState::CLOSED || serverState == TCPState::TIME_WAIT));
 }

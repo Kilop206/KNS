@@ -8,18 +8,8 @@ using kns::TCPFlag;
 using kns::TCPSegment;
 using kns::TCPState;
 
-TEST_CASE(
-    "TCP send window blocks data when full",
-    "[tcp][window][integration]"
-)
-{
-    TCPConnection client(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP send window blocks data when full", "[tcp][window][integration]") {
+    TCPConnection client(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     client.setSendWindow(100);
 
@@ -32,12 +22,7 @@ TEST_CASE(
     first.payload.assign(100, 0x41);
     first.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        client.queueSentSegment(
-            first,
-            0.0
-        )
-    );
+    REQUIRE(client.queueSentSegment(first, 0.0));
 
     REQUIRE(client.getSendUnacknowledged() == 1000);
     REQUIRE(client.getSendNext() == 1100);
@@ -46,18 +31,8 @@ TEST_CASE(
     REQUIRE_FALSE(client.canSend(1));
 }
 
-TEST_CASE(
-    "TCP cumulative ACK reopens send window",
-    "[tcp][window][integration]"
-)
-{
-    TCPConnection client(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP cumulative ACK reopens send window", "[tcp][window][integration]") {
+    TCPConnection client(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     client.setSendWindow(200);
 
@@ -71,19 +46,9 @@ TEST_CASE(
     second.payload.assign(100, 0x42);
     second.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        client.queueSentSegment(
-            first,
-            0.0
-        )
-    );
+    REQUIRE(client.queueSentSegment(first, 0.0));
 
-    REQUIRE(
-        client.queueSentSegment(
-            second,
-            0.0
-        )
-    );
+    REQUIRE(client.queueSentSegment(second, 0.0));
 
     REQUIRE(client.getSendUnacknowledged() == 1000);
     REQUIRE(client.getSendNext() == 1200);

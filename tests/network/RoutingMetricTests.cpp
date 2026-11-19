@@ -15,8 +15,7 @@ using kns::RoutingMetric;
 using kns::SimulationEngine;
 using kns::LinkMode;
 
-TEST_CASE("Routing validates public inputs in every build mode", "[network][routing][validation]")
-{
+TEST_CASE("Routing validates public inputs in every build mode", "[network][routing][validation]") {
     Routing routing;
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0);
@@ -38,10 +37,9 @@ TEST_CASE("Routing validates public inputs in every build mode", "[network][rout
     REQUIRE(engine.getRoutingTable(0)[1].distance == 1.0);
 }
 
-TEST_CASE("Routing respects link direction for every metric", "[network][routing][simplex]")
-{
+TEST_CASE("Routing respects link direction for every metric", "[network][routing][simplex]") {
     for (const auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth,
-                             RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
+                              RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
         for (const auto mode : {LinkMode::SIMPLEX, LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
             for (const int nodes : {2, 3}) {
                 CAPTURE(metric, mode, nodes);
@@ -58,8 +56,7 @@ TEST_CASE("Routing respects link direction for every metric", "[network][routing
     }
 }
 
-TEST_CASE("Changing link mode invalidates cached routes", "[network][routing][mode]")
-{
+TEST_CASE("Changing link mode invalidates cached routes", "[network][routing][mode]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
@@ -72,11 +69,8 @@ TEST_CASE("Changing link mode invalidates cached routes", "[network][routing][mo
     REQUIRE(engine.getNextHop(1, 0) == 0);
 }
 
-TEST_CASE(
-    "Routing metric names round-trip through configuration values",
-    "[network][routing][metric][configuration]"
-)
-{
+TEST_CASE("Routing metric names round-trip through configuration values",
+          "[network][routing][metric][configuration]") {
     const std::array expected_metrics{
         std::pair{"delay", RoutingMetric::Delay},
         std::pair{"bandwidth", RoutingMetric::Bandwidth},
@@ -95,8 +89,7 @@ TEST_CASE(
     REQUIRE_FALSE(kns::parseRoutingMetric(""));
 }
 
-TEST_CASE("Routing metric: Delay minimizes total propagation delay", "[network][routing][metric]")
-{
+TEST_CASE("Routing metric: Delay minimizes total propagation delay", "[network][routing][metric]") {
     // Triangle: 0-1-2 vs 0-2
     // Path A (indirect): 0-1 (5ms, 10Mbps), 1-2 (5ms, 10Mbps) -> total delay 10ms
     // Path B (direct): 0-2 (30ms, 100Mbps) -> total delay 30ms
@@ -114,8 +107,7 @@ TEST_CASE("Routing metric: Delay minimizes total propagation delay", "[network][
     REQUIRE(table[2].distance == 10.0);
 }
 
-TEST_CASE("Routing metric: Bandwidth maximizes bottleneck capacity", "[network][routing][metric]")
-{
+TEST_CASE("Routing metric: Bandwidth maximizes bottleneck capacity", "[network][routing][metric]") {
     // Triangle: 0-1-2 vs 0-2
     // Path A (indirect): 0-1 (5ms, 10Mbps), 1-2 (5ms, 10Mbps) -> bottleneck 10Mbps
     // Path B (direct): 0-2 (30ms, 100Mbps) -> bottleneck 100Mbps
@@ -133,8 +125,7 @@ TEST_CASE("Routing metric: Bandwidth maximizes bottleneck capacity", "[network][
     REQUIRE(table[2].distance == 100.0);
 }
 
-TEST_CASE("Routing metric: HopCount minimizes number of hops", "[network][routing][metric]")
-{
+TEST_CASE("Routing metric: HopCount minimizes number of hops", "[network][routing][metric]") {
     // Path A (indirect): 0-1 (1ms, 100Mbps), 1-2 (1ms, 100Mbps) -> 2 hops
     // Path B (direct): 0-2 (100ms, 1Mbps) -> 1 hop
     Topology topo(3);
@@ -151,8 +142,8 @@ TEST_CASE("Routing metric: HopCount minimizes number of hops", "[network][routin
     REQUIRE(table[2].distance == 1.0);
 }
 
-TEST_CASE("Routing metric: DelayBandwidth favors high-bandwidth low-latency paths", "[network][routing][metric]")
-{
+TEST_CASE("Routing metric: DelayBandwidth favors high-bandwidth low-latency paths",
+          "[network][routing][metric]") {
     // Path A: 0-1 (10ms, 10Mbps -> 1.0) + 1-2 (10ms, 10Mbps -> 1.0) = cost 2.0
     // Path B: 0-2 (40ms, 100Mbps -> 0.4) = cost 0.4
     Topology topo(3);
@@ -169,8 +160,7 @@ TEST_CASE("Routing metric: DelayBandwidth favors high-bandwidth low-latency path
     REQUIRE(table[2].distance == 0.4);
 }
 
-TEST_CASE("SimulationEngine dynamically switches routing metrics", "[network][routing][metric]")
-{
+TEST_CASE("SimulationEngine dynamically switches routing metrics", "[network][routing][metric]") {
     // Topology with competing delay vs bandwidth paths:
     // 0-1-2: lower delay (5+5=10ms), lower bandwidth (10Mbps)
     // 0-2: higher delay (30ms), higher bandwidth (100Mbps)
@@ -201,11 +191,8 @@ TEST_CASE("SimulationEngine dynamically switches routing metrics", "[network][ro
     REQUIRE(engine.getNextHop(0, 2) == 2);
 }
 
-TEST_CASE(
-    "SimulationEngine exposes the active routing table after metric and topology changes",
-    "[network][routing][metric]"
-)
-{
+TEST_CASE("SimulationEngine exposes the active routing table after metric and topology changes",
+          "[network][routing][metric]") {
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
     topo.addLink(1, 2, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -232,11 +219,8 @@ TEST_CASE(
     REQUIRE(engine.getRoutingTable(3).empty());
 }
 
-TEST_CASE(
-    "SimulationEngine refreshes routes after direct link mutations",
-    "[network][routing][metric][dynamic]"
-)
-{
+TEST_CASE("SimulationEngine refreshes routes after direct link mutations",
+          "[network][routing][metric][dynamic]") {
     SECTION("availability") {
         Topology topology(3);
         topology.addLink(0, 1, 50.0, 5.0);
@@ -281,8 +265,7 @@ TEST_CASE(
     }
 }
 
-TEST_CASE("Routing metrics handle unreachable nodes consistently", "[network][routing][metric]")
-{
+TEST_CASE("Routing metrics handle unreachable nodes consistently", "[network][routing][metric]") {
     // 0 <-> 1 and isolated node 2
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -315,8 +298,7 @@ TEST_CASE("Routing metrics handle unreachable nodes consistently", "[network][ro
     }
 }
 
-TEST_CASE("Routing metric calculation is strictly deterministic", "[network][routing][metric]")
-{
+TEST_CASE("Routing metric calculation is strictly deterministic", "[network][routing][metric]") {
     Topology topo(4);
     topo.addLink(0, 1, 50.0, 10.0, 0.0);
     topo.addLink(1, 2, 20.0, 15.0, 0.0);
@@ -325,7 +307,8 @@ TEST_CASE("Routing metric calculation is strictly deterministic", "[network][rou
 
     Routing routing;
 
-    for (auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth, RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
+    for (auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth, RoutingMetric::HopCount,
+                        RoutingMetric::DelayBandwidth}) {
         auto table1 = routing.buildRoutingTable(topo, 0, metric);
         auto table2 = routing.buildRoutingTable(topo, 0, metric);
 

@@ -29,7 +29,10 @@
 struct PacketSpec;
 
 namespace kns {
-    namespace analysis { class MetricsCollector; }
+    namespace analysis {
+        class MetricsCollector;
+    }
+
     struct ValidationReport {
         std::size_t total_sessions = 0;
         std::size_t completed_sessions = 0;
@@ -46,9 +49,10 @@ namespace kns {
         bool passed() const noexcept {
             return sessions_ok && traffic_ok;
         }
+
         bool transportFailed() const noexcept {
             return traffic_ok && failed_sessions > 0 &&
-                completed_sessions + failed_sessions == total_sessions;
+                   completed_sessions + failed_sessions == total_sessions;
         }
     };
 
@@ -82,7 +86,7 @@ namespace kns {
         bool executing_event_ = false;
         bool dispatchEvent();
 
-        //Vector with info about the packets
+        // Vector with info about the packets
         std::vector<PacketTravelInfo> packets_in_transit;
 
         float globalLossProb = 0.0f;
@@ -112,10 +116,19 @@ namespace kns {
         void requireActiveTCPNode(int node_id) const;
 
     public:
-        ServiceRuntime& networkServices() noexcept { return services_; }
-        const ServiceRuntime& networkServices() const noexcept { return services_; }
+        ServiceRuntime& networkServices() noexcept {
+            return services_;
+        }
+
+        const ServiceRuntime& networkServices() const noexcept {
+            return services_;
+        }
+
         double random();
-        std::uint32_t randomSequence() { return random_.nextUint32(); }
+
+        std::uint32_t randomSequence() {
+            return random_.nextUint32();
+        }
 
         double get_loss_prob() const;
 
@@ -125,7 +138,10 @@ namespace kns {
         void configureRun(const RunConfig& config);
 
         void schedule(std::unique_ptr<Event> event);
-        bool cancelEvent(std::uint64_t id) { return event_queue_.cancel(id); }
+
+        bool cancelEvent(std::uint64_t id) {
+            return event_queue_.cancel(id);
+        }
 
         void run();
 
@@ -136,9 +152,19 @@ namespace kns {
         void resume();
         /// Terminal cooperative cancellation; retain pending work for diagnosis.
         void cancel() noexcept;
-        ExecutionState executionState() const noexcept { return execution_state_; }
-        const ExecutionStatistics& executionStatistics() const noexcept { return execution_statistics_; }
-        std::size_t pendingEventCount() const noexcept { return event_queue_.size(); }
+
+        ExecutionState executionState() const noexcept {
+            return execution_state_;
+        }
+
+        const ExecutionStatistics& executionStatistics() const noexcept {
+            return execution_statistics_;
+        }
+
+        std::size_t pendingEventCount() const noexcept {
+            return event_queue_.size();
+        }
+
         /// Execute one event even while paused; preserve the pause state.
         bool step();
 
@@ -152,8 +178,8 @@ namespace kns {
         /// is unreachable, current == destination, or if either node ID is invalid/out-of-bounds.
         int getNextHop(int current, int destination) const;
 
-        /// Returns the routing table currently used by source, or an empty view for an invalid node.
-        /// The view is invalidated when the engine rebuilds its routing tables.
+        /// Returns the routing table currently used by source, or an empty view for an invalid
+        /// node. The view is invalidated when the engine rebuilds its routing tables.
         std::span<const Routing::RoutingEntry> getRoutingTable(int source) const;
 
         /// Inspect current hop-by-hop forwarding without creating traffic.
@@ -185,17 +211,18 @@ namespace kns {
 
         const std::vector<PacketTravelInfo>& getPacketsInTransit() const;
 
-        bool removePacketInTransit(
-            double departure_time,
-            double arrival_time,
-            int from,
-            int to,
-            std::uint64_t link_id
-        );
+        bool removePacketInTransit(double departure_time, double arrival_time, int from, int to,
+                                   std::uint64_t link_id);
 
         void setGlobalLossProb(float value);
-        void clearGlobalLossOverride() noexcept { loss_override_enabled_ = false; }
-        bool hasGlobalLossOverride() const noexcept { return loss_override_enabled_; }
+
+        void clearGlobalLossOverride() noexcept {
+            loss_override_enabled_ = false;
+        }
+
+        bool hasGlobalLossOverride() const noexcept {
+            return loss_override_enabled_;
+        }
 
         void setGlobalPacketSize(int value);
 
@@ -207,22 +234,14 @@ namespace kns {
 
         void startTCPConnection(int source, int dest);
         bool canStartTCPConnection(int source, int destination) const noexcept;
-        void startTCPConnection(
-            int source,
-            int dest,
-            std::uint16_t source_port,
-            std::uint16_t destination_port
-        );
+        void startTCPConnection(int source, int dest, std::uint16_t source_port,
+                                std::uint16_t destination_port);
 
         /// Make node_id passively listen on the default TCP port (0).
         TCPListener& startTCPListen(int node_id, int backlog = 128);
 
         /// Make node_id passively listen on a specific TCP port.
-        TCPListener& startTCPListen(
-            int node_id,
-            std::uint16_t port,
-            int backlog
-        );
+        TCPListener& startTCPListen(int node_id, std::uint16_t port, int backlog);
 
         /// Returns true if node_id has an active listener on any TCP port.
         bool hasListener(int node_id) const noexcept;
@@ -232,38 +251,29 @@ namespace kns {
 
         /// Accept an incoming SYN on a listening node. Returns the new
         /// session_id, or TCPListener::INVALID_SESSION_ID on failure.
-        std::uint64_t acceptOnListener(
-            int listening_node,
-            int connecting_node,
-            std::uint32_t connecting_seq
-        );
-        std::uint64_t acceptOnListener(
-            int listening_node,
-            int connecting_node,
-            std::uint32_t connecting_seq,
-            std::uint16_t connecting_port,
-            std::uint16_t listening_port
-        );
+        std::uint64_t acceptOnListener(int listening_node, int connecting_node,
+                                       std::uint32_t connecting_seq);
+        std::uint64_t acceptOnListener(int listening_node, int connecting_node,
+                                       std::uint32_t connecting_seq, std::uint16_t connecting_port,
+                                       std::uint16_t listening_port);
 
         /// Release a closed session from its server listener's backlog.
         /// Returns false without mutation unless both endpoints are CLOSED.
         bool releaseTCPListenerSession(std::uint64_t session_id) noexcept;
 
-        void setPacketObserver(
-            std::function<void(const Packet&, uint64_t session_id, int from, int to, double departure_time, double arrival_time)> observer
-        );
+        void
+        setPacketObserver(std::function<void(const Packet&, uint64_t session_id, int from, int to,
+                                             double departure_time, double arrival_time)>
+                              observer);
 
-        void emitPacketEvent(const Packet& p, int from, int to, double departure_time, double arrival_time);
+        void emitPacketEvent(const Packet& p, int from, int to, double departure_time,
+                             double arrival_time);
 
         void generatePackets(double startTime, TCPSession& session);
 
         TCPSession& createTCPSession(int source, int destination);
-        TCPSession& createTCPSession(
-            int source,
-            int destination,
-            std::uint16_t source_port,
-            std::uint16_t destination_port
-        );
+        TCPSession& createTCPSession(int source, int destination, std::uint16_t source_port,
+                                     std::uint16_t destination_port);
 
         TCPSession& getTCPSession(std::uint64_t session_id);
 
@@ -285,15 +295,10 @@ namespace kns {
         int createNode();
         bool synchronizeTopology(const Topology& snapshot);
         bool deleteNode(int id);
-        Topology::LinkPtr createLink(
-            int a,
-            int b,
-            double bandwidth_mbps,
-            double delay_ms,
-            double link_loss_prob = 0.0,
-            LinkMode mode = LinkMode::FULL_DUPLEX,
-            int queue_capacity = 32
-        );
+        Topology::LinkPtr createLink(int a, int b, double bandwidth_mbps, double delay_ms,
+                                     double link_loss_prob = 0.0,
+                                     LinkMode mode = LinkMode::FULL_DUPLEX,
+                                     int queue_capacity = 32);
         bool deleteLink(int a, int b);
         bool deleteLinkById(std::uint64_t link_id);
         bool toggleLinkUp(int a, int b, bool up);

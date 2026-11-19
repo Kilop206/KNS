@@ -14,8 +14,7 @@ using kns::PacketType;
 using kns::SimulationEngine;
 using kns::Link;
 
-TEST_CASE("Routing calculates shortest paths correctly in a chain topology", "[network][routing]")
-{
+TEST_CASE("Routing calculates shortest paths correctly in a chain topology", "[network][routing]") {
     // Node chain: 0 <-> 1 <-> 2
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 10.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -42,8 +41,7 @@ TEST_CASE("Routing calculates shortest paths correctly in a chain topology", "[n
     REQUIRE(table[2].distance == 30.0);
 }
 
-TEST_CASE("Routing chooses faster indirect path over slower direct path", "[network][routing]")
-{
+TEST_CASE("Routing chooses faster indirect path over slower direct path", "[network][routing]") {
     // Triangle: 0, 1, 2
     // Path 0-2: 20ms delay (direct)
     // Path 0-1-2: 5ms + 5ms = 10ms delay (indirect)
@@ -60,8 +58,7 @@ TEST_CASE("Routing chooses faster indirect path over slower direct path", "[netw
     REQUIRE(table[2].distance == 10.0);
 }
 
-TEST_CASE("Routing handles unreachable nodes correctly", "[network][routing]")
-{
+TEST_CASE("Routing handles unreachable nodes correctly", "[network][routing]") {
     // 0 <-> 1  and an isolated node 2
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -74,8 +71,7 @@ TEST_CASE("Routing handles unreachable nodes correctly", "[network][routing]")
     REQUIRE(table[2].distance == std::numeric_limits<double>::infinity());
 }
 
-TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network][routing]")
-{
+TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network][routing]") {
     // 0 <-> 1  and isolated node 2
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -108,7 +104,7 @@ TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network]
     REQUIRE(empty_engine.getNextHop(-1, 0) == -1);
 
     // Dynamic topology mutation updates bounds correctly
-    const int new_node = engine.createNode(); // creates node 3
+    const int new_node = engine.createNode();      // creates node 3
     REQUIRE(engine.getNextHop(0, new_node) == -1); // unreachable
     engine.createLink(1, new_node, 10.0, 5.0);
     REQUIRE(engine.getNextHop(0, new_node) == 1); // now reachable via 1
@@ -116,8 +112,7 @@ TEST_CASE("SimulationEngine getNextHop node index bounds validation", "[network]
     REQUIRE(engine.getNextHop(0, new_node) == -1);
 }
 
-TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][routing]")
-{
+TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][routing]") {
     // Triangle: 0-1 (5ms), 0-2 (20ms), 1-2 (5ms)
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -148,8 +143,8 @@ TEST_CASE("Routing and SimulationEngine ignore links that are DOWN", "[network][
     REQUIRE(engine.getNextHop(0, 2) == 1);
 }
 
-TEST_CASE("Link UP and DOWN integration with packet transmission and alternate paths", "[network][routing][link]")
-{
+TEST_CASE("Link UP and DOWN integration with packet transmission and alternate paths",
+          "[network][routing][link]") {
     // Triangle: 0-1 (5ms), 1-2 (5ms), 0-2 (50ms alternate path)
     Topology topo(3);
     topo.addLink(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);
@@ -174,7 +169,8 @@ TEST_CASE("Link UP and DOWN integration with packet transmission and alternate p
     auto& links_from_0 = engine.getTopology().getLinksFromNode(0);
     Link* link_0_1 = nullptr;
     for (const auto& l : links_from_0) {
-        if (l->getOtherNode(0) == 1) link_0_1 = l.get();
+        if (l->getOtherNode(0) == 1)
+            link_0_1 = l.get();
     }
     REQUIRE(link_0_1 != nullptr);
     REQUIRE_FALSE(link_0_1->isUp());
@@ -207,8 +203,8 @@ TEST_CASE("Link UP and DOWN integration with packet transmission and alternate p
     REQUIRE(engine.getPacketsInTransit().empty());
 }
 
-TEST_CASE("Link UP and DOWN with parallel links selects available UP link", "[network][routing][link]")
-{
+TEST_CASE("Link UP and DOWN with parallel links selects available UP link",
+          "[network][routing][link]") {
     Topology topo(2);
     // Add two parallel links between 0 and 1
     auto l1 = topo.addLinkPtr(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX);

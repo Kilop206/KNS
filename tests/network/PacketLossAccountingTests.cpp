@@ -4,8 +4,8 @@
 
 using namespace kns;
 
-TEST_CASE("Topology rejection counts one loss at source and intermediate hops", "[network][loss][stats]")
-{
+TEST_CASE("Topology rejection counts one loss at source and intermediate hops",
+          "[network][loss][stats]") {
     for (const bool intermediate : {false, true}) {
         for (const int failure : {0, 1, 2, 3}) {
             CAPTURE(intermediate, failure);

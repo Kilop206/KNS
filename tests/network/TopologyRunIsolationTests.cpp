@@ -3,8 +3,8 @@
 
 using namespace kns;
 
-TEST_CASE("Loss override is explicit reversible and preserves topology configuration", "[loss][configuration]")
-{
+TEST_CASE("Loss override is explicit reversible and preserves topology configuration",
+          "[loss][configuration]") {
     Topology source(2);
     source.addLink(0, 1, 100.0, 1.0, 1.0);
     source.addLink(0, 1, 100.0, 1.0, 0.2);
@@ -28,8 +28,7 @@ TEST_CASE("Loss override is explicit reversible and preserves topology configura
     }
 }
 
-TEST_CASE("New runs preserve configuration but never inherit link runtime", "[topology][restart]")
-{
+TEST_CASE("New runs preserve configuration but never inherit link runtime", "[topology][restart]") {
     Topology source(3);
     source.setName("restart");
     source.setNodeLabel(0, "source");
@@ -44,7 +43,8 @@ TEST_CASE("New runs preserve configuration but never inherit link runtime", "[to
     REQUIRE(active->getQueueSize() == 1);
     REQUIRE(original->getQueueSize() == 0);
     for (bool completed : {false, true}) {
-        if (completed) first.run();
+        if (completed)
+            first.run();
         SimulationEngine restarted(first.getTopology());
         auto fresh = restarted.getTopology().getLinks()[0];
         REQUIRE(fresh.get() != active.get());

@@ -6,24 +6,12 @@
 
 namespace gui {
 
-    void VisualPacketManager::observePacket(
-        const kns::Packet& packet,
-        std::uint64_t session_id,
-        int from,
-        int to,
-        double departure_time,
-        double arrival_time
-    ) {
-        pending_.push_back(VisualPacket{
-            from,
-            to,
-            kns::inferPacketType(packet.tcp),
-            session_id,
-            departure_time,
-            arrival_time,
-            departure_time,
-            std::max(0.001, arrival_time - departure_time)
-        });
+    void VisualPacketManager::observePacket(const kns::Packet& packet, std::uint64_t session_id,
+                                            int from, int to, double departure_time,
+                                            double arrival_time) {
+        pending_.push_back(VisualPacket{from, to, kns::inferPacketType(packet.tcp), session_id,
+                                        departure_time, arrival_time, departure_time,
+                                        std::max(0.001, arrival_time - departure_time)});
     }
 
     void VisualPacketManager::update(double visual_time) {
@@ -32,16 +20,11 @@ namespace gui {
         }
         pending_.clear();
 
-        active_.erase(
-            std::remove_if(
-                active_.begin(),
-                active_.end(),
-                [visual_time](const VisualPacket& p) {
-                    return visual_time >= p.sim_arrival_time;
-                }
-            ),
-            active_.end()
-        );
+        active_.erase(std::remove_if(active_.begin(), active_.end(),
+                                     [visual_time](const VisualPacket& p) {
+                                         return visual_time >= p.sim_arrival_time;
+                                     }),
+                      active_.end());
     }
 
     const std::vector<VisualPacket>& VisualPacketManager::getActivePackets() const {

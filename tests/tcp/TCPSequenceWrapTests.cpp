@@ -4,8 +4,7 @@
 
 using namespace kns;
 
-TEST_CASE("TCP sends and acknowledges DATA across uint32 wrap", "[tcp][sequence]")
-{
+TEST_CASE("TCP sends and acknowledges DATA across uint32 wrap", "[tcp][sequence]") {
     constexpr auto start = std::numeric_limits<std::uint32_t>::max() - 49;
     TCPConnection sender(TCPState::ESTABLISHED, start, 10, 0, 1);
     TCPConnection receiver(TCPState::ESTABLISHED, 10, start, 1, 0);
@@ -24,8 +23,7 @@ TEST_CASE("TCP sends and acknowledges DATA across uint32 wrap", "[tcp][sequence]
     REQUIRE(sender.getSendBufferSize() == 0);
 }
 
-TEST_CASE("Receive ordering overlap and duplicate checks cross uint32 wrap", "[tcp][sequence]")
-{
+TEST_CASE("Receive ordering overlap and duplicate checks cross uint32 wrap", "[tcp][sequence]") {
     constexpr auto start = std::numeric_limits<std::uint32_t>::max() - 49;
     TCPReceiveBuffer buffer(start, 1000);
     auto entry = [](std::uint32_t seq, std::size_t size) {

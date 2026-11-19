@@ -4,16 +4,16 @@
 
 namespace kns {
 
-class Topology;
+    class Topology;
 
 }
 
 namespace kns::analysis {
 
-class NetworkAnalyzer {
-public:
-    [[nodiscard]]
-    NetworkAnalysis analyze(const Topology& topology) const;
-};
+    class NetworkAnalyzer {
+    public:
+        [[nodiscard]]
+        NetworkAnalysis analyze(const Topology& topology) const;
+    };
 
 }

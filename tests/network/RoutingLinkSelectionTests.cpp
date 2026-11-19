@@ -4,17 +4,19 @@
 
 using namespace kns;
 
-TEST_CASE("Forwarding uses the Dijkstra first edge for every metric and insertion order", "[network][routing][parallel]")
-{
+TEST_CASE("Forwarding uses the Dijkstra first edge for every metric and insertion order",
+          "[network][routing][parallel]") {
     for (const auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth,
-            RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
+                              RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
         for (const bool best_first : {false, true}) {
             CAPTURE(static_cast<int>(metric), best_first);
             Topology topology(3);
             Topology::LinkPtr best, other;
-            if (best_first) best = topology.addLinkPtr(0, 1, 100.0, 10.0);
+            if (best_first)
+                best = topology.addLinkPtr(0, 1, 100.0, 10.0);
             other = topology.addLinkPtr(0, 1, 10.0, 20.0);
-            if (!best_first) best = topology.addLinkPtr(0, 1, 100.0, 10.0);
+            if (!best_first)
+                best = topology.addLinkPtr(0, 1, 100.0, 10.0);
             topology.addLink(1, 2, 1000.0, 1.0);
             SimulationEngine engine(topology);
             best = engine.getTopology().getLinks()[best_first ? 0 : 1];
@@ -36,10 +38,9 @@ TEST_CASE("Forwarding uses the Dijkstra first edge for every metric and insertio
     }
 }
 
-TEST_CASE("Routing edge selection excludes reverse SIMPLEX links", "[network][routing][parallel]")
-{
+TEST_CASE("Routing edge selection excludes reverse SIMPLEX links", "[network][routing][parallel]") {
     for (const auto metric : {RoutingMetric::Delay, RoutingMetric::Bandwidth,
-            RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
+                              RoutingMetric::HopCount, RoutingMetric::DelayBandwidth}) {
         Topology topology(3);
         topology.addLink(1, 0, 1000.0, 0.0, 0.0, LinkMode::SIMPLEX);
         auto forward = topology.addLinkPtr(0, 1, 10.0, 10.0, 0.0, LinkMode::SIMPLEX);

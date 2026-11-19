@@ -16,216 +16,154 @@
 
 namespace kns::app::intelligence {
 
-namespace {
+    namespace {
 
-std::string httpErrorMessage(
-    int status,
-    const std::string& body
-)
-{
-    std::string message =
-        "Intelligence backend returned HTTP " +
-        std::to_string(status);
+        std::string httpErrorMessage(int status, const std::string& body) {
+            std::string message = "Intelligence backend returned HTTP " + std::to_string(status);
 
-    if (!body.empty()) {
-        constexpr std::size_t max_error_detail = 2048;
-        message += ": " + body.substr(0, max_error_detail);
-        if (body.size() > max_error_detail) message += " [truncated]";
-    }
-
-    return message;
-}
-
-
-bool validRequestId(std::string_view value) noexcept
-{
-    return !value.empty() &&
-        value.size() <= 128 &&
-        std::all_of(
-            value.begin(),
-            value.end(),
-            [](unsigned char character) {
-                return std::isalnum(character) ||
-                    character == '-' ||
-                    character == '_' ||
-                    character == '.';
+            if (!body.empty()) {
+                constexpr std::size_t max_error_detail = 2048;
+                message += ": " + body.substr(0, max_error_detail);
+                if (body.size() > max_error_detail)
+                    message += " [truncated]";
             }
-        );
-}
 
-void addRequestIdHeader(
-    httplib::Headers& headers,
-    const nlohmann::json& request,
-    const char* key
-)
-{
-    const auto iterator = request.find(key);
-    if (iterator == request.end() || !iterator->is_string()) {
-        return;
-    }
-    const auto value = iterator->get<std::string>();
-    if (validRequestId(value)) {
-        headers.emplace("X-Request-ID", value);
-    }
-}
-
-std::optional<int> parseOptionalQuotaHeader(const httplib::Response& response)
-{
-    const auto value = response.get_header_value("X-Daily-Quota-Remaining");
-    if (value.empty()) {
-        return std::nullopt;
-    }
-    int parsed = 0;
-    const auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
-    if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || parsed < 0) {
-        throw std::runtime_error("Sentient returned invalid quota metadata");
-    }
-    return parsed;
-}
-
-} // namespace
-
-IntelligenceClient::IntelligenceClient(
-    IntelligenceClientConfig config
-)
-    : config_(std::move(config))
-{
-    if (config_.max_response_bytes == 0) {
-        throw std::invalid_argument("Intelligence response limit must be positive");
-    }
-}
-
-ChatReply IntelligenceClient::chat(const nlohmann::json& request) const
-{
-    httplib::Client client(config_.base_url);
-    kns::app::http::configureClientTrust(client);
-    client.set_connection_timeout(config_.connection_timeout_seconds);
-    client.set_read_timeout(config_.chat_timeout_seconds);
-    client.set_write_timeout(config_.write_timeout_seconds);
-    client.set_payload_max_length(std::min<std::size_t>(config_.max_response_bytes, 128 * 1024));
-    httplib::Headers headers{{"Accept", "application/json"}, {"User-Agent", "KNS/1.0"}};
-    if (!config_.bearer_token.empty()) {
-        headers.emplace("Authorization", "Bearer " + config_.bearer_token);
-    }
-    addRequestIdHeader(headers, request, "requestId");
-    const auto result = client.Post(config_.chat_endpoint, headers, request.dump(), "application/json");
-    if (!result) {
-        throw std::runtime_error("Could not reach Assistant chat: " + httplib::to_string(result.error()));
-    }
-    if (result->status < 200 || result->status >= 300) {
-        throw std::runtime_error(httpErrorMessage(result->status, result->body.substr(0, 2048)));
-    }
-    if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Assistant chat response exceeds response size limit");
-    }
-    const auto response = nlohmann::json::parse(result->body);
-    if (response.at("requestId") != request.at("requestId") ||
-        response.at("topologyRevision") != request.at("topologyRevision")) {
-        throw std::runtime_error("Assistant returned a reply for a different request or topology");
-    }
-    auto message = response.at("message").get<std::string>();
-    if (message.empty() || message.size() > 64000 ||
-        message.find_first_not_of(" \t\r\n") == std::string::npos) {
-        throw std::runtime_error("Assistant returned an empty or oversized reply");
-    }
-    std::size_t omitted = 0;
-    if (response.contains("historyTurnsOmitted")) {
-        const auto& value = response.at("historyTurnsOmitted");
-        if (!value.is_number_integer() || value < 0 ||
-            value > request.at("messages").size() / 2) {
-            throw std::runtime_error("Assistant returned invalid chat history metadata");
+            return message;
         }
-        omitted = value.get<std::size_t>();
-    }
-    const auto plan = result->get_header_value("X-Sentient-Plan");
-    const auto quota = parseOptionalQuotaHeader(*result);
-    return {std::move(message), omitted, plan, quota};
-}
 
-kns::intelligence::IntelligenceResponse
-IntelligenceClient::analyze(
-    const kns::intelligence::IntelligenceRequest& request
-) const
-{
-    httplib::Client client(
-        config_.base_url
-    );
-    kns::app::http::configureClientTrust(client);
-
-    client.set_connection_timeout(
-        config_.connection_timeout_seconds
-    );
-
-    client.set_read_timeout(
-        config_.read_timeout_seconds
-    );
-
-    client.set_write_timeout(
-        config_.write_timeout_seconds
-    );
-    client.set_payload_max_length(config_.max_response_bytes);
-
-    httplib::Headers headers = {
-        {
-            "Accept",
-            "application/json"
-        },
-        {
-            "User-Agent",
-            "KNS/1.0"
+        bool validRequestId(std::string_view value) noexcept {
+            return !value.empty() && value.size() <= 128 &&
+                   std::all_of(value.begin(), value.end(), [](unsigned char character) {
+                       return std::isalnum(character) || character == '-' || character == '_' ||
+                              character == '.';
+                   });
         }
-    };
 
-    if (!config_.bearer_token.empty()) {
-        headers.emplace(
-            "Authorization",
-            "Bearer " + config_.bearer_token
-        );
+        void addRequestIdHeader(httplib::Headers& headers, const nlohmann::json& request,
+                                const char* key) {
+            const auto iterator = request.find(key);
+            if (iterator == request.end() || !iterator->is_string()) {
+                return;
+            }
+            const auto value = iterator->get<std::string>();
+            if (validRequestId(value)) {
+                headers.emplace("X-Request-ID", value);
+            }
+        }
+
+        std::optional<int> parseOptionalQuotaHeader(const httplib::Response& response) {
+            const auto value = response.get_header_value("X-Daily-Quota-Remaining");
+            if (value.empty()) {
+                return std::nullopt;
+            }
+            int parsed = 0;
+            const auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            if (result.ec != std::errc{} || result.ptr != value.data() + value.size() ||
+                parsed < 0) {
+                throw std::runtime_error("Sentient returned invalid quota metadata");
+            }
+            return parsed;
+        }
+
+    } // namespace
+
+    IntelligenceClient::IntelligenceClient(IntelligenceClientConfig config)
+        : config_(std::move(config)) {
+        if (config_.max_response_bytes == 0) {
+            throw std::invalid_argument("Intelligence response limit must be positive");
+        }
     }
 
-    const auto requestJson =
-        kns::intelligence::
-            IntelligenceRequestBuilder::toJson(
-                request
-            );
-
-    addRequestIdHeader(headers, requestJson, "request_id");
-
-    const auto result =
-        client.Post(
-            config_.analyze_endpoint,
-            headers,
-            requestJson.dump(),
-            "application/json"
-        );
-
-    if (!result) {
-        throw std::runtime_error(
-            "Could not connect to KNS Intelligence backend: " +
-            httplib::to_string(result.error())
-        );
+    ChatReply IntelligenceClient::chat(const nlohmann::json& request) const {
+        httplib::Client client(config_.base_url);
+        kns::app::http::configureClientTrust(client);
+        client.set_connection_timeout(config_.connection_timeout_seconds);
+        client.set_read_timeout(config_.chat_timeout_seconds);
+        client.set_write_timeout(config_.write_timeout_seconds);
+        client.set_payload_max_length(
+            std::min<std::size_t>(config_.max_response_bytes, 128 * 1024));
+        httplib::Headers headers{{"Accept", "application/json"}, {"User-Agent", "KNS/1.0"}};
+        if (!config_.bearer_token.empty()) {
+            headers.emplace("Authorization", "Bearer " + config_.bearer_token);
+        }
+        addRequestIdHeader(headers, request, "requestId");
+        const auto result =
+            client.Post(config_.chat_endpoint, headers, request.dump(), "application/json");
+        if (!result) {
+            throw std::runtime_error("Could not reach Assistant chat: " +
+                                     httplib::to_string(result.error()));
+        }
+        if (result->status < 200 || result->status >= 300) {
+            throw std::runtime_error(
+                httpErrorMessage(result->status, result->body.substr(0, 2048)));
+        }
+        if (result->body.size() > config_.max_response_bytes) {
+            throw std::runtime_error("Assistant chat response exceeds response size limit");
+        }
+        const auto response = nlohmann::json::parse(result->body);
+        if (response.at("requestId") != request.at("requestId") ||
+            response.at("topologyRevision") != request.at("topologyRevision")) {
+            throw std::runtime_error(
+                "Assistant returned a reply for a different request or topology");
+        }
+        auto message = response.at("message").get<std::string>();
+        if (message.empty() || message.size() > 64000 ||
+            message.find_first_not_of(" \t\r\n") == std::string::npos) {
+            throw std::runtime_error("Assistant returned an empty or oversized reply");
+        }
+        std::size_t omitted = 0;
+        if (response.contains("historyTurnsOmitted")) {
+            const auto& value = response.at("historyTurnsOmitted");
+            if (!value.is_number_integer() || value < 0 ||
+                value > request.at("messages").size() / 2) {
+                throw std::runtime_error("Assistant returned invalid chat history metadata");
+            }
+            omitted = value.get<std::size_t>();
+        }
+        const auto plan = result->get_header_value("X-Sentient-Plan");
+        const auto quota = parseOptionalQuotaHeader(*result);
+        return {std::move(message), omitted, plan, quota};
     }
 
-    if (result->body.size() > config_.max_response_bytes) {
-        throw std::runtime_error("Intelligence response exceeds response size limit");
-    }
+    kns::intelligence::IntelligenceResponse
+    IntelligenceClient::analyze(const kns::intelligence::IntelligenceRequest& request) const {
+        httplib::Client client(config_.base_url);
+        kns::app::http::configureClientTrust(client);
 
-    if (
-        result->status < 200 ||
-        result->status >= 300
-    ) {
-        throw std::runtime_error(
-            httpErrorMessage(
-                result->status,
-                result->body
-            )
-        );
-    }
+        client.set_connection_timeout(config_.connection_timeout_seconds);
 
-    return kns::intelligence::
-        IntelligenceResponseParser::parse(
-            result->body
-        );
-}
+        client.set_read_timeout(config_.read_timeout_seconds);
+
+        client.set_write_timeout(config_.write_timeout_seconds);
+        client.set_payload_max_length(config_.max_response_bytes);
+
+        httplib::Headers headers = {{"Accept", "application/json"}, {"User-Agent", "KNS/1.0"}};
+
+        if (!config_.bearer_token.empty()) {
+            headers.emplace("Authorization", "Bearer " + config_.bearer_token);
+        }
+
+        const auto requestJson = kns::intelligence::IntelligenceRequestBuilder::toJson(request);
+
+        addRequestIdHeader(headers, requestJson, "request_id");
+
+        const auto result =
+            client.Post(config_.analyze_endpoint, headers, requestJson.dump(), "application/json");
+
+        if (!result) {
+            throw std::runtime_error("Could not connect to KNS Intelligence backend: " +
+                                     httplib::to_string(result.error()));
+        }
+
+        if (result->body.size() > config_.max_response_bytes) {
+            throw std::runtime_error("Intelligence response exceeds response size limit");
+        }
+
+        if (result->status < 200 || result->status >= 300) {
+            throw std::runtime_error(httpErrorMessage(result->status, result->body));
+        }
+
+        return kns::intelligence::IntelligenceResponseParser::parse(result->body);
+    }
 
 }

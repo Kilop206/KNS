@@ -12,14 +12,8 @@ namespace kns {
 
     class TCPReceiveBuffer {
     public:
-        explicit TCPReceiveBuffer(
-            std::uint32_t next_sequence = 0,
-            std::size_t capacity_bytes = 0
-        )
-            : next_sequence_(next_sequence),
-              capacity_bytes_(capacity_bytes),
-              buffered_bytes_(0)
-        {
+        explicit TCPReceiveBuffer(std::uint32_t next_sequence = 0, std::size_t capacity_bytes = 0)
+            : next_sequence_(next_sequence), capacity_bytes_(capacity_bytes), buffered_bytes_(0) {
             setCapacity(capacity_bytes);
         }
 
@@ -53,10 +47,7 @@ namespace kns {
             return capacity_bytes_ - buffered_bytes_;
         }
 
-        void setCapacity(
-            std::size_t capacity_bytes
-        )
-        {
+        void setCapacity(std::size_t capacity_bytes) {
             if (capacity_bytes >= tcp_sequence::half_space) {
                 throw std::invalid_argument("Receive window exceeds TCP serial range");
             }
@@ -67,10 +58,7 @@ namespace kns {
             return next_sequence_;
         }
 
-        void setNextSequence(
-            std::uint32_t sequence
-        ) noexcept
-        {
+        void setNextSequence(std::uint32_t sequence) noexcept {
             next_sequence_ = sequence;
         }
 

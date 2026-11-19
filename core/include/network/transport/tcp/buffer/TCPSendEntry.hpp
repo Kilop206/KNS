@@ -23,19 +23,14 @@ namespace kns {
         std::uint32_t retransmission_count = 0;
 
         std::uint32_t sequence_end() const noexcept {
-            return segment.seq +
-                   static_cast<std::uint32_t>(
-                       segment.payloadSize()
-                   );
+            return segment.seq + static_cast<std::uint32_t>(segment.payloadSize());
         }
 
         std::size_t payload_size() const noexcept {
             return segment.payloadSize();
         }
 
-        bool isAcknowledged(
-            std::uint32_t ack_number
-        ) const noexcept {
+        bool isAcknowledged(std::uint32_t ack_number) const noexcept {
             return tcp_sequence::beforeOrEqual(sequence_end(), ack_number);
         }
 
@@ -43,10 +38,7 @@ namespace kns {
             return !retransmitted;
         }
 
-        void markRetransmitted(
-            double retransmission_time
-        ) noexcept
-        {
+        void markRetransmitted(double retransmission_time) noexcept {
             sent_at = retransmission_time;
             retransmitted = true;
             ++retransmission_count;

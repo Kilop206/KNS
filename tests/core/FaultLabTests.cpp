@@ -5,17 +5,22 @@
 
 namespace {
     using Json = nlohmann::json;
+
     Json plan() {
-        return {{"schema_version", "1.0"}, {"in_flight_policy", "complete_accepted_hops"},
-            {"events", Json::array()}, {"probes", {{{"source", 0}, {"destination", 1}}}},
-            {"observe_at", {0, 1, 2, 3, 4}}};
+        return {{"schema_version", "1.0"},
+                {"in_flight_policy", "complete_accepted_hops"},
+                {"events", Json::array()},
+                {"probes", {{{"source", 0}, {"destination", 1}}}},
+                {"observe_at", {0, 1, 2, 3, 4}}};
     }
+
     Json state(double at, const char* type, int link = 0) {
         return {{"at", at}, {"type", type}, {"link_index", link}};
     }
 }
 
-TEST_CASE("Fault Lab reports connectivity outage separately from service recovery", "[fault-lab][integration]") {
+TEST_CASE("Fault Lab reports connectivity outage separately from service recovery",
+          "[fault-lab][integration]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);
@@ -33,7 +38,8 @@ TEST_CASE("Fault Lab reports connectivity outage separately from service recover
     REQUIRE(output["windows"][0]["throughput_pps"] == 0);
 }
 
-TEST_CASE("Fault Lab takes alternate routes and identifies parallel links by original index", "[fault-lab][routing]") {
+TEST_CASE("Fault Lab takes alternate routes and identifies parallel links by original index",
+          "[fault-lab][routing]") {
     kns::Topology topology(3);
     topology.addLink(0, 1, 10, 1);
     topology.addLink(0, 1, 10, 5);
@@ -54,7 +60,8 @@ TEST_CASE("Fault Lab takes alternate routes and identifies parallel links by ori
     REQUIRE(report->toJson()["sampled_link_outages"][0]["duration_s"] == 2);
 }
 
-TEST_CASE("Fault Lab preserves accepted and queued hop timing across failure", "[fault-lab][timing]") {
+TEST_CASE("Fault Lab preserves accepted and queued hop timing across failure",
+          "[fault-lab][timing]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 1, 10);
     kns::SimulationEngine engine(topology);
@@ -64,9 +71,11 @@ TEST_CASE("Fault Lab preserves accepted and queued hop timing across failure", "
     REQUIRE(engine.sendPacket(packet, *link, 0));
     auto input = plan();
     input["observe_at"] = {0, 0.005, 0.015, 0.03};
-    input["events"] = {state(0.0005, "link_down"),
+    input["events"] = {
+        state(0.0005, "link_down"),
         Json{{"at", 0.0005}, {"type", "bandwidth_mbps"}, {"link_index", 0}, {"value", 0.1}},
-        Json{{"at", 0.0005}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 1000}}, state(0.02, "link_up")};
+        Json{{"at", 0.0005}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 1000}},
+        state(0.02, "link_up")};
     auto report = kns::FaultLab::schedule(engine, input);
     engine.runUntil(0.005);
     REQUIRE(engine.getStats().packets_delivered == 0);
@@ -77,22 +86,23 @@ TEST_CASE("Fault Lab preserves accepted and queued hop timing across failure", "
     engine.run();
     const auto output = report->toJson();
     int delivered = 0;
-    for (const auto& window : output["windows"]) delivered += window["packets_delivered"].get<int>();
+    for (const auto& window : output["windows"])
+        delivered += window["packets_delivered"].get<int>();
     REQUIRE(delivered == 2);
 }
 
-TEST_CASE("Fault Lab applies and explicitly restores bandwidth delay and loss", "[fault-lab][parameters]") {
+TEST_CASE("Fault Lab applies and explicitly restores bandwidth delay and loss",
+          "[fault-lab][parameters]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);
     auto input = plan();
-    input["events"] = {
-        {{"at", 1}, {"type", "bandwidth_mbps"}, {"link_index", 0}, {"value", 2}},
-        {{"at", 1}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 20}},
-        {{"at", 1}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 1}},
-        {{"at", 3}, {"type", "bandwidth_mbps"}, {"link_index", 0}, {"value", 10}},
-        {{"at", 3}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 1}},
-        {{"at", 3}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 0}}};
+    input["events"] = {{{"at", 1}, {"type", "bandwidth_mbps"}, {"link_index", 0}, {"value", 2}},
+                       {{"at", 1}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 20}},
+                       {{"at", 1}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 1}},
+                       {{"at", 3}, {"type", "bandwidth_mbps"}, {"link_index", 0}, {"value", 10}},
+                       {{"at", 3}, {"type", "delay_ms"}, {"link_index", 0}, {"value", 1}},
+                       {{"at", 3}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 0}}};
     auto report = kns::FaultLab::schedule(engine, input);
     engine.runUntil(2);
     const auto link = engine.getTopology().getLinks()[0];
@@ -112,8 +122,9 @@ TEST_CASE("Fault Lab applies and explicitly restores bandwidth delay and loss", 
 TEST_CASE("Fault Lab rejects the whole invalid plan before scheduling", "[fault-lab][validation]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
-    for (auto event : {state(1, "unknown"), state(-1, "link_down"), state(1, "link_down", 4),
-                       Json{{"at", 1}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 2}}}) {
+    for (auto event :
+         {state(1, "unknown"), state(-1, "link_down"), state(1, "link_down", 4),
+          Json{{"at", 1}, {"type", "loss_probability"}, {"link_index", 0}, {"value", 2}}}) {
         kns::SimulationEngine engine(topology);
         auto input = plan();
         input["events"] = {state(0.5, "link_down"), event};
@@ -123,7 +134,8 @@ TEST_CASE("Fault Lab rejects the whole invalid plan before scheduling", "[fault-
     }
 }
 
-TEST_CASE("Fault Lab preserves file order at ties and censors open outages", "[fault-lab][determinism]") {
+TEST_CASE("Fault Lab preserves file order at ties and censors open outages",
+          "[fault-lab][determinism]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);
@@ -138,12 +150,14 @@ TEST_CASE("Fault Lab preserves file order at ties and censors open outages", "[f
     REQUIRE(outage["duration_s"].is_null());
 }
 
-TEST_CASE("Fault Lab flapping produces repeated observed interruption intervals", "[fault-lab][flapping]") {
+TEST_CASE("Fault Lab flapping produces repeated observed interruption intervals",
+          "[fault-lab][flapping]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);
     auto input = plan();
-    input["events"] = {state(1, "link_down"), state(2, "link_up"), state(3, "link_down"), state(4, "link_up")};
+    input["events"] = {state(1, "link_down"), state(2, "link_up"), state(3, "link_down"),
+                       state(4, "link_up")};
     auto report = kns::FaultLab::schedule(engine, input);
     engine.run();
     const auto outages = report->toJson()["sampled_connectivity_outages"];
@@ -152,7 +166,8 @@ TEST_CASE("Fault Lab flapping produces repeated observed interruption intervals"
     REQUIRE(outages[1]["duration_s"] == 1);
 }
 
-TEST_CASE("Fault Lab reports a removed scheduled target as execution failure", "[fault-lab][validation]") {
+TEST_CASE("Fault Lab reports a removed scheduled target as execution failure",
+          "[fault-lab][validation]") {
     kns::Topology topology(2);
     topology.addLink(0, 1, 10, 1);
     kns::SimulationEngine engine(topology);

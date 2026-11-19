@@ -8,24 +8,19 @@
 
 namespace kns::intelligence {
 
-enum class AnalysisMode {
-    Quick,
-    Detailed,
-    Deep
-};
+    enum class AnalysisMode { Quick, Detailed, Deep };
 
-struct IntelligenceRequest {
-    std::string request_id;
+    struct IntelligenceRequest {
+        std::string request_id;
 
-    AnalysisMode mode =
-        AnalysisMode::Detailed;
+        AnalysisMode mode = AnalysisMode::Detailed;
 
-    nlohmann::json context;
+        nlohmann::json context;
 
-    analysis::NetworkScore score;
+        analysis::NetworkScore score;
 
-    std::string client_name = "KNS";
-    std::string client_version = "1.0.0";
-};
+        std::string client_name = "KNS";
+        std::string client_version = "1.0.0";
+    };
 
 }

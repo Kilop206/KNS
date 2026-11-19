@@ -6,10 +6,7 @@
 
 namespace kns {
     TCPTimeWaitTimeoutEvent::TCPTimeWaitTimeoutEvent(double timestamp, std::uint64_t session_id)
-        : Event(timestamp),
-          session_id_(session_id)
-    {
-    }
+        : Event(timestamp), session_id_(session_id) {}
 
     void TCPTimeWaitTimeoutEvent::execute(SimulationEngine& engine) {
         if (!engine.hasTCPSession(session_id_)) {

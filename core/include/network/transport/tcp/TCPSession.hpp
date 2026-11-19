@@ -5,81 +5,82 @@
 #include "enums/TCPState.hpp"
 #include "network/transport/tcp/TCPConnection.hpp"
 
-namespace kns
-{
+namespace kns {
 
-    class TCPSession
-    {
-        public:
-            enum class FailureReason {
-                None,
-                SynRetriesExhausted,
-                CloseRetriesExhausted,
-                DataRetriesExhausted
-            };
+    class TCPSession {
+    public:
+        enum class FailureReason {
+            None,
+            SynRetriesExhausted,
+            CloseRetriesExhausted,
+            DataRetriesExhausted
+        };
 
-        private:
-            FailureReason failure_reason_ = FailureReason::None;
-            std::uint64_t session_id;
-            int source;
-            int destination;
-            int total_packets = 0;
-            int packets_sent = 0;
-            TCPConnection client_connection;
-            TCPConnection server_connection;
-            bool close_requested = false;
-            bool traffic_generated_ = false;
-            bool generation_pending_ = false;
+    private:
+        FailureReason failure_reason_ = FailureReason::None;
+        std::uint64_t session_id;
+        int source;
+        int destination;
+        int total_packets = 0;
+        int packets_sent = 0;
+        TCPConnection client_connection;
+        TCPConnection server_connection;
+        bool close_requested = false;
+        bool traffic_generated_ = false;
+        bool generation_pending_ = false;
 
-        public:
-            FailureReason getFailureReason() const noexcept { return failure_reason_; }
-            bool failHandshake() noexcept;
-            void failClose() noexcept;
-            void failData() noexcept;
-            TCPSession();
+    public:
+        FailureReason getFailureReason() const noexcept {
+            return failure_reason_;
+        }
 
-            TCPSession(std::uint64_t session_id,
-                        int source,
-                        int destination,
-                        TCPState state,
-                        std::uint16_t source_port = 0,
-                        std::uint16_t destination_port = 0,
-                        CongestionControlType congestion_control_type =
-                            CongestionControlType::RENO);
+        bool failHandshake() noexcept;
+        void failClose() noexcept;
+        void failData() noexcept;
+        TCPSession();
 
-            std::uint64_t getSession_id() const;
+        TCPSession(std::uint64_t session_id, int source, int destination, TCPState state,
+                   std::uint16_t source_port = 0, std::uint16_t destination_port = 0,
+                   CongestionControlType congestion_control_type = CongestionControlType::RENO);
 
-            int getSource() const;
+        std::uint64_t getSession_id() const;
 
-            int getDestination() const;
+        int getSource() const;
 
-            /// Returns the aggregate state derived from the client and server
-            /// connection states. See TCPSession.cpp for the derivation rules.
-            TCPState getState() const;
+        int getDestination() const;
 
-            TCPConnection& getClientConnection();
-            const TCPConnection& getClientConnection() const;
+        /// Returns the aggregate state derived from the client and server
+        /// connection states. See TCPSession.cpp for the derivation rules.
+        TCPState getState() const;
 
-            TCPConnection& getServerConnection();
-            const TCPConnection& getServerConnection() const;
+        TCPConnection& getClientConnection();
+        const TCPConnection& getClientConnection() const;
 
-            void incrementPacketsSent();
+        TCPConnection& getServerConnection();
+        const TCPConnection& getServerConnection() const;
 
-            void setTotalPackets(int total);
+        void incrementPacketsSent();
 
-            bool isComplete() const noexcept;
-            /// Generation is complete and neither endpoint has outstanding DATA.
-            bool isDataAcknowledged() const noexcept;
+        void setTotalPackets(int total);
 
-            bool isCloseRequest();
+        bool isComplete() const noexcept;
+        /// Generation is complete and neither endpoint has outstanding DATA.
+        bool isDataAcknowledged() const noexcept;
 
-            void setCloseRequest(bool closeRequest);
+        bool isCloseRequest();
 
-            bool hasGeneratedTraffic() const noexcept;
-            bool hasPendingGeneration() const noexcept { return generation_pending_; }
-            void setGenerationPending(bool pending) noexcept { generation_pending_ = pending; }
-            
-            void markTrafficGenerated() noexcept;
+        void setCloseRequest(bool closeRequest);
 
+        bool hasGeneratedTraffic() const noexcept;
+
+        bool hasPendingGeneration() const noexcept {
+            return generation_pending_;
+        }
+
+        void setGenerationPending(bool pending) noexcept {
+            generation_pending_ = pending;
+        }
+
+        void markTrafficGenerated() noexcept;
     };
 }

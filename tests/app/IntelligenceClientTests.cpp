@@ -10,34 +10,36 @@
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceRequest.hpp"
 
-TEST_CASE("Intelligence analyze forwards request id as HTTP correlation header", "[intelligence][http]")
-{
+TEST_CASE("Intelligence analyze forwards request id as HTTP correlation header",
+          "[intelligence][http]") {
     httplib::Server server;
     std::string observedRequestId;
 
     server.Post("/analyze", [&](const httplib::Request& request, httplib::Response& response) {
         observedRequestId = request.get_header_value("X-Request-ID");
-        response.set_content(
-            nlohmann::json{
-                {"schema_version", "1.0"},
-                {"analysis_id", "analysis-1"},
-                {"status", "completed"},
-                {"network_score", 80.0},
-                {"summary", "Analysis complete."},
-                {"findings", nlohmann::json::array()},
-                {"recommendations", nlohmann::json::array()}
-            }.dump(),
-            "application/json"
-        );
+        response.set_content(nlohmann::json{{"schema_version", "1.0"},
+                                            {"analysis_id", "analysis-1"},
+                                            {"status", "completed"},
+                                            {"network_score", 80.0},
+                                            {"summary", "Analysis complete."},
+                                            {"findings", nlohmann::json::array()},
+                                            {"recommendations", nlohmann::json::array()}}
+                                 .dump(),
+                             "application/json");
     });
 
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     kns::app::intelligence::IntelligenceClientConfig config;
@@ -48,24 +50,24 @@ TEST_CASE("Intelligence analyze forwards request id as HTTP correlation header",
     request.request_id = "analysis-req-42";
     request.context = nlohmann::json::object();
 
-    const auto response =
-        kns::app::intelligence::IntelligenceClient(config).analyze(request);
+    const auto response = kns::app::intelligence::IntelligenceClient(config).analyze(request);
 
     REQUIRE(observedRequestId == "analysis-req-42");
     REQUIRE(response.analysis_id == "analysis-1");
 }
 
-TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence][http]")
-{
+TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence][http]") {
     httplib::Server server;
     server.Post("/analyze", [](const httplib::Request&, httplib::Response& response) {
-        response.set_content(nlohmann::json{
-            {"schema_version", "1.0"}, {"analysis_id", "bounded-analysis"},
-            {"status", "completed"}, {"network_score", 80.0},
-            {"summary", std::string(2048, 'x')},
-            {"findings", nlohmann::json::array()},
-            {"recommendations", nlohmann::json::array()}
-        }.dump(), "application/json");
+        response.set_content(nlohmann::json{{"schema_version", "1.0"},
+                                            {"analysis_id", "bounded-analysis"},
+                                            {"status", "completed"},
+                                            {"network_score", 80.0},
+                                            {"summary", std::string(2048, 'x')},
+                                            {"findings", nlohmann::json::array()},
+                                            {"recommendations", nlohmann::json::array()}}
+                                 .dump(),
+                             "application/json");
     });
     server.Post("/error", [](const httplib::Request&, httplib::Response& response) {
         response.status = 503;
@@ -75,10 +77,15 @@ TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     kns::app::intelligence::IntelligenceClientConfig config;
@@ -94,7 +101,8 @@ TEST_CASE("Intelligence analyze bounds upstream response bodies", "[intelligence
     // The same valid response succeeds with sufficient capacity, proving the
     // earlier rejection was due to size rather than malformed response JSON.
     config.max_response_bytes = 16384;
-    REQUIRE(kns::app::intelligence::IntelligenceClient(config).analyze(request).analysis_id == "bounded-analysis");
+    REQUIRE(kns::app::intelligence::IntelligenceClient(config).analyze(request).analysis_id ==
+            "bounded-analysis");
     config.analyze_endpoint = "/error";
     try {
         (void)kns::app::intelligence::IntelligenceClient(config).analyze(request);

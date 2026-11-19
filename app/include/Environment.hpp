@@ -7,38 +7,32 @@
 
 namespace kns::app {
 
-[[nodiscard]] inline std::optional<std::string> readEnvironmentVariable(
-    const char* name
-)
-{
-    if (name == nullptr) {
-        return std::nullopt;
-    }
+    [[nodiscard]] inline std::optional<std::string> readEnvironmentVariable(const char* name) {
+        if (name == nullptr) {
+            return std::nullopt;
+        }
 
 #ifdef _MSC_VER
-    char* raw_value = nullptr;
-    std::size_t value_size = 0;
-    if (_dupenv_s(&raw_value, &value_size, name) != 0) {
-        return std::nullopt;
-    }
+        char* raw_value = nullptr;
+        std::size_t value_size = 0;
+        if (_dupenv_s(&raw_value, &value_size, name) != 0) {
+            return std::nullopt;
+        }
 
-    const std::unique_ptr<char, decltype(&std::free)> value(
-        raw_value,
-        &std::free
-    );
+        const std::unique_ptr<char, decltype(&std::free)> value(raw_value, &std::free);
 
-    if (value == nullptr || value_size <= 1) {
-        return std::nullopt;
-    }
-    return std::string(value.get());
+        if (value == nullptr || value_size <= 1) {
+            return std::nullopt;
+        }
+        return std::string(value.get());
 #else
-    const char* value = std::getenv(name);
-    if (value == nullptr || *value == '\0') {
-        return std::nullopt;
-    }
+        const char* value = std::getenv(name);
+        if (value == nullptr || *value == '\0') {
+            return std::nullopt;
+        }
 
-    return std::string(value);
+        return std::string(value);
 #endif
-}
+    }
 
 } // namespace kns::app

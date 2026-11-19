@@ -1,24 +1,24 @@
 #include "network/transport/tcp/TCPSession.hpp"
 
 namespace kns {
-    void TCPSession::failData() noexcept
-    {
+    void TCPSession::failData() noexcept {
         failure_reason_ = FailureReason::DataRetriesExhausted;
         client_connection.failRetransmission();
         server_connection.failRetransmission();
     }
+
     void TCPSession::failClose() noexcept {
         failure_reason_ = FailureReason::CloseRetriesExhausted;
         client_connection.failRetransmission();
         server_connection.failRetransmission();
     }
-    bool TCPSession::failHandshake() noexcept
-    {
+
+    bool TCPSession::failHandshake() noexcept {
         const bool client_exhausted = client_connection.getTcpState() == TCPState::SYN_SENT &&
-            !client_connection.canRetrySyn();
+                                      !client_connection.canRetrySyn();
         const bool server_exhausted = client_connection.getTcpState() == TCPState::ESTABLISHED &&
-            server_connection.getTcpState() == TCPState::SYN_RECEIVED &&
-            !server_connection.canRetrySyn();
+                                      server_connection.getTcpState() == TCPState::SYN_RECEIVED &&
+                                      !server_connection.canRetrySyn();
         if (!client_exhausted && !server_exhausted) {
             return false;
         }
@@ -28,50 +28,28 @@ namespace kns {
         return true;
     }
 
-    TCPSession::TCPSession(std::uint64_t session_id,
-                            int source,
-                            int destination,
-                            TCPState state,
-                            std::uint16_t source_port,
-                            std::uint16_t destination_port,
-                            CongestionControlType congestion_control_type)
-                            : session_id(session_id),
-                            source(source),
-                            destination(destination),
-                            client_connection(
-                                state, 0, 0, source, destination,
-                                congestion_control_type,
-                                TCPConnection::DEFAULT_CONGESTION_MSS,
-                                65535,
-                                source_port,
-                                destination_port
-                            ),
-                            server_connection(
-                                state, 0, 0, destination, source,
-                                congestion_control_type,
-                                TCPConnection::DEFAULT_CONGESTION_MSS,
-                                65535,
-                                destination_port,
-                                source_port
-                            ) {
-    }
+    TCPSession::TCPSession(std::uint64_t session_id, int source, int destination, TCPState state,
+                           std::uint16_t source_port, std::uint16_t destination_port,
+                           CongestionControlType congestion_control_type)
+        : session_id(session_id), source(source), destination(destination),
+          client_connection(state, 0, 0, source, destination, congestion_control_type,
+                            TCPConnection::DEFAULT_CONGESTION_MSS, 65535, source_port,
+                            destination_port),
+          server_connection(state, 0, 0, destination, source, congestion_control_type,
+                            TCPConnection::DEFAULT_CONGESTION_MSS, 65535, destination_port,
+                            source_port) {}
 
-    TCPSession::TCPSession()
-        : TCPSession(0, 0, 0, TCPState::CLOSED) {
-    }
+    TCPSession::TCPSession() : TCPSession(0, 0, 0, TCPState::CLOSED) {}
 
-    std::uint64_t TCPSession::getSession_id() const
-    {
+    std::uint64_t TCPSession::getSession_id() const {
         return session_id;
     }
 
-    int TCPSession::getSource() const
-    {
+    int TCPSession::getSource() const {
         return source;
     }
 
-    int TCPSession::getDestination() const
-    {
+    int TCPSession::getDestination() const {
         return destination;
     }
 
@@ -81,8 +59,7 @@ namespace kns {
     ///   ESTABLISHED > CLOSE_WAIT > LAST_ACK > FIN_WAIT_1 > FIN_WAIT_2
     ///   > CLOSING > TIME_WAIT > CLOSED > SYN_RECEIVED > SYN_SENT > LISTEN
     /// Falls back to the client connection state when no explicit rule matches.
-    TCPState TCPSession::getState() const
-    {
+    TCPState TCPSession::getState() const {
         const TCPState cs = client_connection.getTcpState();
         const TCPState ss = server_connection.getTcpState();
 
@@ -123,45 +100,37 @@ namespace kns {
         return cs;
     }
 
-    void TCPSession::incrementPacketsSent()
-    {
+    void TCPSession::incrementPacketsSent() {
         packets_sent++;
     }
 
-    void TCPSession::setTotalPackets(int total)
-    {
+    void TCPSession::setTotalPackets(int total) {
         total_packets = total;
     }
 
-    bool TCPSession::isComplete() const noexcept
-    {
+    bool TCPSession::isComplete() const noexcept {
         return packets_sent == total_packets;
     }
 
-    bool TCPSession::isDataAcknowledged() const noexcept
-    {
+    bool TCPSession::isDataAcknowledged() const noexcept {
         return hasGeneratedTraffic() && isComplete() &&
-            client_connection.getSendBufferSize() == 0 &&
-            server_connection.getSendBufferSize() == 0;
+               client_connection.getSendBufferSize() == 0 &&
+               server_connection.getSendBufferSize() == 0;
     }
 
-    bool TCPSession::isCloseRequest()
-    {
+    bool TCPSession::isCloseRequest() {
         return close_requested;
     }
 
-    void TCPSession::setCloseRequest(bool closeRequest)
-    {
+    void TCPSession::setCloseRequest(bool closeRequest) {
         this->close_requested = closeRequest;
     }
 
-    bool TCPSession::hasGeneratedTraffic() const noexcept
-    {
+    bool TCPSession::hasGeneratedTraffic() const noexcept {
         return traffic_generated_;
     }
 
-    void TCPSession::markTrafficGenerated() noexcept
-    {
+    void TCPSession::markTrafficGenerated() noexcept {
         traffic_generated_ = true;
     }
 
@@ -173,13 +142,11 @@ namespace kns {
         return server_connection;
     }
 
-    const TCPConnection& TCPSession::getClientConnection() const
-    {
+    const TCPConnection& TCPSession::getClientConnection() const {
         return client_connection;
     }
 
-    const TCPConnection& TCPSession::getServerConnection() const
-    {
+    const TCPConnection& TCPSession::getServerConnection() const {
         return server_connection;
     }
 }

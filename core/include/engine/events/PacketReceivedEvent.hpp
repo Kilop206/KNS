@@ -10,14 +10,17 @@ namespace kns {
     class TCPSession;
 
     class PacketReceivedEvent : public Event {
-        public:
-            explicit PacketReceivedEvent(double timestamp, Packet packet);
+    public:
+        explicit PacketReceivedEvent(double timestamp, Packet packet);
 
-            void execute(SimulationEngine& engine) override;
-            const char* getName() const noexcept override { return "PacketReceivedEvent"; }
+        void execute(SimulationEngine& engine) override;
 
-        private:
-            Packet packet;
+        const char* getName() const noexcept override {
+            return "PacketReceivedEvent";
+        }
+
+    private:
+        Packet packet;
     };
 
 }

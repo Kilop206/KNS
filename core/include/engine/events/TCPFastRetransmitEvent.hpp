@@ -8,14 +8,9 @@ namespace kns {
 
     class TCPFastRetransmitEvent : public Event {
     public:
-        TCPFastRetransmitEvent(
-            double timestamp,
-            std::uint64_t session_id
-        );
+        TCPFastRetransmitEvent(double timestamp, std::uint64_t session_id);
 
-        void execute(
-            SimulationEngine& engine
-        ) override;
+        void execute(SimulationEngine& engine) override;
 
         const char* getName() const noexcept override {
             return "TCPFastRetransmitEvent";

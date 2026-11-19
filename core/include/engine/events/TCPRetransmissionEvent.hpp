@@ -8,15 +8,9 @@ namespace kns {
 
     class TCPRetransmissionEvent : public Event {
     public:
-        TCPRetransmissionEvent(
-            double timestamp,
-            std::uint64_t session_id,
-            std::uint32_t sequence
-        );
+        TCPRetransmissionEvent(double timestamp, std::uint64_t session_id, std::uint32_t sequence);
 
-        void execute(
-            SimulationEngine& engine
-        ) override;
+        void execute(SimulationEngine& engine) override;
 
         const char* getName() const noexcept override {
             return "TCPRetransmissionEvent";

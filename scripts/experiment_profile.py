@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """Generate controlled link variants and run them with the benchmark runner."""
+
 from __future__ import annotations
 
 import argparse
 import copy
 import json
 import math
-from datetime import datetime, timezone
-from pathlib import Path
 import re
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
+import analytics_config
 import benchmark_suite
 import compare_experiments
-import run as runner
 import experiment_manifest as manifests
 import experiment_sweep
 import fault_plan
-import analytics_config
+import run as runner
 import traffic_config
-
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE = ROOT / "KNS Experiments" / "experiment-profile.json"
@@ -27,7 +27,10 @@ PARAMETERS = experiment_sweep.PARAMETERS
 
 
 def valid_name(value: object) -> bool:
-    return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", value) is not None
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", value) is not None
+    )
 
 
 def load_profile(path: Path) -> tuple[dict, dict]:
@@ -36,21 +39,41 @@ def load_profile(path: Path) -> tuple[dict, dict]:
         raise ValueError("Profile must be an object")
     topology_path = profile.get("topology")
     if not isinstance(topology_path, str) or not topology_path:
-        raise ValueError("Profile topology must be a non-empty path relative to the KNS root")
+        raise ValueError(
+            "Profile topology must be a non-empty path relative to the KNS root"
+        )
     topology = json.loads((ROOT / topology_path).read_text(encoding="utf-8"))
     return validate_profile(profile, topology)
 
 
 def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
-    allowed = {"name", "topology", "index", "experiments", "seeds", "packet_sizes",
-               "routing_metrics", "congestion_controls", "allow_transport_failures", "baseline",
-               "schema_version", "max_cases", "sweep", "analytics", "traffic_plan"}
+    allowed = {
+        "name",
+        "topology",
+        "index",
+        "experiments",
+        "seeds",
+        "packet_sizes",
+        "routing_metrics",
+        "congestion_controls",
+        "allow_transport_failures",
+        "baseline",
+        "schema_version",
+        "max_cases",
+        "sweep",
+        "analytics",
+        "traffic_plan",
+    }
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
     if not valid_name(profile.get("name")):
-        raise ValueError("Profile name must use letters, digits, hyphens or underscores")
+        raise ValueError(
+            "Profile name must use letters, digits, hyphens or underscores"
+        )
     if not isinstance(profile.get("topology"), str) or not profile["topology"]:
-        raise ValueError("Profile topology must be a non-empty path relative to the KNS root")
+        raise ValueError(
+            "Profile topology must be a non-empty path relative to the KNS root"
+        )
     if profile.setdefault("schema_version", "1.0") != "1.0":
         raise ValueError("Unsupported experiment profile schema_version; expected 1.0")
     max_cases = profile.setdefault("max_cases", 1000)
@@ -59,7 +82,9 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
     if "sweep" in profile:
         if "experiments" in profile:
             raise ValueError("Specify experiments or sweep, not both")
-        profile["experiments"] = experiment_sweep.expand(profile.pop("sweep"), max_cases)
+        profile["experiments"] = experiment_sweep.expand(
+            profile.pop("sweep"), max_cases
+        )
     if not isinstance(topology, dict) or not isinstance(topology.get("links"), list):
         raise ValueError("Topology must contain a links array")
     if "analytics" in profile:
@@ -77,11 +102,17 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         raise ValueError("Profile experiments must be a non-empty list")
     names = set()
     for experiment in experiments:
-        if not isinstance(experiment, dict) or set(experiment) - ({"name", "fault_plan", "traffic_overrides"} | PARAMETERS):
-            raise ValueError("Each experiment must contain name and supported link parameters")
+        if not isinstance(experiment, dict) or set(experiment) - (
+            {"name", "fault_plan", "traffic_overrides"} | PARAMETERS
+        ):
+            raise ValueError(
+                "Each experiment must contain name and supported link parameters"
+            )
         name = experiment.get("name")
         if not valid_name(name) or name.casefold() in names:
-            raise ValueError("Experiment names must be valid and unique (case-insensitive)")
+            raise ValueError(
+                "Experiment names must be valid and unique (case-insensitive)"
+            )
         names.add(name.casefold())
         changes = set(experiment) & PARAMETERS
         if "fault_plan" in experiment:
@@ -89,24 +120,42 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         if "traffic_overrides" in experiment:
             if "traffic_plan" not in profile:
                 raise ValueError("Traffic overrides require a root traffic_plan")
-            traffic_config.apply_overrides(profile["traffic_plan"], experiment["traffic_overrides"], topology)
-        if not changes and "fault_plan" not in experiment and "traffic_overrides" not in experiment:
-            raise ValueError(f"Experiment {name} must modify a link, fault plan or traffic parameter")
+            traffic_config.apply_overrides(
+                profile["traffic_plan"], experiment["traffic_overrides"], topology
+            )
+        if (
+            not changes
+            and "fault_plan" not in experiment
+            and "traffic_overrides" not in experiment
+        ):
+            raise ValueError(
+                f"Experiment {name} must modify a link, fault plan or traffic parameter"
+            )
         for field in changes:
             value = experiment[field]
             if field not in link and field != "queue_capacity":
                 raise ValueError(f"Selected link has no {field} field")
             if type(value) not in (int, float) or not math.isfinite(value):
                 raise ValueError(f"{field} must be a finite number")
-            if (field == "bandwidth" and value <= 0
-                    or field == "delay" and value < 0
-                    or field == "loss" and not 0 <= value <= 1
-                    or field == "queue_capacity" and (type(value) is not int or not 1 <= value <= 2**31 - 1)):
-                raise ValueError(f"Invalid {field}: bandwidth > 0, delay >= 0, loss in [0, 1], positive integer queue capacity")
+            if (
+                field == "bandwidth"
+                and value <= 0
+                or field == "delay"
+                and value < 0
+                or field == "loss"
+                and not 0 <= value <= 1
+                or field == "queue_capacity"
+                and (type(value) is not int or not 1 <= value <= 2**31 - 1)
+            ):
+                raise ValueError(
+                    f"Invalid {field}: bandwidth > 0, delay >= 0, loss in [0, 1], positive integer queue capacity"
+                )
 
     dimensions = {
-        "seeds": [42], "packet_sizes": [1500],
-        "routing_metrics": ["delay"], "congestion_controls": ["reno"],
+        "seeds": [42],
+        "packet_sizes": [1500],
+        "routing_metrics": ["delay"],
+        "congestion_controls": ["reno"],
     }
     for field, default in dimensions.items():
         values = profile.setdefault(field, default)
@@ -118,23 +167,36 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
             elif field == "packet_sizes":
                 valid = type(value) is int and 0 < value <= 2**31 - 1
             else:
-                choices = ({"delay", "bandwidth", "hop-count", "delay-bandwidth"}
-                           if field == "routing_metrics" else {"tahoe", "reno", "newreno", "cubic"})
+                choices = (
+                    {"delay", "bandwidth", "hop-count", "delay-bandwidth"}
+                    if field == "routing_metrics"
+                    else {"tahoe", "reno", "newreno", "cubic"}
+                )
                 valid = isinstance(value, str) and value in choices
             if not valid:
                 raise ValueError(f"Invalid {field} value: {value!r}")
         if len(set(values)) != len(values):
-            raise ValueError(f"{field} must not contain duplicates; use distinct seeds for repetitions")
+            raise ValueError(
+                f"{field} must not contain duplicates; use distinct seeds for repetitions"
+            )
     if type(profile.setdefault("allow_transport_failures", False)) is not bool:
         raise ValueError("allow_transport_failures must be a boolean")
-    if "traffic_plan" in profile and (len(profile["packet_sizes"]) != 1 or len(profile["congestion_controls"]) != 1):
-        raise ValueError("Abstract traffic sizes/classes come from the plan; TCP packet-size/congestion-control sweeps are unsupported")
+    if "traffic_plan" in profile and (
+        len(profile["packet_sizes"]) != 1 or len(profile["congestion_controls"]) != 1
+    ):
+        raise ValueError(
+            "Abstract traffic sizes/classes come from the plan; TCP packet-size/congestion-control sweeps are unsupported"
+        )
     baseline = profile.setdefault("baseline", experiments[0]["name"])
-    if not isinstance(baseline, str) or baseline not in {experiment["name"] for experiment in experiments}:
+    if not isinstance(baseline, str) or baseline not in {
+        experiment["name"] for experiment in experiments
+    }:
         raise ValueError("baseline must name an experiment in the profile")
     case_count = len(experiments) * math.prod(len(profile[key]) for key in dimensions)
     if case_count > max_cases:
-        raise ValueError(f"Experiment matrix has {case_count} cases, exceeding max_cases={max_cases}")
+        raise ValueError(
+            f"Experiment matrix has {case_count} cases, exceeding max_cases={max_cases}"
+        )
     return profile, topology
 
 
@@ -142,30 +204,51 @@ def make_suite(profile: dict, output: Path) -> dict:
     suite = {
         "schema_version": "1.0",
         "name": profile["name"],
-        "topologies": [str(output / "topologies" / f"{index:03d}-{experiment['name']}.json")
-                       for index, experiment in enumerate(profile["experiments"], start=1)],
-        **{key: profile[key] for key in ("seeds", "packet_sizes", "routing_metrics",
-                                        "congestion_controls", "allow_transport_failures")},
+        "topologies": [
+            str(output / "topologies" / f"{index:03d}-{experiment['name']}.json")
+            for index, experiment in enumerate(profile["experiments"], start=1)
+        ],
+        **{
+            key: profile[key]
+            for key in (
+                "seeds",
+                "packet_sizes",
+                "routing_metrics",
+                "congestion_controls",
+                "allow_transport_failures",
+            )
+        },
         "link_event_scenarios": [{"name": "baseline", "events": []}],
     }
-    plans = {path: str(output / "fault-plans" / f"{index:03d}.json")
-             for index, (path, experiment) in enumerate(zip(suite["topologies"], profile["experiments"]), 1)
-             if "fault_plan" in experiment}
+    plans = {
+        path: str(output / "fault-plans" / f"{index:03d}.json")
+        for index, (path, experiment) in enumerate(
+            zip(suite["topologies"], profile["experiments"]), 1
+        )
+        if "fault_plan" in experiment
+    }
     if plans:
         suite["fault_plans"] = plans
     if "analytics" in profile:
         suite["analytics_config"] = str(output / "analytics.json")
     if "traffic_plan" in profile:
-        if any("traffic_overrides" in experiment for experiment in profile["experiments"]):
-            suite["traffic_plans"] = {path: str(output / "traffic-plans" / f"{i:03d}.json") for i, path in enumerate(suite["topologies"], 1)}
+        if any(
+            "traffic_overrides" in experiment for experiment in profile["experiments"]
+        ):
+            suite["traffic_plans"] = {
+                path: str(output / "traffic-plans" / f"{i:03d}.json")
+                for i, path in enumerate(suite["topologies"], 1)
+            }
         else:
             suite["traffic_plan"] = str(output / "traffic.json")
     return suite
 
 
 def write_json(path: Path, value: dict) -> None:
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
-                    encoding="utf-8")
+    path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def generate(profile: dict, topology: dict, output: Path) -> Path:
@@ -180,13 +263,19 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     for experiment, filename in zip(profile["experiments"], suite["topologies"]):
         variant = copy.deepcopy(topology)
         variant["links"][profile["index"]].update(
-            {key: experiment[key] for key in PARAMETERS if key in experiment})
+            {key: experiment[key] for key in PARAMETERS if key in experiment}
+        )
         write_json(Path(filename), variant)
         if "fault_plan" in experiment:
             write_json(Path(suite["fault_plans"][filename]), experiment["fault_plan"])
         if "traffic_plans" in suite:
-            plan = (traffic_config.apply_overrides(profile["traffic_plan"], experiment["traffic_overrides"], topology)
-                    if "traffic_overrides" in experiment else profile["traffic_plan"])
+            plan = (
+                traffic_config.apply_overrides(
+                    profile["traffic_plan"], experiment["traffic_overrides"], topology
+                )
+                if "traffic_overrides" in experiment
+                else profile["traffic_plan"]
+            )
             write_json(Path(suite["traffic_plans"][filename]), plan)
     write_json(output / "profile.json", profile)
     write_json(output / "source-topology.json", topology)
@@ -203,23 +292,46 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--profile", type=Path, default=None)
-    source.add_argument("--replay", type=Path, help="Replay a saved manifest in a new directory")
-    parser.add_argument("--output", type=Path, help="New artifact directory (must not exist)")
+    source.add_argument(
+        "--replay", type=Path, help="Replay a saved manifest in a new directory"
+    )
+    parser.add_argument(
+        "--output", type=Path, help="New artifact directory (must not exist)"
+    )
     parser.add_argument("--exe", type=Path, help="Built KNS executable")
-    parser.add_argument("--timeout", type=float, default=None, help="Seconds per case (default: 60; replay preserves saved value)")
-    parser.add_argument("--allow-executable-change", action="store_true",
-                        help="Explicitly allow replay with a different binary; recorded in the manifest")
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Seconds per case (default: 60; replay preserves saved value)",
+    )
+    parser.add_argument(
+        "--allow-executable-change",
+        action="store_true",
+        help="Explicitly allow replay with a different binary; recorded in the manifest",
+    )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--dry-run", action="store_true", help="Validate and print cases without writing files")
-    mode.add_argument("--generate-only", action="store_true", help="Write variants and suite without running KNS")
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate and print cases without writing files",
+    )
+    mode.add_argument(
+        "--generate-only",
+        action="store_true",
+        help="Write variants and suite without running KNS",
+    )
     args = parser.parse_args(argv)
     manifest = None
     output = None
     artifacts_created = False
     try:
         previous = manifests.load(args.replay) if args.replay else None
-        timeout = args.timeout if args.timeout is not None else (
-            previous["configuration"]["timeout_seconds"] if previous else 60.0)
+        timeout = (
+            args.timeout
+            if args.timeout is not None
+            else (previous["configuration"]["timeout_seconds"] if previous else 60.0)
+        )
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("--timeout must be finite and positive")
         if args.allow_executable_change and not args.replay:
@@ -228,22 +340,47 @@ def main(argv: list[str] | None = None) -> int:
             config = copy.deepcopy(previous["configuration"])
             profile, topology = validate_profile(config["profile"], config["topology"])
         else:
-            profile, topology = load_profile((args.profile or DEFAULT_PROFILE).resolve())
+            profile, topology = load_profile(
+                (args.profile or DEFAULT_PROFILE).resolve()
+            )
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        output = (args.output or ROOT / "KNS Experiments" / "results" / profile["name"] / timestamp).resolve()
+        output = (
+            args.output
+            or ROOT / "KNS Experiments" / "results" / profile["name"] / timestamp
+        ).resolve()
         suite = make_suite(profile, output)
         if args.dry_run:
             cases = benchmark_suite.expand_cases(suite)
-            print(json.dumps({"profile": profile["name"], "baseline": profile["baseline"], "case_count": len(cases),
-                              "cases": cases}, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "profile": profile["name"],
+                        "baseline": profile["baseline"],
+                        "case_count": len(cases),
+                        "cases": cases,
+                    },
+                    indent=2,
+                )
+            )
             return 0
         exe = None
         if not args.generate_only:
-            exe = args.exe.resolve() if args.exe else runner.find_executable(ROOT / "build")
+            exe = (
+                args.exe.resolve()
+                if args.exe
+                else runner.find_executable(ROOT / "build")
+            )
             if not exe or not exe.is_file():
                 raise ValueError("KNS executable not found; build KNS or pass --exe")
-        manifest = manifests.create(profile, topology, timeout, exe, ROOT,
-                                    previous, args.allow_executable_change)
+        manifest = manifests.create(
+            profile,
+            topology,
+            timeout,
+            exe,
+            ROOT,
+            previous,
+            args.allow_executable_change,
+        )
         suite_path = generate(profile, topology, output)
         artifacts_created = True
         manifests.save(output, manifest)
@@ -252,11 +389,23 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         manifest["status"] = "running"
         manifests.save(output, manifest)
-        result = benchmark_suite.main(["--suite", str(suite_path), "--exe", str(exe),
-                                       "--output", str(output / "runs"), "--timeout", str(timeout)])
+        result = benchmark_suite.main(
+            [
+                "--suite",
+                str(suite_path),
+                "--exe",
+                str(exe),
+                "--output",
+                str(output / "runs"),
+                "--timeout",
+                str(timeout),
+            ]
+        )
         comparison = compare_experiments.compare_artifacts(output)
-        print(f"Comparison: {output / 'comparison.md'} "
-              f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)")
+        print(
+            f"Comparison: {output / 'comparison.md'} "
+            f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)"
+        )
         manifests.finish(output, manifest, result)
         return result
     except (OSError, ValueError, OverflowError) as exc:

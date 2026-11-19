@@ -32,21 +32,33 @@ namespace kns {
         static constexpr std::uint64_t INVALID_SESSION_ID =
             std::numeric_limits<std::uint64_t>::max();
 
-        explicit TCPListener(
-            int node_id,
-            std::uint16_t port = 0,
-            int backlog = 128
-        ) noexcept
+        explicit TCPListener(int node_id, std::uint16_t port = 0, int backlog = 128) noexcept
             : node_id_(node_id), port_(port), backlog_(backlog) {}
 
-        int getNodeId() const noexcept { return node_id_; }
-        std::uint16_t getPort() const noexcept { return port_; }
-        int getBacklog() const noexcept { return backlog_; }
-        /// A non-positive backlog permits an unlimited number of connections.
-        void setBacklog(int backlog) noexcept { backlog_ = backlog; }
+        int getNodeId() const noexcept {
+            return node_id_;
+        }
 
-        bool isListening() const noexcept { return listening_; }
-        void setListening(bool v) noexcept { listening_ = v; }
+        std::uint16_t getPort() const noexcept {
+            return port_;
+        }
+
+        int getBacklog() const noexcept {
+            return backlog_;
+        }
+
+        /// A non-positive backlog permits an unlimited number of connections.
+        void setBacklog(int backlog) noexcept {
+            backlog_ = backlog;
+        }
+
+        bool isListening() const noexcept {
+            return listening_;
+        }
+
+        void setListening(bool v) noexcept {
+            listening_ = v;
+        }
 
         /// Number of sessions currently tracked by this listener.
         std::size_t getActiveConnections() const noexcept {
@@ -57,12 +69,8 @@ namespace kns {
         /// in the engine and start the server-side handshake.
         /// Returns the new session_id, or INVALID_SESSION_ID if the listener
         /// is not active or the backlog is full.
-        std::uint64_t accept(
-            int source_node,
-            std::uint16_t source_port,
-            std::uint32_t source_seq,
-            SimulationEngine& engine
-        );
+        std::uint64_t accept(int source_node, std::uint16_t source_port, std::uint32_t source_seq,
+                             SimulationEngine& engine);
 
         /// Track an accepted session so the listener can report active count.
         /// Repeated tracking of the same ID has no effect.
@@ -76,13 +84,13 @@ namespace kns {
         }
 
         /// Optional callback invoked after each accepted connection.
-        void setOnAccept(ConnectionCallback cb) { on_accept_ = std::move(cb); }
+        void setOnAccept(ConnectionCallback cb) {
+            on_accept_ = std::move(cb);
+        }
 
     private:
         bool isBacklogFull() const noexcept {
-            return backlog_ > 0 &&
-                active_sessions_.size() >=
-                    static_cast<std::size_t>(backlog_);
+            return backlog_ > 0 && active_sessions_.size() >= static_cast<std::size_t>(backlog_);
         }
 
         int node_id_;

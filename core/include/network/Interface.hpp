@@ -22,19 +22,39 @@ namespace kns {
         Interface(int node_id, std::uint64_t link_id, std::string name = "") noexcept
             : node_id_(node_id), link_id_(link_id), name_(std::move(name)) {}
 
-        int getNodeId() const noexcept { return node_id_; }
-        std::uint64_t getLinkId() const noexcept { return link_id_; }
+        int getNodeId() const noexcept {
+            return node_id_;
+        }
 
-        const std::string& getName() const noexcept { return name_; }
-        void setName(std::string name) { name_ = std::move(name); }
+        std::uint64_t getLinkId() const noexcept {
+            return link_id_;
+        }
+
+        const std::string& getName() const noexcept {
+            return name_;
+        }
+
+        void setName(std::string name) {
+            name_ = std::move(name);
+        }
 
         /// MTU in bytes. 0 means "use the link default / unlimited".
-        std::size_t getMtu() const noexcept { return mtu_; }
-        void setMtu(std::size_t mtu) noexcept { mtu_ = mtu; }
+        std::size_t getMtu() const noexcept {
+            return mtu_;
+        }
+
+        void setMtu(std::size_t mtu) noexcept {
+            mtu_ = mtu;
+        }
 
         /// Whether this interface is administratively up.
-        bool isUp() const noexcept { return up_; }
-        void setUp(bool up) noexcept { up_ = up; }
+        bool isUp() const noexcept {
+            return up_;
+        }
+
+        void setUp(bool up) noexcept {
+            up_ = up;
+        }
 
     private:
         int node_id_;

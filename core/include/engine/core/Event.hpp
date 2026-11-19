@@ -8,14 +8,15 @@ namespace kns {
 
     class Event {
     public:
-
         virtual ~Event() = default;
 
         // Pure virtual function that must be implemented by derived event classes.
         virtual void execute(kns::SimulationEngine& engine) = 0;
 
         // Human-friendly event name for logging (overridable in subclasses)
-        virtual const char* getName() const noexcept { return "Event"; }
+        virtual const char* getName() const noexcept {
+            return "Event";
+        }
 
         // Getter methods for the timestamp and ID of the event.
         double getTimestamp() const noexcept;
@@ -26,14 +27,15 @@ namespace kns {
         // Protected constructor for the Event class.
         Event(double timestamp);
 
-        // The timestamp of the event, which indicates when the event should be executed in the simulation.
+        // The timestamp of the event, which indicates when the event should be executed in the
+        // simulation.
         const double timestamp_;
 
     private:
-
         // Private member variables for the Event class.
 
-        // The unique ID of the event, which can be used to identify and manage events within the simulation engine.
+        // The unique ID of the event, which can be used to identify and manage events within the
+        // simulation engine.
         std::uint64_t id_;
 
         // Static member variable to keep track of the next available ID for events.

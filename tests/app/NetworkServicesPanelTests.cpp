@@ -6,69 +6,81 @@
 #include "imgui_internal.h"
 
 namespace {
-struct ServicesUI {
-    gui::NetworkServicesPanel panel;
-    gui::TranslationService translations;
-    kns::SimulationEngine engine{kns::Topology(2)};
-    int device = 0;
-    bool scheduled = false;
-    ServicesUI() {
-        kns::DeviceInfo server;
-        server.type = kns::DeviceType::Server;
-        engine.getTopology().setNodeDeviceInfo(0, server);
-        engine.getTopology().setNodeDeviceInfo(1, server);
-        ImGui::CreateContext();
-        auto& io = ImGui::GetIO();
-        io.IniFilename = nullptr;
-        io.DisplaySize = {1000, 900};
-        io.DeltaTime = 1.0f / 60;
-        io.Fonts->AddFontDefault();
-        unsigned char* pixels;
-        int width, height;
-        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-        frame(); frame();
-    }
-    ~ServicesUI() { ImGui::DestroyContext(); }
-    void frame() {
-        ImGui::NewFrame();
-        ImGui::SetNextWindowPos({0, 0});
-        ImGui::SetNextWindowSize({1000, 900});
-        scheduled |= panel.render(engine, device, translations);
-        ImGui::Render();
-    }
-    void activate(const char* label) {
-        auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
-        REQUIRE(window != nullptr);
-        auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
-        REQUIRE(tabs != nullptr);
-        ImGui::FocusWindow(window);
-        ImGui::ActivateItemByID(ImHashStr(label, 0, tabs->SelectedTabId));
-        frame(); frame();
-    }
-    void tab(int index) {
-        auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
-        auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
-        REQUIRE(tabs != nullptr);
-        REQUIRE(tabs->Tabs.Size > index);
-        tabs->NextSelectedTabId = tabs->Tabs[index].ID;
-        frame(); frame();
-    }
-    void replaceInput(const char* label, const char* value) {
-        activate(label);
-        auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
-        const auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
-        INFO(label);
-        REQUIRE(ImGui::GetActiveID() == ImHashStr(label, 0, tabs->SelectedTabId));
-        auto* state = ImGui::GetInputTextState(ImGui::GetActiveID());
-        REQUIRE(state != nullptr);
-        state->SelectAll();
-        ImGui::GetIO().AddInputCharactersUTF8(value);
-        frame();
-    }
-};
+    struct ServicesUI {
+        gui::NetworkServicesPanel panel;
+        gui::TranslationService translations;
+        kns::SimulationEngine engine{kns::Topology(2)};
+        int device = 0;
+        bool scheduled = false;
+
+        ServicesUI() {
+            kns::DeviceInfo server;
+            server.type = kns::DeviceType::Server;
+            engine.getTopology().setNodeDeviceInfo(0, server);
+            engine.getTopology().setNodeDeviceInfo(1, server);
+            ImGui::CreateContext();
+            auto& io = ImGui::GetIO();
+            io.IniFilename = nullptr;
+            io.DisplaySize = {1000, 900};
+            io.DeltaTime = 1.0f / 60;
+            io.Fonts->AddFontDefault();
+            unsigned char* pixels;
+            int width, height;
+            io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+            frame();
+            frame();
+        }
+
+        ~ServicesUI() {
+            ImGui::DestroyContext();
+        }
+
+        void frame() {
+            ImGui::NewFrame();
+            ImGui::SetNextWindowPos({0, 0});
+            ImGui::SetNextWindowSize({1000, 900});
+            scheduled |= panel.render(engine, device, translations);
+            ImGui::Render();
+        }
+
+        void activate(const char* label) {
+            auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
+            REQUIRE(window != nullptr);
+            auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
+            REQUIRE(tabs != nullptr);
+            ImGui::FocusWindow(window);
+            ImGui::ActivateItemByID(ImHashStr(label, 0, tabs->SelectedTabId));
+            frame();
+            frame();
+        }
+
+        void tab(int index) {
+            auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
+            auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
+            REQUIRE(tabs != nullptr);
+            REQUIRE(tabs->Tabs.Size > index);
+            tabs->NextSelectedTabId = tabs->Tabs[index].ID;
+            frame();
+            frame();
+        }
+
+        void replaceInput(const char* label, const char* value) {
+            activate(label);
+            auto* window = ImGui::FindWindowByName("Device Services###device-services-window");
+            const auto* tabs = ImGui::TabBarFindByID(window->GetID("service-tabs"));
+            INFO(label);
+            REQUIRE(ImGui::GetActiveID() == ImHashStr(label, 0, tabs->SelectedTabId));
+            auto* state = ImGui::GetInputTextState(ImGui::GetActiveID());
+            REQUIRE(state != nullptr);
+            state->SelectAll();
+            ImGui::GetIO().AddInputCharactersUTF8(value);
+            frame();
+        }
+    };
 }
 
-TEST_CASE("Service editor loads saved entries without overwriting their content", "[services-ui][audit]") {
+TEST_CASE("Service editor loads saved entries without overwriting their content",
+          "[services-ui][audit]") {
     ServicesUI ui;
     kns::NetworkService first;
     first.name = "first";
@@ -100,7 +112,8 @@ TEST_CASE("Service editor applies numeric settings after focus changes", "[servi
     REQUIRE(service.delay_ms == 123.5);
 }
 
-TEST_CASE("Services GUI client schedules requests and embedded CLI shares service configuration", "[services][services-ui]") {
+TEST_CASE("Services GUI client schedules requests and embedded CLI shares service configuration",
+          "[services][services-ui]") {
     ServicesUI ui;
     ui.activate("Add service###Add service");
     ui.activate("web (http:80)");
@@ -127,34 +140,43 @@ TEST_CASE("Services GUI client schedules requests and embedded CLI shares servic
 
 TEST_CASE("Services GUI cancels pending requests of the selected device", "[services-ui][cancel]") {
     ServicesUI ui;
-    const auto own = ui.engine.networkServices().request(ui.engine, 0, 0, kns::ServiceKind::Http, 80, "/");
-    const auto other = ui.engine.networkServices().request(ui.engine, 1, 1, kns::ServiceKind::Http, 80, "/");
+    const auto own =
+        ui.engine.networkServices().request(ui.engine, 0, 0, kns::ServiceKind::Http, 80, "/");
+    const auto other =
+        ui.engine.networkServices().request(ui.engine, 1, 1, kns::ServiceKind::Http, 80, "/");
     ui.tab(1);
     const auto ownLabel = "Cancel request###cancel-request-" + std::to_string(own);
     const auto otherLabel = "Cancel request###cancel-request-" + std::to_string(other);
     ui.activate(otherLabel.c_str());
-    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Pending);
+    REQUIRE(ui.engine.networkServices().requests().at(other).state ==
+            kns::ServiceRequestState::Pending);
     ui.activate(ownLabel.c_str());
-    REQUIRE(ui.engine.networkServices().requests().at(own).state == kns::ServiceRequestState::Cancelled);
-    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Pending);
+    REQUIRE(ui.engine.networkServices().requests().at(own).state ==
+            kns::ServiceRequestState::Cancelled);
+    REQUIRE(ui.engine.networkServices().requests().at(other).state ==
+            kns::ServiceRequestState::Pending);
     REQUIRE(ui.engine.now() == 0);
-    ui.device = 1; ui.frame();
+    ui.device = 1;
+    ui.frame();
     ui.activate(otherLabel.c_str());
-    REQUIRE(ui.engine.networkServices().requests().at(other).state == kns::ServiceRequestState::Cancelled);
+    REQUIRE(ui.engine.networkServices().requests().at(other).state ==
+            kns::ServiceRequestState::Cancelled);
     ui.engine.run();
     REQUIRE_FALSE(ui.engine.hasEvents());
     REQUIRE(ui.engine.now() == 0);
     REQUIRE_FALSE(ui.scheduled);
 }
 
-TEST_CASE("Services GUI creates edits stops and removes a service on the selected device", "[services][services-ui]") {
+TEST_CASE("Services GUI creates edits stops and removes a service on the selected device",
+          "[services][services-ui]") {
     ServicesUI ui;
     ui.activate("Add service###Add service");
     REQUIRE(ui.engine.getTopology().getNode(0)->getServices().size() == 1);
     REQUIRE(ui.engine.getTopology().getNode(1)->getServices().empty());
     ui.activate("web (http:80)");
     ui.activate("Save entry###Save entry");
-    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[0].pages.at("/").body == "Hello from KNS");
+    REQUIRE(ui.engine.getTopology().getNode(0)->getServices()[0].pages.at("/").body ==
+            "Hello from KNS");
     ui.activate("Running###Running");
     REQUIRE_FALSE(ui.engine.getTopology().getNode(0)->getServices()[0].enabled);
     ui.activate("Remove entry###Remove entry");
@@ -177,7 +199,8 @@ TEST_CASE("Services GUI creates edits stops and removes a service on the selecte
     REQUIRE_NOTHROW(ui.frame());
 }
 
-TEST_CASE("Services GUI disables actions excluded by the selected device role", "[roles][services-ui]") {
+TEST_CASE("Services GUI disables actions excluded by the selected device role",
+          "[roles][services-ui]") {
     ServicesUI ui;
     auto profile = ui.engine.getTopology().getNode(0)->getDeviceInfo();
     profile.type = kns::DeviceType::Switch;

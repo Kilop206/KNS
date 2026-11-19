@@ -39,6 +39,7 @@ class PendingRun:
 # Platform utilities
 # ==============================================================
 
+
 def is_windows() -> bool:
     return platform.system().lower().startswith("win")
 
@@ -46,6 +47,7 @@ def is_windows() -> bool:
 # ==============================================================
 # Executable search
 # ==============================================================
+
 
 def find_executable(root: Path) -> Path | None:
     candidates = ["KNS.exe", "KNS"]
@@ -59,6 +61,7 @@ def find_executable(root: Path) -> Path | None:
 # ==============================================================
 # Results directory management
 # ==============================================================
+
 
 def get_test_dir(base: Path) -> Path:
     base.mkdir(parents=True, exist_ok=True)
@@ -74,6 +77,7 @@ def get_test_dir(base: Path) -> Path:
 # ==============================================================
 # Simulation headless execution
 # ==============================================================
+
 
 def build_command(
     exe: Path,
@@ -157,6 +161,7 @@ def run_silent(
 # Stats CSV parsing
 # ==============================================================
 
+
 def parse_csv_if_exists(csv_file: Path) -> list[dict] | None:
     if not csv_file or not csv_file.exists():
         return None
@@ -182,13 +187,26 @@ def parse_stats(csv_file: Path) -> dict:
     try:
         if int(raw["schema_version"]) != 1:
             raise ValueError("Unsupported schema_version")
-        result = {key: int(raw[key]) for key in (
-            "packets_sent", "packets_delivered", "packets_lost",
-            "packets_in_transit", "total_sessions", "data_packets_delivered", "seed")}
+        result = {
+            key: int(raw[key])
+            for key in (
+                "packets_sent",
+                "packets_delivered",
+                "packets_lost",
+                "packets_in_transit",
+                "total_sessions",
+                "data_packets_delivered",
+                "seed",
+            )
+        }
         result["queue_overflow_drops"] = int(raw.get("queue_overflow_drops", "0") or 0)
         result["red_early_drops"] = int(raw.get("red_early_drops", "0") or 0)
-        result.update({key: float(raw[key]) for key in (
-            "total_latency", "avg_latency", "simulation_duration_s")})
+        result.update(
+            {
+                key: float(raw[key])
+                for key in ("total_latency", "avg_latency", "simulation_duration_s")
+            }
+        )
         if any(not math.isfinite(value) or value < 0 for value in result.values()):
             raise ValueError("Metrics must be finite and nonnegative")
         sent = result["packets_sent"]
@@ -204,16 +222,19 @@ def parse_stats(csv_file: Path) -> dict:
 # Graph generation
 # ==============================================================
 
+
 def _label(topo: Path) -> str:
     return topo.stem
 
 
 def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.gridspec as gridspec
     import matplotlib.pyplot as plt
     import numpy as np
+
     COLORS = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     labels = [_label(r["topo"]) for r in runs]
     n = len(labels)
@@ -234,7 +255,9 @@ def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
     width = 0.5
 
     ax1 = fig.add_subplot(gs[0, 0])
-    bars = ax1.bar(x, loss_rates, width, color=[COLORS[i % len(COLORS)] for i in range(n)])
+    bars = ax1.bar(
+        x, loss_rates, width, color=[COLORS[i % len(COLORS)] for i in range(n)]
+    )
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, rotation=20, ha="right")
     ax1.set_ylabel("Loss rate (%)")
@@ -251,7 +274,9 @@ def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
         )
 
     ax2 = fig.add_subplot(gs[0, 1])
-    bars2 = ax2.bar(x, durations, width, color=[COLORS[i % len(COLORS)] for i in range(n)])
+    bars2 = ax2.bar(
+        x, durations, width, color=[COLORS[i % len(COLORS)] for i in range(n)]
+    )
     ax2.set_xticks(x)
     ax2.set_xticklabels(labels, rotation=20, ha="right")
     ax2.set_ylabel("Duration (s)")
@@ -326,6 +351,7 @@ def plot_summary_dashboard(runs: list[dict], out_dir: Path) -> Path:
 # ==============================================================
 # Summaries
 # ==============================================================
+
 
 def compute_stats(stats: dict | None, duration_s: float) -> dict:
     result = {
@@ -411,9 +437,15 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
                 "topology": r["topo"].name,
                 "wall_clock_duration_s": f"{r['duration_s']:.4f}",
                 "simulation_duration_s": stats["simulation_duration_s"],
-                "packets_sent": stats["packets_sent"] if stats["packets_sent"] is not None else "",
-                "packets_delivered": stats["packets_delivered"] if stats["packets_delivered"] is not None else "",
-                "packets_lost": stats["packets_lost"] if stats["packets_lost"] is not None else "",
+                "packets_sent": stats["packets_sent"]
+                if stats["packets_sent"] is not None
+                else "",
+                "packets_delivered": stats["packets_delivered"]
+                if stats["packets_delivered"] is not None
+                else "",
+                "packets_lost": stats["packets_lost"]
+                if stats["packets_lost"] is not None
+                else "",
                 "delivery_rate_pct": (
                     f"{stats['delivery_rate'] * 100:.2f}"
                     if stats["delivery_rate"] is not None
@@ -429,7 +461,9 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
                     if stats["throughput_pps"] is not None
                     else ""
                 ),
-                "latency_mean_s": stats["latency_mean_s"] if stats["latency_mean_s"] is not None else "",
+                "latency_mean_s": stats["latency_mean_s"]
+                if stats["latency_mean_s"] is not None
+                else "",
                 "seed": stats["seed"] if stats["seed"] is not None else "",
                 "returncode": r["returncode"],
                 "status": r.get("status", "unknown"),
@@ -442,6 +476,7 @@ def write_csv_report(runs: list[dict], test_dir: Path) -> Path:
 # ==============================================================
 # Main execution
 # ==============================================================
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -497,7 +532,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
+    if args.timeout is not None and (
+        not math.isfinite(args.timeout) or args.timeout <= 0
+    ):
         parser.error("--timeout must be finite and positive")
 
     if args.max_procs < 1:
@@ -701,9 +738,12 @@ def _flush_one(
 
 def _terminate_tree(proc: subprocess.Popen) -> None:
     if is_windows():
-        result = subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                creationflags=subprocess.CREATE_NO_WINDOW)
+        result = subprocess.run(
+            ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
         if result.returncode != 0 and proc.poll() is None:
             raise RuntimeError(f"Could not terminate process tree {proc.pid}")
     else:

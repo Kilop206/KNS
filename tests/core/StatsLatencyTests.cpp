@@ -10,17 +10,24 @@
 #include "engine/core/RunConfig.hpp"
 #include "engine/events/PacketReceivedEvent.hpp"
 
-TEST_CASE("CSV DATA latency matches observer samples independently of control traffic", "[core][stats][latency]")
-{
+TEST_CASE("CSV DATA latency matches observer samples independently of control traffic",
+          "[core][stats][latency]") {
     kns::SimulationEngine engine(kns::Topology(2));
     std::vector<double> samples;
     engine.setLatencyObserver([&](double value) { samples.push_back(value); });
     bool include_data = true;
     int controls = 0;
     SECTION("DATA alone") {}
-    SECTION("DATA and control packets") { controls = 5; }
-    SECTION("Control packets without DATA") { include_data = false; controls = 5; }
-    SECTION("No packets") { include_data = false; }
+    SECTION("DATA and control packets") {
+        controls = 5;
+    }
+    SECTION("Control packets without DATA") {
+        include_data = false;
+        controls = 5;
+    }
+    SECTION("No packets") {
+        include_data = false;
+    }
 
     if (include_data) {
         for (double time : {2.0, 4.0}) {
@@ -46,11 +53,13 @@ TEST_CASE("CSV DATA latency matches observer samples independently of control tr
 
     struct TemporaryCSV {
         std::filesystem::path path = "stats-latency-regression.csv";
+
         ~TemporaryCSV() {
             std::error_code error;
             std::filesystem::remove(path, error);
         }
     } csv;
+
     kns::RunConfig config;
     config.filename = csv.path.string();
     engine.exportStatsCSV(config);

@@ -10,23 +10,32 @@
 #include "network/TopologyLoader.hpp"
 
 namespace {
-namespace fs = std::filesystem;
-struct SaveDirectory {
-    fs::path path = fs::temp_directory_path() /
-        ("kns-save-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    SaveDirectory() { fs::create_directory(path); }
-    ~SaveDirectory() { std::error_code error; fs::remove_all(path, error); }
-};
+    namespace fs = std::filesystem;
 
-std::string utf8(const fs::path& path)
-{
-    const auto text = path.u8string();
-    return {text.begin(), text.end()};
-}
+    struct SaveDirectory {
+        fs::path path =
+            fs::temp_directory_path() /
+            ("kns-save-test-" +
+             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+
+        SaveDirectory() {
+            fs::create_directory(path);
+        }
+
+        ~SaveDirectory() {
+            std::error_code error;
+            fs::remove_all(path, error);
+        }
+    };
+
+    std::string utf8(const fs::path& path) {
+        const auto text = path.u8string();
+        return {text.begin(), text.end()};
+    }
 } // namespace
 
-TEST_CASE("Saved topology preserves metadata tombstones and link configuration", "[network][save]")
-{
+TEST_CASE("Saved topology preserves metadata tombstones and link configuration",
+          "[network][save]") {
     SaveDirectory directory;
     const auto path = utf8(directory.path / "network.json");
     kns::Topology topology(3);
@@ -58,15 +67,16 @@ TEST_CASE("Saved topology preserves metadata tombstones and link configuration",
     REQUIRE(std::distance(fs::directory_iterator(directory.path), fs::directory_iterator{}) == 1);
 }
 
-TEST_CASE("Failed topology saves preserve existing files and clean temporary data", "[network][save]")
-{
+TEST_CASE("Failed topology saves preserve existing files and clean temporary data",
+          "[network][save]") {
     SaveDirectory directory;
     const auto path = utf8(directory.path / "network.json");
     kns::TopologyLoader::save_topology(kns::Topology(2), path);
     REQUIRE_THROWS(kns::TopologyLoader::save_topology(kns::Topology(4097), path));
     REQUIRE(kns::TopologyLoader::load_topology(path).size() == 2);
     REQUIRE_THROWS(kns::TopologyLoader::save_topology(kns::Topology(1), ""));
-    REQUIRE_THROWS(kns::TopologyLoader::save_topology(kns::Topology(1), utf8(directory.path / "missing" / "network.json")));
+    REQUIRE_THROWS(kns::TopologyLoader::save_topology(
+        kns::Topology(1), utf8(directory.path / "missing" / "network.json")));
 
     const auto blocked = directory.path / "directory.json";
     fs::create_directory(blocked);
@@ -76,8 +86,7 @@ TEST_CASE("Failed topology saves preserve existing files and clean temporary dat
     REQUIRE(std::distance(fs::directory_iterator(directory.path), fs::directory_iterator{}) == 2);
 }
 
-TEST_CASE("Saved UTF-8 topology paths can be loaded and watched", "[network][save][watch]")
-{
+TEST_CASE("Saved UTF-8 topology paths can be loaded and watched", "[network][save][watch]") {
     SaveDirectory directory;
     const auto path = utf8(directory.path / fs::path(u8"rede-\u00e7-\u7f51.json"));
     kns::TopologyLoader::save_topology(kns::Topology(2), path);
@@ -86,7 +95,8 @@ TEST_CASE("Saved UTF-8 topology paths can be loaded and watched", "[network][sav
     watcher.setSource(path, true);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     std::optional<kns::Topology> snapshot;
-    while (!snapshot && watcher.completedChecks() == 0 && std::chrono::steady_clock::now() < deadline) {
+    while (!snapshot && watcher.completedChecks() == 0 &&
+           std::chrono::steady_clock::now() < deadline) {
         snapshot = watcher.poll(true);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

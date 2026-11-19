@@ -13,10 +13,7 @@ namespace gui {
 
     class TopologyPanel {
     public:
-        void render(
-            kns::SimulationEngine& engine,
-            TranslationService& translations
-        );
+        void render(kns::SimulationEngine& engine, TranslationService& translations);
 
     private:
         std::array<char, 256> new_label_{};

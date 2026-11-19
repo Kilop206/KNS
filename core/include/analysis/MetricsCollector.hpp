@@ -3,7 +3,12 @@
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
-namespace kns { class SimulationEngine; class Link; struct Packet; }
+namespace kns {
+    class SimulationEngine;
+    class Link;
+    struct Packet;
+}
+
 namespace kns::analysis {
     class MetricsCollector {
     public:
@@ -14,6 +19,7 @@ namespace kns::analysis {
         void tcpPayloadReleased(const Packet&, std::uint32_t bytes, double now);
         void sample(SimulationEngine&);
         nlohmann::json toJson() const;
+
     private:
         struct Data;
         explicit MetricsCollector(const nlohmann::json&);

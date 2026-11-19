@@ -10,21 +10,22 @@ using kns::app::intelligence::ChatService;
 using kns::app::intelligence::ChatReply;
 
 namespace {
-void complete(ChatService& chat)
-{
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (chat.busy() && std::chrono::steady_clock::now() < deadline) {
-        chat.update();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    void complete(ChatService& chat) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (chat.busy() && std::chrono::steady_clock::now() < deadline) {
+            chat.update();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        REQUIRE_FALSE(chat.busy());
     }
-    REQUIRE_FALSE(chat.busy());
-}
 }
 
-TEST_CASE("Assistant chat sends topology and bounded alternating history", "[chat]")
-{
+TEST_CASE("Assistant chat sends topology and bounded alternating history", "[chat]") {
     nlohmann::json captured;
-    ChatService chat([&](const nlohmann::json& request) { captured = request; return ChatReply{"Assistant reply"}; });
+    ChatService chat([&](const nlohmann::json& request) {
+        captured = request;
+        return ChatReply{"Assistant reply"};
+    });
     kns::analysis::NetworkAnalysis analysis;
     analysis.node_count = 3;
     for (int id : {10, 30, 50}) {
@@ -49,8 +50,7 @@ TEST_CASE("Assistant chat sends topology and bounded alternating history", "[cha
     REQUIRE(chat.messages().back().history_turns_omitted == 1);
 }
 
-TEST_CASE("Assistant chat exposes measured simulation loss attribution", "[chat][aqm]")
-{
+TEST_CASE("Assistant chat exposes measured simulation loss attribution", "[chat][aqm]") {
     nlohmann::json captured;
     ChatService chat([&](const nlohmann::json& request) {
         captured = request;
@@ -82,8 +82,7 @@ TEST_CASE("Assistant chat exposes measured simulation loss attribution", "[chat]
     REQUIRE(captured.at("context").at("network").at("links").at(0).at("red_queue_weight") == 0.125);
 }
 
-TEST_CASE("Assistant chat omits measurements when no stats were supplied", "[chat][aqm]")
-{
+TEST_CASE("Assistant chat omits measurements when no stats were supplied", "[chat][aqm]") {
     nlohmann::json captured;
     ChatService chat([&](const nlohmann::json& request) {
         captured = request;
@@ -94,13 +93,15 @@ TEST_CASE("Assistant chat omits measurements when no stats were supplied", "[cha
     REQUIRE_FALSE(captured.at("context").contains("simulation"));
 }
 
-TEST_CASE("Assistant retry keeps the original measured counters", "[chat][aqm]")
-{
+TEST_CASE("Assistant retry keeps the original measured counters", "[chat][aqm]") {
     nlohmann::json first;
     nlohmann::json retried;
     int calls = 0;
     ChatService chat([&](const nlohmann::json& request) -> ChatReply {
-        if (++calls == 1) { first = request; throw std::runtime_error("offline"); }
+        if (++calls == 1) {
+            first = request;
+            throw std::runtime_error("offline");
+        }
         retried = request;
         return ChatReply{"Reply"};
     });
@@ -116,11 +117,11 @@ TEST_CASE("Assistant retry keeps the original measured counters", "[chat][aqm]")
     REQUIRE(retried == first);
 }
 
-TEST_CASE("Assistant chat keeps failed turn for retry without duplicate messages", "[chat]")
-{
+TEST_CASE("Assistant chat keeps failed turn for retry without duplicate messages", "[chat]") {
     int calls = 0;
     ChatService chat([&](const nlohmann::json&) -> ChatReply {
-        if (++calls == 1) throw std::runtime_error("offline");
+        if (++calls == 1)
+            throw std::runtime_error("offline");
         return {"Recovered"};
     });
     chat.send({}, "  Question  ");
@@ -138,15 +139,21 @@ TEST_CASE("Assistant chat keeps failed turn for retry without duplicate messages
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("Assistant chat discards pending replies on topology change or clear", "[chat]")
-{
+TEST_CASE("Assistant chat discards pending replies on topology change or clear", "[chat]") {
     std::promise<void> release;
     auto ready = release.get_future().share();
-    ChatService chat([ready](const nlohmann::json&) { ready.wait(); return ChatReply{"Old reply"}; });
+    ChatService chat([ready](const nlohmann::json&) {
+        ready.wait();
+        return ChatReply{"Old reply"};
+    });
     chat.send({}, "Old question");
     const bool wasBusy = chat.busy();
-    SECTION("new topology") { chat.synchronizeTopology(1); }
-    SECTION("new conversation") { chat.clear(); }
+    SECTION("new topology") {
+        chat.synchronizeTopology(1);
+    }
+    SECTION("new conversation") {
+        chat.clear();
+    }
     release.set_value(); // release worker even if subsequent assertions fail
     REQUIRE(wasBusy);
     complete(chat);
@@ -155,8 +162,7 @@ TEST_CASE("Assistant chat discards pending replies on topology change or clear",
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("Assistant chat ignores blank questions and reports oversized input", "[chat]")
-{
+TEST_CASE("Assistant chat ignores blank questions and reports oversized input", "[chat]") {
     ChatService chat([](const nlohmann::json&) { return ChatReply{"unexpected"}; });
     chat.send({}, " \n\t ");
     REQUIRE_FALSE(chat.busy());
@@ -166,9 +172,9 @@ TEST_CASE("Assistant chat ignores blank questions and reports oversized input", 
     REQUIRE(chat.messages().empty());
 }
 
-TEST_CASE("Assistant chat allows editing a failed question and forgets stale errors", "[chat]")
-{
-    ChatService chat([](const nlohmann::json&) -> ChatReply { throw std::runtime_error("offline"); });
+TEST_CASE("Assistant chat allows editing a failed question and forgets stale errors", "[chat]") {
+    ChatService chat(
+        [](const nlohmann::json&) -> ChatReply { throw std::runtime_error("offline"); });
     chat.send({}, "Original question");
     complete(chat);
     chat.discardFailedQuestion();
@@ -183,12 +189,14 @@ TEST_CASE("Assistant chat allows editing a failed question and forgets stale err
     REQUIRE_FALSE(chat.canRetry());
 }
 
-TEST_CASE("Assistant chat reports client and model history omissions without deleting the transcript", "[chat]")
-{
+TEST_CASE(
+    "Assistant chat reports client and model history omissions without deleting the transcript",
+    "[chat]") {
     nlohmann::json captured;
     bool fail = false;
     ChatService chat([&](const nlohmann::json& request) -> ChatReply {
-        if (fail) throw std::runtime_error("offline");
+        if (fail)
+            throw std::runtime_error("offline");
         captured = request;
         const auto turns = request.at("messages").size() / 2;
         return {std::string(16000, 'a'), turns > 0 ? 1u : 0u};
@@ -217,8 +225,8 @@ TEST_CASE("Assistant chat reports client and model history omissions without del
     REQUIRE(chat.messages().back().history_turns_omitted == 0);
 }
 
-TEST_CASE("Assistant chat preserves a failed question when history metadata is impossible", "[chat]")
-{
+TEST_CASE("Assistant chat preserves a failed question when history metadata is impossible",
+          "[chat]") {
     ChatService chat([](const nlohmann::json&) { return ChatReply{"Reply", 1}; });
     chat.send({}, "First question");
     complete(chat);
@@ -227,10 +235,10 @@ TEST_CASE("Assistant chat preserves a failed question when history metadata is i
     REQUIRE_FALSE(chat.error().empty());
 }
 
-TEST_CASE("Assistant transcript preserves full UTF-8 history and context notices", "[chat]")
-{
+TEST_CASE("Assistant transcript preserves full UTF-8 history and context notices", "[chat]") {
     ChatService chat([](const nlohmann::json& request) {
-        return ChatReply{"Verifique a conexão.\nNão há telemetria.", request.at("messages").size() > 1 ? 1u : 0u};
+        return ChatReply{"Verifique a conexão.\nNão há telemetria.",
+                         request.at("messages").size() > 1 ? 1u : 0u};
     });
     REQUIRE(chat.transcript().empty());
     chat.synchronizeTopology(42);
@@ -241,7 +249,8 @@ TEST_CASE("Assistant transcript preserves full UTF-8 history and context notices
     const auto transcript = chat.transcript();
     REQUIRE(transcript.find("revisão da topologia: 42") != std::string::npos);
     REQUIRE(transcript.find("Você:\nE a redundância?\nRota 10 → 30") != std::string::npos);
-    REQUIRE(transcript.find("Assistant:\nVerifique a conexão.\nNão há telemetria.") != std::string::npos);
+    REQUIRE(transcript.find("Assistant:\nVerifique a conexão.\nNão há telemetria.") !=
+            std::string::npos);
     REQUIRE(transcript.find("fora do contexto desta resposta: 1") != std::string::npos);
     REQUIRE(transcript.find("ainda sem resposta") == std::string::npos);
     REQUIRE(chat.messages().size() == 4);
@@ -249,8 +258,8 @@ TEST_CASE("Assistant transcript preserves full UTF-8 history and context notices
     REQUIRE(chat.transcript().empty());
 }
 
-TEST_CASE("Assistant transcript identifies pending and failed questions without inventing replies", "[chat]")
-{
+TEST_CASE("Assistant transcript identifies pending and failed questions without inventing replies",
+          "[chat]") {
     std::promise<void> release;
     auto ready = release.get_future().share();
     ChatService chat([ready](const nlohmann::json&) -> ChatReply {
@@ -269,12 +278,8 @@ TEST_CASE("Assistant transcript identifies pending and failed questions without 
     REQUIRE(chat.transcript().empty());
 }
 
-
-TEST_CASE("chat exposes last successful plan and quota metadata", "[chat][entitlement]")
-{
-    ChatService chat([](const nlohmann::json&) {
-        return ChatReply{"Reply", 0, "PRO", 99};
-    });
+TEST_CASE("chat exposes last successful plan and quota metadata", "[chat][entitlement]") {
+    ChatService chat([](const nlohmann::json&) { return ChatReply{"Reply", 0, "PRO", 99}; });
     chat.send({}, "Question");
     complete(chat);
     REQUIRE(chat.last_plan() == "PRO");
@@ -282,18 +287,31 @@ TEST_CASE("chat exposes last successful plan and quota metadata", "[chat][entitl
     REQUIRE(*chat.last_quota_remaining() == 99);
 }
 
-TEST_CASE("Assistant HTTP transport validates request identity and errors", "[chat][http]")
-{
+TEST_CASE("Assistant HTTP transport validates request identity and errors", "[chat][http]") {
     httplib::Server server;
     std::string mode = "success";
     server.Post("/chat", [&](const httplib::Request& req, httplib::Response& res) {
-        if (req.get_header_value("Authorization") != "Bearer test-token") { res.status = 401; return; }
-        if (req.get_header_value("X-Request-ID") != "turn-1") { res.status = 400; return; }
+        if (req.get_header_value("Authorization") != "Bearer test-token") {
+            res.status = 401;
+            return;
+        }
+        if (req.get_header_value("X-Request-ID") != "turn-1") {
+            res.status = 400;
+            return;
+        }
         auto body = nlohmann::json::parse(req.body);
-        if (mode == "offline") { res.status = 503; return; }
-        if (mode == "invalid") { res.set_content("not json", "application/json"); return; }
-        auto reply = nlohmann::json({{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
-            {"topologyRevision", body.at("topologyRevision")}, {"message", "Reply"}});
+        if (mode == "offline") {
+            res.status = 503;
+            return;
+        }
+        if (mode == "invalid") {
+            res.set_content("not json", "application/json");
+            return;
+        }
+        auto reply = nlohmann::json(
+            {{"requestId", mode == "stale" ? "wrong" : body.at("requestId").get<std::string>()},
+             {"topologyRevision", body.at("topologyRevision")},
+             {"message", "Reply"}});
         if (mode != "success" && mode != "stale" && mode != "bad-quota") {
             reply["historyTurnsOmitted"] = nlohmann::json::parse(mode);
         }
@@ -304,17 +322,27 @@ TEST_CASE("Assistant HTTP transport validates request identity and errors", "[ch
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
-    struct StopServer { httplib::Server& server; ~StopServer() { server.stop(); } } cleanup{server};
+
+    struct StopServer {
+        httplib::Server& server;
+
+        ~StopServer() {
+            server.stop();
+        }
+    } cleanup{server};
+
     server.wait_until_ready();
     kns::app::intelligence::IntelligenceClientConfig config;
     config.base_url = "http://127.0.0.1:" + std::to_string(port);
     config.chat_endpoint = "/chat";
     config.bearer_token = "test-token";
     kns::app::intelligence::IntelligenceClient client(config);
-    const nlohmann::json request{{"requestId", "turn-1"}, {"topologyRevision", "3"},
-        {"messages", {{{"role", "user"}, {"content", "Earlier"}},
-                      {{"role", "assistant"}, {"content", "Reply"}},
-                      {{"role", "user"}, {"content", "Now?"}}}}};
+    const nlohmann::json request{{"requestId", "turn-1"},
+                                 {"topologyRevision", "3"},
+                                 {"messages",
+                                  {{{"role", "user"}, {"content", "Earlier"}},
+                                   {{"role", "assistant"}, {"content", "Reply"}},
+                                   {{"role", "user"}, {"content", "Now?"}}}}};
     const auto successReply = client.chat(request);
     REQUIRE(successReply.message == "Reply");
     REQUIRE(successReply.history_turns_omitted == 0);

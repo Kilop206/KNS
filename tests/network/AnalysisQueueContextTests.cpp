@@ -7,8 +7,8 @@
 
 using namespace kns;
 
-TEST_CASE("Network analysis exposes queue-management facts to intelligence context", "[analysis][aqm][intelligence]")
-{
+TEST_CASE("Network analysis exposes queue-management facts to intelligence context",
+          "[analysis][aqm][intelligence]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 5.0, 0.0, LinkMode::FULL_DUPLEX, 16);
     link->configureRed(4, 12, 0.25, 0.125);
@@ -45,8 +45,7 @@ TEST_CASE("Network analysis exposes queue-management facts to intelligence conte
     REQUIRE(serializedLink.at("red_queue_weight") == 0.125);
 }
 
-TEST_CASE("Drop-tail analysis uses explicit defaults", "[analysis][aqm]")
-{
+TEST_CASE("Drop-tail analysis uses explicit defaults", "[analysis][aqm]") {
     Topology topology(2);
     topology.addLink(0, 1, 100.0, 1.0);
 

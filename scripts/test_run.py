@@ -1,11 +1,11 @@
 import csv
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import benchmark_suite
@@ -17,11 +17,21 @@ class StatsTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "stats.csv"
-        self.row = dict(packets_sent=10, packets_delivered=8, packets_lost=2,
-                        total_latency=4, avg_latency=0.5, packets_in_transit=0,
-                        total_sessions=1, data_packets_delivered=8,
-                        queue_overflow_drops=1, red_early_drops=1,
-                        schema_version=1, simulation_duration_s=2, seed=42)
+        self.row = dict(
+            packets_sent=10,
+            packets_delivered=8,
+            packets_lost=2,
+            total_latency=4,
+            avg_latency=0.5,
+            packets_in_transit=0,
+            total_sessions=1,
+            data_packets_delivered=8,
+            queue_overflow_drops=1,
+            red_early_drops=1,
+            schema_version=1,
+            simulation_duration_s=2,
+            seed=42,
+        )
 
     def write(self):
         with self.path.open("w", newline="") as stream:
@@ -41,7 +51,6 @@ class StatsTests(unittest.TestCase):
             self.assertEqual(result["throughput_pps"], 4)
             self.assertEqual(result["wall_clock_duration_s"], duration)
 
-
     def test_legacy_schema_v1_defaults_additive_aqm_metrics_to_zero(self):
         self.row.pop("queue_overflow_drops")
         self.row.pop("red_early_drops")
@@ -51,16 +60,21 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(stats["red_early_drops"], 0)
 
     def test_empty_run(self):
-        self.row.update(packets_sent=0, packets_delivered=0, packets_lost=0,
-                        simulation_duration_s=0)
+        self.row.update(
+            packets_sent=0, packets_delivered=0, packets_lost=0, simulation_duration_s=0
+        )
         self.write()
         stats = runner.parse_stats(self.path)
         self.assertEqual(stats["delivery_rate"], 0)
         self.assertIsNone(runner.compute_stats(stats, 1)["throughput_pps"])
 
     def test_invalid_schema(self):
-        for key, value in (("schema_version", 2), ("avg_latency", "nan"),
-                           ("packets_sent", -1), ("seed", "")):
+        for key, value in (
+            ("schema_version", 2),
+            ("avg_latency", "nan"),
+            ("packets_sent", -1),
+            ("seed", ""),
+        ):
             with self.subTest(key=key):
                 original = self.row[key]
                 self.row[key] = value
@@ -83,8 +97,16 @@ class StatsTests(unittest.TestCase):
         )
         self.assertEqual(
             command[-8:],
-            ["--routing-metric", "hop-count", "--seed", "123", "--packet-size", "4096",
-             "--congestion-control", "reno"],
+            [
+                "--routing-metric",
+                "hop-count",
+                "--seed",
+                "123",
+                "--packet-size",
+                "4096",
+                "--congestion-control",
+                "reno",
+            ],
         )
         with_faults = runner.build_command(
             Path("KNS"),
@@ -97,12 +119,21 @@ class StatsTests(unittest.TestCase):
             ["--link-event", "0.5:0:1:down", "--link-event", "2.5:0:1:up"],
         )
 
-    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    @unittest.skipUnless(
+        os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration"
+    )
     def test_engine_csv(self):
         root = Path(__file__).resolve().parent.parent
-        subprocess.run(runner.build_command(Path(os.environ["KNS_TEST_EXE"]),
-                       root / "app/topologies/mesh4.json", self.path),
-                       env={**os.environ, "KNS_AUTO_START": "1"}, check=True, timeout=30)
+        subprocess.run(
+            runner.build_command(
+                Path(os.environ["KNS_TEST_EXE"]),
+                root / "app/topologies/mesh4.json",
+                self.path,
+            ),
+            env={**os.environ, "KNS_AUTO_START": "1"},
+            check=True,
+            timeout=30,
+        )
         stats = runner.parse_stats(self.path)
         self.assertGreater(stats["packets_delivered"], 0)
         self.assertGreater(stats["simulation_duration_s"], 0)
@@ -123,7 +154,9 @@ class BenchmarkSuiteTests(unittest.TestCase):
 
     def test_tcp_congestion_baseline_expands_all_algorithms(self):
         root = Path(__file__).resolve().parent.parent
-        suite = benchmark_suite.load_suite(root / "benchmarks/v1/tcp-congestion-baseline.json")
+        suite = benchmark_suite.load_suite(
+            root / "benchmarks/v1/tcp-congestion-baseline.json"
+        )
         cases = benchmark_suite.expand_cases(suite)
         self.assertEqual(suite["name"], "tcp-congestion-baseline-v1")
         self.assertEqual(len(cases), 24)
@@ -143,8 +176,11 @@ class BenchmarkSuiteTests(unittest.TestCase):
         self.assertEqual({case["congestion_control"] for case in cases}, {"reno"})
 
         import json
+
         drop = json.loads(
-            (root / "benchmarks/v1/topologies/aqm-bottleneck-drop-tail.json").read_text()
+            (
+                root / "benchmarks/v1/topologies/aqm-bottleneck-drop-tail.json"
+            ).read_text()
         )
         red = json.loads(
             (root / "benchmarks/v1/topologies/aqm-bottleneck-red.json").read_text()
@@ -174,7 +210,9 @@ class BenchmarkSuiteTests(unittest.TestCase):
 
     def test_resilience_baseline_expands_control_and_outage(self):
         root = Path(__file__).resolve().parent.parent
-        suite = benchmark_suite.load_suite(root / "benchmarks/v1/resilience-baseline.json")
+        suite = benchmark_suite.load_suite(
+            root / "benchmarks/v1/resilience-baseline.json"
+        )
         cases = benchmark_suite.expand_cases(suite)
         self.assertEqual(suite["name"], "resilience-baseline-v1")
         self.assertEqual(len(cases), 6)
@@ -182,7 +220,9 @@ class BenchmarkSuiteTests(unittest.TestCase):
             {case["fault_scenario"] for case in cases},
             {"baseline", "link01-outage"},
         )
-        outage = next(case for case in cases if case["fault_scenario"] == "link01-outage")
+        outage = next(
+            case for case in cases if case["fault_scenario"] == "link01-outage"
+        )
         self.assertEqual(
             outage["link_events"],
             ["0.5:0:1:down", "2.5:0:1:up"],
@@ -226,9 +266,6 @@ class BenchmarkSuiteTests(unittest.TestCase):
         self.assertAlmostEqual(row["avg_latency_s_delta"], 0.05)
         self.assertAlmostEqual(row["simulation_duration_s_delta"], 1.0)
 
-
-
-
     def test_markdown_report_summarizes_cases_and_fault_deltas(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -264,21 +301,24 @@ class BenchmarkSuiteTests(unittest.TestCase):
                     },
                 ],
             }
-            comparisons = [{
-                "fault_scenario": "link01-outage",
-                "seed": 42,
-                "delivery_rate_delta": -0.1,
-                "loss_rate_delta": 0.1,
-                "throughput_pps_delta": -2.0,
-                "avg_latency_s_delta": 0.05,
-                "simulation_duration_s_delta": 1.0,
-            }]
+            comparisons = [
+                {
+                    "fault_scenario": "link01-outage",
+                    "seed": 42,
+                    "delivery_rate_delta": -0.1,
+                    "loss_rate_delta": 0.1,
+                    "throughput_pps_delta": -2.0,
+                    "avg_latency_s_delta": 0.05,
+                    "simulation_duration_s_delta": 1.0,
+                }
+            ]
             benchmark_suite.write_markdown_report(metadata, root, comparisons)
             report = (root / "report.md").read_text(encoding="utf-8")
             self.assertIn("# resilience-baseline-v1", report)
             self.assertIn("Fault vs baseline", report)
             self.assertIn("link01-outage", report)
             self.assertIn("-2.0000", report)
+
 
 class ProcessTests(unittest.TestCase):
     def setUp(self):
@@ -288,11 +328,20 @@ class ProcessTests(unittest.TestCase):
 
     def test_benchmark_transport_outcomes_preserve_metrics_and_do_not_hide_errors(self):
         import json
-        suite = benchmark_suite.load_suite(benchmark_suite.ROOT / "benchmarks/v1/tcp-congestion-baseline.json")
-        suite.update(topologies=["app/topologies/mesh5.json"], seeds=[42], congestion_controls=["reno"])
-        content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
-                   "packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,"
-                   "red_early_drops,schema_version,simulation_duration_s,seed\n10,8,2,0,0,0,1,4,1,1,1,2,42\n")
+
+        suite = benchmark_suite.load_suite(
+            benchmark_suite.ROOT / "benchmarks/v1/tcp-congestion-baseline.json"
+        )
+        suite.update(
+            topologies=["app/topologies/mesh5.json"],
+            seeds=[42],
+            congestion_controls=["reno"],
+        )
+        content = (
+            "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
+            "packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,"
+            "red_early_drops,schema_version,simulation_duration_s,seed\n10,8,2,0,0,0,1,4,1,1,1,2,42\n"
+        )
         for allow, code, output_csv, expected, status in (
             (True, 2, True, 0, "transport_failure"),
             (False, 2, True, 1, "transport_failure"),
@@ -302,12 +351,25 @@ class ProcessTests(unittest.TestCase):
             with self.subTest(allow=allow, code=code, output_csv=output_csv):
                 suite["allow_transport_failures"] = allow
                 output = self.root / f"{allow}-{code}-{output_csv}"
+
                 def command(exe, topo, csv_path, *args):
-                    script = f"from pathlib import Path; Path({str(csv_path)!r}).write_text({content!r}); " if output_csv else ""
+                    script = (
+                        f"from pathlib import Path; Path({str(csv_path)!r}).write_text({content!r}); "
+                        if output_csv
+                        else ""
+                    )
                     return [sys.executable, "-c", script + f"raise SystemExit({code})"]
-                with patch.object(benchmark_suite, "load_suite", return_value=suite), \
-                     patch.object(runner, "build_command", side_effect=command):
-                    self.assertEqual(benchmark_suite.main(["--exe", sys.executable, "--output", str(output)]), expected)
+
+                with (
+                    patch.object(benchmark_suite, "load_suite", return_value=suite),
+                    patch.object(runner, "build_command", side_effect=command),
+                ):
+                    self.assertEqual(
+                        benchmark_suite.main(
+                            ["--exe", sys.executable, "--output", str(output)]
+                        ),
+                        expected,
+                    )
                 report = json.loads((output / "benchmark.json").read_text())
                 self.assertEqual(report["failed_cases"], 1)
                 self.assertEqual(report["cases"][0]["status"], status)
@@ -319,12 +381,18 @@ class ProcessTests(unittest.TestCase):
         topo = self.root / f"{name}.json"
         log = self.root / f"{name}.log"
         output = self.root / f"{name}.csv"
-        with patch.object(runner, "build_command", return_value=[sys.executable, "-c", code]):
-            proc, started, handle = runner.run_silent(Path(sys.executable), topo, log, output)
+        with patch.object(
+            runner, "build_command", return_value=[sys.executable, "-c", code]
+        ):
+            proc, started, handle = runner.run_silent(
+                Path(sys.executable), topo, log, output
+            )
+
         def cleanup():
             if proc.poll() is None:
                 runner._terminate_tree(proc)
             handle.close()
+
         self.addCleanup(cleanup)
         return runner.PendingRun(proc, started, topo, log, output, handle)
 
@@ -341,7 +409,9 @@ class ProcessTests(unittest.TestCase):
             runner._flush_one(pending, records, deadline)
         self.assertEqual(records[0]["status"], "process_error")
         self.assertEqual(pending, [hung])
-        with patch.object(runner.time, "perf_counter", return_value=hung.started_at + deadline + 1):
+        with patch.object(
+            runner.time, "perf_counter", return_value=hung.started_at + deadline + 1
+        ):
             runner._flush_one(pending, records, deadline)
         self.assertFalse(pending)
         self.assertEqual(records[1]["status"], "timeout")
@@ -359,16 +429,23 @@ class ProcessTests(unittest.TestCase):
     def test_timeout_batch_preserves_reports_without_plotting(self):
         (self.root / "hung.json").write_text("{}")
         (self.root / "later.json").write_text("{}")
-        with patch.object(runner, "find_executable", return_value=Path(sys.executable)), \
-             patch.object(runner, "get_test_dir", return_value=self.root), \
-             patch.object(runner, "build_command", return_value=[
-                 sys.executable, "-c", "import time; time.sleep(60)"
-             ]), \
-             patch.object(runner, "plot_summary_dashboard", side_effect=ImportError("matplotlib")):
+        with (
+            patch.object(runner, "find_executable", return_value=Path(sys.executable)),
+            patch.object(runner, "get_test_dir", return_value=self.root),
+            patch.object(
+                runner,
+                "build_command",
+                return_value=[sys.executable, "-c", "import time; time.sleep(60)"],
+            ),
+            patch.object(
+                runner, "plot_summary_dashboard", side_effect=ImportError("matplotlib")
+            ),
+        ):
             # Status/report assertions below verify timeout handling. Host
             # startup and taskkill latency are not performance requirements.
             self.assertEqual(runner.main([str(self.root), "-j", "1", "-t", "0.2"]), 1)
         import json
+
         report = json.loads((self.root / "summary.json").read_text())
         self.assertEqual(report["failed_runs"], 2)
         self.assertEqual(report["graphs"], [])
@@ -384,20 +461,41 @@ class ProcessTests(unittest.TestCase):
     def test_mixed_batch_exit_and_reports(self):
         for name in ("ok", "bad"):
             (self.root / f"{name}.json").write_text("{}")
-        def command(exe, topo, output, routing_metric="delay", seed=42, packet_size=1500, congestion_control="reno", link_events=None):
+
+        def command(
+            exe,
+            topo,
+            output,
+            routing_metric="delay",
+            seed=42,
+            packet_size=1500,
+            congestion_control="reno",
+            link_events=None,
+        ):
             if topo.stem == "bad":
                 return [sys.executable, "-c", "raise SystemExit(7)"]
-            content = ("packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
-                       "packets_in_transit,total_sessions,data_packets_delivered,schema_version,"
-                       "simulation_duration_s,seed\n1,1,0,0,0,0,0,1,1,2,42\n")
-            return [sys.executable, "-c",
-                    f"from pathlib import Path; Path({str(output)!r}).write_text({content!r})"]
-        with patch.object(runner, "find_executable", return_value=Path(sys.executable)), \
-             patch.object(runner, "get_test_dir", return_value=self.root), \
-             patch.object(runner, "build_command", side_effect=command), \
-             patch.object(runner, "plot_summary_dashboard", return_value=self.root / "plot.png"):
+            content = (
+                "packets_sent,packets_delivered,packets_lost,total_latency,avg_latency,"
+                "packets_in_transit,total_sessions,data_packets_delivered,schema_version,"
+                "simulation_duration_s,seed\n1,1,0,0,0,0,0,1,1,2,42\n"
+            )
+            return [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(output)!r}).write_text({content!r})",
+            ]
+
+        with (
+            patch.object(runner, "find_executable", return_value=Path(sys.executable)),
+            patch.object(runner, "get_test_dir", return_value=self.root),
+            patch.object(runner, "build_command", side_effect=command),
+            patch.object(
+                runner, "plot_summary_dashboard", return_value=self.root / "plot.png"
+            ),
+        ):
             self.assertEqual(runner.main([str(self.root), "-j", "2", "-t", "60"]), 1)
         import json
+
         report = json.loads((self.root / "summary.json").read_text())
         self.assertEqual(report["successful_runs"], 1)
         self.assertEqual(report["failed_runs"], 1)

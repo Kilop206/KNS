@@ -26,135 +26,71 @@ namespace {
 
     constexpr double EPSILON = 1e-9;
 
-    bool almostEqual(double a, double b) noexcept
-    {
+    bool almostEqual(double a, double b) noexcept {
         return std::abs(a - b) <= EPSILON;
     }
 
 }
 
-TEST_CASE(
-    "RTTEstimator starts with default RTO",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator starts with default RTO", "[tcp][rto]") {
     RTTEstimator estimator;
 
     REQUIRE_FALSE(estimator.hasSample());
     REQUIRE(estimator.getSRTT() == 0.0);
     REQUIRE(estimator.getRTTVAR() == 0.0);
-    REQUIRE(
-        estimator.getRTO() ==
-        RTTEstimator::INITIAL_RTO
-    );
+    REQUIRE(estimator.getRTO() == RTTEstimator::INITIAL_RTO);
 }
 
-TEST_CASE(
-    "RTTEstimator initializes from first RTT sample",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator initializes from first RTT sample", "[tcp][rto]") {
     RTTEstimator estimator;
 
     estimator.update(1.0);
 
     REQUIRE(estimator.hasSample());
 
-    REQUIRE(
-        almostEqual(
-            estimator.getSRTT(),
-            1.0
-        )
-    );
+    REQUIRE(almostEqual(estimator.getSRTT(), 1.0));
 
-    REQUIRE(
-        almostEqual(
-            estimator.getRTTVAR(),
-            0.5
-        )
-    );
+    REQUIRE(almostEqual(estimator.getRTTVAR(), 0.5));
 
-    REQUIRE(
-        almostEqual(
-            estimator.getRTO(),
-            3.0
-        )
-    );
+    REQUIRE(almostEqual(estimator.getRTO(), 3.0));
 }
 
-TEST_CASE(
-    "RTTEstimator updates SRTT and RTTVAR",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator updates SRTT and RTTVAR", "[tcp][rto]") {
     RTTEstimator estimator;
 
     estimator.update(1.0);
     estimator.update(1.2);
 
-    REQUIRE(
-        almostEqual(
-            estimator.getSRTT(),
-            1.025
-        )
-    );
+    REQUIRE(almostEqual(estimator.getSRTT(), 1.025));
 
-    REQUIRE(
-        almostEqual(
-            estimator.getRTTVAR(),
-            0.425
-        )
-    );
+    REQUIRE(almostEqual(estimator.getRTTVAR(), 0.425));
 
-    REQUIRE(
-        almostEqual(
-            estimator.getRTO(),
-            2.725
-        )
-    );
+    REQUIRE(almostEqual(estimator.getRTO(), 2.725));
 }
 
-TEST_CASE(
-    "RTTEstimator ignores invalid RTT samples",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator ignores invalid RTT samples", "[tcp][rto]") {
     RTTEstimator estimator;
 
     estimator.update(-1.0);
 
     REQUIRE_FALSE(estimator.hasSample());
 
-    REQUIRE(
-        estimator.getRTO() ==
-        RTTEstimator::INITIAL_RTO
-    );
+    REQUIRE(estimator.getRTO() == RTTEstimator::INITIAL_RTO);
 
     estimator.update(0.0);
 
     REQUIRE_FALSE(estimator.hasSample());
 }
 
-TEST_CASE(
-    "RTTEstimator clamps RTO to minimum",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator clamps RTO to minimum", "[tcp][rto]") {
     RTTEstimator estimator;
 
     estimator.update(0.01);
 
-    REQUIRE(
-        estimator.getRTO() ==
-        RTTEstimator::MIN_RTO
-    );
+    REQUIRE(estimator.getRTO() == RTTEstimator::MIN_RTO);
 }
 
-TEST_CASE(
-    "RTTEstimator reset restores initial state",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTTEstimator reset restores initial state", "[tcp][rto]") {
     RTTEstimator estimator;
 
     estimator.update(1.0);
@@ -167,83 +103,42 @@ TEST_CASE(
     REQUIRE(estimator.getSRTT() == 0.0);
     REQUIRE(estimator.getRTTVAR() == 0.0);
 
-    REQUIRE(
-        estimator.getRTO() ==
-        RTTEstimator::INITIAL_RTO
-    );
+    REQUIRE(estimator.getRTO() == RTTEstimator::INITIAL_RTO);
 }
 
-TEST_CASE(
-    "RTOManager applies exponential backoff",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTOManager applies exponential backoff", "[tcp][rto]") {
     RTOManager manager;
 
-    REQUIRE(
-        manager.currentRTO() ==
-        RTTEstimator::INITIAL_RTO
-    );
+    REQUIRE(manager.currentRTO() == RTTEstimator::INITIAL_RTO);
 
-    REQUIRE(
-        manager.onTimeout() == 2.0
-    );
+    REQUIRE(manager.onTimeout() == 2.0);
 
-    REQUIRE(
-        manager.getBackoff() == 2.0
-    );
+    REQUIRE(manager.getBackoff() == 2.0);
 
-    REQUIRE(
-        manager.onTimeout() == 4.0
-    );
+    REQUIRE(manager.onTimeout() == 4.0);
 
-    REQUIRE(
-        manager.getBackoff() == 4.0
-    );
+    REQUIRE(manager.getBackoff() == 4.0);
 
-    REQUIRE(
-        manager.onTimeout() == 8.0
-    );
+    REQUIRE(manager.onTimeout() == 8.0);
 
-    REQUIRE(
-        manager.getBackoff() == 8.0
-    );
+    REQUIRE(manager.getBackoff() == 8.0);
 }
 
-TEST_CASE(
-    "RTOManager resets backoff after acknowledgement",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTOManager resets backoff after acknowledgement", "[tcp][rto]") {
     RTOManager manager;
 
-    REQUIRE(
-        manager.onTimeout() == 2.0
-    );
+    REQUIRE(manager.onTimeout() == 2.0);
 
-    REQUIRE(
-        manager.onTimeout() == 4.0
-    );
+    REQUIRE(manager.onTimeout() == 4.0);
 
     manager.onAcknowledgement(1.0);
 
-    REQUIRE(
-        manager.getBackoff() == 1.0
-    );
+    REQUIRE(manager.getBackoff() == 1.0);
 
-    REQUIRE(
-        almostEqual(
-            manager.currentRTO(),
-            3.0
-        )
-    );
+    REQUIRE(almostEqual(manager.currentRTO(), 3.0));
 }
 
-TEST_CASE(
-    "RTOManager reset clears estimator and backoff",
-    "[tcp][rto]"
-)
-{
+TEST_CASE("RTOManager reset clears estimator and backoff", "[tcp][rto]") {
     RTOManager manager;
 
     manager.onAcknowledgement(1.0);
@@ -252,237 +147,114 @@ TEST_CASE(
 
     manager.reset();
 
-    REQUIRE(
-        manager.getBackoff() == 1.0
-    );
+    REQUIRE(manager.getBackoff() == 1.0);
 
-    REQUIRE_FALSE(
-        manager.getEstimator().hasSample()
-    );
+    REQUIRE_FALSE(manager.getEstimator().hasSample());
 
-    REQUIRE(
-        manager.currentRTO() ==
-        RTTEstimator::INITIAL_RTO
-    );
+    REQUIRE(manager.currentRTO() == RTTEstimator::INITIAL_RTO);
 }
 
-TEST_CASE(
-    "TCP timeout retransmits outstanding segment and applies Karn",
-    "[tcp][rto][timeout][retransmission]"
-)
-{
+TEST_CASE("TCP timeout retransmits outstanding segment and applies Karn",
+          "[tcp][rto][timeout][retransmission]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        10.0,
-        10.0,
-        0.0,
-        kns::LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 10.0, 10.0, 0.0, kns::LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    auto& session =
-        engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(0, 1);
 
-    auto& client =
-        session.getClientConnection();
+    auto& client = session.getClientConnection();
 
     TCPSegment segment;
 
-    segment.seq =
-        client.getSendNext();
+    segment.seq = client.getSendNext();
 
-    segment.payload.assign(
-        100,
-        0x41
-    );
+    segment.payload.assign(100, 0x41);
 
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        client.queueSentSegment(
-            segment,
-            engine.now()
-        )
-    );
+    REQUIRE(client.queueSentSegment(segment, engine.now()));
 
-    REQUIRE(
-        client.hasOutstandingSegment(
-            segment.seq
-        )
-    );
+    REQUIRE(client.hasOutstandingSegment(segment.seq));
 
-    const double initial_rto =
-        client.getCurrentRTO();
+    const double initial_rto = client.getCurrentRTO();
 
-    TCPTimeoutEvent timeout(
-        engine.now(),
-        session.getSession_id(),
-        segment.seq
-    );
+    TCPTimeoutEvent timeout(engine.now(), session.getSession_id(), segment.seq);
 
-    REQUIRE_NOTHROW(
-        timeout.execute(engine)
-    );
+    REQUIRE_NOTHROW(timeout.execute(engine));
 
-    REQUIRE(
-        client.getCurrentRTO() >
-        initial_rto
-    );
+    REQUIRE(client.getCurrentRTO() > initial_rto);
 
-    const auto outstanding =
-        client.getOutstandingSegment(
-            segment.seq
-        );
+    const auto outstanding = client.getOutstandingSegment(segment.seq);
 
-    REQUIRE(
-        outstanding.has_value()
-    );
+    REQUIRE(outstanding.has_value());
 
-    REQUIRE(
-        outstanding->seq ==
-        segment.seq
-    );
+    REQUIRE(outstanding->seq == segment.seq);
 
-    REQUIRE(
-        outstanding->payload ==
-        segment.payload
-    );
+    REQUIRE(outstanding->payload == segment.payload);
 }
 
-TEST_CASE(
-    "TCP RTO only expires the oldest outstanding segment",
-    "[tcp][rto][timeout]"
-)
-{
+TEST_CASE("TCP RTO only expires the oldest outstanding segment", "[tcp][rto][timeout]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        kns::LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 100.0, 1.0, 0.0, kns::LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    auto& session =
-        engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(0, 1);
 
-    auto& client =
-        session.getClientConnection();
+    auto& client = session.getClientConnection();
 
     client.send_syn();
 
     TCPSegment first;
 
     first.seq = client.getSendNext();
-    first.payload.assign(
-        100,
-        0x41
-    );
-    first.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    first.payload.assign(100, 0x41);
+    first.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        client.queueSentSegment(
-            first,
-            engine.now()
-        )
-    );
+    REQUIRE(client.queueSentSegment(first, engine.now()));
 
     TCPSegment second;
 
     second.seq = client.getSendNext();
-    second.payload.assign(
-        100,
-        0x42
-    );
-    second.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    second.payload.assign(100, 0x42);
+    second.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        client.queueSentSegment(
-            second,
-            engine.now()
-        )
-    );
+    REQUIRE(client.queueSentSegment(second, engine.now()));
 
-    REQUIRE(
-        client.getOldestOutstandingSequence()
-            .value() == first.seq
-    );
+    REQUIRE(client.getOldestOutstandingSequence().value() == first.seq);
 
-    const double initial_rto =
-        client.getCurrentRTO();
+    const double initial_rto = client.getCurrentRTO();
 
-    TCPTimeoutEvent second_timeout(
-        engine.now(),
-        session.getSession_id(),
-        second.seq
-    );
+    TCPTimeoutEvent second_timeout(engine.now(), session.getSession_id(), second.seq);
 
-    REQUIRE_NOTHROW(
-        second_timeout.execute(engine)
-    );
+    REQUIRE_NOTHROW(second_timeout.execute(engine));
 
     /*
      * The second segment is not the oldest one,
      * so its timeout must have no effect.
      */
-    REQUIRE(
-        client.getCurrentRTO() ==
-        initial_rto
-    );
+    REQUIRE(client.getCurrentRTO() == initial_rto);
 
-    TCPTimeoutEvent first_timeout(
-        engine.now(),
-        session.getSession_id(),
-        first.seq
-    );
+    TCPTimeoutEvent first_timeout(engine.now(), session.getSession_id(), first.seq);
 
-    REQUIRE_NOTHROW(
-        first_timeout.execute(engine)
-    );
+    REQUIRE_NOTHROW(first_timeout.execute(engine));
 
-    REQUIRE(
-        client.getCurrentRTO() >
-        initial_rto
-    );
+    REQUIRE(client.getCurrentRTO() > initial_rto);
 }
 
-TEST_CASE(
-    "TCP retransmission event preserves outstanding segment",
-    "[tcp][rto][retransmission]"
-)
-{
+TEST_CASE("TCP retransmission event preserves outstanding segment", "[tcp][rto][retransmission]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        kns::LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 100.0, 1.0, 0.0, kns::LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    auto& session =
-        engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(0, 1);
 
-    auto& client =
-        session.getClientConnection();
+    auto& client = session.getClientConnection();
 
     /*
      * The session factory creates the client CLOSED.
@@ -493,237 +265,92 @@ TEST_CASE(
     (void)client;
 }
 
-TEST_CASE(
-    "TCP retransmission count is tracked per segment",
-    "[tcp][rto][retransmission]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP retransmission count is tracked per segment", "[tcp][rto][retransmission]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment segment;
 
     segment.seq = 1000;
-    segment.payload.assign(
-        100,
-        0x41
-    );
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.payload.assign(100, 0x41);
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            segment,
-            0.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(segment, 0.0));
 
-    REQUIRE(
-        connection.getRetransmissionCount(
-            1000
-        ) == 0
-    );
+    REQUIRE(connection.getRetransmissionCount(1000) == 0);
 
-    REQUIRE(
-        connection.canRetransmit(
-            1000
-        )
-    );
+    REQUIRE(connection.canRetransmit(1000));
 
-    REQUIRE(
-        connection.markSegmentRetransmitted(
-            1000,
-            1.0
-        )
-    );
+    REQUIRE(connection.markSegmentRetransmitted(1000, 1.0));
 
-    REQUIRE(
-        connection.getRetransmissionCount(
-            1000
-        ) == 1
-    );
+    REQUIRE(connection.getRetransmissionCount(1000) == 1);
 
-    REQUIRE(
-        connection.canRetransmit(
-            1000
-        )
-    );
+    REQUIRE(connection.canRetransmit(1000));
 }
 
-TEST_CASE(
-    "TCP retransmission limit is enforced per segment",
-    "[tcp][rto][retransmission]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP retransmission limit is enforced per segment", "[tcp][rto][retransmission]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment segment;
 
     segment.seq = 1000;
-    segment.payload.assign(
-        100,
-        0x41
-    );
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.payload.assign(100, 0x41);
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            segment,
-            0.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(segment, 0.0));
 
-    for (
-        std::uint32_t i = 0;
-        i < TCPConnection::MAX_DATA_RETRANSMISSIONS;
-        ++i
-    ) {
-        REQUIRE(
-            connection.canRetransmit(
-                1000
-            )
-        );
+    for (std::uint32_t i = 0; i < TCPConnection::MAX_DATA_RETRANSMISSIONS; ++i) {
+        REQUIRE(connection.canRetransmit(1000));
 
-        REQUIRE(
-            connection.markSegmentRetransmitted(
-                1000,
-                static_cast<double>(i + 1)
-            )
-        );
+        REQUIRE(connection.markSegmentRetransmitted(1000, static_cast<double>(i + 1)));
     }
 
-    REQUIRE(
-        connection.getRetransmissionCount(
-            1000
-        ) ==
-        TCPConnection::MAX_DATA_RETRANSMISSIONS
-    );
+    REQUIRE(connection.getRetransmissionCount(1000) == TCPConnection::MAX_DATA_RETRANSMISSIONS);
 
-    REQUIRE_FALSE(
-        connection.canRetransmit(
-            1000
-        )
-    );
+    REQUIRE_FALSE(connection.canRetransmit(1000));
 }
 
-TEST_CASE(
-    "TCP closes connection after retransmission limit",
-    "[tcp][rto][retransmission][failure]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP closes connection after retransmission limit",
+          "[tcp][rto][retransmission][failure]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment segment;
 
     segment.seq = 1000;
-    segment.payload.assign(
-        100,
-        0x41
-    );
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.payload.assign(100, 0x41);
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            segment,
-            0.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(segment, 0.0));
 
-    REQUIRE(
-        connection.hasOutstandingSegment(
-            1000
-        )
-    );
+    REQUIRE(connection.hasOutstandingSegment(1000));
 
-    for (
-        std::uint32_t i = 0;
-        i < TCPConnection::MAX_DATA_RETRANSMISSIONS;
-        ++i
-    ) {
-        REQUIRE(
-            connection.markSegmentRetransmitted(
-                1000,
-                static_cast<double>(i + 1)
-            )
-        );
+    for (std::uint32_t i = 0; i < TCPConnection::MAX_DATA_RETRANSMISSIONS; ++i) {
+        REQUIRE(connection.markSegmentRetransmitted(1000, static_cast<double>(i + 1)));
     }
 
-    REQUIRE_FALSE(
-        connection.canRetransmit(
-            1000
-        )
-    );
+    REQUIRE_FALSE(connection.canRetransmit(1000));
 
-    REQUIRE(
-        connection.failRetransmission()
-    );
+    REQUIRE(connection.failRetransmission());
 
-    REQUIRE(
-        connection.getTcpState() ==
-        TCPState::CLOSED
-    );
+    REQUIRE(connection.getTcpState() == TCPState::CLOSED);
 
-    REQUIRE(
-        connection.getSendBufferSize() == 0
-    );
+    REQUIRE(connection.getSendBufferSize() == 0);
 
-    REQUIRE_FALSE(
-        connection.hasOutstandingSegment(
-            1000
-        )
-    );
+    REQUIRE_FALSE(connection.hasOutstandingSegment(1000));
 
-    REQUIRE(
-        connection.getCurrentRTO() ==
-        1.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 1.0);
 }
 
-TEST_CASE(
-    "TCP timeout event terminates connection at retransmission limit",
-    "[tcp][rto][timeout][failure]"
-)
-{
+TEST_CASE("TCP timeout event terminates connection at retransmission limit",
+          "[tcp][rto][timeout][failure]") {
     Topology topology(2);
 
-    topology.addLink(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        kns::LinkMode::FULL_DUPLEX
-    );
+    topology.addLink(0, 1, 100.0, 1.0, 0.0, kns::LinkMode::FULL_DUPLEX);
 
     SimulationEngine engine(topology);
 
-    auto& session =
-        engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(0, 1);
 
-    auto& client =
-        session.getClientConnection();
+    auto& client = session.getClientConnection();
 
     /*
      * The timeout event itself only acts on an ESTABLISHED
@@ -735,45 +362,23 @@ TEST_CASE(
     (void)client;
 }
 
-TEST_CASE(
-    "TCP ACK updates RTO from a valid RTT sample",
-    "[tcp][rto][ack]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP ACK updates RTO from a valid RTT sample", "[tcp][rto][ack]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment segment;
 
     segment.seq = 1000;
-    segment.payload.assign(
-        100,
-        0x41
-    );
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.payload.assign(100, 0x41);
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            segment,
-            2.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(segment, 2.0));
 
     /*
      * Force a non-default backoff first.
      */
     connection.onSendTimeout();
 
-    REQUIRE(
-        connection.getCurrentRTO() == 2.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 2.0);
 
     /*
      * ACK at t = 3.0 for a segment transmitted at t = 2.0.
@@ -786,76 +391,38 @@ TEST_CASE(
      *
      * The acknowledgement must also reset backoff to 1x.
      */
-    REQUIRE(
-        connection.receive_ack(
-            1100,
-            3.0
-        )
-    );
+    REQUIRE(connection.receive_ack(1100, 3.0));
 
-    REQUIRE(
-        connection.getSendUnacknowledged() == 1100
-    );
+    REQUIRE(connection.getSendUnacknowledged() == 1100);
 
-    REQUIRE(
-        connection.getSendBufferSize() == 0
-    );
+    REQUIRE(connection.getSendBufferSize() == 0);
 
-    REQUIRE(
-        connection.getCurrentRTO() == 3.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 3.0);
 }
 
-TEST_CASE(
-    "TCP ACK after retransmission does not reset RTO backoff",
-    "[tcp][rto][ack][karn]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP ACK after retransmission does not reset RTO backoff", "[tcp][rto][ack][karn]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment segment;
 
     segment.seq = 1000;
-    segment.payload.assign(
-        100,
-        0x41
-    );
-    segment.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    segment.payload.assign(100, 0x41);
+    segment.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            segment,
-            2.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(segment, 2.0));
 
     /*
      * Mark the transmission as retransmitted.
      * Karn therefore forbids RTT measurement.
      */
-    REQUIRE(
-        connection.markSegmentRetransmitted(
-            1000,
-            4.0
-        )
-    );
+    REQUIRE(connection.markSegmentRetransmitted(1000, 4.0));
 
     /*
      * Simulate one timeout/backoff.
      */
     connection.onSendTimeout();
 
-    REQUIRE(
-        connection.getCurrentRTO() == 2.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 2.0);
 
     /*
      * ACK arrives at t = 5.0.
@@ -865,76 +432,35 @@ TEST_CASE(
      *
      * Therefore the backoff must remain 2x.
      */
-    REQUIRE(
-        connection.receive_ack(
-            1100,
-            5.0
-        )
-    );
+    REQUIRE(connection.receive_ack(1100, 5.0));
 
-    REQUIRE(
-        connection.getSendBufferSize() == 0
-    );
+    REQUIRE(connection.getSendBufferSize() == 0);
 
-    REQUIRE(
-        connection.getCurrentRTO() == 2.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 2.0);
 }
 
-TEST_CASE(
-    "TCP cumulative ACK uses one valid RTT sample",
-    "[tcp][rto][ack][karn]"
-)
-{
-    TCPConnection connection(
-        TCPState::ESTABLISHED,
-        1000,
-        2000,
-        0,
-        1
-    );
+TEST_CASE("TCP cumulative ACK uses one valid RTT sample", "[tcp][rto][ack][karn]") {
+    TCPConnection connection(TCPState::ESTABLISHED, 1000, 2000, 0, 1);
 
     TCPSegment first;
 
     first.seq = 1000;
-    first.payload.assign(
-        100,
-        0x41
-    );
-    first.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    first.payload.assign(100, 0x41);
+    first.flags = TCPFlag::ACK | TCPFlag::PSH;
 
     TCPSegment second;
 
     second.seq = 1100;
-    second.payload.assign(
-        100,
-        0x42
-    );
-    second.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    second.payload.assign(100, 0x42);
+    second.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    REQUIRE(
-        connection.queueSentSegment(
-            first,
-            1.0
-        )
-    );
+    REQUIRE(connection.queueSentSegment(first, 1.0));
 
-    REQUIRE(
-        connection.queueSentSegment(
-            second,
-            1.5
-        )
-    );
+    REQUIRE(connection.queueSentSegment(second, 1.5));
 
     connection.onSendTimeout();
 
-    REQUIRE(
-        connection.getCurrentRTO() == 2.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 2.0);
 
     /*
      * Cumulative ACK acknowledges both segments.
@@ -943,20 +469,11 @@ TEST_CASE(
      * The RTO must therefore be recalculated and the
      * backoff must return to 1x.
      */
-    REQUIRE(
-        connection.receive_ack(
-            1200,
-            3.0
-        )
-    );
+    REQUIRE(connection.receive_ack(1200, 3.0));
 
-    REQUIRE(
-        connection.getSendBufferSize() == 0
-    );
+    REQUIRE(connection.getSendBufferSize() == 0);
 
-    REQUIRE(
-        connection.getSendUnacknowledged() == 1200
-    );
+    REQUIRE(connection.getSendUnacknowledged() == 1200);
 
     /*
      * First sample:
@@ -964,208 +481,111 @@ TEST_CASE(
      *
      * RTO = 2.0 + 4 * 1.0 = 6.0
      */
-    REQUIRE(
-        connection.getCurrentRTO() == 6.0
-    );
+    REQUIRE(connection.getCurrentRTO() == 6.0);
 }
 
-TEST_CASE(
-    "TCP retransmission recovers after a real link loss",
-    "[tcp][rto][retransmission][integration]"
-)
-{
+TEST_CASE("TCP retransmission recovers after a real link loss",
+          "[tcp][rto][retransmission][integration]") {
     Topology topology(2);
 
-    auto link = topology.addLinkPtr(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        kns::LinkMode::FULL_DUPLEX
-    );
+    auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, kns::LinkMode::FULL_DUPLEX);
 
     REQUIRE(link != nullptr);
 
     SimulationEngine engine(topology);
     link = engine.getTopology().getLinks()[0];
 
-    auto& session =
-        engine.createTCPSession(0, 1);
+    auto& session = engine.createTCPSession(0, 1);
 
-    auto& client =
-        session.getClientConnection();
+    auto& client = session.getClientConnection();
 
-    auto& server =
-        session.getServerConnection();
+    auto& server = session.getServerConnection();
 
     /*
      * Establish the TCP endpoints through their public state
      * transition API without relying on the full traffic generator.
      */
-    REQUIRE(
-        client.send_syn()
-    );
+    REQUIRE(client.send_syn());
 
-    const TCPSegment syn =
-        client.buildSyn();
+    const TCPSegment syn = client.buildSyn();
 
-    REQUIRE(
-        server.receive_syn(
-            syn.seq
-        )
-    );
+    REQUIRE(server.receive_syn(syn.seq));
 
-    const TCPSegment syn_ack =
-        server.buildSynAck();
+    const TCPSegment syn_ack = server.buildSynAck();
 
-    REQUIRE(
-        client.receive_syn_ack(
-            syn_ack.seq,
-            syn_ack.ack
-        )
-    );
+    REQUIRE(client.receive_syn_ack(syn_ack.seq, syn_ack.ack));
 
-    const TCPSegment ack =
-        client.buildAck();
+    const TCPSegment ack = client.buildAck();
 
-    REQUIRE(
-        server.receive_ack(
-            ack.ack,
-            engine.now()
-        )
-    );
+    REQUIRE(server.receive_ack(ack.ack, engine.now()));
 
-    REQUIRE(
-        client.isEstablished()
-    );
+    REQUIRE(client.isEstablished());
 
-    REQUIRE(
-        server.isEstablished()
-    );
+    REQUIRE(server.isEstablished());
 
     TCPSegment data;
 
-    data.seq =
-        client.getSendNext();
+    data.seq = client.getSendNext();
 
-    data.ack =
-        client.getExpectedAckNum();
+    data.ack = client.getExpectedAckNum();
 
-    data.flags =
-        TCPFlag::ACK |
-        TCPFlag::PSH;
+    data.flags = TCPFlag::ACK | TCPFlag::PSH;
 
-    data.payload.assign(
-        100,
-        0x41
-    );
+    data.payload.assign(100, 0x41);
 
     /*
      * The segment is outstanding before the network attempt.
      */
-    REQUIRE(
-        client.queueSentSegment(
-            data,
-            engine.now()
-        )
-    );
+    REQUIRE(client.queueSentSegment(data, engine.now()));
 
-    REQUIRE(
-        client.hasOutstandingSegment(
-            data.seq
-        )
-    );
+    REQUIRE(client.hasOutstandingSegment(data.seq));
 
     /*
      * Force the first network transmission to fail.
      */
     link->setLossProb(1.0);
 
-    kns::Packet packet(
-        client.getLocalNode(),
-        client.getRemoteNode(),
-        client.getLocalNode(),
-        engine.now(),
-        static_cast<int>(
-            data.payloadSize()
-        ),
-        session.getSession_id()
-    );
+    kns::Packet packet(client.getLocalNode(), client.getRemoteNode(), client.getLocalNode(),
+                       engine.now(), static_cast<int>(data.payloadSize()), session.getSession_id());
 
-    packet.packet_type =
-        kns::PacketType::DATA;
+    packet.packet_type = kns::PacketType::DATA;
 
     packet.tcp = data;
 
-    REQUIRE_FALSE(
-        PacketUtils::sendPacketThroughTopology(
-            engine,
-            packet
-        )
-    );
+    REQUIRE_FALSE(PacketUtils::sendPacketThroughTopology(engine, packet));
 
-    REQUIRE(
-        engine.getStats().packets_lost > 0
-    );
+    REQUIRE(engine.getStats().packets_lost > 0);
 
     /*
      * The RTO timer fires for the still-outstanding segment.
      */
-    TCPTimeoutEvent timeout(
-        engine.now(),
-        session.getSession_id(),
-        data.seq
-    );
+    TCPTimeoutEvent timeout(engine.now(), session.getSession_id(), data.seq);
 
-    const double initial_rto =
-        client.getCurrentRTO();
+    const double initial_rto = client.getCurrentRTO();
 
-    REQUIRE_NOTHROW(
-        timeout.execute(engine)
-    );
+    REQUIRE_NOTHROW(timeout.execute(engine));
 
-    REQUIRE(
-        client.getCurrentRTO() >
-        initial_rto
-    );
+    REQUIRE(client.getCurrentRTO() > initial_rto);
 
     /*
      * Recover the link before the retransmission event executes.
      */
     link->setLossProb(0.0);
 
-    REQUIRE(
-        engine.hasEvents()
-    );
+    REQUIRE(engine.hasEvents());
 
     /*
      * Execute the scheduled retransmission event.
      */
-    REQUIRE(
-        engine.processEvent()
-    );
+    REQUIRE(engine.processEvent());
 
-    REQUIRE(
-        client.hasOutstandingSegment(
-            data.seq
-        )
-    );
+    REQUIRE(client.hasOutstandingSegment(data.seq));
 }
 
-TEST_CASE(
-    "TCP RTT/RTO pipeline updates and backs off correctly",
-    "[tcp][rtt-rto]"
-)
-{
+TEST_CASE("TCP RTT/RTO pipeline updates and backs off correctly", "[tcp][rtt-rto]") {
     RTOManager manager;
 
-    REQUIRE(
-        almostEqual(
-            manager.currentRTO(),
-            RTTEstimator::INITIAL_RTO
-        )
-    );
+    REQUIRE(almostEqual(manager.currentRTO(), RTTEstimator::INITIAL_RTO));
 
     // Primeiro RTT:
     // SRTT = 1.0
@@ -1173,75 +593,30 @@ TEST_CASE(
     // RTO = 3.0
     manager.onAcknowledgement(1.0);
 
-    REQUIRE(
-        almostEqual(
-            manager.getEstimator().getSRTT(),
-            1.0
-        )
-    );
+    REQUIRE(almostEqual(manager.getEstimator().getSRTT(), 1.0));
 
-    REQUIRE(
-        almostEqual(
-            manager.getEstimator().getRTTVAR(),
-            0.5
-        )
-    );
+    REQUIRE(almostEqual(manager.getEstimator().getRTTVAR(), 0.5));
 
-    REQUIRE(
-        almostEqual(
-            manager.currentRTO(),
-            3.0
-        )
-    );
+    REQUIRE(almostEqual(manager.currentRTO(), 3.0));
 
     // Timeout: backoff 2x.
-    REQUIRE(
-        almostEqual(
-            manager.onTimeout(),
-            6.0
-        )
-    );
+    REQUIRE(almostEqual(manager.onTimeout(), 6.0));
 
-    REQUIRE(
-        almostEqual(
-            manager.getBackoff(),
-            2.0
-        )
-    );
+    REQUIRE(almostEqual(manager.getBackoff(), 2.0));
 
     // Novo ACK com RTT válido:
     // o backoff deve voltar para 1.
     manager.onAcknowledgement(1.0);
 
-    REQUIRE(
-        almostEqual(
-            manager.getBackoff(),
-            1.0
-        )
-    );
+    REQUIRE(almostEqual(manager.getBackoff(), 1.0));
 
     // Segunda amostra:
     // SRTT = 1.0
     // RTTVAR = 0.375
     // RTO = 2.5
-    REQUIRE(
-        almostEqual(
-            manager.getEstimator().getSRTT(),
-            1.0
-        )
-    );
+    REQUIRE(almostEqual(manager.getEstimator().getSRTT(), 1.0));
 
-    REQUIRE(
-        almostEqual(
-            manager.getEstimator().getRTTVAR(),
-            0.375
-        )
-    );
+    REQUIRE(almostEqual(manager.getEstimator().getRTTVAR(), 0.375));
 
-    REQUIRE(
-        almostEqual(
-            manager.currentRTO(),
-            2.5
-        )
-    );
+    REQUIRE(almostEqual(manager.currentRTO(), 2.5));
 }

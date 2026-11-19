@@ -4,8 +4,8 @@ from __future__ import annotations
 import argparse
 import csv
 import itertools
-import math
 import json
+import math
 import os
 import platform
 import subprocess
@@ -15,11 +15,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import run as runner
-import fault_plan
 import analytics_config
+import fault_plan
+import run as runner
 import traffic_config
-
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SUITE = ROOT / "benchmarks" / "v1" / "routing-baseline.json"
@@ -35,12 +34,20 @@ def load_suite(path: Path) -> dict:
     missing = required - set(data)
     if missing:
         raise ValueError(f"Benchmark suite missing fields: {sorted(missing)}")
-    if not data["topologies"] or not data["routing_metrics"] or not data["seeds"] or not data["packet_sizes"]:
+    if (
+        not data["topologies"]
+        or not data["routing_metrics"]
+        or not data["seeds"]
+        or not data["packet_sizes"]
+    ):
         raise ValueError("Benchmark suite dimensions must be non-empty")
     valid_metrics = {"delay", "bandwidth", "hop-count", "delay-bandwidth"}
     if not set(data["routing_metrics"]).issubset(valid_metrics):
         raise ValueError("Benchmark suite contains an unsupported routing metric")
-    if any(not isinstance(seed, int) or seed < 0 or seed > 2**64 - 1 for seed in data["seeds"]):
+    if any(
+        not isinstance(seed, int) or seed < 0 or seed > 2**64 - 1
+        for seed in data["seeds"]
+    ):
         raise ValueError("Benchmark seeds must fit unsigned 64-bit integers")
     if any(not isinstance(size, int) or size <= 0 for size in data["packet_sizes"]):
         raise ValueError("Benchmark packet sizes must be positive integers")
@@ -56,11 +63,15 @@ def load_suite(path: Path) -> dict:
     seen_scenarios = set()
     for scenario in scenarios:
         if not isinstance(scenario, dict) or set(scenario) != {"name", "events"}:
-            raise ValueError("Each link event scenario must contain exactly name and events")
+            raise ValueError(
+                "Each link event scenario must contain exactly name and events"
+            )
         name = scenario["name"]
         events = scenario["events"]
-        if not isinstance(name, str) or not name or any(
-            not (ch.isalnum() or ch in "-_") for ch in name
+        if (
+            not isinstance(name, str)
+            or not name
+            or any(not (ch.isalnum() or ch in "-_") for ch in name)
         ):
             raise ValueError("Benchmark link event scenario name is invalid")
         if name in seen_scenarios:
@@ -69,11 +80,27 @@ def load_suite(path: Path) -> dict:
         if not isinstance(events, list):
             raise ValueError("Benchmark link event scenario events must be a list")
         for event in events:
-            if not isinstance(event, dict) or set(event) != {"time", "from", "to", "state"}:
-                raise ValueError("Link events must contain exactly time, from, to and state")
-            if not isinstance(event["time"], (int, float)) or not math.isfinite(event["time"]) or event["time"] < 0:
+            if not isinstance(event, dict) or set(event) != {
+                "time",
+                "from",
+                "to",
+                "state",
+            }:
+                raise ValueError(
+                    "Link events must contain exactly time, from, to and state"
+                )
+            if (
+                not isinstance(event["time"], (int, float))
+                or not math.isfinite(event["time"])
+                or event["time"] < 0
+            ):
                 raise ValueError("Link event time must be finite and nonnegative")
-            if not isinstance(event["from"], int) or not isinstance(event["to"], int) or event["from"] < 0 or event["to"] < 0:
+            if (
+                not isinstance(event["from"], int)
+                or not isinstance(event["to"], int)
+                or event["from"] < 0
+                or event["to"] < 0
+            ):
                 raise ValueError("Link event endpoints must be nonnegative integers")
             if event["from"] == event["to"] or event["state"] not in {"down", "up"}:
                 raise ValueError("Link event endpoints/state are invalid")
@@ -89,38 +116,61 @@ def load_suite(path: Path) -> dict:
     for topology, plan in plans.items():
         if not isinstance(plan, str):
             raise ValueError("Fault plan path must be a string")
-        fault_plan.validate(json.loads((ROOT / plan).read_text(encoding="utf-8")),
-                            json.loads((ROOT / topology).read_text(encoding="utf-8")))
+        fault_plan.validate(
+            json.loads((ROOT / plan).read_text(encoding="utf-8")),
+            json.loads((ROOT / topology).read_text(encoding="utf-8")),
+        )
     if "analytics_config" in data:
         if not isinstance(data["analytics_config"], str):
             raise ValueError("analytics_config must be a config file path")
-        config = json.loads((ROOT / data["analytics_config"]).read_text(encoding="utf-8"))
+        config = json.loads(
+            (ROOT / data["analytics_config"]).read_text(encoding="utf-8")
+        )
         for topology in data["topologies"]:
-            analytics_config.validate(config, json.loads((ROOT / topology).read_text(encoding="utf-8")))
+            analytics_config.validate(
+                config, json.loads((ROOT / topology).read_text(encoding="utf-8"))
+            )
     if "traffic_plan" in data:
         if not isinstance(data["traffic_plan"], str):
             raise ValueError("traffic_plan must be a config file path")
         plan = json.loads((ROOT / data["traffic_plan"]).read_text(encoding="utf-8"))
         for topology in data["topologies"]:
-            traffic_config.validate(plan, json.loads((ROOT / topology).read_text(encoding="utf-8")))
+            traffic_config.validate(
+                plan, json.loads((ROOT / topology).read_text(encoding="utf-8"))
+            )
         if len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1:
-            raise ValueError("Abstract traffic does not support TCP size/congestion-control axes")
+            raise ValueError(
+                "Abstract traffic does not support TCP size/congestion-control axes"
+            )
     plans = data.get("traffic_plans", {})
     if not isinstance(plans, dict) or set(plans) - set(data["topologies"]):
         raise ValueError("traffic_plans must map suite topology paths to plan paths")
-    if plans and (len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1):
-        raise ValueError("Abstract traffic does not support TCP size/congestion-control axes")
+    if plans and (
+        len(data["packet_sizes"]) != 1 or len(data["congestion_controls"]) != 1
+    ):
+        raise ValueError(
+            "Abstract traffic does not support TCP size/congestion-control axes"
+        )
     for topology, path in plans.items():
         if not isinstance(path, str):
             raise ValueError("Traffic plan path must be a string")
-        traffic_config.validate(json.loads((ROOT / path).read_text(encoding="utf-8")),
-                                json.loads((ROOT / topology).read_text(encoding="utf-8")))
+        traffic_config.validate(
+            json.loads((ROOT / path).read_text(encoding="utf-8")),
+            json.loads((ROOT / topology).read_text(encoding="utf-8")),
+        )
     return data
 
 
 def expand_cases(suite: dict) -> list[dict]:
     cases = []
-    for topology, metric, seed, packet_size, congestion_control, scenario in itertools.product(
+    for (
+        topology,
+        metric,
+        seed,
+        packet_size,
+        congestion_control,
+        scenario,
+    ) in itertools.product(
         suite["topologies"],
         suite["routing_metrics"],
         suite["seeds"],
@@ -128,18 +178,20 @@ def expand_cases(suite: dict) -> list[dict]:
         suite["congestion_controls"],
         suite["link_event_scenarios"],
     ):
-        cases.append({
-            "topology": topology,
-            "routing_metric": metric,
-            "seed": seed,
-            "packet_size": packet_size,
-            "congestion_control": congestion_control,
-            "fault_scenario": scenario["name"],
-            "link_events": [
-                f'{event["time"]}:{event["from"]}:{event["to"]}:{event["state"]}'
-                for event in scenario["events"]
-            ],
-        })
+        cases.append(
+            {
+                "topology": topology,
+                "routing_metric": metric,
+                "seed": seed,
+                "packet_size": packet_size,
+                "congestion_control": congestion_control,
+                "fault_scenario": scenario["name"],
+                "link_events": [
+                    f"{event['time']}:{event['from']}:{event['to']}:{event['state']}"
+                    for event in scenario["events"]
+                ],
+            }
+        )
         if topology in suite.get("fault_plans", {}):
             cases[-1]["fault_plan"] = suite["fault_plans"][topology]
         if "analytics_config" in suite:
@@ -201,7 +253,6 @@ def write_metrics(rows: list[dict], out: Path) -> None:
         writer.writerows(rows)
 
 
-
 def comparison_key(row: dict) -> tuple:
     return (
         row["topology"],
@@ -233,21 +284,23 @@ def compare_fault_scenarios(rows: list[dict]) -> list[dict]:
                 return None
             return left - right
 
-        comparisons.append({
-            "topology": row["topology"],
-            "routing_metric": row["routing_metric"],
-            "seed": row["seed"],
-            "packet_size": row["packet_size"],
-            "congestion_control": row["congestion_control"],
-            "fault_scenario": scenario,
-            "baseline_case_id": control["case_id"],
-            "fault_case_id": row["case_id"],
-            "delivery_rate_delta": delta("delivery_rate"),
-            "loss_rate_delta": delta("loss_rate"),
-            "throughput_pps_delta": delta("throughput_pps"),
-            "avg_latency_s_delta": delta("avg_latency_s"),
-            "simulation_duration_s_delta": delta("simulation_duration_s"),
-        })
+        comparisons.append(
+            {
+                "topology": row["topology"],
+                "routing_metric": row["routing_metric"],
+                "seed": row["seed"],
+                "packet_size": row["packet_size"],
+                "congestion_control": row["congestion_control"],
+                "fault_scenario": scenario,
+                "baseline_case_id": control["case_id"],
+                "fault_case_id": row["case_id"],
+                "delivery_rate_delta": delta("delivery_rate"),
+                "loss_rate_delta": delta("loss_rate"),
+                "throughput_pps_delta": delta("throughput_pps"),
+                "avg_latency_s_delta": delta("avg_latency_s"),
+                "simulation_duration_s_delta": delta("simulation_duration_s"),
+            }
+        )
     return comparisons
 
 
@@ -278,11 +331,12 @@ def write_comparisons(rows: list[dict], output: Path) -> None:
         "avg_latency_s_delta",
         "simulation_duration_s_delta",
     ]
-    with (output / "scenario-comparison.csv").open("w", newline="", encoding="utf-8") as stream:
+    with (output / "scenario-comparison.csv").open(
+        "w", newline="", encoding="utf-8"
+    ) as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         writer.writerows(comparisons)
-
 
 
 def _format_number(value, digits: int = 4) -> str:
@@ -293,7 +347,9 @@ def _format_number(value, digits: int = 4) -> str:
     return f"{value:.{digits}f}"
 
 
-def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict]) -> None:
+def write_markdown_report(
+    metadata: dict, output: Path, comparisons: list[dict]
+) -> None:
     rows = metadata["cases"]
     successful = [row for row in rows if row.get("returncode") == 0]
     lines = [
@@ -325,7 +381,13 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
         mean = sum(values) / len(values) if values else None
         lines.append(f"| {label} | {_format_number(mean)} |")
 
-    lines += ["", "## Cases", "", "| Case | Status | Delivery | Loss | Queue overflow | RED early | Throughput pps | Latency s | Sim duration s |", "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    lines += [
+        "",
+        "## Cases",
+        "",
+        "| Case | Status | Delivery | Loss | Queue overflow | RED early | Throughput pps | Latency s | Sim duration s |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
     for row in rows:
         lines.append(
             "| {case} | {status} | {delivery} | {loss} | {overflow} | {red} | {throughput} | {latency} | {duration} |".format(
@@ -374,10 +436,15 @@ def write_markdown_report(metadata: dict, output: Path, comparisons: list[dict])
         ]
         for row in rows:
             if row.get("returncode") != 0:
-                lines.append(f"- `{row['case_id']}`: {row['status']} (return code {row['returncode']})")
+                lines.append(
+                    f"- `{row['case_id']}`: {row['status']} (return code {row['returncode']})"
+                )
         if metadata["suite"].get("allow_transport_failures", False):
-            lines += ["", "This loss suite accepts orderly transport retry exhaustion (exit 2). "
-                      "These cases remain failed transport outcomes above; process, timeout and stats errors still fail the benchmark."]
+            lines += [
+                "",
+                "This loss suite accepts orderly transport retry exhaustion (exit 2). "
+                "These cases remain failed transport outcomes above; process, timeout and stats errors still fail the benchmark.",
+            ]
 
     (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -417,11 +484,15 @@ def main(argv: list[str] | None = None) -> int:
 
     exe = args.exe.resolve() if args.exe else runner.find_executable(ROOT)
     if not exe or not exe.is_file():
-        print("[ERROR] KNS executable not found; build KNS or pass --exe", file=sys.stderr)
+        print(
+            "[ERROR] KNS executable not found; build KNS or pass --exe", file=sys.stderr
+        )
         return 1
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output = (args.output or ROOT / "results" / "benchmarks" / suite["name"] / timestamp).resolve()
+    output = (
+        args.output or ROOT / "results" / "benchmarks" / suite["name"] / timestamp
+    ).resolve()
     output.mkdir(parents=True, exist_ok=False)
 
     records: list[dict] = []
@@ -445,9 +516,13 @@ def main(argv: list[str] | None = None) -> int:
         if case.get("fault_plan"):
             command.extend(["--fault-plan", str((ROOT / case["fault_plan"]).resolve())])
         if case.get("analytics_config"):
-            command.extend(["--analytics", str((ROOT / case["analytics_config"]).resolve())])
+            command.extend(
+                ["--analytics", str((ROOT / case["analytics_config"]).resolve())]
+            )
         if case.get("traffic_plan"):
-            command.extend(["--traffic-plan", str((ROOT / case["traffic_plan"]).resolve())])
+            command.extend(
+                ["--traffic-plan", str((ROOT / case["traffic_plan"]).resolve())]
+            )
 
         started = time.perf_counter()
         started_at = datetime.now(timezone.utc).isoformat()
@@ -485,48 +560,88 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 stats = runner.parse_stats(csv_path)
                 if case.get("fault_plan"):
-                    plan = json.loads((ROOT / case["fault_plan"]).read_text(encoding="utf-8"))
-                    fault_plan.validate_report(json.loads(Path(str(csv_path) + ".faults.json").read_text(encoding="utf-8")), plan)
+                    plan = json.loads(
+                        (ROOT / case["fault_plan"]).read_text(encoding="utf-8")
+                    )
+                    fault_plan.validate_report(
+                        json.loads(
+                            Path(str(csv_path) + ".faults.json").read_text(
+                                encoding="utf-8"
+                            )
+                        ),
+                        plan,
+                    )
                 if case.get("analytics_config"):
-                    config = json.loads((ROOT / case["analytics_config"]).read_text(encoding="utf-8"))
-                    analytics_config.validate_report(json.loads(Path(str(csv_path) + ".analytics.json").read_text(encoding="utf-8")), config)
+                    config = json.loads(
+                        (ROOT / case["analytics_config"]).read_text(encoding="utf-8")
+                    )
+                    analytics_config.validate_report(
+                        json.loads(
+                            Path(str(csv_path) + ".analytics.json").read_text(
+                                encoding="utf-8"
+                            )
+                        ),
+                        config,
+                    )
                 if case.get("traffic_plan"):
-                    plan = json.loads((ROOT / case["traffic_plan"]).read_text(encoding="utf-8"))
-                    traffic_config.validate_report(json.loads(Path(str(csv_path) + ".traffic.json").read_text(encoding="utf-8")), plan)
+                    plan = json.loads(
+                        (ROOT / case["traffic_plan"]).read_text(encoding="utf-8")
+                    )
+                    traffic_config.validate_report(
+                        json.loads(
+                            Path(str(csv_path) + ".traffic.json").read_text(
+                                encoding="utf-8"
+                            )
+                        ),
+                        plan,
+                    )
             except (OSError, ValueError) as exc:
                 status = "stats_error"
                 returncode = 1
                 error = str(exc)
 
         derived = runner.compute_stats(stats, wall)
-        records.append({
-            "case_id": case_id,
-            "run_id": str(uuid.uuid4()),
-            "started_at": started_at,
-            "finished_at": datetime.now(timezone.utc).isoformat(),
-            **case,
-            "status": status,
-            "returncode": returncode,
-            "error": error,
-            "command": command,
-            "log": str(log_path),
-            "csv": str(csv_path) if csv_path.exists() else None,
-            "fault_report": str(csv_path) + ".faults.json" if case.get("fault_plan") and Path(str(csv_path) + ".faults.json").exists() else None,
-            "analytics_report": str(csv_path) + ".analytics.json" if case.get("analytics_config") and Path(str(csv_path) + ".analytics.json").exists() else None,
-            "traffic_report": str(csv_path) + ".traffic.json" if case.get("traffic_plan") and Path(str(csv_path) + ".traffic.json").exists() else None,
-            "workload_model": "abstract_wire" if case.get("traffic_plan") else "automatic_tcp",
-            "wall_clock_duration_s": derived["wall_clock_duration_s"],
-            "simulation_duration_s": derived["simulation_duration_s"],
-            "packets_sent": derived["packets_sent"],
-            "packets_delivered": derived["packets_delivered"],
-            "packets_lost": derived["packets_lost"],
-            "queue_overflow_drops": (stats or {}).get("queue_overflow_drops"),
-            "red_early_drops": (stats or {}).get("red_early_drops"),
-            "delivery_rate": derived["delivery_rate"],
-            "loss_rate": derived["loss_rate"],
-            "throughput_pps": derived["throughput_pps"],
-            "avg_latency_s": derived["latency_mean_s"],
-        })
+        records.append(
+            {
+                "case_id": case_id,
+                "run_id": str(uuid.uuid4()),
+                "started_at": started_at,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+                **case,
+                "status": status,
+                "returncode": returncode,
+                "error": error,
+                "command": command,
+                "log": str(log_path),
+                "csv": str(csv_path) if csv_path.exists() else None,
+                "fault_report": str(csv_path) + ".faults.json"
+                if case.get("fault_plan")
+                and Path(str(csv_path) + ".faults.json").exists()
+                else None,
+                "analytics_report": str(csv_path) + ".analytics.json"
+                if case.get("analytics_config")
+                and Path(str(csv_path) + ".analytics.json").exists()
+                else None,
+                "traffic_report": str(csv_path) + ".traffic.json"
+                if case.get("traffic_plan")
+                and Path(str(csv_path) + ".traffic.json").exists()
+                else None,
+                "workload_model": "abstract_wire"
+                if case.get("traffic_plan")
+                else "automatic_tcp",
+                "wall_clock_duration_s": derived["wall_clock_duration_s"],
+                "simulation_duration_s": derived["simulation_duration_s"],
+                "packets_sent": derived["packets_sent"],
+                "packets_delivered": derived["packets_delivered"],
+                "packets_lost": derived["packets_lost"],
+                "queue_overflow_drops": (stats or {}).get("queue_overflow_drops"),
+                "red_early_drops": (stats or {}).get("red_early_drops"),
+                "delivery_rate": derived["delivery_rate"],
+                "loss_rate": derived["loss_rate"],
+                "throughput_pps": derived["throughput_pps"],
+                "avg_latency_s": derived["latency_mean_s"],
+            }
+        )
         print(f"[{index}/{len(cases)}] {case_id}: {status}")
 
     metadata = {
@@ -541,7 +656,9 @@ def main(argv: list[str] | None = None) -> int:
         "case_count": len(records),
         "successful_cases": sum(1 for row in records if row["returncode"] == 0),
         "failed_cases": sum(1 for row in records if row["returncode"] != 0),
-        "transport_failed_cases": sum(1 for row in records if row["status"] == "transport_failure"),
+        "transport_failed_cases": sum(
+            1 for row in records if row["status"] == "transport_failure"
+        ),
         "cases": records,
     }
     (output / "benchmark.json").write_text(

@@ -7,8 +7,8 @@
 
 using namespace kns;
 
-TEST_CASE("Validation accepts TCP data recovered after network loss", "[core][validation][tcp][rto]")
-{
+TEST_CASE("Validation accepts TCP data recovered after network loss",
+          "[core][validation][tcp][rto]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0, 1.0);
     SimulationEngine engine(topology);
@@ -31,7 +31,8 @@ TEST_CASE("Validation accepts TCP data recovered after network loss", "[core][va
     REQUIRE_FALSE(PacketUtils::sendPacketThroughTopology(engine, data));
     REQUIRE(engine.getStats().packets_lost == 1);
     link->setLossProb(0.0);
-    engine.schedule(std::make_unique<TCPTimeoutEvent>(client.getCurrentRTO(), session.getSession_id(), 100));
+    engine.schedule(
+        std::make_unique<TCPTimeoutEvent>(client.getCurrentRTO(), session.getSession_id(), 100));
     REQUIRE_FALSE(engine.validateSimulation().passed());
     engine.run();
     REQUIRE(session.getState() == TCPState::CLOSED);
@@ -41,8 +42,7 @@ TEST_CASE("Validation accepts TCP data recovered after network loss", "[core][va
     REQUIRE_FALSE(engine.validateSimulation().loss_free);
 }
 
-TEST_CASE("Validation rejects incomplete or inconsistent simulations", "[core][validation]")
-{
+TEST_CASE("Validation rejects incomplete or inconsistent simulations", "[core][validation]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
@@ -50,13 +50,14 @@ TEST_CASE("Validation rejects incomplete or inconsistent simulations", "[core][v
     engine.startTCPConnection(0, 1);
     engine.run();
     const auto baseline = engine.validateSimulation();
-    INFO("sessions=" << baseline.completed_sessions << "/" << baseline.total_sessions
-         << " sent=" << baseline.packets_sent << " delivered=" << baseline.packets_delivered
-         << " lost=" << baseline.packets_lost << " events=" << engine.hasEvents()
-         << " transit=" << engine.getPacketsInTransit().size()
-         << " queue=" << link->getQueueSize());
+    INFO("sessions=" << baseline.completed_sessions << "/" << baseline.total_sessions << " sent="
+                     << baseline.packets_sent << " delivered=" << baseline.packets_delivered
+                     << " lost=" << baseline.packets_lost << " events=" << engine.hasEvents()
+                     << " transit=" << engine.getPacketsInTransit().size()
+                     << " queue=" << link->getQueueSize());
     const auto& baseline_session = engine.getTCPSession(0);
-    INFO("client=" << static_cast<int>(baseline_session.getClientConnection().getTcpState())
+    INFO("client="
+         << static_cast<int>(baseline_session.getClientConnection().getTcpState())
          << " server=" << static_cast<int>(baseline_session.getServerConnection().getTcpState())
          << " generated=" << baseline_session.hasGeneratedTraffic()
          << " complete=" << baseline_session.isComplete()
@@ -67,7 +68,8 @@ TEST_CASE("Validation rejects incomplete or inconsistent simulations", "[core][v
     REQUIRE(baseline.passed());
 
     SECTION("Unfinished session") {
-        engine.getTCPSession(0).getClientConnection() = TCPConnection(TCPState::ESTABLISHED, 0, 0, 0, 1);
+        engine.getTCPSession(0).getClientConnection() =
+            TCPConnection(TCPState::ESTABLISHED, 0, 0, 0, 1);
     }
     SECTION("Unaccounted packet") {
         ++engine.getStats().packets_sent;

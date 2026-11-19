@@ -10,8 +10,7 @@
 
 using namespace kns;
 
-TEST_CASE("Saved RED weight drives engine admission samples", "[network][red][ewma][aqm]")
-{
+TEST_CASE("Saved RED weight drives engine admission samples", "[network][red][ewma][aqm]") {
     auto topology = TopologyLoader::fromJson(nlohmann::json::parse(R"({
       "nodes":2,"links":[{"from":0,"to":1,"bandwidth":10,"delay":1,"loss":0,
       "queue_policy":"red","red_min_threshold":2,"red_max_threshold":8,
@@ -26,11 +25,11 @@ TEST_CASE("Saved RED weight drives engine admission samples", "[network][red][ew
     REQUIRE(engine.getStats().red_early_drops == 0);
 }
 
-TEST_CASE("RED EWMA smooths bursts without mutating on inspection", "[network][red][ewma]")
-{
+TEST_CASE("RED EWMA smooths bursts without mutating on inspection", "[network][red][ewma]") {
     Link link(0, 1, 100, 1, 0, LinkMode::FULL_DUPLEX, 16);
     link.configureRed(2, 6, 0.5, 0.25);
-    for (int i = 0; i < 4; ++i) link.enqueueTransmission(0, 1, i, i + 10);
+    for (int i = 0; i < 4; ++i)
+        link.enqueueTransmission(0, 1, i, i + 10);
     REQUIRE(link.sampleEarlyDropProbability(0, 1, 0, 1) == 0.0);
     REQUIRE(link.getAverageQueueSize(0, 1) == 1.0);
     REQUIRE(link.earlyDropProbability(0, 1) == 0.0);
@@ -41,19 +40,20 @@ TEST_CASE("RED EWMA smooths bursts without mutating on inspection", "[network][r
     REQUIRE(link.getAverageQueueSize(1, 0) == 0.0);
 }
 
-TEST_CASE("RED EWMA decays after a queue drains", "[network][red][ewma]")
-{
+TEST_CASE("RED EWMA decays after a queue drains", "[network][red][ewma]") {
     Link link(0, 1, 100, 1);
     link.configureRed(0, 8, 0.5, 0.25);
-    for (int i = 0; i < 4; ++i) link.enqueueTransmission(0, 1, i, i + 10);
+    for (int i = 0; i < 4; ++i)
+        link.enqueueTransmission(0, 1, i, i + 10);
     link.sampleEarlyDropProbability(0, 1, 0, 1);
-    for (int i = 0; i < 4; ++i) REQUIRE(link.dequeueTransmission(0, 1, i, i + 10));
+    for (int i = 0; i < 4; ++i)
+        REQUIRE(link.dequeueTransmission(0, 1, i, i + 10));
     link.sampleEarlyDropProbability(0, 1, 23, 1);
     REQUIRE(link.getAverageQueueSize(0, 1) == Catch::Approx(std::pow(0.75, 11)));
 }
 
-TEST_CASE("RED EWMA shares half-duplex samples and validates weight atomically", "[network][red][ewma]")
-{
+TEST_CASE("RED EWMA shares half-duplex samples and validates weight atomically",
+          "[network][red][ewma]") {
     Link link(0, 1, 100, 1, 0, LinkMode::HALF_DUPLEX);
     link.configureRed(0, 8, 0.5, 0.5);
     link.enqueueTransmission(0, 1, 0, 1);
@@ -69,8 +69,8 @@ TEST_CASE("RED EWMA shares half-duplex samples and validates weight atomically",
     }
 }
 
-TEST_CASE("RED EWMA configuration survives copies while runs start without history", "[network][red][ewma]")
-{
+TEST_CASE("RED EWMA configuration survives copies while runs start without history",
+          "[network][red][ewma]") {
     Topology topology(2);
     Link configured(0, 1, 100, 1);
     configured.configureRed(0, 8, 0.5, 0.5);

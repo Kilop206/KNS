@@ -10,70 +10,49 @@
 
 namespace kns::app::gui {
 
-class IntelligencePanel {
-public:
-    explicit IntelligencePanel(
-        intelligence::IntelligenceClientConfig config = {}
-    );
+    class IntelligencePanel {
+    public:
+        explicit IntelligencePanel(intelligence::IntelligenceClientConfig config = {});
 
-    void render(
-        const std::optional<
-            kns::analysis::NetworkAnalysis
-        >& analysis,
-        const kns::Stats& stats,
-        std::uint64_t topologyRevision
-    );
+        void render(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+                    const kns::Stats& stats, std::uint64_t topologyRevision);
 
-private:
-    void renderAnalysis(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+    private:
+        void renderAnalysis(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+                            std::uint64_t topologyRevision);
+        void renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
+                        const kns::Stats& stats);
+        intelligence::ChatService chat_;
+        std::array<char, 4097> chat_input_{};
+        std::uint64_t chat_revision_ = 0;
+        std::size_t displayed_messages_ = 0;
+        bool chat_scroll_to_latest_ = false;
+        bool chat_unread_reply_ = false;
+        bool chat_focus_input_ = false;
+        double chat_wait_started_ = -1.0;
+
+        static const char* severityToString(kns::intelligence::FindingSeverity severity);
+
+        static const char* stateToString(intelligence::IntelligenceServiceState state);
+
+        void renderIdle(const std::optional<kns::analysis::NetworkAnalysis>& analysis,
                         std::uint64_t topologyRevision);
-    void renderChat(const std::optional<kns::analysis::NetworkAnalysis>& analysis, const kns::Stats& stats);
-    intelligence::ChatService chat_;
-    std::array<char, 4097> chat_input_{};
-    std::uint64_t chat_revision_ = 0;
-    std::size_t displayed_messages_ = 0;
-    bool chat_scroll_to_latest_ = false;
-    bool chat_unread_reply_ = false;
-    bool chat_focus_input_ = false;
-    double chat_wait_started_ = -1.0;
 
-    static const char* severityToString(
-        kns::intelligence::FindingSeverity severity
-    );
+        void renderAnalyzing();
 
-    static const char* stateToString(
-        intelligence::IntelligenceServiceState state
-    );
+        void renderSuccess();
 
-    void renderIdle(
-        const std::optional<
-            kns::analysis::NetworkAnalysis
-        >& analysis,
-        std::uint64_t topologyRevision
-    );
+        void renderError();
 
-    void renderAnalyzing();
+        void renderResponse(const kns::intelligence::IntelligenceResponse& response);
 
-    void renderSuccess();
+        void renderFindings(const kns::intelligence::IntelligenceResponse& response);
 
-    void renderError();
+        void renderRecommendations(const kns::intelligence::IntelligenceResponse& response);
 
-    void renderResponse(
-        const kns::intelligence::IntelligenceResponse& response
-    );
+        intelligence::IntelligenceService service_;
 
-    void renderFindings(
-        const kns::intelligence::IntelligenceResponse& response
-    );
-
-    void renderRecommendations(
-        const kns::intelligence::IntelligenceResponse& response
-    );
-
-    intelligence::IntelligenceService service_;
-
-    kns::intelligence::AnalysisMode selected_mode_ =
-        kns::intelligence::AnalysisMode::Detailed;
-};
+        kns::intelligence::AnalysisMode selected_mode_ = kns::intelligence::AnalysisMode::Detailed;
+    };
 
 }

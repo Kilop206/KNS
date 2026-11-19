@@ -16,11 +16,12 @@ using namespace kns;
 class DetermTestEvent : public Event {
 public:
     DetermTestEvent(double timestamp) : Event(timestamp) {}
+
     void execute(SimulationEngine&) override {}
 };
 
-TEST_CASE("EventQueue guarantees absolute determinism for concurrent events", "[core][determinism]")
-{
+TEST_CASE("EventQueue guarantees absolute determinism for concurrent events",
+          "[core][determinism]") {
     std::vector<std::uint64_t> first_run_order;
     std::vector<std::uint64_t> second_run_order;
 
@@ -56,13 +57,13 @@ TEST_CASE("EventQueue guarantees absolute determinism for concurrent events", "[
 
     for (size_t i = 0; i < 50; ++i) {
         if (i > 0) {
-            REQUIRE((first_run_order[i] - first_run_order[i-1]) == (second_run_order[i] - second_run_order[i-1]));
+            REQUIRE((first_run_order[i] - first_run_order[i - 1]) ==
+                    (second_run_order[i] - second_run_order[i - 1]));
         }
     }
 }
 
-TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][determinism]")
-{
+TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][determinism]") {
     auto run_simulation = [](unsigned int seed) {
         RunConfig config;
         config.seed = seed;
@@ -77,15 +78,19 @@ TEST_CASE("End-to-end simulation determinism across multiple runs", "[core][dete
         engine.configureRun(config);
         std::vector<std::string> event_trace;
 
-        engine.setPacketObserver([&](const Packet& packet, uint64_t, int from, int to, double dep, double arr) {
+        engine.setPacketObserver([&](const Packet& packet, uint64_t, int from, int to, double dep,
+                                     double arr) {
             if (packet.packet_type == PacketType::DATA) {
                 REQUIRE(packet.tcp.payload.size() == static_cast<std::size_t>(config.packet_size));
-                REQUIRE(packet.packet_size_bytes == config.packet_size + Packet::TCP_IPV4_HEADER_BYTES);
+                REQUIRE(packet.packet_size_bytes ==
+                        config.packet_size + Packet::TCP_IPV4_HEADER_BYTES);
             } else {
                 REQUIRE(packet.tcp.payload.empty());
                 REQUIRE(packet.packet_size_bytes == Packet::TCP_IPV4_HEADER_BYTES);
             }
-            event_trace.push_back(std::to_string(packet.tcp.seq) + ":" + std::to_string(dep) + ":" + std::to_string(arr) + ":" + std::to_string(from) + "->" + std::to_string(to));
+            event_trace.push_back(std::to_string(packet.tcp.seq) + ":" + std::to_string(dep) + ":" +
+                                  std::to_string(arr) + ":" + std::to_string(from) + "->" +
+                                  std::to_string(to));
         });
 
         engine.startTCPConnection(0, 2);

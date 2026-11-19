@@ -14,26 +14,36 @@
 using kns::app::hub::TopologyStoreClient;
 using kns::app::hub::TopologyStoreClientConfig;
 
-TEST_CASE("Topology Store client uploads local topology and reuses its server ID", "[hub][http]")
-{
+TEST_CASE("Topology Store client uploads local topology and reuses its server ID", "[hub][http]") {
     httplib::Server server;
     nlohmann::json uploaded;
     std::string authorization, hubHeader;
-    server.Post("/api/topologies", [&](const httplib::Request& request, httplib::Response& response) {
-        uploaded = nlohmann::json::parse(request.body);
-        authorization = request.get_header_value("Authorization");
-        hubHeader = request.get_header_value("X-Hub-Request");
-        auto summary = uploaded;
-        summary.erase("graph");
-        summary["id"] = "created-1";
-        summary["version"] = 0;
-        response.status = 201;
-        response.set_content(nlohmann::json({{"topology", summary}, {"graph", uploaded.at("graph")}}).dump(), "application/json");
-    });
+    server.Post(
+        "/api/topologies", [&](const httplib::Request& request, httplib::Response& response) {
+            uploaded = nlohmann::json::parse(request.body);
+            authorization = request.get_header_value("Authorization");
+            hubHeader = request.get_header_value("X-Hub-Request");
+            auto summary = uploaded;
+            summary.erase("graph");
+            summary["id"] = "created-1";
+            summary["version"] = 0;
+            response.status = 201;
+            response.set_content(
+                nlohmann::json({{"topology", summary}, {"graph", uploaded.at("graph")}}).dump(),
+                "application/json");
+        });
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
-    struct StopServer { httplib::Server& server; ~StopServer() { server.stop(); } } cleanup{server};
+
+    struct StopServer {
+        httplib::Server& server;
+
+        ~StopServer() {
+            server.stop();
+        }
+    } cleanup{server};
+
     server.wait_until_ready();
 
     TopologyStoreClientConfig config;
@@ -57,21 +67,27 @@ TEST_CASE("Topology Store client uploads local topology and reuses its server ID
     REQUIRE(uploaded.at("graph").at("schema_version") == "1.0");
 }
 
-TEST_CASE("KNS uploads and updates a topology on a running Hub", "[.][hub-live]")
-{
+TEST_CASE("KNS uploads and updates a topology on a running Hub", "[.][hub-live]") {
     const auto url = kns::app::readEnvironmentVariable("KNS_HUB_TEST_URL");
-    if (!url) SKIP("Set KNS_HUB_TEST_URL to an isolated development Hub");
+    if (!url)
+        SKIP("Set KNS_HUB_TEST_URL to an isolated development Hub");
     httplib::Client browser(*url);
     browser.set_read_timeout(20);
     const auto suffix = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
     httplib::Headers headers{{"X-Hub-Request", "1"}};
-    const auto registration = browser.Post("/api/auth/register", headers,
-        nlohmann::json({{"displayName", "KNS integration test"}, {"email", "kns-upload-" + suffix + "@test.local"}, {"password", "Integration-test-" + suffix}}).dump(), "application/json");
+    const auto registration =
+        browser.Post("/api/auth/register", headers,
+                     nlohmann::json({{"displayName", "KNS integration test"},
+                                     {"email", "kns-upload-" + suffix + "@test.local"},
+                                     {"password", "Integration-test-" + suffix}})
+                         .dump(),
+                     "application/json");
     REQUIRE(registration);
     REQUIRE(registration->status == 201);
     const auto cookie = registration->get_header_value("Set-Cookie");
     headers.emplace("Cookie", cookie.substr(0, cookie.find(';')));
-    const auto credential = browser.Post("/api/auth/tokens", headers, R"({"name":"KNS integration test"})", "application/json");
+    const auto credential = browser.Post("/api/auth/tokens", headers,
+                                         R"({"name":"KNS integration test"})", "application/json");
     REQUIRE(credential);
     REQUIRE(credential->status == 201);
     const auto token = nlohmann::json::parse(credential->body);
@@ -85,16 +101,19 @@ TEST_CASE("KNS uploads and updates a topology on a running Hub", "[.][hub-live]"
     local.topology = kns::Topology(2);
     local.topology.addLink(0, 1, 100, 5);
     auto saved = client.createTopology(local);
+
     struct Cleanup {
         httplib::Client& browser;
         httplib::Headers& headers;
         std::string topologyId, tokenId;
+
         ~Cleanup() {
             browser.Delete("/api/topologies/" + topologyId, headers);
             browser.Delete("/api/auth/tokens/" + tokenId, headers);
             browser.Post("/api/auth/logout", headers, "{}", "application/json");
         }
     } cleanup{browser, headers, saved.id, token.at("id").get<std::string>()};
+
     REQUIRE_FALSE(saved.id.empty());
     REQUIRE(saved.version == 0);
     REQUIRE(client.fetchTopology(saved.id).topology.size() == 2);
@@ -103,33 +122,41 @@ TEST_CASE("KNS uploads and updates a topology on a running Hub", "[.][hub-live]"
     REQUIRE(updated.id == saved.id);
     REQUIRE(updated.version == 1);
     REQUIRE(client.fetchTopology(saved.id).title == "Updated from KNS");
-    const auto revoked = browser.Delete("/api/auth/tokens/" + token.at("id").get<std::string>(), headers);
+    const auto revoked =
+        browser.Delete("/api/auth/tokens/" + token.at("id").get<std::string>(), headers);
     REQUIRE(revoked);
     REQUIRE(revoked->status == 204);
     REQUIRE_THROWS(client.createTopology(local));
 }
 
-TEST_CASE("Topology Store client loads a public KNS topology", "[hub][http]")
-{
+TEST_CASE("Topology Store client loads a public KNS topology", "[hub][http]") {
     httplib::Server server;
-    server.Get("/api/topologies/network-1/download", [](const httplib::Request&, httplib::Response& response) {
-        response.set_content(nlohmann::json({
-            {"schema_version", "1.0"},
-            {"name", "Hub topology"},
-            {"nodes", 2},
-            {"links", nlohmann::json::array({
-                {{"from", 0}, {"to", 1}, {"bandwidth", 100.0}, {"delay", 2.5}, {"loss", 0.01}}
-            })}
-        }).dump(), "application/json");
+    server.Get("/api/topologies/network-1/download", [](const httplib::Request&,
+                                                        httplib::Response& response) {
+        response.set_content(nlohmann::json({{"schema_version", "1.0"},
+                                             {"name", "Hub topology"},
+                                             {"nodes", 2},
+                                             {"links", nlohmann::json::array({{{"from", 0},
+                                                                               {"to", 1},
+                                                                               {"bandwidth", 100.0},
+                                                                               {"delay", 2.5},
+                                                                               {"loss", 0.01}}})}})
+                                 .dump(),
+                             "application/json");
     });
 
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     TopologyStoreClientConfig config;
@@ -143,28 +170,30 @@ TEST_CASE("Topology Store client loads a public KNS topology", "[hub][http]")
     REQUIRE(topology.getLinks().front()->getDelayMs() == 2.5);
 }
 
-TEST_CASE("Topology Store client rejects invalid IDs and upstream failures", "[hub][http]")
-{
-    REQUIRE_THROWS_AS(
-        TopologyStoreClient{}.fetchPublicTopology("../private"),
-        std::invalid_argument
-    );
+TEST_CASE("Topology Store client rejects invalid IDs and upstream failures", "[hub][http]") {
+    REQUIRE_THROWS_AS(TopologyStoreClient{}.fetchPublicTopology("../private"),
+                      std::invalid_argument);
 
     httplib::Server server;
-    server.Get("/api/topologies/missing/download", [](const httplib::Request&, httplib::Response& response) {
-        response.status = 404;
-    });
-    server.Get("/api/topologies/broken/download", [](const httplib::Request&, httplib::Response& response) {
-        response.set_content("{", "application/json");
-    });
+    server.Get("/api/topologies/missing/download",
+               [](const httplib::Request&, httplib::Response& response) { response.status = 404; });
+    server.Get("/api/topologies/broken/download",
+               [](const httplib::Request&, httplib::Response& response) {
+                   response.set_content("{", "application/json");
+               });
 
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     TopologyStoreClientConfig config;
@@ -175,9 +204,7 @@ TEST_CASE("Topology Store client rejects invalid IDs and upstream failures", "[h
     REQUIRE_THROWS(client.fetchPublicTopology("broken"));
 }
 
-
-TEST_CASE("Topology Store client authenticates private reads and optimistic saves", "[hub][http]")
-{
+TEST_CASE("Topology Store client authenticates private reads and optimistic saves", "[hub][http]") {
     httplib::Server server;
     std::string observedAuthorization;
     std::string observedHubHeader;
@@ -185,45 +212,50 @@ TEST_CASE("Topology Store client authenticates private reads and optimistic save
     bool observedSchemaVersion = false;
 
     const auto detail = [](std::uint64_t version, std::string title) {
-        return nlohmann::json({
-            {"topology", {
-                {"title", std::move(title)},
-                {"description", "Private topology"},
-                {"visibility", "PRIVATE"},
-                {"version", version}
-            }},
-            {"graph", {
-                {"schema_version", "1.0"},
-                {"name", "Private hub topology"},
-                {"nodes", 2},
-                {"links", nlohmann::json::array({
-                    {{"from", 0}, {"to", 1}, {"bandwidth", 100.0}, {"delay", 1.0}, {"loss", 0.0}}
-                })}
-            }}
-        });
+        return nlohmann::json({{"topology",
+                                {{"title", std::move(title)},
+                                 {"description", "Private topology"},
+                                 {"visibility", "PRIVATE"},
+                                 {"version", version}}},
+                               {"graph",
+                                {{"schema_version", "1.0"},
+                                 {"name", "Private hub topology"},
+                                 {"nodes", 2},
+                                 {"links", nlohmann::json::array({{{"from", 0},
+                                                                   {"to", 1},
+                                                                   {"bandwidth", 100.0},
+                                                                   {"delay", 1.0},
+                                                                   {"loss", 0.0}}})}}}});
     };
 
-    server.Get("/api/topologies/private-1", [&](const httplib::Request& request, httplib::Response& response) {
-        observedAuthorization = request.get_header_value("Authorization");
-        response.set_content(detail(7, "Private network").dump(), "application/json");
-    });
-    server.Put("/api/topologies/private-1", [&](const httplib::Request& request, httplib::Response& response) {
+    server.Get("/api/topologies/private-1",
+               [&](const httplib::Request& request, httplib::Response& response) {
+                   observedAuthorization = request.get_header_value("Authorization");
+                   response.set_content(detail(7, "Private network").dump(), "application/json");
+               });
+    server.Put("/api/topologies/private-1", [&](const httplib::Request& request,
+                                                httplib::Response& response) {
         observedAuthorization = request.get_header_value("Authorization");
         observedHubHeader = request.get_header_value("X-Hub-Request");
         const auto body = nlohmann::json::parse(request.body);
         observedVersion = body.at("version").get<std::uint64_t>();
-        observedSchemaVersion =
-            body.at("graph").at("schema_version").get<std::string>() == "1.0";
-        response.set_content(detail(8, body.at("title").get<std::string>()).dump(), "application/json");
+        observedSchemaVersion = body.at("graph").at("schema_version").get<std::string>() == "1.0";
+        response.set_content(detail(8, body.at("title").get<std::string>()).dump(),
+                             "application/json");
     });
 
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     TopologyStoreClientConfig config;
@@ -247,8 +279,8 @@ TEST_CASE("Topology Store client authenticates private reads and optimistic save
     REQUIRE(saved.title == "Edited in KNS");
 }
 
-TEST_CASE("Topology Store client reports stale revisions and requires token for saves", "[hub][http]")
-{
+TEST_CASE("Topology Store client reports stale revisions and requires token for saves",
+          "[hub][http]") {
     kns::app::hub::StoredTopology topology;
     topology.id = "private-1";
     topology.title = "Network";
@@ -262,22 +294,23 @@ TEST_CASE("Topology Store client reports stale revisions and requires token for 
     } catch (const std::runtime_error& error) {
         missingTokenMessage = error.what();
     }
-    REQUIRE(
-        missingTokenMessage ==
-        "Saving to Topology Store requires KNS_TOPOLOGY_STORE_TOKEN"
-    );
+    REQUIRE(missingTokenMessage == "Saving to Topology Store requires KNS_TOPOLOGY_STORE_TOKEN");
 
     httplib::Server server;
-    server.Put("/api/topologies/private-1", [](const httplib::Request&, httplib::Response& response) {
-        response.status = 409;
-    });
+    server.Put("/api/topologies/private-1",
+               [](const httplib::Request&, httplib::Response& response) { response.status = 409; });
     const int port = server.bind_to_any_port("127.0.0.1");
     REQUIRE(port > 0);
     auto worker = std::async(std::launch::async, [&] { server.listen_after_bind(); });
+
     struct StopServer {
         httplib::Server& server;
-        ~StopServer() { server.stop(); }
+
+        ~StopServer() {
+            server.stop();
+        }
     } cleanup{server};
+
     server.wait_until_ready();
 
     TopologyStoreClientConfig config;
@@ -289,8 +322,6 @@ TEST_CASE("Topology Store client reports stale revisions and requires token for 
     } catch (const std::runtime_error& error) {
         staleRevisionMessage = error.what();
     }
-    REQUIRE(
-        staleRevisionMessage ==
-        "Topology save failed because the topology changed on the Hub; reload before saving"
-    );
+    REQUIRE(staleRevisionMessage ==
+            "Topology save failed because the topology changed on the Hub; reload before saving");
 }

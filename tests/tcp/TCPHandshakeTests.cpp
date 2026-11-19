@@ -5,8 +5,7 @@
 using kns::TCPConnection;
 using kns::TCPState;
 
-TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][handshake]")
-{
+TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][handshake]") {
     TCPConnection client(TCPState::CLOSED, 100, 0, 1, 2);
     TCPConnection server(TCPState::LISTEN, 500, 0, 2, 1);
 
@@ -38,16 +37,14 @@ TEST_CASE("TCPConnection completes three way handshake state changes", "[tcp][ha
     REQUIRE(server.getTcpState() == TCPState::ESTABLISHED);
 }
 
-TEST_CASE("TCPConnection ignores SYN ACK with unexpected ack number", "[tcp][handshake]")
-{
+TEST_CASE("TCPConnection ignores SYN ACK with unexpected ack number", "[tcp][handshake]") {
     TCPConnection client(TCPState::SYN_SENT, 100, 0, 1, 2);
 
     REQUIRE_FALSE(client.receive_syn_ack(500, 999));
     REQUIRE(client.getTcpState() == TCPState::SYN_SENT);
 }
 
-TEST_CASE("TCPConnection rejects invalid SYN after establishment", "[tcp][handshake]")
-{
+TEST_CASE("TCPConnection rejects invalid SYN after establishment", "[tcp][handshake]") {
     TCPConnection connection(TCPState::ESTABLISHED, 100, 0, 1, 2);
 
     REQUIRE_FALSE(connection.receive_syn(500));

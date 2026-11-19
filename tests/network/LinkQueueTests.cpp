@@ -9,8 +9,7 @@
 
 using namespace kns;
 
-TEST_CASE("Propagation does not reserve the transmitter", "[network][link][timing]")
-{
+TEST_CASE("Propagation does not reserve the transmitter", "[network][link][timing]") {
     for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX, LinkMode::SIMPLEX}) {
         Topology topology(2);
         auto link = topology.addLinkPtr(0, 1, 1.0, 1000.0, 0.0, mode, 2);
@@ -37,8 +36,8 @@ TEST_CASE("Propagation does not reserve the transmitter", "[network][link][timin
     }
 }
 
-TEST_CASE("Sending rejects foreign and removed links without side effects", "[network][link][ownership]")
-{
+TEST_CASE("Sending rejects foreign and removed links without side effects",
+          "[network][link][ownership]") {
     Topology topology(2);
     auto owned = topology.addLinkPtr(0, 1, 10.0, 1.0);
     SimulationEngine engine(topology);
@@ -57,8 +56,8 @@ TEST_CASE("Sending rejects foreign and removed links without side effects", "[ne
     }
 }
 
-TEST_CASE("Configured queues reject overflow and drain through arrival events", "[network][link][queue][integration]")
-{
+TEST_CASE("Configured queues reject overflow and drain through arrival events",
+          "[network][link][queue][integration]") {
     for (const auto mode : {LinkMode::FULL_DUPLEX, LinkMode::HALF_DUPLEX}) {
         for (const int capacity : {1, 3}) {
             CAPTURE(mode, capacity);
@@ -74,8 +73,8 @@ TEST_CASE("Configured queues reject overflow and drain through arrival events", 
             REQUIRE(engine.getStats().packets_lost == 1);
             REQUIRE(engine.getStats().queue_overflow_drops == 1);
             REQUIRE(engine.getStats().red_early_drops == 0);
-            const auto next_mode = mode == LinkMode::FULL_DUPLEX
-                ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
+            const auto next_mode =
+                mode == LinkMode::FULL_DUPLEX ? LinkMode::HALF_DUPLEX : LinkMode::SIMPLEX;
             REQUIRE_THROWS_AS(link->setMode(next_mode), std::logic_error);
             Packet reverse(1, 0, 1, 0.0, 100, 999);
             REQUIRE(engine.sendPacket(reverse, *link, 0.0) == (mode == LinkMode::FULL_DUPLEX));
@@ -98,13 +97,15 @@ TEST_CASE("Link queue produces expected serialization of transmissions", "[netwo
     SimulationEngine engine(topo);
     std::vector<double> arrivals;
 
-    engine.setPacketObserver([&](const Packet& /* p */, uint64_t, int from, int to, double /* dep */, double arr) {
-        if (from == 0 && to == 1) arrivals.push_back(arr);
-    });
+    engine.setPacketObserver(
+        [&](const Packet& /* p */, uint64_t, int from, int to, double /* dep */, double arr) {
+            if (from == 0 && to == 1)
+                arrivals.push_back(arr);
+        });
 
     // craft two packets with size 125000 bytes -> transmission_time = 1.0s at 1 Mbps
-    Packet p1(0,1,0, engine.now(), 125000, 1);
-    Packet p2(0,1,0, engine.now(), 125000, 2);
+    Packet p1(0, 1, 0, engine.now(), 125000, 1);
+    Packet p2(0, 1, 0, engine.now(), 125000, 2);
 
     PacketUtils::sendPacketThroughTopology(engine, p1);
     PacketUtils::sendPacketThroughTopology(engine, p2);
@@ -116,8 +117,7 @@ TEST_CASE("Link queue produces expected serialization of transmissions", "[netwo
     REQUIRE(arrivals[1] - arrivals[0] >= 1.0 - eps);
 }
 
-TEST_CASE("PacketUtils sendPacketThroughTopology propagates drop status", "[network][utils]")
-{
+TEST_CASE("PacketUtils sendPacketThroughTopology propagates drop status", "[network][utils]") {
     Topology topo(2);
     // Link with 100% loss probability
     topo.addLink(0, 1, 100.0, 5.0, 1.0, LinkMode::FULL_DUPLEX);
@@ -131,39 +131,21 @@ TEST_CASE("PacketUtils sendPacketThroughTopology propagates drop status", "[netw
     REQUIRE_FALSE(result);
 }
 
-TEST_CASE(
-    "Link rejects transmission when queue capacity is full",
-    "[network][link][queue]"
-) {
+TEST_CASE("Link rejects transmission when queue capacity is full", "[network][link][queue]") {
     Link link(0, 1, 100.0, 1.0, 0.0);
 
     for (std::size_t i = 0; i < link.getQueueCapacity(); ++i) {
         REQUIRE(link.canQueue(0, 1));
 
-        link.enqueueTransmission(
-            0,
-            1,
-            static_cast<double>(i),
-            static_cast<double>(i + 1)
-        );
+        link.enqueueTransmission(0, 1, static_cast<double>(i), static_cast<double>(i + 1));
     }
 
     REQUIRE(link.getQueueSize() == link.getQueueCapacity());
     REQUIRE_FALSE(link.canQueue(0, 1));
 }
 
-TEST_CASE(
-    "FULL_DUPLEX queues are independent",
-    "[network][link][queue]"
-) {
-    Link link(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        LinkMode::FULL_DUPLEX
-    );
+TEST_CASE("FULL_DUPLEX queues are independent", "[network][link][queue]") {
+    Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX);
 
     link.enqueueTransmission(0, 1, 0.0, 1.0);
 
@@ -176,18 +158,8 @@ TEST_CASE(
     REQUIRE(link.estimatedQueueSize(0.0, 1, 0) == 1);
 }
 
-TEST_CASE(
-    "HALF_DUPLEX shares one queue",
-    "[network][link][queue]"
-) {
-    Link link(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        LinkMode::HALF_DUPLEX
-    );
+TEST_CASE("HALF_DUPLEX shares one queue", "[network][link][queue]") {
+    Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::HALF_DUPLEX);
 
     link.enqueueTransmission(0, 1, 0.0, 1.0);
 
@@ -197,26 +169,15 @@ TEST_CASE(
     REQUIRE(link.canQueue(1, 0));
 }
 
-TEST_CASE(
-    "SIMPLEX rejects reverse direction",
-    "[network][link][queue]"
-) {
-    Link link(
-        0,
-        1,
-        100.0,
-        1.0,
-        0.0,
-        LinkMode::SIMPLEX
-    );
+TEST_CASE("SIMPLEX rejects reverse direction", "[network][link][queue]") {
+    Link link(0, 1, 100.0, 1.0, 0.0, LinkMode::SIMPLEX);
 
     REQUIRE(link.canQueue(0, 1));
     REQUIRE_FALSE(link.canQueue(1, 0));
 }
 
-
-TEST_CASE("RED deterministically drops at max threshold", "[network][link][queue][red][integration]")
-{
+TEST_CASE("RED deterministically drops at max threshold",
+          "[network][link][queue][red][integration]") {
     Topology topology(2);
     auto link = topology.addLinkPtr(0, 1, 100.0, 1.0, 0.0, LinkMode::FULL_DUPLEX, 4);
     link->configureRed(0, 1, 1.0);
