@@ -16,6 +16,7 @@ KNS and KNS Discovery. Schemas are versioned independently from applications.
 | `discovery.snapshot.schema.json` | KNS Discovery | KNS |
 | `simulation.config.schema.json` | KNS headless batch runner | Replay and result tooling |
 | `simulation.result.schema.json` | KNS headless batch runner | Result and experiment tooling |
+| `experiment-analysis-v1.schema.json` | Saved-experiment analyzer | CI and report consumers |
 
 `analysis.context.schema.json` describes KNS deterministic topology analysis.
 Its critical-node/link lists are bounded summaries, so missing entries must not
@@ -48,6 +49,15 @@ hexadecimal `seed` to decimal for `--seed`, set `KNS_AUTO_START` to `1` or `0`, 
 apply packet size, routing metric, congestion control, and link events as recorded.
 Run IDs and UTC generation times identify individual executions. The config and
 metrics are the comparable parts of results from identical runs.
+
+Saved-experiment analysis emits `analysis.json` using
+[`experiment-analysis-v1.schema.json`](experiment-analysis-v1.schema.json).
+Its status and exit code must agree. Completed analyses include source run and
+configuration identities, input hashes and tool provenance. Error records
+created after analysis starts include a diagnostic and exit code 1.
+Run `python scripts/validate_contracts.py --experiment-analysis <analysis.json>`
+to check an emitted result as well as the schema fixtures. Repeat the option to
+check several results.
 
 ## Compatibility policy
 

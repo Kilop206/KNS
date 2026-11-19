@@ -237,6 +237,16 @@ manifest/benchmark hashes and the current analyzer, comparator, validator and
 overview-exporter hashes. The overview shows both the recorded execution status
 and the current analysis status.
 
+`analysis.json` follows the
+[experiment-analysis v1 contract](../contracts/experiment-analysis-v1.schema.json).
+The contract defines completed analysis provenance, assertion-failure outcomes
+and errors recorded after report-directory creation. The contract validator
+can check an emitted result alongside the fixtures.
+
+```powershell
+python scripts/validate_contracts.py --experiment-analysis "results/traffic analysis/analysis.json"
+```
+
 The command reads case evidence from the bundle's `runs/` directory, including
 bundles moved since execution or recorded on another platform. Traffic report
 configurations must match the saved profile's effective per-variant plan.

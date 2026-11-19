@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -18,7 +19,16 @@ CONTRACTS = ROOT / "contracts"
 FIXTURES = CONTRACTS / "fixtures"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate ecosystem schemas and fixtures")
+    parser.add_argument(
+        "--experiment-analysis",
+        type=Path,
+        action="append",
+        default=[],
+        help="Also validate an emitted saved-experiment analysis.json (repeatable)",
+    )
+    args = parser.parse_args(argv)
     schemas = sorted(CONTRACTS.glob("*.schema.json"))
     if not schemas:
         raise SystemExit("No contract schemas found")
@@ -82,10 +92,23 @@ def main() -> int:
         if errors:
             raise SystemExit(f"{path}: {errors[0].message}")
 
+    analysis_validator = Draft202012Validator(
+        documents[CONTRACTS / "experiment-analysis-v1.schema.json"],
+        registry=registry,
+        format_checker=FormatChecker(),
+    )
+    for path in args.experiment_analysis:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        errors = list(analysis_validator.iter_errors(payload))
+        if errors:
+            raise SystemExit(f"{path}: {errors[0].message}")
+
     print(
         f"Validated {len(schemas)} ecosystem contract schemas, "
         f"{fixture_count} fixtures and {len(examples)} bundled topologies."
     )
+    if args.experiment_analysis:
+        print(f"Validated {len(args.experiment_analysis)} emitted experiment analyses.")
     return 0
 
 

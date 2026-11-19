@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "status": "error",
+  "error": "Comparison export could not be completed",
+  "returncode": 1
+}

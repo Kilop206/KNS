@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/experiment-analysis-v1.schema.json",
+  "title": "KNS saved-experiment analysis provenance v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "returncode"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "status": {"enum": ["passed", "failed", "error"]},
+    "returncode": {"enum": [0, 1, 2]},
+    "error": {"type": "string", "minLength": 1},
+    "analyzed_at": {"type": "string", "format": "date-time"},
+    "source_run_id": {"type": "string", "format": "uuid"},
+    "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "source_benchmark_sha256": {"$ref": "#/$defs/sha256"},
+    "configuration_sha256": {"$ref": "#/$defs/sha256"},
+    "source_execution_status": {"enum": ["completed", "failed"]},
+    "source_execution_returncode": {"type": ["integer", "null"]},
+    "analyzer_sha256": {"$ref": "#/$defs/sha256"},
+    "comparison_sha256": {"$ref": "#/$defs/sha256"},
+    "validator_sha256": {"$ref": "#/$defs/sha256"},
+    "renderer_sha256": {"$ref": "#/$defs/sha256"},
+    "report": {"const": "report.html"},
+    "validation": {"enum": ["validation/summary.json", null]}
+  },
+  "if": {"properties": {"status": {"const": "error"}}},
+  "then": {
+    "required": ["error"],
+    "properties": {"returncode": {"const": 1}}
+  },
+  "else": {
+    "required": [
+      "analyzed_at", "source_run_id", "source_manifest_sha256",
+      "source_benchmark_sha256", "configuration_sha256",
+      "source_execution_status", "source_execution_returncode",
+      "analyzer_sha256", "comparison_sha256", "validator_sha256",
+      "renderer_sha256", "report", "validation"
+    ],
+    "not": {"required": ["error"]},
+    "if": {"properties": {"status": {"const": "passed"}}},
+    "then": {"properties": {"returncode": {"const": 0}}},
+    "else": {"properties": {"returncode": {"enum": [1, 2]}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}
