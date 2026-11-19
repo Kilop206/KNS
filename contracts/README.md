@@ -59,6 +59,12 @@ Run `python scripts/validate_contracts.py --experiment-analysis <analysis.json>`
 to check an emitted result as well as the schema fixtures. Repeat the option to
 check several results.
 
+Optional `validation_rules_sha256` identifies the stored analysis rules.
+`validation_rules_source_sha256` identifies externally supplied rules when
+`--rules` is used. A supplied-rules identity requires a stored-rules identity
+and a validation summary. Source execution status and configuration identity
+continue to describe the original experiment.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

@@ -21,6 +21,8 @@
     "comparison_sha256": {"$ref": "#/$defs/sha256"},
     "validator_sha256": {"$ref": "#/$defs/sha256"},
     "renderer_sha256": {"$ref": "#/$defs/sha256"},
+    "validation_rules_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "validation_rules_source_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
     "report": {"const": "report.html"},
     "validation": {"enum": ["validation/summary.json", null]}
   },
@@ -42,6 +44,19 @@
     "then": {"properties": {"returncode": {"const": 0}}},
     "else": {"properties": {"returncode": {"enum": [1, 2]}}}
   },
+  "allOf": [{
+    "if": {
+      "required": ["validation_rules_source_sha256"],
+      "properties": {"validation_rules_source_sha256": {"type": "string"}}
+    },
+    "then": {
+      "required": ["validation_rules_sha256", "validation"],
+      "properties": {
+        "validation_rules_sha256": {"$ref": "#/$defs/sha256"},
+        "validation": {"const": "validation/summary.json"}
+      }
+    }
+  }],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
   }

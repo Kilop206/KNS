@@ -79,6 +79,9 @@ execution/input/analysis errors, and 2 for violated assertions after successful
 execution. Saved-experiment analysis reads a finished bundle and writes current
 comparison, validation and overview reports with provenance to a new directory.
 Open its `report.html` to inspect the outcomes and linked raw evidence.
+Add `--rules <rules.json>` to the analysis command to apply new acceptance
+criteria to the saved cases. The applied rules and their original-file hash
+are retained with the analysis, alongside the original execution outcome.
 
 ## Trace import and industrial/capacity scenarios
 

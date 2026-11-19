@@ -230,6 +230,23 @@ with the current Python tools:
 python scripts/analyze_experiment.py results/traffic-experiment --output "results/traffic analysis"
 ```
 
+Pass `--rules` to evaluate a different set of assertions against the saved cases.
+The command below applies the standalone delivery target to every case.
+
+```powershell
+python scripts/analyze_experiment.py results/traffic-experiment --rules "KNS Experiments/traffic-lab/assertions.json" --output "results/new delivery criteria"
+```
+
+The input rules file is bounded to 1 MiB and goes through profile preflight,
+including flow IDs, baseline compatibility and effective workload checks. The
+analysis stores the applied rules in `validation/rules.json`. Its provenance
+records `validation_rules_sha256` for that stored file and
+`validation_rules_source_sha256` for the supplied file's original bytes.
+The source configuration identity and recorded execution outcome remain
+available alongside the new analysis outcome. A run that violated its original
+assertions can pass a new set of criteria when all recorded cases executed
+successfully. Invalid rules fail before the report directory is created.
+
 The destination must be new. It receives `report.html`, comparison reports,
 per-case validation artifacts when rules are embedded, and `analysis.json`.
 Analysis provenance records the source run ID, configuration identity, source

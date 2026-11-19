@@ -69,6 +69,47 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             for href in parser.links:
                 self.assertTrue((output / unquote(href)).is_file(), href)
 
+            alternate_rules = {
+                "schema_version": "1.0",
+                "assertions": [{"metric": "pending", "operator": "==", "value": 0}],
+            }
+            rules_path = root / "new rules.json"
+            experiment_profile.write_json(rules_path, alternate_rules)
+            rules_hash = manifests.file_hash(rules_path)
+            alternate_output = root / "new acceptance criteria"
+            with (
+                redirect_stdout(io.StringIO()),
+                patch.object(benchmark_suite.subprocess, "run", side_effect=AssertionError("Simulator must not run")),
+            ):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(alternate_output),
+                    "--rules", str(rules_path),
+                ]), 0)
+            applied = alternate_output / "validation/rules.json"
+            alternate_analysis = json.loads((alternate_output / "analysis.json").read_text())
+            self.assertEqual(alternate_analysis["source_execution_returncode"], 2)
+            self.assertEqual(alternate_analysis["returncode"], 0)
+            self.assertEqual(alternate_analysis["validation_rules_source_sha256"], rules_hash)
+            self.assertEqual(alternate_analysis["validation_rules_sha256"], manifests.file_hash(applied))
+            rules_path.unlink()
+            self.assertEqual(json.loads(applied.read_text()), alternate_rules)
+            self.assertEqual(before, {
+                path.relative_to(moved): manifests.file_hash(path)
+                for path in moved.rglob("*") if path.is_file()
+            })
+            self.assertIn(
+                "Validation rules were supplied for this analysis.",
+                (alternate_output / "report.html").read_text(encoding="utf-8"),
+            )
+            rules_path.write_text('{"schema_version":"1.0","assertions":[]}')
+            rejected_rules = root / "rejected rules"
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(rejected_rules),
+                    "--rules", str(rules_path),
+                ]), 1)
+            self.assertFalse(rejected_rules.exists())
+
             # Existing destinations and incomplete case matrices cannot be replaced.
             with redirect_stderr(io.StringIO()):
                 self.assertEqual(analyze_experiment.main([

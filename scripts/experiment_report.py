@@ -100,11 +100,18 @@ def write(
     analysis_section = ""
     if (output / "analysis.json").is_file() and source != output:
         analysis = json.loads((output / "analysis.json").read_text(encoding="utf-8"))
+        rules_notice = ""
+        if analysis.get("validation_rules_source_sha256"):
+            rules_notice = (
+                '<p>Validation rules were supplied for this analysis. '
+                f'{link("validation/rules.json", "Applied rules JSON")}</p>'
+            )
         analysis_section = (
             '<section><h2>Saved-result analysis</h2>'
             f'<p>Analysis {text(analysis["status"])} · Exit code {text(analysis["returncode"])}. '
             f'{link("analysis.json", "Analysis provenance JSON")}</p>'
-            '<p>The execution status below comes from the original manifest.</p></section>'
+            '<p>The execution status below comes from the original manifest.</p>'
+            f'{rules_notice}</section>'
         )
     provenance = "".join(
         f"<dt>{text(label)}</dt><dd><code>{text(manifest.get(key))}</code></dd>"

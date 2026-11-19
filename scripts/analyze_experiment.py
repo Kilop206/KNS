@@ -22,6 +22,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="Completed experiment bundle")
     parser.add_argument("--output", type=Path, required=True, help="New report directory")
+    parser.add_argument(
+        "--rules",
+        type=Path,
+        help="Evaluate these validation rules against the saved execution",
+    )
     args = parser.parse_args(argv)
     output = args.output.resolve()
     created = False
@@ -31,8 +36,15 @@ def main(argv: list[str] | None = None) -> int:
         if manifest.get("status") not in {"completed", "failed"}:
             raise ValueError("Analysis requires a finished experiment bundle")
         config = manifest["configuration"]
+        effective_profile = copy.deepcopy(config["profile"])
+        rules_source_hash = None
+        if args.rules:
+            rules, rules_source_hash = validate_result.read_json(
+                args.rules.resolve(), 1024 * 1024
+            )
+            effective_profile["validation"] = rules
         profile, _ = experiment_profile.validate_profile(
-            copy.deepcopy(config["profile"]), config["topology"]
+            effective_profile, config["topology"]
         )
         benchmark, benchmark_hash = validate_result.read_json(
             source / "runs/benchmark.json", 64 * 1024 * 1024
@@ -84,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
             "renderer_sha256": manifests.file_hash(Path(experiment_report.__file__)),
             "report": "report.html",
             "validation": "validation/summary.json" if validation else None,
+            "validation_rules_sha256": validation["rules_sha256"] if validation else None,
+            "validation_rules_source_sha256": rules_source_hash,
         }
         experiment_profile.write_json(output / "analysis.json", analysis)
         experiment_report.write(output, manifest, comparison, validation, source)
