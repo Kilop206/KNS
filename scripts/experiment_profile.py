@@ -101,8 +101,6 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         validate_result.validate_rules(rules)
         flow_ids = {flow["id"] for flow in profile["traffic_plan"]["flows"]}
         for rule in rules["assertions"]:
-            if "value" not in rule:
-                raise ValueError("Profile validation requires absolute thresholds (value)")
             if "flow_id" in rule and rule["flow_id"] not in flow_ids:
                 raise ValueError(f"Assertion selects an unknown flow_id: {rule['flow_id']}")
     index = profile.setdefault("index", 0)
@@ -206,6 +204,21 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         experiment["name"] for experiment in experiments
     }:
         raise ValueError("baseline must name an experiment in the profile")
+    if "validation" in profile and validate_result.requires_baseline(
+        profile["validation"]
+    ):
+        plans = [
+            traffic_config.apply_overrides(
+                profile["traffic_plan"], experiment["traffic_overrides"], topology
+            )
+            if "traffic_overrides" in experiment
+            else profile["traffic_plan"]
+            for experiment in experiments
+        ]
+        if len({manifests.config_hash(plan) for plan in plans}) != 1:
+            raise ValueError(
+                "Baseline validation requires identical effective traffic plans across variants"
+            )
     case_count = len(experiments) * math.prod(len(profile[key]) for key in dimensions)
     if case_count > max_cases:
         raise ValueError(
@@ -302,10 +315,27 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     return suite_path
 
 
-def validate_cases(output: Path, rules: dict, validator_sha256: str) -> dict:
+def validate_cases(output: Path, profile: dict, validator_sha256: str) -> dict:
+    rules = profile["validation"]
     benchmark = json.loads(
         (output / "runs" / "benchmark.json").read_text(encoding="utf-8")
     )
+    references = {}
+    uses_baseline = validate_result.requires_baseline(rules)
+    if uses_baseline:
+        # Reuse the comparison contract to reject ambiguous or out-of-matrix rows.
+        compare_experiments.build_comparison(profile, benchmark)
+        reference_index = next(
+            i
+            for i, experiment in enumerate(profile["experiments"])
+            if experiment["name"] == profile["baseline"]
+        )
+        reference_path = benchmark["suite"]["topologies"][reference_index]
+        references = {
+            tuple(run[field] for field in compare_experiments.DIMENSIONS): run
+            for run in benchmark["cases"]
+            if run["topology"] == reference_path
+        }
     validation = output / "validation"
     validation.mkdir()
     rules_path = validation / "rules.json"
@@ -328,7 +358,24 @@ def validate_cases(output: Path, rules: dict, validator_sha256: str) -> dict:
                 report, source_hash = validate_result.read_report(
                     Path(run["traffic_report"])
                 )
-                verdict = validate_result.evaluate(report, rules)
+                baseline_report = None
+                baseline_hash = None
+                if uses_baseline:
+                    reference = references.get(
+                        tuple(run[field] for field in compare_experiments.DIMENSIONS)
+                    )
+                    if reference is None:
+                        raise ValueError("Matching baseline case is missing")
+                    case["baseline_case_id"] = reference["case_id"]
+                    if (
+                        reference["status"] not in {"success", "transport_failure"}
+                        or not reference["traffic_report"]
+                    ):
+                        raise ValueError("Matching baseline has no complete traffic report")
+                    baseline_report, baseline_hash = validate_result.read_report(
+                        Path(reference["traffic_report"])
+                    )
+                verdict = validate_result.evaluate(report, rules, baseline_report)
             except (
                 OSError,
                 ValueError,
@@ -344,6 +391,8 @@ def validate_cases(output: Path, rules: dict, validator_sha256: str) -> dict:
                     rules_sha256=rules_hash,
                     validator_sha256=validator_sha256,
                 )
+                if baseline_hash is not None:
+                    verdict["baseline_sha256"] = baseline_hash
                 directory = validation / case_id
                 directory.mkdir()
                 validate_result.write(verdict, directory)
@@ -483,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:
         if "validation" in profile:
             validation = validate_cases(
                 output,
-                profile["validation"],
+                profile,
                 manifest["runner_sha256"]["validate_result.py"],
             )
             manifest["validation"] = "validation/summary.json"

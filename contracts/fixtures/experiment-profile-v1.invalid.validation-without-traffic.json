@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0", "name": "validation-without-traffic", "topology": "app/topologies/services-lab.json",
+  "validation": {"schema_version": "1.2", "assertions": [
+    {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5}]},
+  "sweep": {"bandwidth": [1, 10]}
+}

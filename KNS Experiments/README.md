@@ -62,7 +62,7 @@ other links, queue policies and metadata are retained.
 | `allow_transport_failures` | Accept orderly retry exhaustion as an experiment outcome; defaults to `false`. |
 | `analytics` | Optional shared native collection config; see [Analytics](../docs/analytics.md). |
 | `traffic_plan` | Optional embedded abstract workload; see [Traffic Lab](../docs/traffic-models.md). Packet wire sizes come from this plan. |
-| `validation` | Optional absolute Traffic Lab assertions applied to every case. Requires `traffic_plan`. |
+| `validation` | Optional Traffic Lab assertions applied to every case. Relative rules use the profile's `baseline`. Requires `traffic_plan`. |
 
 Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`,
 `queue_capacity`.
@@ -167,8 +167,21 @@ Profile execution exits with code 0 when the benchmark and all assertions pass,
 1 on a benchmark or validation execution error, and 2 when execution succeeds
 and at least one assertion fails. The manifest links to the validation summary.
 The experiment directory retains the benchmark and comparison artifacts.
-For relative thresholds, pass an explicit reference to the
-[standalone validator](../docs/validation.md).
+Rules 1.1 add `baseline_offset`, and rules 1.2 add `baseline_percent`.
+These select the profile's named `baseline` case with identical seed, routing
+metric, packet-size and congestion-control settings. Baseline cases evaluate
+against themselves, including every absolute and relative assertion. A strict
+improvement rule can therefore fail on the baseline itself. The same rule set
+applies to every variant.
+
+Relative validation requires identical effective traffic plans across variants.
+Preflight rejects workload-changing overrides or sweeps. During evaluation,
+complete reports, workload hashes, models, recorded random streams and primary
+generated counts must match, as in the
+[standalone validator](../docs/validation.md). A missing, failed or incompatible
+reference produces a validation error and exit code 1. The runner keeps each
+reference case ID and report hash with its verdict. Reference selection is
+independent of variant ordering and is preserved by replay.
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the

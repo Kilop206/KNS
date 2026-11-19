@@ -253,10 +253,14 @@ def percent_threshold(value, percent):
     return threshold
 
 
+def requires_baseline(rules):
+    return any(BASELINE_THRESHOLDS & rule.keys() for rule in rules["assertions"])
+
+
 def evaluate(report, rules, baseline=None):
     traffic_config.validate_report(report, report["config"])
     validate_rules(rules)
-    uses_baseline = any(BASELINE_THRESHOLDS & rule.keys() for rule in rules["assertions"])
+    uses_baseline = requires_baseline(rules)
     configuration_hash = experiment_manifest.config_hash(report["config"])
     if uses_baseline:
         if not isinstance(baseline, dict) or "config" not in baseline:

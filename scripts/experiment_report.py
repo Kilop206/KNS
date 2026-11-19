@@ -53,6 +53,8 @@ def write(output: Path, manifest: dict, comparison: dict, validation: dict | Non
                 )
             if verdict.get("failed_assertions") is not None:
                 verdict_text += f' ({text(verdict["failed_assertions"])} failed assertions)'
+            if verdict.get("baseline_case_id"):
+                verdict_text += f'<small>Reference case {text(verdict["baseline_case_id"])}</small>'
             if verdict.get("error"):
                 verdict_text += f'<small>{text(verdict["error"])}</small>'
         error = f'<small>{text(case["error"])}</small>' if case.get("error") else ""

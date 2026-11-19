@@ -95,6 +95,10 @@ if(Python3_Interpreter_FOUND)
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_profile.py -v
     )
     set_tests_properties(experiment_profile_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
+    add_test(NAME experiment_report_tests
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_experiment_report.py -v)
+    set_tests_properties(experiment_report_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME experiment_comparison_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
             -s "${PROJECT_SOURCE_DIR}/scripts" -p test_compare_experiments.py -v

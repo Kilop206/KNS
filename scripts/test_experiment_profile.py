@@ -676,13 +676,86 @@ class ExperimentProfileTests(unittest.TestCase):
         self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
         for invalid in (
             {**rule, "flow_id": 999},
-            {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5},
+            {**rule, "baseline_percent": -5},
         ):
             with self.subTest(rule=invalid):
                 self.profile["validation"]["assertions"] = [invalid]
                 self.save_profile()
                 self.assertEqual(self.invoke("--generate-only"), 1)
                 self.assertFalse(self.output.exists())
+
+    def test_relative_validation_rejects_workload_sweeps_during_preflight(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        self.profile["validation"] = {
+            "schema_version": "1.2",
+            "assertions": [
+                {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5}
+            ],
+        }
+        self.profile["experiments"][1]["traffic_overrides"] = [
+            {"flow_id": 2, "parameter": "wire_bytes", "value": 500}
+        ]
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 1)
+        self.assertFalse(self.output.exists())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_real_relative_validation_pairs_reference_by_seed_and_routing(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile = json.loads((lab / "profile.json").read_text())
+        self.profile["baseline"] = "upgrade"
+        self.profile["routing_metrics"] = ["delay", "bandwidth"]
+        self.profile["max_cases"] = 8
+        self.profile["validation"] = {
+            "schema_version": "1.2",
+            "assertions": [
+                {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5},
+                {"metric": "delivery_ratio", "operator": ">=", "baseline_offset": -0.01},
+                {"metric": "pending", "operator": "==", "value": 0},
+            ],
+        }
+        self.save_profile()
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 2)
+        benchmark = json.loads((self.output / "runs/benchmark.json").read_text())
+        runs = {run["case_id"]: run for run in benchmark["cases"]}
+        summary = json.loads((self.output / "validation/summary.json").read_text())
+        self.assertEqual(
+            (summary["passed_cases"], summary["failed_cases"], summary["error_cases"]),
+            (4, 4, 0),
+        )
+        for case in summary["cases"]:
+            run = runs[case["case_id"]]
+            reference = runs[case["baseline_case_id"]]
+            self.assertIn("upgrade", reference["case_id"])
+            for dimension in experiments.compare_experiments.DIMENSIONS:
+                self.assertEqual(run[dimension], reference[dimension])
+            verdict = json.loads((self.output / case["report"]).read_text())
+            self.assertEqual(
+                verdict["baseline_sha256"],
+                manifests.file_hash(Path(reference["traffic_report"])),
+            )
+        replay = self.root / "relative replay"
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(experiments.main([
+                "--replay", str(self.output / "manifest.json"),
+                "--output", str(replay), "--exe", os.environ["KNS_TEST_EXE"],
+            ]), 2)
+        self.assertEqual(
+            (self.output / "validation/summary.json").read_bytes(),
+            (replay / "validation/summary.json").read_bytes(),
+        )
+
+        # A lost reference report must become an error for every dependent case.
+        for run in benchmark["cases"]:
+            if "upgrade" in run["case_id"]:
+                Path(run["traffic_report"]).unlink()
+        incomplete = self.root / "incomplete"
+        (incomplete / "runs").mkdir(parents=True)
+        experiments.write_json(incomplete / "runs/benchmark.json", benchmark)
+        result = experiments.validate_cases(incomplete, self.profile, "0" * 64)
+        self.assertEqual(result["error_cases"], 8)
+        self.assertEqual(result["passed_cases"], 0)
 
     def test_dry_run_includes_inline_rules_without_creating_artifacts(self):
         lab = experiments.ROOT / "KNS Experiments/traffic-lab"
