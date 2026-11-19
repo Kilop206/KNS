@@ -51,6 +51,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           python scripts/experiment_profile.py --profile "KNS Experiments/traffic-lab/profile.json" --exe build/app/KNS --output build/traffic-validation
+          python scripts/analyze_experiment.py build/traffic-validation --output build/traffic-reanalysis
           python scripts/validate_result.py build/traffic-validation/runs/003-002-upgrade-delay-reno-baseline-s42-p1500.csv.traffic.json --rules "KNS Experiments/traffic-lab/assertions.json" --output build/traffic-assertions
           python scripts/validate_result.py build/traffic-validation/runs/003-002-upgrade-delay-reno-baseline-s42-p1500.csv.traffic.json --baseline build/traffic-validation/runs/001-001-control-delay-reno-baseline-s42-p1500.csv.traffic.json --rules "KNS Experiments/traffic-lab/baseline-assertions.json" --output build/traffic-baseline-assertions
 
@@ -61,6 +62,7 @@ jobs:
           name: traffic-validation
           path: |
             build/traffic-validation
+            build/traffic-reanalysis
             build/traffic-assertions
             build/traffic-baseline-assertions
           if-no-files-found: warn

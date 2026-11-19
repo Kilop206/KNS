@@ -447,6 +447,63 @@ def write(result, output):
     validation_html.write(result, output / "validation.html")
 
 
+def write_suite(cases, output):
+    """Combine per-case verdicts and unavailable evidence into one CI artifact."""
+    totals = {
+        "tests": sum(case.get("assertion_count", 1) for case in cases),
+        "failures": sum(case.get("failed_assertions", 0) for case in cases),
+        "errors": sum(case["status"] == "error" for case in cases),
+    }
+    attributes = " ".join(f'{field}="{count}"' for field, count in totals.items())
+    temporary = output / "summary.xml.tmp"
+    # Retain only one case's XML tree even for the largest supported matrices.
+    with temporary.open("wb") as destination:
+        destination.write(
+            ('<?xml version="1.0" encoding="utf-8"?>\n'
+             f'<testsuites name="KNS experiment validation" {attributes}>').encode("utf-8")
+        )
+        for case in cases:
+            suite = case_suite(case, output)
+            destination.write(ET.tostring(suite, encoding="utf-8"))
+        destination.write(b"</testsuites>")
+    temporary.replace(output / "summary.xml")
+
+
+def case_suite(case, output):
+    """Load one evaluated case or record its unavailable evidence as a CI error."""
+    if case["status"] == "error":
+        suite = ET.Element("testsuite")
+        test = ET.SubElement(suite, "testcase", name="complete-report")
+        ET.SubElement(
+            test, "error", message=case["error"], type="InvalidExperimentEvidence"
+        ).text = (
+            f'Case {case["case_id"]}; execution={case["benchmark_status"]}; '
+            f'{case["error"]}'
+        )
+    else:
+        suite = ET.parse(
+            (output.parent / case["report"]).with_suffix(".xml")
+        ).getroot()
+    suite.set("name", case["case_id"])
+    for test in suite.findall("testcase"):
+        test.set("classname", "KNS.validation." + case["case_id"])
+    counts = {
+        "tests": len(suite.findall("testcase")),
+        "failures": len(suite.findall("testcase/failure")),
+        "errors": len(suite.findall("testcase/error")),
+    }
+    expected = {
+        "tests": case.get("assertion_count", 1),
+        "failures": case.get("failed_assertions", 0),
+        "errors": int(case["status"] == "error"),
+    }
+    if counts != expected:
+        raise ValueError("Per-case JUnit evidence differs from its validation summary")
+    for field, count in counts.items():
+        suite.set(field, str(count))
+    return suite
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=Path)

@@ -159,7 +159,8 @@ to check every case against the same rules. The example below requires at least
 During preflight, the runner validates the rules and checks that any referenced
 `flow_id` exists in the plan. The manifest retains the rules for replay, and
 `--dry-run` shows them with the case matrix. Execution writes
-`validation/rules.json`, `validation/summary.json` and per-case JSON, JUnit,
+`validation/rules.json`, `validation/summary.json`, a combined JUnit
+`validation/summary.xml` and per-case JSON, JUnit,
 Markdown and HTML verdicts under `validation/<case-id>/`. When a case has no
 complete report, the summary records the error alongside its benchmark status.
 
@@ -182,6 +183,13 @@ generated counts must match, as in the
 reference produces a validation error and exit code 1. The runner keeps each
 reference case ID and report hash with its verdict. Reference selection is
 independent of variant ordering and is preserved by replay.
+
+The combined JUnit file groups assertions by case ID with distinct test
+identities. Threshold violations become failures. Missing, incomplete or
+incompatible evidence becomes an error test for the affected case, including
+cases whose baseline is unavailable. Root and per-suite counters cover every
+emitted test. The HTML overview links to the combined JUnit file, and saved-result
+analysis produces the same artifact.
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the

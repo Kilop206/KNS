@@ -53,6 +53,12 @@ automatically using a top-level `validation` object. See the
 per-case artifacts, baseline pairing, replay and the profile runner's exit codes. Richer assertion
 languages, Studio validation and a native `kns validate` command remain planned.
 
+The bundled Traffic Lab profile includes relative delivery preservation against
+its control and an absolute zero-pending requirement. Its
+`validation/summary.xml` combines the per-case JUnit results for CI. The separate
+absolute delivery example evaluates the 10 Mbps target against
+the declared 90% delivery requirement.
+
 ## Version 1.1 baseline offsets
 
 Rules 1.0 retain their absolute `value` contract. Version 1.1 supports exactly one

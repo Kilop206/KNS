@@ -6,6 +6,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
@@ -724,6 +725,16 @@ class ExperimentProfileTests(unittest.TestCase):
             (summary["passed_cases"], summary["failed_cases"], summary["error_cases"]),
             (4, 4, 0),
         )
+        junit = ET.parse(self.output / "validation/summary.xml").getroot()
+        self.assertEqual(
+            [junit.get(field) for field in ("tests", "failures", "errors")],
+            ["24", "8", "0"],
+        )
+        identities = [
+            (test.get("classname"), test.get("name"))
+            for test in junit.findall("testsuite/testcase")
+        ]
+        self.assertEqual(len(set(identities)), 24)
         for case in summary["cases"]:
             run = runs[case["case_id"]]
             reference = runs[case["baseline_case_id"]]
@@ -760,6 +771,11 @@ class ExperimentProfileTests(unittest.TestCase):
         result = experiments.validate_cases(incomplete, self.profile, "0" * 64)
         self.assertEqual(result["error_cases"], 8)
         self.assertEqual(result["passed_cases"], 0)
+        junit = ET.parse(incomplete / "validation/summary.xml").getroot()
+        self.assertEqual(
+            [junit.get(field) for field in ("tests", "failures", "errors")],
+            ["8", "0", "8"],
+        )
 
     def test_dry_run_includes_inline_rules_without_creating_artifacts(self):
         lab = experiments.ROOT / "KNS Experiments/traffic-lab"
@@ -893,6 +909,11 @@ class ExperimentProfileTests(unittest.TestCase):
             (2, 2, 0),
         )
         self.assertFalse(summary["passed"])
+        junit = ET.parse(self.output / "validation/summary.xml").getroot()
+        self.assertEqual(
+            [junit.get(field) for field in ("tests", "failures", "errors")],
+            ["8", "2", "0"],
+        )
         raw_cases = {case["case_id"]: case for case in benchmark["cases"]}
         for case in summary["cases"]:
             report_path = self.output / case["report"]

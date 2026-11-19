@@ -18,6 +18,42 @@ LAB = ROOT / "KNS Experiments/traffic-lab"
 
 
 class ResultValidationTests(unittest.TestCase):
+    def test_combined_suite_keeps_errors_and_preserves_prior_report_on_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "validation"
+            (output / "one").mkdir(parents=True)
+            (output / "one/validation.xml").write_text(
+                '<testsuite><testcase name="delivery"><failure message="threshold"/>'
+                '</testcase><testcase name="pending"/></testsuite>'
+            )
+            cases = [
+                {
+                    "case_id": "one", "status": "failed", "assertion_count": 2,
+                    "failed_assertions": 1, "report": "validation/one/validation.json",
+                },
+                {
+                    "case_id": "two", "status": "error",
+                    "error": 'Missing reference <report> & "data"',
+                    "benchmark_status": "success",
+                },
+            ]
+            validate_result.write_suite(cases, output)
+            path = output / "summary.xml"
+            original = path.read_bytes()
+            suite = ET.parse(path).getroot()
+            self.assertEqual(
+                [suite.get(field) for field in ("tests", "failures", "errors")],
+                ["3", "1", "1"],
+            )
+            self.assertEqual(
+                suite.find("testsuite/testcase/error").get("message"),
+                cases[1]["error"],
+            )
+            cases[0]["assertion_count"] = 99
+            with self.assertRaisesRegex(ValueError, "differs"):
+                validate_result.write_suite(cases, output)
+            self.assertEqual(path.read_bytes(), original)
+
     def test_invalid_rules_are_explicit_and_unavailable_metrics_do_not_pass(self):
         rule = {"metric": "delivery_ratio", "operator": ">=", "value": 0.9}
         for changes in (

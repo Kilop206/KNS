@@ -83,6 +83,7 @@ def write(
             f'{text(validation["failed_cases"])} failed, '
             f'{text(validation["error_cases"])} errors. '
             f'{link("validation/summary.json", "Validation summary JSON")} · '
+            f'{link("validation/summary.xml", "JUnit suite")} · '
             f'{link("validation/rules.json", "Rules JSON")}</p>'
         )
     artifacts = " · ".join(

@@ -38,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
             source / "runs/benchmark.json", 64 * 1024 * 1024
         )
         comparison = compare_experiments.build_comparison(profile, benchmark)
+        manifests.validate_case_ids(benchmark["cases"])
         expected_count = len(benchmark_suite.expand_cases(benchmark["suite"]))
         if (
             len(benchmark["cases"]) != expected_count

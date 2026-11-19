@@ -323,6 +323,7 @@ def validate_cases(
     benchmark = json.loads(
         (source / "runs" / "benchmark.json").read_text(encoding="utf-8")
     )
+    manifests.validate_case_ids(benchmark["cases"])
     plans = {
         path: (
             traffic_config.apply_overrides(
@@ -418,6 +419,7 @@ def validate_cases(
                 validate_result.write(verdict, directory)
                 case.update(
                     status="passed" if verdict["passed"] else "failed",
+                    assertion_count=verdict["assertion_count"],
                     failed_assertions=verdict["failed_assertions"],
                     report=(directory / "validation.json").relative_to(output).as_posix(),
                 )
@@ -434,6 +436,7 @@ def validate_cases(
         "cases": cases,
     }
     write_json(validation / "summary.json", summary)
+    validate_result.write_suite(cases, validation)
     return summary
 
 

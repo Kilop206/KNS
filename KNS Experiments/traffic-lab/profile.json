@@ -103,6 +103,23 @@
     "max_samples": 200,
     "max_groups": 64
   },
+  "validation": {
+    "schema_version": "1.2",
+    "assertions": [
+      {
+        "name": "preserve-reference-delivery",
+        "metric": "delivery_ratio",
+        "operator": ">=",
+        "baseline_percent": -5
+      },
+      {
+        "name": "no-pending-packets",
+        "metric": "pending",
+        "operator": "==",
+        "value": 0
+      }
+    ]
+  },
   "experiments": [
     {
       "name": "control",

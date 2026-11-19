@@ -94,6 +94,19 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             self.assertIn("differs from the saved profile", verdicts["cases"][0]["error"])
             benchmark_path = moved / "runs/benchmark.json"
             benchmark = json.loads(benchmark_path.read_text())
+            original_id = benchmark["cases"][0]["case_id"]
+            for invalid_id in ("../../escape", benchmark["cases"][1]["case_id"].upper()):
+                benchmark["cases"][0]["case_id"] = invalid_id
+                experiment_profile.write_json(benchmark_path, benchmark)
+                rejected = root / "rejected"
+                with redirect_stderr(io.StringIO()) as errors:
+                    self.assertEqual(analyze_experiment.main([
+                        str(moved), "--output", str(rejected)
+                    ]), 1)
+                self.assertIn("Case IDs", errors.getvalue())
+                self.assertFalse(rejected.exists())
+                self.assertFalse((root / "escape").exists())
+            benchmark["cases"][0]["case_id"] = original_id
             benchmark["cases"].pop()
             benchmark["case_count"] -= 1
             experiment_profile.write_json(benchmark_path, benchmark)

@@ -43,6 +43,18 @@ def case_artifact(directory: Path, recorded_path: str) -> Path:
     return target
 
 
+def validate_case_ids(cases: list[dict]) -> None:
+    names = [case.get("case_id") for case in cases]
+    if any(
+        not isinstance(name, str)
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name) is None
+        for name in names
+    ):
+        raise ValueError("Case IDs must be ASCII identifiers without path components")
+    if len({name.casefold() for name in names}) != len(names):
+        raise ValueError("Case IDs must be unique, including on case-insensitive filesystems")
+
+
 def source_revision(root: Path) -> str:
     """Read local provenance without invoking processes or requiring Git ownership changes."""
     try:
