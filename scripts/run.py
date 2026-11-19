@@ -19,9 +19,20 @@ import signal
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TextIO
+
+
+@dataclass(frozen=True)
+class PendingRun:
+    process: subprocess.Popen
+    started_at: float
+    topology_path: Path
+    log_path: Path
+    csv_path: Path
+    log_handle: TextIO
 
 
 # ==============================================================
@@ -526,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[INFO] Found topologies: {len(topologies)}")
     print(f"[INFO] Platform: {platform.platform()}")
 
-    pending: list[tuple[subprocess.Popen, float, Path, Path, Path, TextIO]] = []
+    pending: list[PendingRun] = []
     run_records: list[dict] = []
 
     for i, topo in enumerate(topologies):
@@ -546,7 +557,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.congestion_control,
                 args.link_event,
             )
-            pending.append((proc, t0, topo, log_file, csv_file, log_handle))
+            pending.append(PendingRun(proc, t0, topo, log_file, csv_file, log_handle))
         except Exception as exc:
             print(f"[ERROR] Failed to start {topo.name}: {exc}", file=sys.stderr)
             run_records.append(
@@ -566,7 +577,7 @@ def main(argv: list[str] | None = None) -> int:
             _flush_one(pending, run_records, args.timeout)
 
     while pending:
-        _flush_one(pending, run_records, args.timeout, wait=True)
+        _flush_one(pending, run_records, args.timeout)
 
     graphs: list[str] = []
 
@@ -619,40 +630,39 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _flush_one(
-    pending: list[tuple[subprocess.Popen, float, Path, Path, Path, TextIO]],
+    pending: list[PendingRun],
     run_records: list[dict],
     timeout: float | None,
-    wait: bool = False,
 ) -> None:
-    """Poll every child against its launch deadline, without head-of-line blocking."""
     if not pending:
         return
 
-    index = None
+    # A slow child must leave room to collect later results. Deadlines always
+    # start at launch, including for runs still pending when scheduling ends.
     timed_out = False
-    for i, item in enumerate(pending):
-        proc, t0, *_ = item
-        if proc.poll() is not None:
-            index = i
+    for index, run in enumerate(pending):
+        if run.process.poll() is not None:
             break
-        if timeout is not None and time.perf_counter() - t0 >= timeout:
-            index = i
+        if timeout is not None and time.perf_counter() - run.started_at >= timeout:
             timed_out = True
-            _terminate_tree(proc)
+            _terminate_tree(run.process)
             break
-    if index is None:
-        remaining = [max(0, t0 + timeout - time.perf_counter())
-                     for _, t0, *_ in pending] if timeout is not None else [0.05]
-        time.sleep(min(0.05, min(remaining)))
+    else:
+        # Sleep only until the next deadline or the next poll, whichever comes
+        # first, so short deadlines remain meaningful between polls.
+        sleep_seconds = 0.05
+        if timeout is not None:
+            deadline = min(run.started_at for run in pending) + timeout
+            sleep_seconds = min(sleep_seconds, max(0, deadline - time.perf_counter()))
+        time.sleep(sleep_seconds)
         return
 
-    proc, t0, topo, log_file, csv_file, log_handle = pending[index]
+    duration = time.perf_counter() - run.started_at
+    returncode = run.process.returncode
+    rc = returncode if returncode is not None else -1
 
-    duration = time.perf_counter() - t0
-    rc = proc.returncode if proc.returncode is not None else -1
-
-    if not log_handle.closed:
-        log_handle.close()
+    if not run.log_handle.closed:
+        run.log_handle.close()
 
     stats = None
     error = None
@@ -660,8 +670,9 @@ def _flush_one(
     if timed_out:
         rc = 124
     elif rc == 0:
+        # A zero exit code alone cannot establish that usable metrics exist.
         try:
-            stats = parse_stats(csv_file)
+            stats = parse_stats(run.csv_path)
         except (ValueError, OSError) as exc:
             outcome, rc, error = "stats_error", 1, str(exc)
 
@@ -669,15 +680,15 @@ def _flush_one(
     lost = stats["packets_lost"] if stats else "?"
     delivered = stats["packets_delivered"] if stats else "?"
     print(
-        f"       -> {topo.name}: {status}  |  {duration:.2f}s  "
+        f"       -> {run.topology_path.name}: {status}  |  {duration:.2f}s  "
         f"|  {lost} lost  |  {delivered} delivered"
     )
 
     run_records.append(
         {
-            "topo": topo,
-            "log": log_file,
-            "csv": csv_file if csv_file.exists() else None,
+            "topo": run.topology_path,
+            "log": run.log_path,
+            "csv": run.csv_path if run.csv_path.exists() else None,
             "returncode": rc,
             "duration_s": duration,
             "stats": stats,

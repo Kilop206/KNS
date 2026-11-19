@@ -326,31 +326,31 @@ class ProcessTests(unittest.TestCase):
                 runner._terminate_tree(proc)
             handle.close()
         self.addCleanup(cleanup)
-        return proc, started, topo, log, output, handle
+        return runner.PendingRun(proc, started, topo, log, output, handle)
 
     def test_launch_deadline_and_later_completion(self):
         hung = self.launch("import time; time.sleep(600)", "hung")
         done = self.launch("raise SystemExit(3)", "done")
-        done[0].wait(timeout=60)
+        done.process.wait(timeout=60)
         pending, records = [hung, done], []
         # Test polling order before the first deadline, independent of host
         # process-start latency. The children and process-tree cleanup are real.
-        before_deadline = max(hung[1], done[1]) + 0.1
-        deadline = before_deadline - hung[1] + 2
+        before_deadline = max(hung.started_at, done.started_at) + 0.1
+        deadline = before_deadline - hung.started_at + 2
         with patch.object(runner.time, "perf_counter", return_value=before_deadline):
             runner._flush_one(pending, records, deadline)
         self.assertEqual(records[0]["status"], "process_error")
         self.assertEqual(pending, [hung])
-        with patch.object(runner.time, "perf_counter", return_value=hung[1] + deadline + 1):
-            runner._flush_one(pending, records, deadline, wait=True)
+        with patch.object(runner.time, "perf_counter", return_value=hung.started_at + deadline + 1):
+            runner._flush_one(pending, records, deadline)
         self.assertFalse(pending)
         self.assertEqual(records[1]["status"], "timeout")
         self.assertEqual(records[1]["returncode"], 124)
-        self.assertIsNotNone(hung[0].poll())
+        self.assertIsNotNone(hung.process.poll())
 
     def test_missing_output_is_failure(self):
         child = self.launch("pass", "missing")
-        child[0].wait(timeout=60)
+        child.process.wait(timeout=60)
         records = []
         runner._flush_one([child], records, 5)
         self.assertEqual(records[0]["status"], "stats_error")
