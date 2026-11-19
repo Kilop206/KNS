@@ -120,6 +120,7 @@ def create(
             for name in (
                 "experiment_profile.py",
                 "experiment_manifest.py",
+                "experiment_report.py",
                 "experiment_sweep.py",
                 "benchmark_suite.py",
                 "run.py",

@@ -802,6 +802,9 @@ class ExperimentProfileTests(unittest.TestCase):
         manifest = manifests.load(self.output / "manifest.json")
         self.assertEqual(manifest["status"], "failed")
         self.assertEqual(manifest["returncode"], 2)
+        overview = self.output / manifest["report"]
+        self.assertIn("Experiment failed", overview.read_text(encoding="utf-8"))
+        self.assertIn("2 passed, 2 failed, 0 errors", overview.read_text(encoding="utf-8"))
         self.assertEqual(
             manifest["configuration"]["profile"]["validation"],
             self.profile["validation"],
@@ -899,6 +902,9 @@ class ExperimentProfileTests(unittest.TestCase):
         manifest = manifests.load(self.output / "manifest.json")
         self.assertEqual(manifest["status"], "failed")
         self.assertEqual(manifest["failed_cases"], 2)
+        overview = (self.output / manifest["report"]).read_text(encoding="utf-8")
+        self.assertIn("startup_error", overview)
+        self.assertIn("cannot launch", overview)
 
     def test_timeout_and_malformed_stats_keep_reports_and_fail_batch(self):
         executable = self.root / "fake executable"

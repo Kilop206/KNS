@@ -188,6 +188,17 @@ Each output directory contains:
 - `runs/*.csv` and `runs/*.log`: raw simulator statistics and combined process logs.
 - `comparison.json`, `comparison.csv`, `comparison.md`: paired differences from
   the reference experiment, with summaries across seeds and unavailable-pair evidence.
+- `report.html`: offline overview produced after execution, with the experiment
+  status, per-case execution and validation outcomes, comparison links, input
+  hashes and links to the recorded evidence. The manifest's `report` field
+  identifies this page. Links are relative to the bundle, so the overview works
+  after moving the entire directory. Requested validation reports appear under
+  `validation/`. Failed cases keep their errors visible in the overview.
+
+Open `report.html` in a browser after the profile command finishes. The overview
+uses inline styles and links to evidence within the bundle. Keep the directory
+together when sharing the results. A `--generate-only` bundle contains prepared
+inputs and a manifest, and receives its execution report when replayed with KNS.
 
 ## Compare variants
 

@@ -16,6 +16,7 @@ import analytics_config
 import benchmark_suite
 import compare_experiments
 import experiment_manifest as manifests
+import experiment_report
 import experiment_sweep
 import fault_plan
 import run as runner
@@ -478,6 +479,7 @@ def main(argv: list[str] | None = None) -> int:
                 str(timeout),
             ]
         )
+        validation = None
         if "validation" in profile:
             validation = validate_cases(
                 output,
@@ -498,7 +500,10 @@ def main(argv: list[str] | None = None) -> int:
             f"Comparison: {output / 'comparison.md'} "
             f"({comparison['matched_pairs']}/{comparison['expected_pairs']} matched pairs)"
         )
+        manifest["report"] = "report.html"
         manifests.finish(output, manifest, result)
+        experiment_report.write(output, manifest, comparison, validation)
+        print(f"Report: {output / 'report.html'}")
         return result
     except (OSError, ValueError, OverflowError) as exc:
         if artifacts_created and manifest is not None and output is not None:
