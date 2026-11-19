@@ -665,6 +665,48 @@ class ExperimentProfileTests(unittest.TestCase):
             self.assertEqual(self.invoke("--generate-only"), 1)
             self.assertFalse(self.output.exists())
 
+    def test_invalid_inline_validation_fails_before_writing_artifacts(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        rule = {"metric": "delivery_ratio", "operator": ">=", "value": 0.9}
+        self.profile["validation"] = {"schema_version": "1.2", "assertions": [rule]}
+        self.save_profile()
+        self.assertEqual(self.invoke("--generate-only"), 1)
+        self.assertFalse(self.output.exists())
+
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        for invalid in (
+            {**rule, "flow_id": 999},
+            {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5},
+        ):
+            with self.subTest(rule=invalid):
+                self.profile["validation"]["assertions"] = [invalid]
+                self.save_profile()
+                self.assertEqual(self.invoke("--generate-only"), 1)
+                self.assertFalse(self.output.exists())
+
+    def test_dry_run_includes_inline_rules_without_creating_artifacts(self):
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        self.profile["validation"] = json.loads((lab / "assertions.json").read_text())
+        self.save_profile()
+        with redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(
+                experiments.main(
+                    [
+                        "--profile",
+                        str(self.profile_path),
+                        "--output",
+                        str(self.output),
+                        "--dry-run",
+                    ]
+                ),
+                0,
+            )
+        self.assertEqual(
+            json.loads(stdout.getvalue())["validation"], self.profile["validation"]
+        )
+        self.assertFalse(self.output.exists())
+
     @unittest.skipUnless(
         os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration"
     )
@@ -677,6 +719,12 @@ class ExperimentProfileTests(unittest.TestCase):
             "index": 1,
             "max_cases": 4,
             "traffic_plan": json.loads((lab / "traffic.json").read_text()),
+            "validation": {
+                "schema_version": "1.2",
+                "assertions": [
+                    {"metric": "generated", "operator": ">", "value": 0, "flow_id": 2}
+                ],
+            },
             "sweep": {
                 "bandwidth": [1, 10],
                 "traffic": [
@@ -690,6 +738,9 @@ class ExperimentProfileTests(unittest.TestCase):
         }
         self.save_profile()
         self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        summary = json.loads((self.output / "validation/summary.json").read_text())
+        self.assertTrue(summary["passed"])
+        self.assertEqual(summary["passed_cases"], 4)
         suite = benchmark_suite.load_suite(self.output / "suite.json")
         self.assertEqual(len(suite["traffic_plans"]), 4)
         cases = json.loads((self.output / "runs/benchmark.json").read_text())["cases"]
@@ -738,15 +789,45 @@ class ExperimentProfileTests(unittest.TestCase):
             "seeds": [42, 43],
             "traffic_plan": json.loads((lab / "traffic.json").read_text()),
             "analytics": json.loads((lab / "analytics.json").read_text()),
+            "validation": json.loads((lab / "assertions.json").read_text()),
             "experiments": [
                 {"name": "control", "bandwidth": 1},
                 {"name": "upgrade", "bandwidth": 10},
             ],
         }
         self.save_profile()
-        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 0)
+        self.assertEqual(self.invoke("--exe", os.environ["KNS_TEST_EXE"]), 2)
         benchmark = json.loads((self.output / "runs/benchmark.json").read_text())
         self.assertEqual(benchmark["successful_cases"], 4)
+        manifest = manifests.load(self.output / "manifest.json")
+        self.assertEqual(manifest["status"], "failed")
+        self.assertEqual(manifest["returncode"], 2)
+        self.assertEqual(
+            manifest["configuration"]["profile"]["validation"],
+            self.profile["validation"],
+        )
+        summary_path = self.output / manifest["validation"]
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            (summary["passed_cases"], summary["failed_cases"], summary["error_cases"]),
+            (2, 2, 0),
+        )
+        self.assertFalse(summary["passed"])
+        raw_cases = {case["case_id"]: case for case in benchmark["cases"]}
+        for case in summary["cases"]:
+            report_path = self.output / case["report"]
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                report["source_sha256"],
+                manifests.file_hash(Path(raw_cases[case["case_id"]]["traffic_report"])),
+            )
+            self.assertEqual(
+                report["rules_sha256"],
+                manifests.file_hash(summary_path.with_name("rules.json")),
+            )
+            self.assertEqual(report["passed"], "upgrade" in case["case_id"])
+            for suffix in ("xml", "md", "html"):
+                self.assertTrue(report_path.with_suffix("." + suffix).is_file())
         self.assertTrue(
             all(
                 case["traffic_report"] and case["workload_model"] == "abstract_wire"
@@ -769,8 +850,12 @@ class ExperimentProfileTests(unittest.TestCase):
                         str(replay),
                     ]
                 ),
-                0,
+                2,
             )
+        self.assertEqual(
+            summary_path.read_bytes(),
+            (replay / manifest["validation"]).read_bytes(),
+        )
         for pattern in ("*.csv", "*.traffic.json", "*.analytics.json"):
             for original in (self.output / "runs").glob(pattern):
                 if original.name != "metrics.csv":
@@ -818,6 +903,10 @@ class ExperimentProfileTests(unittest.TestCase):
     def test_timeout_and_malformed_stats_keep_reports_and_fail_batch(self):
         executable = self.root / "fake executable"
         executable.touch()
+        lab = experiments.ROOT / "KNS Experiments/traffic-lab"
+        self.profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
+        self.profile["validation"] = json.loads((lab / "assertions.json").read_text())
+        self.save_profile()
         outcomes = [
             subprocess.TimeoutExpired("KNS", 1),
             subprocess.CompletedProcess([], 0),
@@ -830,6 +919,11 @@ class ExperimentProfileTests(unittest.TestCase):
         )
         with (self.output / "runs" / "metrics.csv").open(newline="") as stream:
             self.assertEqual(len(list(csv.DictReader(stream))), 2)
+        summary = json.loads((self.output / "validation/summary.json").read_text())
+        self.assertEqual(summary["error_cases"], 2)
+        self.assertEqual(summary["failed_cases"], 0)
+        self.assertTrue(all(case["status"] == "error" for case in summary["cases"]))
+        self.assertTrue(all("report" not in case for case in summary["cases"]))
 
     @unittest.skipUnless(
         os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration"

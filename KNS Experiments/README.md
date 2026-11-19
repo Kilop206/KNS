@@ -62,6 +62,7 @@ other links, queue policies and metadata are retained.
 | `allow_transport_failures` | Accept orderly retry exhaustion as an experiment outcome; defaults to `false`. |
 | `analytics` | Optional shared native collection config; see [Analytics](../docs/analytics.md). |
 | `traffic_plan` | Optional embedded abstract workload; see [Traffic Lab](../docs/traffic-models.md). Packet wire sizes come from this plan. |
+| `validation` | Optional absolute Traffic Lab assertions applied to every case. Requires `traffic_plan`. |
 
 Each experiment requires `name` and at least one of `bandwidth`, `delay`, `loss`,
 `queue_capacity`.
@@ -139,6 +140,35 @@ for local charts, CSV and diagnostic evidence. Complete-report validation checks
 statistical conservation, coverage, rates and within-flow latency-change counts.
 The [Traffic Lab example](../docs/traffic-models.md) offers six concurrent schedules
 on a shared backbone through `--traffic-plan`.
+
+For profiles that include a `traffic_plan`, add a top-level `validation` object
+to check every case against the same rules. The example below requires at least
+90% delivery across all flows.
+
+```json
+{
+  "validation": {
+    "schema_version": "1.0",
+    "assertions": [
+      {"name": "minimum-delivery", "metric": "delivery_ratio", "operator": ">=", "value": 0.9}
+    ]
+  }
+}
+```
+
+During preflight, the runner validates the rules and checks that any referenced
+`flow_id` exists in the plan. The manifest retains the rules for replay, and
+`--dry-run` shows them with the case matrix. Execution writes
+`validation/rules.json`, `validation/summary.json` and per-case JSON, JUnit,
+Markdown and HTML verdicts under `validation/<case-id>/`. When a case has no
+complete report, the summary records the error alongside its benchmark status.
+
+Profile execution exits with code 0 when the benchmark and all assertions pass,
+1 on a benchmark or validation execution error, and 2 when execution succeeds
+and at least one assertion fails. The manifest links to the validation summary.
+The experiment directory retains the benchmark and comparison artifacts.
+For relative thresholds, pass an explicit reference to the
+[standalone validator](../docs/validation.md).
 
 Named variants can also embed a `fault_plan` for link outages, parameter degradation
 or flapping. The [Fault Lab guide](../docs/fault-injection.md) describes the

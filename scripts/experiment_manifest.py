@@ -132,6 +132,8 @@ def create(
                 "analytics_validation.py",
                 "analytics_report.py",
                 "traffic_config.py",
+                "validate_result.py",
+                "validation_html.py",
             )
         },
         "replay_of": previous["run_id"] if previous else None,

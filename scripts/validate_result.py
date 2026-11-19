@@ -79,6 +79,13 @@ def read_json(path, limit):
     ), hashlib.sha256(data).hexdigest()
 
 
+def read_report(path):
+    report, source_hash = read_json(path, 64 * 1024 * 1024)
+    if not isinstance(report, dict) or "config" not in report:
+        raise ValueError("Input must be a Traffic Lab report")
+    return report, source_hash
+
+
 def validate_rules(rules):
     if (
         not isinstance(rules, dict)
@@ -453,10 +460,8 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     try:
-        report, source_hash = read_json(args.report, 64 * 1024 * 1024)
+        report, source_hash = read_report(args.report)
         rules, rules_hash = read_json(args.rules, 1024 * 1024)
-        if not isinstance(report, dict) or "config" not in report:
-            raise ValueError("Input must be a Traffic Lab report")
         baseline, baseline_hash = (
             read_json(args.baseline, 64 * 1024 * 1024)
             if args.baseline

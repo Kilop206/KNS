@@ -20,6 +20,7 @@ import experiment_sweep
 import fault_plan
 import run as runner
 import traffic_config
+import validate_result
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE = ROOT / "KNS Experiments" / "experiment-profile.json"
@@ -63,6 +64,7 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         "sweep",
         "analytics",
         "traffic_plan",
+        "validation",
     }
     if not isinstance(profile, dict) or set(profile) - allowed:
         raise ValueError("Profile must be an object containing only supported fields")
@@ -91,6 +93,17 @@ def validate_profile(profile: dict, topology: dict) -> tuple[dict, dict]:
         analytics_config.validate(profile["analytics"], topology)
     if "traffic_plan" in profile:
         traffic_config.validate(profile["traffic_plan"], topology)
+    if "validation" in profile:
+        if "traffic_plan" not in profile:
+            raise ValueError("Profile validation requires a traffic_plan")
+        rules = profile["validation"]
+        validate_result.validate_rules(rules)
+        flow_ids = {flow["id"] for flow in profile["traffic_plan"]["flows"]}
+        for rule in rules["assertions"]:
+            if "value" not in rule:
+                raise ValueError("Profile validation requires absolute thresholds (value)")
+            if "flow_id" in rule and rule["flow_id"] not in flow_ids:
+                raise ValueError(f"Assertion selects an unknown flow_id: {rule['flow_id']}")
     index = profile.setdefault("index", 0)
     if type(index) is not int or not 0 <= index < len(topology["links"]):
         raise ValueError("Profile index must select an existing link")
@@ -288,6 +301,72 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     return suite_path
 
 
+def validate_cases(output: Path, rules: dict, validator_sha256: str) -> dict:
+    benchmark = json.loads(
+        (output / "runs" / "benchmark.json").read_text(encoding="utf-8")
+    )
+    validation = output / "validation"
+    validation.mkdir()
+    rules_path = validation / "rules.json"
+    write_json(rules_path, rules)
+    rules_hash = manifests.file_hash(rules_path)
+    counts = {"passed": 0, "failed": 0, "error": 0}
+    cases = []
+    for run in benchmark["cases"]:
+        case_id = run["case_id"]
+        case = {"case_id": case_id, "benchmark_status": run["status"]}
+        if (
+            run["status"] not in {"success", "transport_failure"}
+            or not run["traffic_report"]
+        ):
+            case.update(
+                status="error", error=run["error"] or "No complete traffic report"
+            )
+        else:
+            try:
+                report, source_hash = validate_result.read_report(
+                    Path(run["traffic_report"])
+                )
+                verdict = validate_result.evaluate(report, rules)
+            except (
+                OSError,
+                ValueError,
+                KeyError,
+                TypeError,
+                OverflowError,
+                RecursionError,
+            ) as exc:
+                case.update(status="error", error=str(exc))
+            else:
+                verdict.update(
+                    source_sha256=source_hash,
+                    rules_sha256=rules_hash,
+                    validator_sha256=validator_sha256,
+                )
+                directory = validation / case_id
+                directory.mkdir()
+                validate_result.write(verdict, directory)
+                case.update(
+                    status="passed" if verdict["passed"] else "failed",
+                    failed_assertions=verdict["failed_assertions"],
+                    report=(directory / "validation.json").relative_to(output).as_posix(),
+                )
+        counts[case["status"]] += 1
+        cases.append(case)
+    summary = {
+        "schema_version": "1.0",
+        "passed": counts["passed"] == len(cases),
+        "case_count": len(cases),
+        "passed_cases": counts["passed"],
+        "failed_cases": counts["failed"],
+        "error_cases": counts["error"],
+        "rules_sha256": rules_hash,
+        "cases": cases,
+    }
+    write_json(validation / "summary.json", summary)
+    return summary
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group()
@@ -351,17 +430,15 @@ def main(argv: list[str] | None = None) -> int:
         suite = make_suite(profile, output)
         if args.dry_run:
             cases = benchmark_suite.expand_cases(suite)
-            print(
-                json.dumps(
-                    {
-                        "profile": profile["name"],
-                        "baseline": profile["baseline"],
-                        "case_count": len(cases),
-                        "cases": cases,
-                    },
-                    indent=2,
-                )
-            )
+            preview = {
+                "profile": profile["name"],
+                "baseline": profile["baseline"],
+                "case_count": len(cases),
+                "cases": cases,
+            }
+            if "validation" in profile:
+                preview["validation"] = profile["validation"]
+            print(json.dumps(preview, indent=2))
             return 0
         exe = None
         if not args.generate_only:
@@ -401,6 +478,21 @@ def main(argv: list[str] | None = None) -> int:
                 str(timeout),
             ]
         )
+        if "validation" in profile:
+            validation = validate_cases(
+                output,
+                profile["validation"],
+                manifest["runner_sha256"]["validate_result.py"],
+            )
+            manifest["validation"] = "validation/summary.json"
+            print(
+                f"Validation: {output / manifest['validation']} "
+                f"({validation['passed_cases']}/{validation['case_count']} passed)"
+            )
+            if validation["error_cases"]:
+                result = 1
+            elif not result and validation["failed_cases"]:
+                result = 2
         comparison = compare_experiments.compare_artifacts(output)
         print(
             f"Comparison: {output / 'comparison.md'} "

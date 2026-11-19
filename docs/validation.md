@@ -47,8 +47,11 @@ publishes experiment/verdict artifacts even after assertion failure. These check
 use virtual metrics, without wall-clock performance thresholds. Earlier build/test/absolute-validation workflows passed on Linux/macOS/MinGW;
 the new baseline CI step requires its own remote verification (see implementation status).
 
-Scenario-embedded rules, richer assertion languages and Studio validation remain
-pending. The native `kns validate` subcommand is planned.
+Experiment profiles with a `traffic_plan` can run the absolute assertions
+automatically using a top-level `validation` object. See the
+[profile guide](../KNS%20Experiments/README.md#artifacts-and-failures) for
+per-case artifacts, replay and the profile runner's exit codes. Richer assertion
+languages, Studio validation and a native `kns validate` command remain planned.
 
 ## Version 1.1 baseline offsets
 

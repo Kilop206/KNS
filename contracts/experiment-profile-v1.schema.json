@@ -7,10 +7,20 @@
   "required": ["name", "topology"],
   "additionalProperties": false,
   "oneOf": [{"required": ["experiments"]}, {"required": ["sweep"]}],
+  "dependentRequired": {"validation": ["traffic_plan"]},
   "properties": {
     "schema_version": {"const": "1.0"},
     "analytics": {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/analytics-config-v1.schema.json"},
     "traffic_plan": {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/traffic-plan-v1.schema.json"},
+    "validation": {
+      "description": "Absolute Traffic Lab assertions evaluated in each case",
+      "anyOf": [
+        {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/validation-rules-v1.schema.json"},
+        {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/validation-rules-v1.1.schema.json"},
+        {"$ref": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/validation-rules-v1.2.schema.json"}
+      ],
+      "properties": {"assertions": {"items": {"required": ["value"]}}}
+    },
     "name": {"$ref": "#/$defs/name"},
     "topology": {"type": "string", "minLength": 1},
     "index": {"type": "integer", "minimum": 0, "default": 0},
