@@ -65,6 +65,12 @@ Optional `validation_rules_sha256` identifies the stored analysis rules.
 and a validation summary. Source execution status and configuration identity
 continue to describe the original experiment.
 
+Optional `evidence_integrity` records the numbers of cases with checked artifact
+hashes, legacy cases without recorded hashes and verified artifact files. New
+benchmark cases include `artifact_sha256` maps for their recorded evidence.
+The analyzer checks these maps before creating reports and includes the coverage
+in its overview.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

@@ -106,12 +106,20 @@ def write(
                 '<p>Validation rules were supplied for this analysis. '
                 f'{link("validation/rules.json", "Applied rules JSON")}</p>'
             )
+        integrity_notice = ""
+        if analysis.get("evidence_integrity") is not None:
+            integrity = analysis["evidence_integrity"]
+            integrity_notice = (
+                f'<p>{text(integrity["verified_artifacts"])} artifact hashes verified '
+                f'across {text(integrity["hashed_cases"])} cases. '
+                f'{text(integrity["legacy_cases"])} cases have no recorded artifact hashes.</p>'
+            )
         analysis_section = (
             '<section><h2>Saved-result analysis</h2>'
             f'<p>Analysis {text(analysis["status"])} · Exit code {text(analysis["returncode"])}. '
             f'{link("analysis.json", "Analysis provenance JSON")}</p>'
             '<p>The execution status below comes from the original manifest.</p>'
-            f'{rules_notice}</section>'
+            f'{rules_notice}{integrity_notice}</section>'
         )
     provenance = "".join(
         f"<dt>{text(label)}</dt><dd><code>{text(manifest.get(key))}</code></dd>"

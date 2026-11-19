@@ -23,6 +23,15 @@
     "renderer_sha256": {"$ref": "#/$defs/sha256"},
     "validation_rules_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
     "validation_rules_source_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "evidence_integrity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hashed_cases", "legacy_cases", "verified_artifacts"],
+      "properties": {
+        "hashed_cases": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "legacy_cases": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "verified_artifacts": {"type": "integer", "minimum": 0, "maximum": 50000}
+      }
+    },
     "report": {"const": "report.html"},
     "validation": {"enum": ["validation/summary.json", null]}
   },

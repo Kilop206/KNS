@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import analytics_config
+import experiment_manifest
 import fault_plan
 import run as runner
 import traffic_config
@@ -642,6 +643,12 @@ def main(argv: list[str] | None = None) -> int:
                 "avg_latency_s": derived["latency_mean_s"],
             }
         )
+        record = records[-1]
+        record["artifact_sha256"] = {
+            field: experiment_manifest.file_hash(Path(record[field]))
+            for field in experiment_manifest.CASE_ARTIFACT_FIELDS
+            if record.get(field) is not None
+        }
         print(f"[{index}/{len(cases)}] {case_id}: {status}")
 
     metadata = {

@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 
+CASE_ARTIFACT_FIELDS = ("csv", "log", "traffic_report", "analytics_report", "fault_report")
+
 
 def config_hash(configuration: dict) -> str:
     encoded = json.dumps(
@@ -53,6 +55,33 @@ def validate_case_ids(cases: list[dict]) -> None:
         raise ValueError("Case IDs must be ASCII identifiers without path components")
     if len({name.casefold() for name in names}) != len(names):
         raise ValueError("Case IDs must be unique, including on case-insensitive filesystems")
+
+
+def verify_case_artifacts(directory: Path, cases: list[dict]) -> dict:
+    coverage = {"hashed_cases": 0, "legacy_cases": 0, "verified_artifacts": 0}
+    for case in cases:
+        if "artifact_sha256" not in case:
+            coverage["legacy_cases"] += 1
+            continue
+        hashes = case["artifact_sha256"]
+        expected = {
+            field for field in CASE_ARTIFACT_FIELDS if case.get(field) is not None
+        }
+        if not isinstance(hashes, dict) or not hashes or set(hashes) != expected:
+            raise ValueError(
+                f'Incomplete artifact SHA-256 map for case {case["case_id"]}'
+            )
+        for field, digest in hashes.items():
+            if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ValueError(f'Invalid artifact SHA-256 for case {case["case_id"]}')
+            path = case_artifact(directory, case[field])
+            if file_hash(path) != digest:
+                raise ValueError(
+                    f'Artifact SHA-256 mismatch for case {case["case_id"]} ({field})'
+                )
+            coverage["verified_artifacts"] += 1
+        coverage["hashed_cases"] += 1
+    return coverage
 
 
 def source_revision(root: Path) -> str:

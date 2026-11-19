@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from unittest.mock import patch
 from urllib.parse import unquote
 
@@ -41,6 +41,18 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             profile_path.unlink()
             moved = root / "moved experiment"
             source.rename(moved)
+            benchmark_path = moved / "runs/benchmark.json"
+            benchmark = json.loads(benchmark_path.read_text())
+            # Reproduce metadata recorded on a different platform.
+            for case in benchmark["cases"]:
+                for field in manifests.CASE_ARTIFACT_FIELDS:
+                    if case.get(field):
+                        name = PureWindowsPath(case[field]).name
+                        case[field] = (
+                            f"/retired/run/{name}" if os.name == "nt"
+                            else "Z:\\retired\\run\\" + name
+                        )
+            experiment_profile.write_json(benchmark_path, benchmark)
             before = {
                 path.relative_to(moved): manifests.file_hash(path)
                 for path in moved.rglob("*") if path.is_file()
@@ -58,6 +70,9 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             }
             self.assertEqual(before, after)
             analysis = json.loads((output / "analysis.json").read_text())
+            self.assertEqual(analysis["evidence_integrity"], {
+                "hashed_cases": 4, "legacy_cases": 0, "verified_artifacts": 16,
+            })
             self.assertEqual(analysis["source_manifest_sha256"], before[Path("manifest.json")])
             self.assertEqual(analysis["source_benchmark_sha256"], before[Path("runs/benchmark.json")])
             summary = json.loads((output / "validation/summary.json").read_text())
@@ -117,6 +132,36 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 ]), 1)
             self.assertEqual(
                 analysis, json.loads((output / "analysis.json").read_text())
+            )
+            benchmark = json.loads(benchmark_path.read_text())
+            for field in benchmark["cases"][0]["artifact_sha256"]:
+                artifact = manifests.case_artifact(moved, benchmark["cases"][0][field])
+                original = artifact.read_bytes()
+                try:
+                    artifact.write_bytes(original + b"\n")
+                    rejected = root / "corrupt evidence"
+                    with redirect_stderr(io.StringIO()) as errors:
+                        self.assertEqual(analyze_experiment.main([
+                            str(moved), "--output", str(rejected),
+                        ]), 1)
+                    self.assertIn("Artifact SHA-256 mismatch", errors.getvalue())
+                    self.assertIn(f"({field})", errors.getvalue())
+                    self.assertFalse(rejected.exists())
+                finally:
+                    artifact.write_bytes(original)
+
+            # Legacy bundles retain their original validation behavior and coverage.
+            for case in benchmark["cases"]:
+                case.pop("artifact_sha256")
+            experiment_profile.write_json(benchmark_path, benchmark)
+            legacy = root / "legacy"
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(legacy),
+                ]), 2)
+            self.assertEqual(
+                json.loads((legacy / "analysis.json").read_text())["evidence_integrity"],
+                {"hashed_cases": 0, "legacy_cases": 4, "verified_artifacts": 0},
             )
             benchmark = json.loads((moved / "runs/benchmark.json").read_text())
             report_path = manifests.case_artifact(

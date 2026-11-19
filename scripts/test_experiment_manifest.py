@@ -7,6 +7,34 @@ import experiment_manifest as manifests
 
 
 class ManifestProvenanceTests(unittest.TestCase):
+    def test_artifact_integrity_rejects_incomplete_maps_invalid_hashes_and_missing_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "runs").mkdir()
+            csv = root / "runs/case.csv"
+            log = root / "runs/case.log"
+            csv.write_bytes(b"schema_version,packets_sent\n1,10\n")
+            log.write_bytes(b"complete\n")
+            hashes = {"csv": manifests.file_hash(csv), "log": manifests.file_hash(log)}
+            case = {
+                "case_id": "case", "csv": "Z:\\old\\case.csv",
+                "log": "/old/case.log", "artifact_sha256": hashes,
+            }
+            self.assertEqual(manifests.verify_case_artifacts(root, [case]), {
+                "hashed_cases": 1, "legacy_cases": 0, "verified_artifacts": 2,
+            })
+            for invalid in (
+                None, {}, {"csv": hashes["csv"]},
+                {**hashes, "unknown": hashes["csv"]},
+                {**hashes, "csv": True},
+                {**hashes, "csv": "0" * 64},
+            ):
+                with self.subTest(hashes=invalid), self.assertRaises(ValueError):
+                    manifests.verify_case_artifacts(root, [{**case, "artifact_sha256": invalid}])
+            csv.unlink()
+            with self.assertRaises(OSError):
+                manifests.verify_case_artifacts(root, [case])
+
     def test_source_version_is_explicitly_unknown_without_build_sources(self):
         with tempfile.TemporaryDirectory() as folder:
             self.assertEqual(manifests.source_version(Path(folder)), "unknown")

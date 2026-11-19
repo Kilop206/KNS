@@ -270,6 +270,19 @@ configurations must match the saved profile's effective per-variant plan.
 Missing evidence, incomplete matrices and incompatible baseline reports prevent
 a passing analysis. Prepared and running manifests are rejected.
 
+New benchmark cases record `artifact_sha256` for their CSV, log and any Traffic,
+Analytics or Fault JSON reports. Saved-result analysis verifies every recorded
+digest before creating its output directory. Missing files, malformed/incomplete
+digest maps and byte changes are input errors. File locations are resolved within
+the bundle's `runs/` directory, preserving analysis after moving the bundle or
+reading metadata from another platform.
+
+`analysis.json` records `evidence_integrity` with counts of hashed cases, legacy
+cases and verified files. The HTML overview displays this coverage. Older bundles
+without `artifact_sha256` retain their existing analysis behavior and appear as
+legacy cases. Digests identify file bytes relative to the recorded benchmark
+metadata.
+
 The original bundle is preserved. Overview links to its raw evidence are relative
 to the new analysis directory. Keep both directories in the same relative layout
 when sharing them. Exit codes are 0 when the recorded execution and current
