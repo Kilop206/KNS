@@ -216,7 +216,9 @@ class ResultValidationTests(unittest.TestCase):
                     timeout=30,
                 )
                 self.assertEqual(repeated.returncode, expected_code)
-                for name in ("validation.json", "validation.xml", "validation.md"):
+                for name in (
+                    "validation.json", "validation.xml", "validation.md", "validation.html"
+                ):
                     self.assertEqual(
                         (target / name).read_bytes(), (replicated / name).read_bytes()
                     )
@@ -298,6 +300,10 @@ class ResultValidationTests(unittest.TestCase):
                 self.assertIn("baseline=", junit.find("testcase/system-out").text)
                 self.assertIn(
                     "Baseline thresholds", (output / "validation.md").read_text()
+                )
+                self.assertIn(
+                    "Assertions passed" if expected_code == 0 else "Assertions failed",
+                    (output / "validation.html").read_text(encoding="utf-8"),
                 )
             for args, name in (
                 ([], "missing"),

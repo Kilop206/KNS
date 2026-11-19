@@ -75,7 +75,7 @@ if(Python3_Interpreter_FOUND)
     set_tests_properties(industrial_scenario_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME result_validation_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
-            -s "${PROJECT_SOURCE_DIR}/scripts" -p test_validate_result.py -v)
+            -s "${PROJECT_SOURCE_DIR}/scripts" -p "test_valid*.py" -v)
     set_tests_properties(result_validation_tests PROPERTIES TIMEOUT "${KNS_PYTHON_TEST_TIMEOUT}")
     add_test(NAME traffic_config_tests
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover

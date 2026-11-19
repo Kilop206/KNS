@@ -13,6 +13,7 @@ from pathlib import Path
 
 import experiment_manifest
 import traffic_config
+import validation_html
 
 OPERATORS = {
     ">=": operator.ge,
@@ -369,6 +370,7 @@ def write(result, output):
     (output / "validation.md").write_text(
         "\n".join(lines) + "\n\n" + result["limitations"] + "\n", encoding="utf-8"
     )
+    validation_html.write(result, output / "validation.html")
 
 
 def main(argv=None):
@@ -384,7 +386,7 @@ def main(argv=None):
         "--output",
         type=Path,
         required=True,
-        help="New directory for JSON, JUnit XML and Markdown",
+        help="New directory for JSON, JUnit XML, Markdown and offline HTML",
     )
     args = parser.parse_args(argv)
     try:

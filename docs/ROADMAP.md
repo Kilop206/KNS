@@ -19,7 +19,7 @@ No milestone below is certified complete by the existence of an interface.
 | 11 Emulation | isolated optional adapter | dry run, explicit consent, isolated Linux test and cleanup | Pending; never change host networking implicitly |
 | 12 Studio | 1–9 | responsive functional editors and experiment/analysis views | Partial: existing ImGui studio retained |
 | 13 CLI | 1–10 | independently buildable CLI, subcommands, structured failures | Partial: legacy headless options retained; bounded trace metadata JSON analysis/errors added; unified subcommands and independent native CLI pending |
-| 14 Reports | 2–9 | self-contained HTML, JSON, CSV, Markdown with methodology | Partial: CSV and experiment comparisons exist |
+| 14 Reports | 2–9 | self-contained HTML, JSON, CSV, Markdown with methodology | Partial: offline comparison/analytics reports and validation HTML/JSON/JUnit/Markdown with baseline evidence/hashes exist; integrated experiment reporting, PDF and visual QA remain pending |
 | 15 Extensions | stable model contracts | interchangeable internal strategies with conformance tests | Partial: congestion control strategies exist |
 | 16 Performance | correctness baselines | measured event/packet throughput, memory, topology scaling | Partial: benchmark scripts exist |
 | 17 Documentation | each shipped feature | executable examples and accurate model limitations | Partial: existing focused guides retained |

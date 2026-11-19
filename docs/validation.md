@@ -9,8 +9,8 @@ rules. Input consistency is not authentication or validation against real networ
 python scripts/validate_result.py "results/traffic-experiment/runs/003-002-upgrade-delay-reno-baseline-s42-p1500.csv.traffic.json" --rules "KNS Experiments/traffic-lab/assertions.json" --output "results/traffic verdict"
 ```
 
-The new output directory contains `validation.json`, JUnit `validation.xml` and
-`validation.md`. Sources and previous results are preserved. JSON records source,
+The new output directory contains `validation.json`, JUnit `validation.xml`,
+`validation.md` and offline `validation.html`. Sources and previous results are preserved. JSON records source,
 rule, configuration and validator-source SHA-256 identities, observed/expected values, units,
 denominator/retention scope and individual pass/fail reasons. Exit codes are 0
 when every assertion passes, 1 for threshold/unavailable-metric failures and 2
@@ -99,3 +99,21 @@ units, scopes, retention/denominator evidence and effective thresholds. JUnit
 includes the reference details and Markdown adds a baseline-threshold table.
 The existing 0/1/2 exit codes and preservation of existing outputs apply. See
 [the rules 1.1 contract](../contracts/validation-rules-v1.1.schema.json).
+
+## Offline HTML verdict
+
+Each successful validation export (including a valid failed assertion verdict)
+also writes `validation.html` beside its JSON/JUnit/Markdown files. Open it locally;
+no service, JavaScript package, font download or external asset is required.
+The page displays the actual observations, units, effective thresholds, baseline
+values/offsets, verdict reasons, expandable denominator/retention evidence and
+reproducibility hashes. Links open the actual sibling artifacts. The scrollable
+table supports keyboard focus; layout uses a viewport-aware responsive container.
+
+Numeric text keeps round-trip precision so neighboring floating-point values do
+not appear equal beside a failed comparison. Missing metrics render as N/A,
+and inconsistent/empty verdict DTOs are rejected. Untrusted text is escaped;
+long text has an explicit 4096-character preview with the full value in JSON.
+The exporter source hash is recorded in HTML. Export is deterministic for the
+same verdict and exporter, enabling byte-level repeat checks. This remains a
+simulation-assertion report, not a real-network certification.
