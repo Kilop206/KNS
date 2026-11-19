@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from contextlib import redirect_stderr
+from decimal import Decimal
 from pathlib import Path
 
 import validate_result
@@ -92,6 +93,31 @@ class ResultValidationTests(unittest.TestCase):
                 validate_result.read_json(source, 1024)
             with self.assertRaisesRegex(ValueError, "size limit"):
                 validate_result.read_json(source, 1)
+
+    def test_relative_percent_requires_rules_1_2_and_preserves_decimal_boundaries(self):
+        rule = {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5}
+        validate_result.validate_rules({"schema_version": "1.2", "assertions": [rule]})
+        for version, override in (
+            ("1.1", {}),
+            ("1.2", {"value": 0.95}),
+            ("1.2", {"baseline_offset": -0.05}),
+            ("1.2", {"baseline_percent": -100.01}),
+            ("1.2", {"baseline_percent": True}),
+        ):
+            with self.subTest(version=version, override=override):
+                with self.assertRaises(ValueError):
+                    validate_result.validate_rules(
+                        {"schema_version": version, "assertions": [{**rule, **override}]}
+                    )
+        self.assertEqual(validate_result.percent_threshold(0.1, 5), Decimal("0.105"))
+        self.assertEqual(validate_result.percent_threshold(0, 5), 0)
+        self.assertEqual(validate_result.percent_threshold(100, -100), 0)
+        self.assertEqual(
+            validate_result.percent_threshold(9_007_199_254_740_993, 50),
+            Decimal("13510798882111489.5"),
+        )
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            validate_result.percent_threshold(1e308, 100)
 
     def test_invalid_input_preserves_sources_and_existing_results(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -320,6 +346,53 @@ class ResultValidationTests(unittest.TestCase):
                 with redirect_stderr(io.StringIO()):
                     self.assertEqual(validate_result.main(arguments), 2)
                 self.assertFalse(output.exists())
+            percent_rules = root / "percent-rules.json"
+            percent_rules.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.2",
+                        "assertions": [
+                            {
+                                "name": "relative-delivery",
+                                "metric": "delivery_ratio",
+                                "operator": ">=",
+                                "baseline_percent": -5,
+                            },
+                            {
+                                "metric": "pending",
+                                "operator": "==",
+                                "baseline_percent": 5,
+                            },
+                        ],
+                    }
+                )
+            )
+            for bandwidth, expected_code in ((10, 0), (1, 1)):
+                output = root / f"percent verdict {bandwidth}"
+                with self.subTest(percent_bandwidth=bandwidth):
+                    code = validate_result.main(
+                        [
+                            str(root / f"run {bandwidth}.csv.traffic.json"),
+                            "--baseline",
+                            str(baseline),
+                            "--rules",
+                            str(percent_rules),
+                            "--output",
+                            str(output),
+                        ]
+                    )
+                    self.assertEqual(code, expected_code)
+                    verdict = json.loads((output / "validation.json").read_text())
+                    ratio, pending = verdict["checks"]
+                    self.assertEqual(ratio["baseline"]["percent"], -5)
+                    self.assertEqual(ratio["passed"], expected_code == 0)
+                    self.assertEqual(pending["expected"], 0)
+                    self.assertTrue(pending["passed"])
+                    expected = ratio.get("expected_exact", str(ratio["expected"]))
+                    for artifact in ("validation.html", "validation.md", "validation.xml"):
+                        rendered = (output / artifact).read_text(encoding="utf-8")
+                        self.assertIn("-5%", rendered)
+                        self.assertIn(expected, rendered)
             empty_rule = {
                 "schema_version": "1.1",
                 "assertions": [

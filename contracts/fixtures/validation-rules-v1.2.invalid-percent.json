@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.2",
+  "assertions": [
+    {"metric": "delivery_ratio", "operator": ">=", "baseline_percent": -100.01}
+  ]
+}

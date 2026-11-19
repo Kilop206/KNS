@@ -9,6 +9,7 @@ import operator
 import re
 import sys
 import xml.etree.ElementTree as ET
+from decimal import Decimal, localcontext
 from pathlib import Path
 
 import experiment_manifest
@@ -48,6 +49,12 @@ LATENCIES = {
     "operation_latency_p99_s": "p99_s",
 }
 METRICS = COUNTS | RATIOS | set(LATENCIES)
+RULE_THRESHOLDS = {
+    "1.0": {"value"},
+    "1.1": {"value", "baseline_offset"},
+    "1.2": {"value", "baseline_offset", "baseline_percent"},
+}
+BASELINE_THRESHOLDS = RULE_THRESHOLDS["1.2"] - {"value"}
 
 
 def read_json(path, limit):
@@ -76,9 +83,9 @@ def validate_rules(rules):
     if (
         not isinstance(rules, dict)
         or set(rules) != {"schema_version", "assertions"}
-        or rules["schema_version"] not in ("1.0", "1.1")
+        or rules["schema_version"] not in tuple(RULE_THRESHOLDS)
     ):
-        raise ValueError("Rules require schema_version 1.0/1.1 and assertions")
+        raise ValueError("Rules require schema_version 1.0/1.1/1.2 and assertions")
     assertions = rules["assertions"]
     if not isinstance(assertions, list) or not 1 <= len(assertions) <= 1024:
         raise ValueError("Rules require 1..1024 assertions")
@@ -88,15 +95,17 @@ def validate_rules(rules):
         if (
             not isinstance(rule, dict)
             or not required <= set(rule)
-            or set(rule) - required - {"value", "baseline_offset", "name", "flow_id"}
+            or set(rule) - required - RULE_THRESHOLDS["1.2"] - {"name", "flow_id"}
         ):
             raise ValueError("Assertion has missing/unsupported fields")
-        thresholds = set(rule) & {"value", "baseline_offset"}
-        if len(thresholds) != 1 or (
-            "baseline_offset" in rule and rules["schema_version"] != "1.1"
+        thresholds = set(rule) & RULE_THRESHOLDS["1.2"]
+        if (
+            len(thresholds) != 1
+            or not thresholds <= RULE_THRESHOLDS[rules["schema_version"]]
         ):
             raise ValueError(
-                "Assertion requires exactly one threshold; baseline_offset requires rules 1.1"
+                "Assertion requires exactly one supported threshold; "
+                "baseline_offset requires 1.1 or later and baseline_percent requires 1.2"
             )
         if (
             not isinstance(rule["metric"], str)
@@ -112,6 +121,8 @@ def validate_rules(rules):
             finite = False
         if not finite:
             raise ValueError("Assertion value must be finite")
+        if "baseline_percent" in rule and value < -100:
+            raise ValueError("baseline_percent must be at least -100")
         name = rule.get("name", f"assertion-{index}")
         if (
             not isinstance(name, str)
@@ -217,15 +228,33 @@ def offset_threshold(value, offset):
     return threshold
 
 
+def percent_threshold(value, percent):
+    base = Decimal(str(value))
+    change = Decimal(str(percent))
+    # Precision for the complete decimal expansion of 1 + percent/100
+    # and its product with the baseline, including near-zero percentages.
+    with localcontext() as context:
+        context.prec = (
+            len(base.as_tuple().digits)
+            + max(change.adjusted(), 0)
+            + max(2 - change.as_tuple().exponent, 0)
+            + 2
+        )
+        threshold = base * (1 + change / 100)
+    if not math.isfinite(float(threshold)):
+        raise ValueError("Baseline percent produces a non-finite threshold")
+    return threshold
+
+
 def evaluate(report, rules, baseline=None):
     traffic_config.validate_report(report, report["config"])
     validate_rules(rules)
-    uses_baseline = any("baseline_offset" in rule for rule in rules["assertions"])
+    uses_baseline = any(BASELINE_THRESHOLDS & rule.keys() for rule in rules["assertions"])
     configuration_hash = experiment_manifest.config_hash(report["config"])
     if uses_baseline:
         if not isinstance(baseline, dict) or "config" not in baseline:
             raise ValueError(
-                "baseline_offset assertions require a complete --baseline Traffic Lab report"
+                "Baseline assertions require a complete --baseline Traffic Lab report"
             )
         traffic_config.validate_report(baseline, baseline["config"])
         if experiment_manifest.config_hash(baseline["config"]) != configuration_hash:
@@ -246,18 +275,23 @@ def evaluate(report, rules, baseline=None):
                 "Baseline primary generated counts must match; offered cohorts differ"
             )
     elif baseline is not None:
-        raise ValueError("--baseline requires at least one baseline_offset assertion")
+        raise ValueError("--baseline requires at least one baseline assertion")
     checks = []
     for index, rule in enumerate(rules["assertions"], 1):
         value, unit, scope, evidence = measure(report, rule)
         expected = rule.get("value")
+        exact_threshold = None
         reference = None
         reason = None
-        if "baseline_offset" in rule:
+        baseline_mode = next(iter(BASELINE_THRESHOLDS & rule.keys()), None)
+        if baseline_mode:
             base_value, base_unit, base_scope, base_evidence = measure(baseline, rule)
+            adjustment_name = (
+                "percent" if baseline_mode == "baseline_percent" else "offset"
+            )
             reference = {
                 "observed": base_value,
-                "offset": rule["baseline_offset"],
+                adjustment_name: rule[baseline_mode],
                 "unit": base_unit,
                 "scope": base_scope,
                 "evidence": base_evidence,
@@ -267,11 +301,23 @@ def evaluate(report, rules, baseline=None):
             else:
                 if unit != base_unit or (value is not None and scope != base_scope):
                     raise ValueError("Baseline metric units/scopes must match")
-                expected = offset_threshold(base_value, rule["baseline_offset"])
+                if baseline_mode == "baseline_percent":
+                    exact_threshold = percent_threshold(base_value, rule[baseline_mode])
+                    expected = (
+                        int(exact_threshold)
+                        if exact_threshold == exact_threshold.to_integral_value()
+                        else float(exact_threshold)
+                    )
+                else:
+                    expected = offset_threshold(base_value, rule[baseline_mode])
         passed = (
             expected is not None
             and value is not None
-            and OPERATORS[rule["operator"]](value, expected)
+            and (
+                OPERATORS[rule["operator"]](Decimal(str(value)), exact_threshold)
+                if exact_threshold is not None
+                else OPERATORS[rule["operator"]](value, expected)
+            )
         )
         reason = reason or (
             "threshold satisfied"
@@ -297,6 +343,8 @@ def evaluate(report, rules, baseline=None):
         }
         if reference is not None:
             check["baseline"] = reference
+        if exact_threshold is not None and Decimal(str(expected)) != exact_threshold:
+            check["expected_exact"] = str(exact_threshold)
         checks.append(check)
     result = {
         "schema_version": rules["schema_version"],
@@ -340,29 +388,44 @@ def write(result, output):
         case = ET.SubElement(
             suite, "testcase", name=check["name"], classname="KNS.validation"
         )
-        detail = f"{check['metric']} flow={check['flow_id']} observed={check['observed']} {check['operator']} {check['expected']}; {check['scope']}; {check['reason']}"
+        expected = check.get("expected_exact", check["expected"])
+        detail = f"{check['metric']} flow={check['flow_id']} observed={check['observed']} {check['operator']} {expected}; {check['scope']}; {check['reason']}"
         if "baseline" in check:
-            detail += f"; baseline={check['baseline']['observed']} offset={check['baseline']['offset']}; baseline_scope={check['baseline']['scope']}"
+            reference = check["baseline"]
+            adjustment = (
+                f"baseline_percent={reference['percent']}%"
+                if "percent" in reference
+                else f"offset={reference['offset']}"
+            )
+            detail += f"; baseline={reference['observed']} {adjustment}; baseline_scope={reference['scope']}"
         if not check["passed"]:
             ET.SubElement(case, "failure", message=check["reason"]).text = detail
         ET.SubElement(case, "system-out").text = detail
         lines.append(
-            f"| {check['name']} | {check['metric']} | {check['observed']} | {check['operator']} {check['expected']} | {'pass' if check['passed'] else 'fail'} |"
+            f"| {check['name']} | {check['metric']} | {check['observed']} | {check['operator']} {expected} | {'pass' if check['passed'] else 'fail'} |"
         )
     if any("baseline" in check for check in result["checks"]):
+        heading = "Adjustment" if result["schema_version"] == "1.2" else "Offset"
         lines.extend(
             [
                 "",
                 "## Baseline thresholds",
                 "",
-                "| Assertion | Baseline | Offset | Effective threshold |",
+                f"| Assertion | Baseline | {heading} | Effective threshold |",
                 "| --- | ---: | ---: | ---: |",
             ]
         )
         for check in result["checks"]:
             if "baseline" in check:
+                reference = check["baseline"]
+                adjustment = (
+                    f"{reference['percent']}%"
+                    if "percent" in reference
+                    else reference["offset"]
+                )
+                expected = check.get("expected_exact", check["expected"])
                 lines.append(
-                    f"| {check['name']} | {check['baseline']['observed']} | {check['baseline']['offset']} | {check['expected']} |"
+                    f"| {check['name']} | {reference['observed']} | {adjustment} | {expected} |"
                 )
     ET.ElementTree(suite).write(
         output / "validation.xml", encoding="utf-8", xml_declaration=True
@@ -380,7 +443,7 @@ def main(argv=None):
     parser.add_argument(
         "--baseline",
         type=Path,
-        help="Complete result with the identical workload config; required by rules 1.1 baseline_offset",
+        help="Complete result with the identical workload config; required by baseline assertions",
     )
     parser.add_argument(
         "--output",

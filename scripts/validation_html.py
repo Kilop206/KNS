@@ -42,8 +42,18 @@ def render(result):
     rows = []
     for check in checks:
         reference = check.get("baseline")
-        baseline = (f'<span class="value">{number(reference["observed"])}</span><small>Offset {number(reference["offset"])} {text(reference["unit"])}</small>'
-                    if reference is not None else '<span class="muted">Absolute rule</span>')
+        baseline = '<span class="muted">Absolute rule</span>'
+        if reference is not None:
+            adjustment = (
+                f'Change {number(reference["percent"])}%'
+                if "percent" in reference
+                else f'Offset {number(reference["offset"])} {text(reference["unit"])}'
+            )
+            baseline = (
+                f'<span class="value">{number(reference["observed"])}</span>'
+                f'<small>{adjustment}</small>'
+            )
+        expected = check.get("expected_exact", check["expected"])
         evidence = text(json.dumps(check["evidence"], sort_keys=True, indent=2, allow_nan=False))
         details = f'<p><strong>Candidate scope:</strong> {text(check["scope"])}</p><pre>{evidence}</pre>'
         if reference is not None:
@@ -52,7 +62,7 @@ def render(result):
         flow = "All selected flows" if check["flow_id"] is None else f'Flow {check["flow_id"]}'
         rows.append(f'<tr><th scope="row">{text(check["name"])}<small>{text(check["metric"])}</small><small>{text(flow)}</small></th>'
             f'<td><span class="value">{number(check["observed"])}</span><small>{text(check["unit"])}</small></td>'
-            f'<td><span class="value">{text(check["operator"])} {number(check["expected"])}</span><small>{text(check["unit"])}</small></td>'
+            f'<td><span class="value">{text(check["operator"])} {number(expected)}</span><small>{text(check["unit"])}</small></td>'
             f'<td>{baseline}</td><td><span class="badge {css}">{label}</span><small class="reason">{text(check["reason"])}</small></td>'
             f'<td><details><summary>Scope and evidence</summary>{details}</details></td></tr>')
     origins = [("Candidate report", "source_sha256"), ("Baseline report", "baseline_sha256"),

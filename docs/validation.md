@@ -47,9 +47,8 @@ publishes experiment/verdict artifacts even after assertion failure. These check
 use virtual metrics, without wall-clock performance thresholds. Earlier build/test/absolute-validation workflows passed on Linux/macOS/MinGW;
 the new baseline CI step requires its own remote verification (see implementation status).
 
-This is an initial validation subsystem. Scenario-embedded rules, relative-percent
-tolerances, richer assertion languages and Studio validation remain pending. The Python companion CLI does not replace the planned native
-`kns validate` subcommand.
+Scenario-embedded rules, richer assertion languages and Studio validation remain
+pending. The native `kns validate` subcommand is planned.
 
 ## Version 1.1 baseline offsets
 
@@ -87,8 +86,8 @@ topology/software equivalence or authenticate reports; retain experiment manifes
 Changing processing timers or source settings is a different workload under this
 strict interface. Compare such experiments explicitly instead of silently pairing.
 
-Only assertions with baseline_offset require --baseline; an unused reference is
-an input error. Missing baseline metrics, empty populations and zero denominators
+Assertions with `baseline_offset` or `baseline_percent` require `--baseline`.
+An unused reference is an input error. Missing baseline metrics, empty populations and zero denominators
 fail the assertion even for `!=`, with null expected/reference values and an
 explicit reason. Different units/percentile scopes are input errors. Percentiles
 still require one flow ID; pair latency checks with loss/completion/minimum-count
@@ -100,13 +99,52 @@ includes the reference details and Markdown adds a baseline-threshold table.
 The existing 0/1/2 exit codes and preservation of existing outputs apply. See
 [the rules 1.1 contract](../contracts/validation-rules-v1.1.schema.json).
 
+## Version 1.2 percentage thresholds
+
+Rules 1.2 accept exactly one of `value`, `baseline_offset`, or
+`baseline_percent` per assertion. A percentage threshold uses the same
+baseline compatibility checks as an additive offset. It evaluates:
+
+```text
+candidate metric  operator  (baseline metric × (1 + baseline_percent / 100))
+```
+
+For example, `baseline_percent: 5` with `operator: "<="` allows p95 latency
+to grow from 100 ms to 105 ms. For delivery with `operator: ">="` and
+`baseline_percent: -5`, a 90% baseline gives a minimum of 85.5%. Use
+`baseline_offset: -0.05` instead for a five-percentage-point allowance.
+
+```json
+{
+  "schema_version": "1.2",
+  "assertions": [
+    {
+      "metric": "operation_latency_p95_s",
+      "flow_id": 1,
+      "operator": "<=",
+      "baseline_percent": 5
+    }
+  ]
+}
+```
+
+Percentages must be finite and at least −100. A measured baseline of zero
+gives a threshold of zero for any allowed percentage. An unavailable baseline
+still fails the assertion. Use an additive offset to allow a nonzero metric
+against a zero baseline.
+
+Percentage comparisons use the decimal text of the measures. JSON records the
+adjustment in `baseline.percent` and provides `expected_exact` when the numeric
+`expected` cannot preserve the exact threshold. HTML, JUnit and Markdown show
+that exact threshold when present. See the [rules 1.2 contract](../contracts/validation-rules-v1.2.schema.json).
+
 ## Offline HTML verdict
 
 Each successful validation export (including a valid failed assertion verdict)
 also writes `validation.html` beside its JSON/JUnit/Markdown files. Open it locally;
 no service, JavaScript package, font download or external asset is required.
 The page displays the actual observations, units, effective thresholds, baseline
-values/offsets, verdict reasons, expandable denominator/retention evidence and
+values and adjustments, verdict reasons, expandable denominator/retention evidence and
 reproducibility hashes. Links open the actual sibling artifacts. The scrollable
 table supports keyboard focus; layout uses a viewport-aware responsive container.
 

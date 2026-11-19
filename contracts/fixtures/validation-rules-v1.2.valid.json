@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.2",
+  "assertions": [
+    {"name": "latency-envelope", "metric": "operation_latency_p95_s", "flow_id": 1, "operator": "<=", "baseline_percent": 5},
+    {"name": "delivery-floor", "metric": "delivery_ratio", "operator": ">=", "baseline_percent": -5},
+    {"name": "pending-limit", "metric": "pending", "operator": "==", "value": 0},
+    {"name": "absolute-loss-budget", "metric": "packet_loss_ratio", "operator": "<=", "baseline_offset": 0.01}
+  ]
+}
