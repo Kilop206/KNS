@@ -16,7 +16,8 @@ def write(
     validation: dict | None,
     source: Path | None = None,
 ) -> None:
-    source = source or output
+    output = output.resolve()
+    source = (source or output).resolve()
     profile = manifest["configuration"]["profile"]
 
     def text(value):

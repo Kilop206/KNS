@@ -25,6 +25,30 @@ class ReportParser(HTMLParser):
 
 
 class ExperimentReportTests(unittest.TestCase):
+    def test_symlinked_bundle_keeps_links_relative_to_the_physical_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            physical = root / "physical"
+            (physical / "runs").mkdir(parents=True)
+            alias = root / "alias"
+            try:
+                alias.symlink_to(physical, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"Directory symlinks unavailable: {exc}")
+            (physical / "runs/benchmark.json").write_text(json.dumps({
+                "case_count": 0, "cases": [],
+            }))
+            manifest = {
+                "configuration": {"profile": {"name": "alias", "baseline": "control"}},
+                "status": "completed", "returncode": 0,
+            }
+            experiment_report.write(
+                alias, manifest, {"matched_pairs": 0, "expected_pairs": 0}, None
+            )
+            parser = ReportParser()
+            parser.feed((physical / "report.html").read_text(encoding="utf-8"))
+            self.assertEqual(parser.links, ["runs/benchmark.json"])
+
     def test_moved_bundle_has_local_links_and_escapes_recorded_content(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
