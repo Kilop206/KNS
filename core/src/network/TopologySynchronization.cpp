@@ -4,8 +4,33 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <string>
 
 namespace kns {
+
+namespace {
+
+bool canReuseLink(const Link& live, const Link& incoming, int from, int to)
+{
+    const bool forward = live.getA() == from && live.getB() == to;
+    const bool reverse = live.getA() == to && live.getB() == from;
+    // A simplex link carries traffic in one direction. Reusing it backwards
+    // would keep the old direction even after the snapshot changes.
+    const bool same_endpoints = forward || (incoming.getMode() != LinkMode::SIMPLEX && reverse);
+    return same_endpoints && live.getMode() == incoming.getMode() &&
+        live.getQueueCapacity() == incoming.getQueueCapacity();
+}
+
+bool sameRedConfiguration(const Link& live, const Link& incoming)
+{
+    return live.getQueueDiscipline() == Link::QueueDiscipline::RED &&
+        live.getRedMinThreshold() == incoming.getRedMinThreshold() &&
+        live.getRedMaxThreshold() == incoming.getRedMaxThreshold() &&
+        live.getRedMaxDropProbability() == incoming.getRedMaxDropProbability() &&
+        live.getRedQueueWeight() == incoming.getRedQueueWeight();
+}
+
+} // namespace
 
 bool Topology::synchronizeFrom(const Topology& snapshot)
 {
@@ -40,7 +65,10 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
     }
     // Bound accumulated tombstones as well as a single snapshot. No mutation has
     // happened if this limit is reached; loading afresh starts a new ID space.
-    if (next_id > 4096) throw std::invalid_argument("Live topology reached 4096 node slots; reload to start a new simulation");
+    if (next_id > MAX_NODES) {
+        throw std::invalid_argument("Live topology reached " + std::to_string(MAX_NODES) +
+            " node slots; reload to start a new simulation");
+    }
 
     struct PlannedLink {
         LinkPtr incoming;
@@ -56,11 +84,8 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
         if (from < 0 || to < 0) throw std::invalid_argument("Snapshot links to an inactive node");
         LinkPtr match;
         for (const auto& existing : links_) {
-            const bool endpoints = (existing->getA() == from && existing->getB() == to) ||
-                (incoming->getMode() != LinkMode::SIMPLEX && existing->getA() == to && existing->getB() == from);
-            if (endpoints && existing->getMode() == incoming->getMode() &&
-                existing->getQueueCapacity() == incoming->getQueueCapacity() &&
-                !retained_links.contains(existing->getId())) {
+            if (!retained_links.contains(existing->getId()) &&
+                canReuseLink(*existing, *incoming, from, to)) {
                 match = existing;
                 retained_links.insert(existing->getId());
                 break;
@@ -125,11 +150,9 @@ bool Topology::synchronizeFrom(const Topology& snapshot)
             }
         }
         if (incoming->getQueueDiscipline() == Link::QueueDiscipline::RED) {
-            if (link->getQueueDiscipline() != Link::QueueDiscipline::RED ||
-                link->getRedMinThreshold() != incoming->getRedMinThreshold() ||
-                link->getRedMaxThreshold() != incoming->getRedMaxThreshold() ||
-                link->getRedMaxDropProbability() != incoming->getRedMaxDropProbability() ||
-                link->getRedQueueWeight() != incoming->getRedQueueWeight()) {
+            // Reconfiguring RED resets its queue history. Keep the history
+            // across polls that only change other topology fields.
+            if (!sameRedConfiguration(*link, *incoming)) {
                 link->configureRed(static_cast<int>(incoming->getRedMinThreshold()),
                     static_cast<int>(incoming->getRedMaxThreshold()), incoming->getRedMaxDropProbability(),
                     incoming->getRedQueueWeight());
