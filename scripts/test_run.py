@@ -61,6 +61,43 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(stats["queue_overflow_drops"], 0)
         self.assertEqual(stats["red_early_drops"], 0)
 
+    def test_cached_metrics_reconcile_with_csv_and_reject_changed_values(self):
+        self.write()
+        root = self.path.parent
+        (root / "runs").mkdir()
+        path = root / "runs/stats.csv"
+        self.path.rename(path)
+        case = {
+            "case_id": "sample", "status": "success", "csv": str(path),
+            "seed": 42, "packets_sent": 10, "packets_delivered": 8, "packets_lost": 2,
+            "delivery_rate": 0.8, "loss_rate": 0.2, "throughput_pps": 4,
+            "simulation_duration_s": 2, "avg_latency_s": 0.5,
+            "queue_overflow_drops": 1, "red_early_drops": 1,
+            "artifact_sha256": {"csv": runner.sha256_file(path)},
+        }
+        self.assertEqual(benchmark_suite.verify_recorded_metrics(root, [case]), {
+            "verified_cases": 1, "unavailable_cases": 0,
+        })
+        for field, value in (
+            ("seed", 43), ("packets_sent", 11), ("throughput_pps", 5),
+            ("avg_latency_s", 0.6), ("queue_overflow_drops", True),
+            ("delivery_rate", None), ("red_early_drops", -1),
+        ):
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, field):
+                benchmark_suite.verify_recorded_metrics(root, [{**case, field: value}])
+        legacy = {key: value for key, value in case.items() if key != "artifact_sha256"}
+        legacy.pop("red_early_drops")
+        legacy["queue_overflow_drops"] = None
+        self.assertEqual(benchmark_suite.verify_recorded_metrics(root, [legacy]), {
+            "verified_cases": 1, "unavailable_cases": 0,
+        })
+        path.unlink()
+        self.assertEqual(benchmark_suite.verify_recorded_metrics(root, [legacy]), {
+            "verified_cases": 0, "unavailable_cases": 1,
+        })
+        with self.assertRaisesRegex(ValueError, "missing its statistics CSV"):
+            benchmark_suite.verify_recorded_metrics(root, [case])
+
     def test_empty_run(self):
         self.row.update(
             packets_sent=0, packets_delivered=0, packets_lost=0, simulation_duration_s=0
@@ -363,15 +400,18 @@ class ProcessTests(unittest.TestCase):
             "packets_in_transit,total_sessions,data_packets_delivered,queue_overflow_drops,"
             "red_early_drops,schema_version,simulation_duration_s,seed\n10,8,2,0,0,0,1,4,1,1,1,2,42\n"
         )
-        for allow, code, output_csv, expected, status in (
-            (True, 2, True, 0, "transport_failure"),
-            (False, 2, True, 1, "transport_failure"),
-            (True, 1, True, 1, "process_error"),
-            (True, 2, False, 1, "stats_error"),
+        for allow, code, output_csv, seed, expected, status in (
+            (True, 2, True, 42, 0, "transport_failure"),
+            (False, 2, True, 42, 1, "transport_failure"),
+            (True, 1, True, 42, 1, "process_error"),
+            (True, 2, False, 42, 1, "stats_error"),
+            (True, 0, True, 43, 1, "stats_error"),
+            (True, 2, True, 43, 1, "stats_error"),
         ):
             with self.subTest(allow=allow, code=code, output_csv=output_csv):
                 suite["allow_transport_failures"] = allow
-                output = self.root / f"{allow}-{code}-{output_csv}"
+                suite["seeds"] = [seed]
+                output = self.root / f"{allow}-{code}-{output_csv}-{seed}"
 
                 def command(exe, topo, csv_path, *args):
                     script = (
@@ -394,6 +434,8 @@ class ProcessTests(unittest.TestCase):
                 report = json.loads((output / "benchmark.json").read_text())
                 self.assertEqual(report["failed_cases"], 1)
                 self.assertEqual(report["cases"][0]["status"], status)
+                if seed == 43:
+                    self.assertIn("Statistics seed differs", report["cases"][0]["error"])
                 if status == "transport_failure":
                     self.assertEqual(report["cases"][0]["packets_lost"], 2)
                     self.assertEqual(report["cases"][0]["red_early_drops"], 1)

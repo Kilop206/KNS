@@ -32,6 +32,14 @@
         "verified_artifacts": {"type": "integer", "minimum": 0, "maximum": 50000}
       }
     },
+    "metric_consistency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["verified_cases", "unavailable_cases"],
+      "properties": {
+        "verified_cases": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "unavailable_cases": {"type": "integer", "minimum": 0, "maximum": 10000}
+      }
+    },
     "report": {"const": "report.html"},
     "validation": {"enum": ["validation/summary.json", null]}
   },

@@ -283,6 +283,18 @@ without `artifact_sha256` retain their existing analysis behavior and appear as
 legacy cases. Digests identify file bytes relative to the recorded benchmark
 metadata.
 
+Analysis also reconciles cached benchmark values with the engine CSV using the
+runner's existing parser and metric calculations. This covers seed, packet/drop
+counters, delivery/loss ratios, latency, throughput and virtual duration. A
+disagreement is an input error detected before output creation. Live benchmark
+execution rejects a statistics CSV whose seed differs from the configured case.
+
+The analysis provenance records `metric_consistency` with counts of reconciled
+cases and cases with unavailable statistics. Legacy bundles can retain absent
+or null cached fields, and cases without a recorded CSV appear as unavailable.
+Cases declaring artifact hashes require a statistics CSV after successful
+execution. The overview shows this coverage alongside file-integrity coverage.
+
 The original bundle is preserved. Overview links to its raw evidence are relative
 to the new analysis directory. Keep both directories in the same relative layout
 when sharing them. Exit codes are 0 when the recorded execution and current

@@ -58,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
         ):
             raise ValueError("Benchmark must contain every case in the profile matrix")
         integrity = manifests.verify_case_artifacts(source, benchmark["cases"])
+        metric_consistency = benchmark_suite.verify_recorded_metrics(
+            source, benchmark["cases"]
+        )
         accepted = {"success"}
         if profile["allow_transport_failures"]:
             accepted.add("transport_failure")
@@ -100,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
             "validation_rules_sha256": validation["rules_sha256"] if validation else None,
             "validation_rules_source_sha256": rules_source_hash,
             "evidence_integrity": integrity,
+            "metric_consistency": metric_consistency,
         }
         experiment_profile.write_json(output / "analysis.json", analysis)
         experiment_report.write(output, manifest, comparison, validation, source)

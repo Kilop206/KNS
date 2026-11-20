@@ -450,6 +450,48 @@ def write_markdown_report(
     (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def verify_recorded_metrics(directory: Path, cases: list[dict]) -> dict:
+    """Reconcile cached benchmark metrics with their recorded engine CSV."""
+    coverage = {"verified_cases": 0, "unavailable_cases": 0}
+    for case in cases:
+        if case["status"] not in {"success", "transport_failure"}:
+            coverage["unavailable_cases"] += 1
+            continue
+        csv = (
+            experiment_manifest.case_artifact(directory, case["csv"])
+            if case.get("csv") else None
+        )
+        has_artifact_hashes = "artifact_sha256" in case
+        if csv is None or not csv.is_file():
+            if has_artifact_hashes:
+                raise ValueError(f'Case {case["case_id"]} is missing its statistics CSV')
+            coverage["unavailable_cases"] += 1
+            continue
+        stats = runner.parse_stats(csv)
+        derived = runner.compute_stats(stats, 0.0)
+        expected = {
+            field: derived[field]
+            for field in (
+                "seed", "packets_sent", "packets_delivered", "packets_lost",
+                "delivery_rate", "loss_rate", "throughput_pps", "simulation_duration_s",
+            )
+        }
+        expected.update(
+            avg_latency_s=derived["latency_mean_s"],
+            queue_overflow_drops=stats.get("queue_overflow_drops"),
+            red_early_drops=stats.get("red_early_drops"),
+        )
+        for field, value in expected.items():
+            if not has_artifact_hashes and case.get(field) is None:
+                continue
+            if field not in case or type(case[field]) is bool or case[field] != value:
+                raise ValueError(
+                    f'Benchmark metric differs from CSV for case {case["case_id"]} ({field})'
+                )
+        coverage["verified_cases"] += 1
+    return coverage
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a versioned KNS benchmark suite")
     parser.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
@@ -560,6 +602,8 @@ def main(argv: list[str] | None = None) -> int:
         if returncode in (0, 2):
             try:
                 stats = runner.parse_stats(csv_path)
+                if stats["seed"] != case["seed"]:
+                    raise ValueError("Statistics seed differs from the configured case")
                 if case.get("fault_plan"):
                     plan = json.loads(
                         (ROOT / case["fault_plan"]).read_text(encoding="utf-8")

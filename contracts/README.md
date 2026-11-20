@@ -71,6 +71,10 @@ benchmark cases include `artifact_sha256` maps for their recorded evidence.
 The analyzer checks these maps before creating reports and includes the coverage
 in its overview.
 
+Optional `metric_consistency` counts cases whose cached benchmark metrics were
+reconciled with the CSV and cases with unavailable statistics. Reconciliation
+uses the runner's aggregate CSV parser and derived-metric definitions.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

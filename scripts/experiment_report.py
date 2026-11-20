@@ -114,12 +114,19 @@ def write(
                 f'across {text(integrity["hashed_cases"])} cases. '
                 f'{text(integrity["legacy_cases"])} cases have no recorded artifact hashes.</p>'
             )
+        metric_notice = ""
+        if analysis.get("metric_consistency") is not None:
+            metrics = analysis["metric_consistency"]
+            metric_notice = (
+                f'<p>CSV metrics reconciled for {text(metrics["verified_cases"])} cases. '
+                f'{text(metrics["unavailable_cases"])} cases have unavailable statistics.</p>'
+            )
         analysis_section = (
             '<section><h2>Saved-result analysis</h2>'
             f'<p>Analysis {text(analysis["status"])} · Exit code {text(analysis["returncode"])}. '
             f'{link("analysis.json", "Analysis provenance JSON")}</p>'
             '<p>The execution status below comes from the original manifest.</p>'
-            f'{rules_notice}{integrity_notice}</section>'
+            f'{rules_notice}{integrity_notice}{metric_notice}</section>'
         )
     provenance = "".join(
         f"<dt>{text(label)}</dt><dd><code>{text(manifest.get(key))}</code></dd>"

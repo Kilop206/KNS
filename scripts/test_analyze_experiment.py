@@ -1,4 +1,5 @@
 import io
+import copy
 import json
 import os
 import tempfile
@@ -73,6 +74,9 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             self.assertEqual(analysis["evidence_integrity"], {
                 "hashed_cases": 4, "legacy_cases": 0, "verified_artifacts": 16,
             })
+            self.assertEqual(analysis["metric_consistency"], {
+                "verified_cases": 4, "unavailable_cases": 0,
+            })
             self.assertEqual(analysis["source_manifest_sha256"], before[Path("manifest.json")])
             self.assertEqual(analysis["source_benchmark_sha256"], before[Path("runs/benchmark.json")])
             summary = json.loads((output / "validation/summary.json").read_text())
@@ -134,6 +138,27 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 analysis, json.loads((output / "analysis.json").read_text())
             )
             benchmark = json.loads(benchmark_path.read_text())
+            original_benchmark = benchmark_path.read_bytes()
+            for field in ("delivery_rate", "packets_sent", "seed"):
+                changed = copy.deepcopy(benchmark)
+                if field == "seed":
+                    changed["cases"][0]["seed"], changed["cases"][1]["seed"] = (
+                        changed["cases"][1]["seed"], changed["cases"][0]["seed"]
+                    )
+                else:
+                    changed["cases"][0][field] += 1
+                experiment_profile.write_json(benchmark_path, changed)
+                rejected = root / "changed metadata"
+                try:
+                    with redirect_stderr(io.StringIO()) as errors:
+                        self.assertEqual(analyze_experiment.main([
+                            str(moved), "--output", str(rejected),
+                        ]), 1)
+                    self.assertIn("Benchmark metric differs from CSV", errors.getvalue())
+                    self.assertIn(f"({field})", errors.getvalue())
+                    self.assertFalse(rejected.exists())
+                finally:
+                    benchmark_path.write_bytes(original_benchmark)
             for field in benchmark["cases"][0]["artifact_sha256"]:
                 artifact = manifests.case_artifact(moved, benchmark["cases"][0][field])
                 original = artifact.read_bytes()
