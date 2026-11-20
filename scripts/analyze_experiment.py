@@ -61,6 +61,9 @@ def main(argv: list[str] | None = None) -> int:
         metric_consistency = benchmark_suite.verify_recorded_metrics(
             source, benchmark["cases"]
         )
+        auxiliary_reports = experiment_profile.verify_auxiliary_reports(
+            source, profile, benchmark
+        )
         accepted = {"success"}
         if profile["allow_transport_failures"]:
             accepted.add("transport_failure")
@@ -104,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
             "validation_rules_source_sha256": rules_source_hash,
             "evidence_integrity": integrity,
             "metric_consistency": metric_consistency,
+            "auxiliary_reports": auxiliary_reports,
         }
         experiment_profile.write_json(output / "analysis.json", analysis)
         experiment_report.write(output, manifest, comparison, validation, source)

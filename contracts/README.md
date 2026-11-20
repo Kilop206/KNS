@@ -75,6 +75,11 @@ Optional `metric_consistency` counts cases whose cached benchmark metrics were
 reconciled with the CSV and cases with unavailable statistics. Reconciliation
 uses the runner's aggregate CSV parser and derived-metric definitions.
 
+Optional `auxiliary_reports` counts validated Analytics and Fault Lab reports
+and cases with unavailable execution evidence. Their content is checked against
+the configuration embedded in the source profile using the native runner's
+semantic validators.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

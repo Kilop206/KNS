@@ -315,6 +315,44 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
     return suite_path
 
 
+def verify_auxiliary_reports(source: Path, profile: dict, benchmark: dict) -> dict:
+    variants = dict(zip(benchmark["suite"]["topologies"], profile["experiments"]))
+    coverage = {"analytics_reports": 0, "fault_reports": 0, "unavailable_cases": 0}
+    for case in benchmark["cases"]:
+        if case["status"] not in {"success", "transport_failure"}:
+            coverage["unavailable_cases"] += 1
+            continue
+        experiment = variants[case["topology"]]
+        for field, config, validator, counter in (
+            (
+                "analytics_report", profile.get("analytics"),
+                analytics_config.validate_report, "analytics_reports",
+            ),
+            (
+                "fault_report", experiment.get("fault_plan"),
+                fault_plan.validate_report, "fault_reports",
+            ),
+        ):
+            path = case.get(field)
+            if config is None:
+                if path is not None:
+                    raise ValueError(f'Unexpected {field} for case {case["case_id"]}')
+                continue
+            if path is None:
+                raise ValueError(f'Missing {field} for case {case["case_id"]}')
+            report, _ = validate_result.read_json(
+                manifests.case_artifact(source, path), 64 * 1024 * 1024
+            )
+            try:
+                validator(report, config)
+            except (ValueError, KeyError, TypeError, OverflowError) as exc:
+                raise ValueError(
+                    f'Invalid {field} for case {case["case_id"]} ({exc})'
+                ) from exc
+            coverage[counter] += 1
+    return coverage
+
+
 def validate_cases(
     source: Path, profile: dict, validator_sha256: str, output: Path | None = None
 ) -> dict:

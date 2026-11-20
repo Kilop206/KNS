@@ -77,6 +77,9 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             self.assertEqual(analysis["metric_consistency"], {
                 "verified_cases": 4, "unavailable_cases": 0,
             })
+            self.assertEqual(analysis["auxiliary_reports"], {
+                "analytics_reports": 4, "fault_reports": 0, "unavailable_cases": 0,
+            })
             self.assertEqual(analysis["source_manifest_sha256"], before[Path("manifest.json")])
             self.assertEqual(analysis["source_benchmark_sha256"], before[Path("runs/benchmark.json")])
             summary = json.loads((output / "validation/summary.json").read_text())
@@ -188,6 +191,42 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 json.loads((legacy / "analysis.json").read_text())["evidence_integrity"],
                 {"hashed_cases": 0, "legacy_cases": 4, "verified_artifacts": 0},
             )
+            analytics_path = manifests.case_artifact(
+                moved, benchmark["cases"][0]["analytics_report"]
+            )
+            original_analytics = analytics_path.read_bytes()
+            analytics = json.loads(original_analytics)
+            analytics["pending_events"] = 1
+            experiment_profile.write_json(analytics_path, analytics)
+            invalid_analytics = root / "invalid analytics"
+            try:
+                with redirect_stderr(io.StringIO()) as errors:
+                    self.assertEqual(analyze_experiment.main([
+                        str(moved), "--output", str(invalid_analytics),
+                    ]), 1)
+                self.assertIn("Invalid analytics_report", errors.getvalue())
+                self.assertFalse(invalid_analytics.exists())
+            finally:
+                analytics_path.write_bytes(original_analytics)
+
+            original_benchmark = benchmark_path.read_bytes()
+            for field, value, message in (
+                ("analytics_report", None, "Missing analytics_report"),
+                ("fault_report", benchmark["cases"][0]["analytics_report"], "Unexpected fault_report"),
+            ):
+                changed = copy.deepcopy(benchmark)
+                changed["cases"][0][field] = value
+                experiment_profile.write_json(benchmark_path, changed)
+                rejected = root / "invalid report declaration"
+                try:
+                    with redirect_stderr(io.StringIO()) as errors:
+                        self.assertEqual(analyze_experiment.main([
+                            str(moved), "--output", str(rejected),
+                        ]), 1)
+                    self.assertIn(message, errors.getvalue())
+                    self.assertFalse(rejected.exists())
+                finally:
+                    benchmark_path.write_bytes(original_benchmark)
             benchmark = json.loads((moved / "runs/benchmark.json").read_text())
             report_path = manifests.case_artifact(
                 moved, benchmark["cases"][0]["traffic_report"]
@@ -227,6 +266,69 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                     str(moved), "--output", str(incomplete_output)
                 ]), 1)
             self.assertFalse(incomplete_output.exists())
+
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for engine integration")
+    def test_fault_and_analytics_reports_are_checked_against_embedded_plans(self):
+        with tempfile.TemporaryDirectory(prefix="KNS auxiliary reports ") as directory:
+            root = Path(directory)
+            profile = json.loads(
+                (experiment_profile.ROOT / "KNS Experiments/fault-lab.json").read_text()
+            )
+            profile["seeds"] = [42]
+            profile["experiments"] = profile["experiments"][:2]
+            profile["allow_transport_failures"] = True
+            profile["analytics"] = {
+                "schema_version": "1.0", "until_s": 0.2, "interval_s": 0.05,
+                "max_samples": 10, "max_groups": 16,
+            }
+            profile_path = root / "profile.json"
+            experiment_profile.write_json(profile_path, profile)
+            source = root / "original"
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(experiment_profile.main([
+                    "--profile", str(profile_path), "--output", str(source),
+                    "--exe", os.environ["KNS_TEST_EXE"],
+                ]), 0)
+            moved = root / "moved"
+            source.rename(moved)
+            output = root / "analysis"
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(output),
+                ]), 0)
+            analysis = json.loads((output / "analysis.json").read_text())
+            self.assertEqual(analysis["auxiliary_reports"], {
+                "analytics_reports": 2, "fault_reports": 2, "unavailable_cases": 0,
+            })
+            benchmark_path = moved / "runs/benchmark.json"
+            benchmark = json.loads(benchmark_path.read_text())
+            case = benchmark["cases"][1]
+            fault_path = manifests.case_artifact(moved, case["fault_report"])
+            fault = json.loads(fault_path.read_text())
+            fault["changes"] = []
+            experiment_profile.write_json(fault_path, fault)
+            # Exercise semantic validation with bytes matching the recorded digest.
+            case["artifact_sha256"]["fault_report"] = manifests.file_hash(fault_path)
+            experiment_profile.write_json(benchmark_path, benchmark)
+            rejected = root / "invalid events"
+            with redirect_stderr(io.StringIO()) as errors:
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(rejected),
+                ]), 1)
+            self.assertIn("Invalid fault_report", errors.getvalue())
+            self.assertIn("missing applied events", errors.getvalue())
+            self.assertFalse(rejected.exists())
+            case.update(status="stats_error", returncode=1, error="Incomplete execution")
+            experiment_profile.write_json(benchmark_path, benchmark)
+            failed_output = root / "failed execution"
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(failed_output),
+                ]), 1)
+            failed = json.loads((failed_output / "analysis.json").read_text())
+            self.assertEqual(failed["auxiliary_reports"], {
+                "analytics_reports": 1, "fault_reports": 1, "unavailable_cases": 1,
+            })
 
 
 if __name__ == "__main__":

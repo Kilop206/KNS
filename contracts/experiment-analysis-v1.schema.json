@@ -40,6 +40,15 @@
         "unavailable_cases": {"type": "integer", "minimum": 0, "maximum": 10000}
       }
     },
+    "auxiliary_reports": {
+      "type": "object", "additionalProperties": false,
+      "required": ["analytics_reports", "fault_reports", "unavailable_cases"],
+      "properties": {
+        "analytics_reports": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "fault_reports": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "unavailable_cases": {"type": "integer", "minimum": 0, "maximum": 10000}
+      }
+    },
     "report": {"const": "report.html"},
     "validation": {"enum": ["validation/summary.json", null]}
   },

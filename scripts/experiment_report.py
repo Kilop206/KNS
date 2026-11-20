@@ -121,12 +121,20 @@ def write(
                 f'<p>CSV metrics reconciled for {text(metrics["verified_cases"])} cases. '
                 f'{text(metrics["unavailable_cases"])} cases have unavailable statistics.</p>'
             )
+        auxiliary_notice = ""
+        if analysis.get("auxiliary_reports") is not None:
+            auxiliary = analysis["auxiliary_reports"]
+            auxiliary_notice = (
+                f'<p>Validated {text(auxiliary["analytics_reports"])} Analytics reports '
+                f'and {text(auxiliary["fault_reports"])} Fault Lab reports. '
+                f'{text(auxiliary["unavailable_cases"])} cases have unavailable execution evidence.</p>'
+            )
         analysis_section = (
             '<section><h2>Saved-result analysis</h2>'
             f'<p>Analysis {text(analysis["status"])} · Exit code {text(analysis["returncode"])}. '
             f'{link("analysis.json", "Analysis provenance JSON")}</p>'
             '<p>The execution status below comes from the original manifest.</p>'
-            f'{rules_notice}{integrity_notice}{metric_notice}</section>'
+            f'{rules_notice}{integrity_notice}{metric_notice}{auxiliary_notice}</section>'
         )
     provenance = "".join(
         f"<dt>{text(label)}</dt><dd><code>{text(manifest.get(key))}</code></dd>"

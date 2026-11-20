@@ -295,6 +295,19 @@ or null cached fields, and cases without a recorded CSV appear as unavailable.
 Cases declaring artifact hashes require a statistics CSV after successful
 execution. The overview shows this coverage alongside file-integrity coverage.
 
+Analytics and Fault Lab JSON reports are also checked against the configuration
+embedded in the saved profile. Analysis reuses the live runner's validators for
+observation completeness, statistical consistency and applied fault events.
+Missing required reports, unexpected report declarations and inconsistent
+content are input errors detected before report-directory creation. These
+checks also apply to legacy bundles. Auxiliary JSON inputs use the existing
+64 MiB report limit.
+
+`analysis.json` records `auxiliary_reports` with separate counts of validated
+Analytics and Fault Lab reports and cases with unavailable execution evidence.
+The overview displays those counts. Cases whose execution failed retain their
+failure status and diagnostic evidence.
+
 The original bundle is preserved. Overview links to its raw evidence are relative
 to the new analysis directory. Keep both directories in the same relative layout
 when sharing them. Exit codes are 0 when the recorded execution and current
