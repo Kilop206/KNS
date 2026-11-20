@@ -1,4 +1,6 @@
 import tempfile
+import json
+import hashlib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -7,6 +9,38 @@ import experiment_manifest as manifests
 
 
 class ManifestProvenanceTests(unittest.TestCase):
+    def test_manifest_rejects_ambiguous_fields_and_nonfinite_metadata(self):
+        configuration = {"profile": {}, "topology": {}, "timeout_seconds": 1}
+        manifest = {
+            "schema_version": "1.0", "run_id": "5e2fca50-0ee3-4afd-9d74-b9cfc9184f96",
+            "configuration": configuration, "configuration_sha256": manifests.config_hash(configuration),
+            "executable_sha256": None,
+        }
+        encoded = json.dumps(manifest)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"
+            path.write_text(encoded)
+            self.assertEqual(manifests.load(path), manifest)
+            for prefix in (
+                '"status":"prepared","status":"failed",',
+                '"metadata":NaN,', '"metadata":Infinity,', '"metadata":1e9999,',
+            ):
+                path.write_text("{" + prefix + encoded[1:])
+                with self.subTest(prefix=prefix), self.assertRaises(ValueError):
+                    manifests.load(path)
+
+    def test_json_reader_counts_actual_bytes_and_hashes_the_accepted_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            payload = b'{}' + b' ' * 30
+            path.write_bytes(payload)
+            value, digest = manifests.read_json(path, 32)
+            self.assertEqual(value, {})
+            self.assertEqual(digest, hashlib.sha256(payload).hexdigest())
+            path.write_bytes(payload + b' ')
+            with self.assertRaisesRegex(ValueError, "input size limit"):
+                manifests.read_json(path, 32)
+
     def test_artifact_integrity_rejects_incomplete_maps_invalid_hashes_and_missing_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

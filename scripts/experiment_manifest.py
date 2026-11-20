@@ -15,6 +15,38 @@ from pathlib import Path, PureWindowsPath
 CASE_ARTIFACT_FIELDS = ("csv", "log", "traffic_report", "analytics_report", "fault_report")
 
 
+def read_json(path: Path, limit: int) -> tuple[object, str]:
+    """Read and identify bounded JSON without silently discarding duplicate fields."""
+    with path.open("rb") as source:
+        data = source.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError(f"{path.name} exceeds the input size limit")
+
+    def reject(value):
+        raise ValueError("Non-finite JSON numbers are unsupported: " + value)
+
+    def finite_float(value):
+        number = float(value)
+        if not math.isfinite(number):
+            reject(value)
+        return number
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate JSON fields are unsupported")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(data.decode("utf-8"), parse_constant=reject,
+                           parse_float=finite_float, object_pairs_hook=unique_object)
+    except RecursionError as exc:
+        raise ValueError("JSON nesting exceeds the parser limit") from exc
+    return value, hashlib.sha256(data).hexdigest()
+
+
 def config_hash(configuration: dict) -> str:
     encoded = json.dumps(
         configuration,
@@ -195,9 +227,7 @@ def create(
 
 
 def load(path: Path) -> dict:
-    if path.stat().st_size > 16 * 1024 * 1024:
-        raise ValueError("Manifest exceeds 16 MiB")
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value, _ = read_json(path, 16 * 1024 * 1024)
     if not isinstance(value, dict) or value.get("schema_version") != "1.0":
         raise ValueError("Unsupported experiment manifest schema_version")
     configuration = value.get("configuration")

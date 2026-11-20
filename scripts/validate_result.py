@@ -58,25 +58,7 @@ BASELINE_THRESHOLDS = RULE_THRESHOLDS["1.2"] - {"value"}
 
 
 def read_json(path, limit):
-    with path.open("rb") as source:
-        data = source.read(limit + 1)
-    if len(data) > limit:
-        raise ValueError(f"{path.name} exceeds the input size limit")
-
-    def reject(value):
-        raise ValueError("Non-finite JSON numbers are unsupported: " + value)
-
-    def unique_object(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError("Duplicate JSON fields are unsupported")
-            result[key] = value
-        return result
-
-    return json.loads(
-        data.decode("utf-8"), parse_constant=reject, object_pairs_hook=unique_object
-    ), hashlib.sha256(data).hexdigest()
+    return experiment_manifest.read_json(path, limit)
 
 
 def read_report(path):

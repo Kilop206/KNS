@@ -92,6 +92,10 @@ must be empty or omitted. For each of nodes and links, consumers additionally
 check that added, removed and changed identities are disjoint. The schema covers
 the initial-observation rule; cross-list checks belong to consumer validation.
 
+Saved experiment manifests are read within a 16 MiB byte budget. The shared
+artifact reader rejects duplicate JSON fields and non-finite numbers, including
+overflowing exponents, before replay or validation can interpret the input.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;
