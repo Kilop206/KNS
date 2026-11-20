@@ -13,6 +13,7 @@ import sys
 from pathlib import Path, PureWindowsPath
 
 import comparison_html
+import comparison_artifacts
 import comparison_statistics as paired_stats
 import experiment_manifest
 import traffic_config
@@ -437,10 +438,7 @@ def compare_artifacts(
     directory: Path, baseline: str | None = None, output: Path | None = None
 ) -> dict:
     # Use recorded inputs only: analysis also works after moving an artifact folder.
-    profile = json.loads((directory / "profile.json").read_text(encoding="utf-8"))
-    benchmark = json.loads(
-        (directory / "runs" / "benchmark.json").read_text(encoding="utf-8")
-    )
+    profile, benchmark = comparison_artifacts.read(directory)
     try:
         comparison = build_comparison(profile, benchmark, baseline)
     except (KeyError, TypeError, OverflowError) as exc:
@@ -489,8 +487,6 @@ def main(argv: list[str] | None = None) -> int:
         if args.against:
             if output is None:
                 raise ValueError("--against requires a new --output directory")
-            import comparison_artifacts
-
             comparison = comparison_artifacts.build(
                 directory,
                 args.against.resolve(),
@@ -505,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.candidate or args.reference_routing or args.candidate_routing:
                 raise ValueError("Candidate/routing selection requires --against")
             comparison = compare_artifacts(directory, args.baseline, output)
-    except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, OverflowError, RecursionError) as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
     print(

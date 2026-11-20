@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import math
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -274,6 +275,39 @@ class ComparisonTests(unittest.TestCase):
             self.assertIn("experiment minus baseline", markdown)
             self.assertTrue((directory / "comparison.html").is_file())
             self.assertTrue((directory / "comparison-summary.csv").is_file())
+
+    def test_offline_inputs_reject_ambiguous_and_oversized_json_before_output(self):
+        profile = json.dumps(self.profile)
+        benchmark = json.dumps(self.benchmark)
+        depth = sys.getrecursionlimit() + 100
+        invalid_inputs = [
+            ("profile.json", "null"),
+            ("runs/benchmark.json", "[]"),
+            ("profile.json", '{"name":"ignored",' + profile[1:]),
+            ("runs/benchmark.json", '{"cases":[],' + benchmark[1:]),
+            ("runs/benchmark.json", '{"extra":NaN,' + benchmark[1:]),
+            ("profile.json", " " * (1024 * 1024) + profile),
+            ("profile.json", '{"nested":' + "[" * depth + "0" + "]" * depth + '}'),
+        ]
+        for against in (False, True):
+            for relative, payload in invalid_inputs:
+                with self.subTest(against=against, path=relative), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    for name in ("left", "right"):
+                        bundle = root / name
+                        (bundle / "runs").mkdir(parents=True)
+                        (bundle / "profile.json").write_text(profile)
+                        (bundle / "runs/benchmark.json").write_text(benchmark)
+                    target = root / ("right" if against else "left") / relative
+                    target.write_text(payload)
+                    output = root / "reports"
+                    arguments = [str(root / "left"), "--output", str(output)]
+                    if against:
+                        arguments += ["--against", str(root / "right")]
+                    with redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+                        self.assertEqual(comparison.main(arguments), 1)
+                    self.assertFalse(output.exists())
+                    self.assertEqual(target.read_text(), payload)
 
     def test_html_escapes_artifact_text_and_contains_only_local_visuals(self):
         self.profile["name"] = "<script>alert(1)</script>"

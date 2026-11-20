@@ -360,7 +360,10 @@ python scripts/compare_experiments.py "KNS Experiments/results/development-valid
 
 Analysis reads only `profile.json` and `runs/benchmark.json`; it also supports
 older profile artifacts without an explicit baseline, and moved artifact folders.
-It regenerates the three comparison files and preserves the profile, raw results
+Comparison input is limited to 1 MiB for each profile and 64 MiB for each benchmark.
+Duplicate fields and non-finite JSON numbers are rejected before reports are created,
+including when comparing two separate bundles with `--against`.
+It regenerates comparison reports and preserves the profile, raw results
 and logs. Successful analysis returns zero even if some pairs are unavailable;
 the original profile execution still returns the benchmark batch's failure code.
 

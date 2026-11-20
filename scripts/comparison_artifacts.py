@@ -1,18 +1,18 @@
 """Compare selected variants in independent saved bundles, without running KNS."""
 
 import copy
-import json
 from pathlib import Path
 
 import experiment_manifest
 import traffic_config
+import validate_result
 
 
 def read(directory: Path) -> tuple[dict, dict]:
-    profile = json.loads((directory / "profile.json").read_text(encoding="utf-8"))
-    benchmark = json.loads(
-        (directory / "runs/benchmark.json").read_text(encoding="utf-8")
-    )
+    profile, _ = validate_result.read_json(directory / "profile.json", 1024 * 1024)
+    benchmark, _ = validate_result.read_json(directory / "runs/benchmark.json", 64 * 1024 * 1024)
+    if not isinstance(profile, dict) or not isinstance(benchmark, dict):
+        raise ValueError("Comparison profile and benchmark roots must be JSON objects")
     return profile, benchmark
 
 
