@@ -81,6 +81,9 @@ def main(argv: list[str] | None = None) -> int:
             validation = experiment_profile.validate_cases(
                 source, profile, validator_hash, output
             )
+            auxiliary_reports["traffic_reports"] = (
+                validation["passed_cases"] + validation["failed_cases"]
+            )
             if validation["error_cases"]:
                 result = 1
             elif result == 0 and validation["failed_cases"]:

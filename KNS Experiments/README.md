@@ -303,8 +303,11 @@ content are input errors detected before report-directory creation. These
 checks also apply to legacy bundles. Auxiliary JSON inputs use the existing
 64 MiB report limit.
 
+Traffic Lab reports are validated in profiles with and without embedded
+assertions. Their validated-report count is included in `auxiliary_reports`.
+
 `analysis.json` records `auxiliary_reports` with separate counts of validated
-Analytics and Fault Lab reports and cases with unavailable execution evidence.
+Analytics, Fault Lab and Traffic Lab reports and cases with unavailable execution evidence.
 The overview displays those counts. Cases whose execution failed retain their
 failure status and diagnostic evidence.
 

@@ -124,10 +124,15 @@ def write(
         auxiliary_notice = ""
         if analysis.get("auxiliary_reports") is not None:
             auxiliary = analysis["auxiliary_reports"]
+            traffic_notice = (
+                f'<p>Validated {text(auxiliary["traffic_reports"])} Traffic Lab reports.</p>'
+                if "traffic_reports" in auxiliary else ""
+            )
             auxiliary_notice = (
                 f'<p>Validated {text(auxiliary["analytics_reports"])} Analytics reports '
                 f'and {text(auxiliary["fault_reports"])} Fault Lab reports. '
                 f'{text(auxiliary["unavailable_cases"])} cases have unavailable execution evidence.</p>'
+                f'{traffic_notice}'
             )
         analysis_section = (
             '<section><h2>Saved-result analysis</h2>'

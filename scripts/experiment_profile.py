@@ -317,13 +317,16 @@ def generate(profile: dict, topology: dict, output: Path) -> Path:
 
 def verify_auxiliary_reports(source: Path, profile: dict, benchmark: dict) -> dict:
     variants = dict(zip(benchmark["suite"]["topologies"], profile["experiments"]))
-    coverage = {"analytics_reports": 0, "fault_reports": 0, "unavailable_cases": 0}
+    coverage = {
+        "analytics_reports": 0, "fault_reports": 0,
+        "traffic_reports": 0, "unavailable_cases": 0,
+    }
     for case in benchmark["cases"]:
         if case["status"] not in {"success", "transport_failure"}:
             coverage["unavailable_cases"] += 1
             continue
         experiment = variants[case["topology"]]
-        for field, config, validator, counter in (
+        checks = [
             (
                 "analytics_report", profile.get("analytics"),
                 analytics_config.validate_report, "analytics_reports",
@@ -332,7 +335,15 @@ def verify_auxiliary_reports(source: Path, profile: dict, benchmark: dict) -> di
                 "fault_report", experiment.get("fault_plan"),
                 fault_plan.validate_report, "fault_reports",
             ),
-        ):
+        ]
+        if "validation" not in profile:
+            plan = profile.get("traffic_plan")
+            if plan is not None and "traffic_overrides" in experiment:
+                plan = traffic_config.apply_overrides(plan, experiment["traffic_overrides"])
+            checks.append(
+                ("traffic_report", plan, traffic_config.validate_report, "traffic_reports")
+            )
+        for field, config, validator, counter in checks:
             path = case.get(field)
             if config is None:
                 if path is not None:

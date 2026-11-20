@@ -78,7 +78,8 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 "verified_cases": 4, "unavailable_cases": 0,
             })
             self.assertEqual(analysis["auxiliary_reports"], {
-                "analytics_reports": 4, "fault_reports": 0, "unavailable_cases": 0,
+                "analytics_reports": 4, "fault_reports": 0,
+                "traffic_reports": 4, "unavailable_cases": 0,
             })
             self.assertEqual(analysis["source_manifest_sha256"], before[Path("manifest.json")])
             self.assertEqual(analysis["source_benchmark_sha256"], before[Path("runs/benchmark.json")])
@@ -281,6 +282,8 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 "schema_version": "1.0", "until_s": 0.2, "interval_s": 0.05,
                 "max_samples": 10, "max_groups": 16,
             }
+            lab = experiment_profile.ROOT / "KNS Experiments/traffic-lab"
+            profile["traffic_plan"] = json.loads((lab / "traffic.json").read_text())
             profile_path = root / "profile.json"
             experiment_profile.write_json(profile_path, profile)
             source = root / "original"
@@ -298,7 +301,8 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 ]), 0)
             analysis = json.loads((output / "analysis.json").read_text())
             self.assertEqual(analysis["auxiliary_reports"], {
-                "analytics_reports": 2, "fault_reports": 2, "unavailable_cases": 0,
+                "analytics_reports": 2, "fault_reports": 2,
+                "traffic_reports": 2, "unavailable_cases": 0,
             })
             benchmark_path = moved / "runs/benchmark.json"
             benchmark = json.loads(benchmark_path.read_text())
@@ -318,6 +322,25 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
             self.assertIn("Invalid fault_report", errors.getvalue())
             self.assertIn("missing applied events", errors.getvalue())
             self.assertFalse(rejected.exists())
+            original_fault = json.loads(fault_path.read_text())
+            original_fault["changes"] = [
+                {"at": event["at"], "status": "applied", "event": event}
+                for event in original_fault["plan"]["events"]
+            ]
+            experiment_profile.write_json(fault_path, original_fault)
+            case["artifact_sha256"]["fault_report"] = manifests.file_hash(fault_path)
+            traffic_path = manifests.case_artifact(moved, case["traffic_report"])
+            traffic = json.loads(traffic_path.read_text())
+            traffic["pending_events"] = 1
+            experiment_profile.write_json(traffic_path, traffic)
+            case["artifact_sha256"]["traffic_report"] = manifests.file_hash(traffic_path)
+            experiment_profile.write_json(benchmark_path, benchmark)
+            with redirect_stderr(io.StringIO()) as errors:
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(rejected),
+                ]), 1)
+            self.assertIn("Invalid traffic_report", errors.getvalue())
+            self.assertFalse(rejected.exists())
             case.update(status="stats_error", returncode=1, error="Incomplete execution")
             experiment_profile.write_json(benchmark_path, benchmark)
             failed_output = root / "failed execution"
@@ -327,7 +350,8 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 ]), 1)
             failed = json.loads((failed_output / "analysis.json").read_text())
             self.assertEqual(failed["auxiliary_reports"], {
-                "analytics_reports": 1, "fault_reports": 1, "unavailable_cases": 1,
+                "analytics_reports": 1, "fault_reports": 1,
+                "traffic_reports": 1, "unavailable_cases": 1,
             })
 
 

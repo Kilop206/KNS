@@ -18,6 +18,7 @@
   "auxiliary_reports": {
     "analytics_reports": 4,
     "fault_reports": -1,
-    "unavailable_cases": 0
+    "unavailable_cases": 0,
+    "traffic_reports": 4
   }
 }
