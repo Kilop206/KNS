@@ -190,7 +190,7 @@ dd {{ margin-left: 0; overflow-wrap: anywhere; }}
 <th scope="col">Execution</th><th scope="col">Validation</th><th scope="col">Evidence</th>
 </tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>
 <section><h2>Comparison</h2>
-<p>Reference variant {text(profile["baseline"])}.
+<p>Reference variant {text(comparison.get("baseline", profile["baseline"]))}.
 {text(comparison["matched_pairs"])} of {text(comparison["expected_pairs"])} expected pairs matched.</p>
 <p>{link("comparison.html", "Comparison HTML")} ·
 {link("comparison.json", "Comparison JSON")} · {link("comparison.csv", "Comparison CSV")}</p>

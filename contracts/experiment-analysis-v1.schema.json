@@ -51,6 +51,8 @@
       }
     },
     "report": {"const": "report.html"},
+    "comparison_baseline": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"},
+    "comparison_baseline_overridden": {"type": "boolean"},
     "validation": {"enum": ["validation/summary.json", null]}
   },
   "if": {"properties": {"status": {"const": "error"}}},
@@ -83,6 +85,12 @@
         "validation": {"const": "validation/summary.json"}
       }
     }
+  }, {
+    "if": {
+      "required": ["comparison_baseline_overridden"],
+      "properties": {"comparison_baseline_overridden": {"const": true}}
+    },
+    "then": {"required": ["comparison_baseline"]}
   }],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}

@@ -23,6 +23,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("directory", type=Path, help="Completed experiment bundle")
     parser.add_argument("--output", type=Path, required=True, help="New report directory")
     parser.add_argument(
+        "--baseline", help="Reference variant for comparisons and relative validation rules"
+    )
+    parser.add_argument(
         "--rules",
         type=Path,
         help="Evaluate these validation rules against the saved execution",
@@ -37,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("Analysis requires a finished experiment bundle")
         config = manifest["configuration"]
         effective_profile = copy.deepcopy(config["profile"])
+        if args.baseline is not None:
+            effective_profile["baseline"] = args.baseline
         rules_source_hash = None
         if args.rules:
             rules, rules_source_hash = validate_result.read_json(
@@ -110,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
             "validation_rules_source_sha256": rules_source_hash,
             "evidence_integrity": integrity,
             "metric_consistency": metric_consistency,
+            "comparison_baseline": profile["baseline"],
+            "comparison_baseline_overridden": args.baseline is not None,
             "auxiliary_reports": auxiliary_reports,
         }
         experiment_profile.write_json(output / "analysis.json", analysis)

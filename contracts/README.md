@@ -81,6 +81,11 @@ and cases with unavailable execution evidence. Their content is checked against
 the configuration embedded in the source profile using the native runner's
 semantic validators.
 
+Optional `comparison_baseline` and `comparison_baseline_overridden` record the
+reference selected for an offline analysis. An explicit override requires the
+reference name. The source configuration identity continues to identify the
+saved execution inputs.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

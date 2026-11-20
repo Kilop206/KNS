@@ -247,6 +247,12 @@ available alongside the new analysis outcome. A run that violated its original
 assertions can pass a new set of criteria when all recorded cases executed
 successfully. Invalid rules fail before the report directory is created.
 
+Use `--baseline <variant-name>` to select a different reference for comparisons
+and baseline-relative rules in the new analysis. The variant must exist in the
+saved profile. The source manifest retains its original reference choice.
+`analysis.json` records the applied `comparison_baseline` and whether it was
+explicitly selected. The comparison section displays the applied reference.
+
 The destination must be new. It receives `report.html`, comparison reports,
 per-case validation artifacts when rules are embedded, and `analysis.json`.
 Analysis provenance records the source run ID, configuration identity, source

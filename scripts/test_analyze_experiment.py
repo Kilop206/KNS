@@ -81,6 +81,27 @@ class SavedExperimentAnalysisTests(unittest.TestCase):
                 "analytics_reports": 4, "fault_reports": 0,
                 "traffic_reports": 4, "unavailable_cases": 0,
             })
+            reference_output = root / "different reference"
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(reference_output),
+                    "--baseline", "control",
+                ]), 0)
+            changed_reference = json.loads((reference_output / "analysis.json").read_text())
+            self.assertEqual(changed_reference["comparison_baseline"], "control")
+            self.assertTrue(changed_reference["comparison_baseline_overridden"])
+            self.assertEqual(changed_reference["configuration_sha256"], analysis["configuration_sha256"])
+            self.assertIn(
+                "Reference variant control.",
+                (reference_output / "report.html").read_text(encoding="utf-8"),
+            )
+            invalid_reference = root / "invalid reference"
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(analyze_experiment.main([
+                    str(moved), "--output", str(invalid_reference),
+                    "--baseline", "missing",
+                ]), 1)
+            self.assertFalse(invalid_reference.exists())
             self.assertEqual(analysis["source_manifest_sha256"], before[Path("manifest.json")])
             self.assertEqual(analysis["source_benchmark_sha256"], before[Path("runs/benchmark.json")])
             summary = json.loads((output / "validation/summary.json").read_text())
