@@ -1,0 +1,1 @@
+{"schema_version":"1.0","baseline_available":false,"removed_nodes":["host:test"],"changed_links":["host:a<->host:b"]}

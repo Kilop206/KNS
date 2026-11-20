@@ -86,6 +86,12 @@ reference selected for an offline analysis. An explicit override requires the
 reference name. The source configuration identity continues to identify the
 saved execution inputs.
 
+`discovery-diff-v1` describes an initial observation with
+`baseline_available: false` using additions only. Its removal and change lists
+must be empty or omitted. For each of nodes and links, consumers additionally
+check that added, removed and changed identities are disjoint. The schema covers
+the initial-observation rule; cross-list checks belong to consumer validation.
+
 ## Compatibility policy
 
 - additive optional fields are allowed within a major contract version;

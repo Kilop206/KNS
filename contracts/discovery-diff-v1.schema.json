@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/discovery-diff-v1.schema.json",
   "title": "KNS Discovery Snapshot Diff v1",
+  "description": "An initial observation contains additions only. Consumers also enforce disjoint added, removed and changed identity sets separately for nodes and links.",
   "type": "object",
   "required": [
     "schema_version",
@@ -32,6 +33,15 @@
     },
     "changed_links": {
       "$ref": "#/$defs/identity_list"
+    }
+  },
+  "if": {"properties": {"baseline_available": {"const": false}}},
+  "then": {
+    "properties": {
+      "removed_nodes": {"maxItems": 0},
+      "changed_nodes": {"maxItems": 0},
+      "removed_links": {"maxItems": 0},
+      "changed_links": {"maxItems": 0}
     }
   },
   "$defs": {
