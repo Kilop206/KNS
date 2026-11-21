@@ -28,6 +28,10 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help="Also validate an emitted saved-experiment analysis.json (repeatable)",
     )
+    parser.add_argument(
+        "--operator-plan", type=Path, action="append", default=[],
+        help="Also validate an emitted Network Operator plan (repeatable)",
+    )
     args = parser.parse_args(argv)
     schemas = sorted(CONTRACTS.glob("*.schema.json"))
     if not schemas:
@@ -103,12 +107,24 @@ def main(argv: list[str] | None = None) -> int:
         if errors:
             raise SystemExit(f"{path}: {errors[0].message}")
 
+    plan_validator = Draft202012Validator(
+        documents[CONTRACTS / "operator-plan-v1.schema.json"],
+        registry=registry, format_checker=FormatChecker(),
+    )
+    for path in args.operator_plan:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        errors = list(plan_validator.iter_errors(payload))
+        if errors:
+            raise SystemExit(f"{path}: {errors[0].message}")
+
     print(
         f"Validated {len(schemas)} ecosystem contract schemas, "
         f"{fixture_count} fixtures and {len(examples)} bundled topologies."
     )
     if args.experiment_analysis:
         print(f"Validated {len(args.experiment_analysis)} emitted experiment analyses.")
+    if args.operator_plan:
+        print(f"Validated {len(args.operator_plan)} emitted operator plans.")
     return 0
 
 

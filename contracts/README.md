@@ -17,6 +17,7 @@ KNS and KNS Discovery. Schemas are versioned independently from applications.
 | `simulation.config.schema.json` | KNS headless batch runner | Replay and result tooling |
 | `simulation.result.schema.json` | KNS headless batch runner | Result and experiment tooling |
 | `experiment-analysis-v1.schema.json` | Saved-experiment analyzer | CI and report consumers |
+| `operator-plan-v1.schema.json` | Network Operator CLI | Operation review and validation tooling |
 
 `analysis.context.schema.json` describes KNS deterministic topology analysis.
 Its critical-node/link lists are bounded summaries, so missing entries must not
@@ -95,6 +96,16 @@ the initial-observation rule; cross-list checks belong to consumer validation.
 Saved experiment manifests are read within a 16 MiB byte budget. The shared
 artifact reader rejects duplicate JSON fields and non-finite numbers, including
 overflowing exponents, before replay or validation can interpret the input.
+
+`operator-plan-v1` records an informational plan with target identity, action,
+rendered steps and execution timeout. `mode` is always `plan`; producing or
+validating it does not execute a device operation. The apply flag must agree with
+the action category and every step must match the selected transport. A read-only
+HTTPS action requires GET. Authentication environment values and credential-file
+configuration are not part of the generated device metadata.
+
+Validate emitted plans with `python scripts/validate_contracts.py --operator-plan plan.json`.
+The option is repeatable for a batch of plans.
 
 ## Compatibility policy
 

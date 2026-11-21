@@ -1,0 +1,1 @@
+{"schema_version":"1.0","mode":"plan","action":"show.services","read_only":true,"requires_apply":false,"timeout_seconds":30,"device":{"id":"sensor","kind":"iot","transport":"https","profile":"custom","target":{"base_url":"https://sensor.example.invalid"}},"steps":[{"transport":"https","method":"GET","path":"//foreign.example/api/services"}]}

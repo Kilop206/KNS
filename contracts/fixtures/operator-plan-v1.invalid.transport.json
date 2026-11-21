@@ -1,0 +1,1 @@
+{"schema_version":"1.0","mode":"plan","action":"show.services","read_only":true,"requires_apply":false,"timeout_seconds":15,"device":{"id":"app-server","kind":"server","transport":"ssh","profile":"linux-systemd","target":{"host":"192.0.2.20","username":"operator","port":22}},"steps":[{"transport":"https","method":"GET","path":"/api/services"}]}

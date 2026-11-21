@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/operator-plan-v1.schema.json",
+  "title": "KNS Network Operator Plan v1",
+  "description": "A rendered plan for review. Creating or validating this document does not execute any operation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "action", "read_only", "requires_apply", "timeout_seconds", "device", "steps"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "mode": {"const": "plan"},
+    "action": {"type": "string", "enum": ["show.interfaces", "show.routes", "show.services", "show.requests", "service.add", "service.remove", "service.start", "service.stop", "service.delay", "service.page", "service.unpage", "service.record", "service.unrecord", "http.get", "dns.query", "request.cancel"]},
+    "read_only": {"type": "boolean"},
+    "requires_apply": {"type": "boolean"},
+    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "transport", "profile", "target"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+        "kind": {"enum": ["router", "switch", "server", "iot", "access_point", "printer", "computer", "phone", "unknown"]},
+        "transport": {"enum": ["ssh", "https"]},
+        "profile": {"enum": ["linux-systemd", "openwrt", "custom"]},
+        "target": {"oneOf": [{"$ref": "#/$defs/ssh_target"}, {"$ref": "#/$defs/https_target"}]}
+      }
+    },
+    "steps": {
+      "type": "array", "minItems": 1,
+      "items": {"oneOf": [{"$ref": "#/$defs/ssh_step"}, {"$ref": "#/$defs/https_step"}]}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"enum": ["show.interfaces", "show.routes", "show.services", "show.requests", "http.get", "dns.query"]}}},
+      "then": {"properties": {"read_only": {"const": true}}},
+      "else": {"properties": {"read_only": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"read_only": {"const": true}}},
+      "then": {"properties": {"requires_apply": {"const": false}}},
+      "else": {"properties": {"requires_apply": {"const": true}}}
+    },
+    {
+      "if": {"properties": {"device": {"properties": {"transport": {"const": "ssh"}}}}},
+      "then": {"properties": {
+        "device": {"properties": {"target": {"$ref": "#/$defs/ssh_target"}}},
+        "steps": {"items": {"$ref": "#/$defs/ssh_step"}}
+      }},
+      "else": {"properties": {
+        "device": {"properties": {"profile": {"const": "custom"}, "target": {"$ref": "#/$defs/https_target"}}},
+        "steps": {"items": {"$ref": "#/$defs/https_step"}}
+      }}
+    },
+    {
+      "if": {"properties": {"read_only": {"const": true}, "device": {"properties": {"transport": {"const": "https"}}}}},
+      "then": {"properties": {"steps": {"items": {"properties": {"method": {"const": "GET"}}}}}}
+    }
+  ],
+  "$defs": {
+    "ssh_target": {
+      "type": "object", "additionalProperties": false, "required": ["host", "username", "port"],
+      "properties": {
+        "host": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$"},
+        "username": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+      }
+    },
+    "https_target": {
+      "type": "object", "additionalProperties": false, "required": ["base_url"],
+      "properties": {"base_url": {"type": "string", "pattern": "^https://[^@?#\\r\\n\\u0000]+$"}}
+    },
+    "ssh_step": {
+      "type": "object", "additionalProperties": false, "required": ["transport", "argv"],
+      "properties": {
+        "transport": {"const": "ssh"},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "pattern": "^[^\\r\\n\\u0000]+$"}}
+      }
+    },
+    "https_step": {
+      "type": "object", "additionalProperties": false, "required": ["transport", "method", "path"],
+      "properties": {
+        "transport": {"const": "https"},
+        "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
+        "path": {"type": "string", "pattern": "^/", "not": {"anyOf": [
+          {"pattern": "^//"}, {"pattern": "[\\r\\n\\\\#\\u0000]"},
+          {"pattern": "://"}, {"pattern": "/\\.\\.(?:/|$)"}
+        ]}},
+        "body": {}
+      },
+      "if": {"properties": {"method": {"enum": ["GET", "DELETE"]}}},
+      "then": {"not": {"required": ["body"]}}
+    }
+  }
+}
