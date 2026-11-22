@@ -71,6 +71,7 @@ jobs:
         run: |
           python -m pip install -r scripts/requirements-contracts.txt
           python scripts/validate_contracts.py
+          python -m unittest discover -s scripts -p test_compare_operator_plans.py -v
       - name: Validate emitted experiment analysis
         if: runner.os == 'Linux'
         run: python scripts/validate_contracts.py --experiment-analysis build/traffic-reanalysis/analysis.json
@@ -132,6 +133,7 @@ jobs:
         run: |
           python -m pip install -r scripts/requirements-contracts.txt
           python scripts/validate_contracts.py
+          python -m unittest discover -s scripts -p test_compare_operator_plans.py -v
           python scripts/validate_analysis_context.py --work-dir build-mingw
           python scripts/validate_simulation_result.py --work-dir build-mingw
 

@@ -32,6 +32,10 @@ def main(argv: list[str] | None = None) -> int:
         "--operator-plan", type=Path, action="append", default=[],
         help="Also validate an emitted Network Operator plan (repeatable)",
     )
+    parser.add_argument(
+        "--operator-comparison", type=Path, action="append", default=[],
+        help="Also validate an emitted offline operator plan comparison (repeatable)",
+    )
     args = parser.parse_args(argv)
     schemas = sorted(CONTRACTS.glob("*.schema.json"))
     if not schemas:
@@ -117,6 +121,16 @@ def main(argv: list[str] | None = None) -> int:
         if errors:
             raise SystemExit(f"{path}: {errors[0].message}")
 
+    comparison_validator = Draft202012Validator(
+        documents[CONTRACTS / "operator-plan-comparison-v1.schema.json"],
+        registry=registry, format_checker=FormatChecker(),
+    )
+    for path in args.operator_comparison:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        errors = list(comparison_validator.iter_errors(payload))
+        if errors:
+            raise SystemExit(f"{path}: {errors[0].message}")
+
     print(
         f"Validated {len(schemas)} ecosystem contract schemas, "
         f"{fixture_count} fixtures and {len(examples)} bundled topologies."
@@ -125,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Validated {len(args.experiment_analysis)} emitted experiment analyses.")
     if args.operator_plan:
         print(f"Validated {len(args.operator_plan)} emitted operator plans.")
+    if args.operator_comparison:
+        print(f"Validated {len(args.operator_comparison)} emitted operator comparisons.")
     return 0
 
 

@@ -51,6 +51,8 @@ Scheduled link outages, degradation and reproducible observation reports are
 documented in [Fault Lab](docs/fault-injection.md).
 Saved experiments and topologies can be compared with offline HTML/SVG reports,
 paired seed variability and conditional intervals; see [KNS Compare](docs/compare.md).
+Saved Network Operator plans can also be [compared offline](docs/operator-plan-comparison.md)
+with validated inputs, byte hashes and JSON/HTML review reports.
 Optional [runtime Analytics](docs/analytics.md) records bounded time series,
 DATA latency percentiles, directional utilization and evidence-based rule diagnostics.
 Analytics also records within-flow latency variation and repeated queue pressure;

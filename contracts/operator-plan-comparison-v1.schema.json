@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Kilop206/KNS/main/contracts/operator-plan-comparison-v1.schema.json",
+  "title": "KNS Network Operator Plan Comparison v1",
+  "description": "Offline comparison evidence. Hashes identify original file bytes; differences describe JSON values, with ordered arrays and order-independent object keys. No execution authorization is implied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "reference_sha256", "candidate_sha256", "change_count", "reported_changes", "truncated", "changes"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "status": {"enum": ["equivalent", "different"]},
+    "reference_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$"},
+    "candidate_sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$"},
+    "change_count": {"type": "integer", "minimum": 0},
+    "reported_changes": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "truncated": {"type": "boolean"},
+    "changes": {
+      "type": "array", "maxItems": 1000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "path"],
+        "properties": {
+          "kind": {"enum": ["added", "removed", "changed"]},
+          "path": {"type": "string", "pattern": "^(?:/(?:[^~/]|~[01])*)*$"},
+          "before": {}, "after": {}
+        },
+        "oneOf": [
+          {"properties": {"kind": {"const": "added"}}, "required": ["after"], "not": {"required": ["before"]}},
+          {"properties": {"kind": {"const": "removed"}}, "required": ["before"], "not": {"required": ["after"]}},
+          {"properties": {"kind": {"const": "changed"}}, "required": ["before", "after"]}
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "equivalent"}}},
+      "then": {"properties": {"change_count": {"const": 0}, "reported_changes": {"const": 0}, "truncated": {"const": false}, "changes": {"maxItems": 0}}},
+      "else": {"properties": {"change_count": {"minimum": 1}, "reported_changes": {"minimum": 1}, "changes": {"minItems": 1}}}
+    }
+  ]
+}

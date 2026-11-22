@@ -1,0 +1,1 @@
+{"schema_version":"1.0","status":"different","reference_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","candidate_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","change_count":1,"reported_changes":1,"truncated":false,"changes":[{"kind":"removed","path":"/bad~escape","before":1}]}

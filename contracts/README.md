@@ -18,6 +18,7 @@ KNS and KNS Discovery. Schemas are versioned independently from applications.
 | `simulation.result.schema.json` | KNS headless batch runner | Result and experiment tooling |
 | `experiment-analysis-v1.schema.json` | Saved-experiment analyzer | CI and report consumers |
 | `operator-plan-v1.schema.json` | Network Operator CLI | Operation review and validation tooling |
+| `operator-plan-comparison-v1.schema.json` | Offline plan comparator | Hashed plan review evidence with bounded differences |
 
 `analysis.context.schema.json` describes KNS deterministic topology analysis.
 Its critical-node/link lists are bounded summaries, so missing entries must not
@@ -105,6 +106,10 @@ HTTPS action requires GET. Authentication environment values and credential-file
 configuration are not part of the generated device metadata.
 
 Validate emitted plans with `python scripts/validate_contracts.py --operator-plan plan.json`.
+Compare two saved plans with `scripts/compare_operator_plans.py` and validate its
+report using `--operator-comparison review/comparison.json`. See the
+[comparison guide](../docs/operator-plan-comparison.md) for exit codes, limits
+and the additional count invariants consumers must check.
 The option is repeatable for a batch of plans.
 
 ## Compatibility policy
