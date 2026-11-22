@@ -12,6 +12,7 @@ from experiment_manifest import read_json
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_PLAN_BYTES = 4 * 1024 * 1024
+MAX_REPORTED_BYTES = 32 * 1024 * 1024
 
 
 class ComparisonParser(argparse.ArgumentParser):
@@ -32,6 +33,8 @@ def compare(reference: object, candidate: object, max_changes: int = 200) -> dic
     pending = [((), reference, candidate)]
     changes = []
     count = 0
+    recorded_bytes = 0
+    recording = True
     while pending:
         path, before, after = pending.pop()
         if isinstance(before, dict) and isinstance(after, dict):
@@ -47,14 +50,22 @@ def compare(reference: object, candidate: object, max_changes: int = 200) -> dic
         if (numeric or type(before) is type(after)) and before == after:
             continue
         count += 1
-        if len(changes) < max_changes:
+        if recording and len(changes) < max_changes:
             change = {"kind": "added" if before is missing else "removed" if after is missing else "changed",
                       "path": pointer(path)}
             if before is not missing:
                 change["before"] = before
             if after is not missing:
                 change["after"] = after
+            size = len(json.dumps(change, ensure_ascii=True, separators=(",", ":"), allow_nan=False))
+            # A long ancestor key is repeated in every descendant pointer. Bound
+            # accumulated records, not just their count. A validated first record
+            # fits this budget because each source file is bounded to 4 MiB.
+            if changes and recorded_bytes + size > MAX_REPORTED_BYTES:
+                recording = False
+                continue
             changes.append(change)
+            recorded_bytes += size
     return {"schema_version": "1.0", "status": "different" if count else "equivalent",
             "change_count": count, "reported_changes": len(changes),
             "truncated": count > len(changes), "changes": changes}
@@ -133,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         candidate, candidate_hash = load_plan(args.candidate, "candidate", validator)
         report = compare(reference, candidate, args.max_changes)
         report.update(reference_sha256=reference_hash, candidate_sha256=candidate_hash)
-        encoded = json.dumps(report, indent=2, ensure_ascii=True, allow_nan=False) + "\n"
+        encoded = json.dumps(report, separators=(",", ":"), ensure_ascii=True, allow_nan=False) + "\n"
         page = render_html(report)
         args.output.mkdir(parents=True, exist_ok=False)
         (args.output / "comparison.json").write_text(encoded, encoding="utf-8")

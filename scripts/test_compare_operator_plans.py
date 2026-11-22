@@ -55,6 +55,16 @@ class CompareTreeTests(unittest.TestCase):
             main([])
         self.assertEqual(exit_status.exception.code, 1)
 
+    def test_long_ancestor_keys_cannot_multiply_report_size_without_bound(self):
+        key = "long-ancestor-" * 10
+        with patch("compare_operator_plans.MAX_REPORTED_BYTES", 512):
+            report = compare({key: [0] * 32}, {key: [1] * 32}, 1000)
+        self.assertEqual(report["change_count"], 32)
+        self.assertGreater(report["reported_changes"], 0)
+        self.assertLess(report["reported_changes"], 32)
+        self.assertTrue(report["truncated"])
+        self.assertEqual(report["changes"][0]["path"], "/" + key + "/0")
+
 
 @unittest.skipUnless(importlib.util.find_spec("jsonschema"), "contract dependencies not installed")
 class CompareCliTests(unittest.TestCase):

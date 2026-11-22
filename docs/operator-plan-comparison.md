@@ -34,8 +34,11 @@ Inputs are limited to 4 MiB each and 64 container levels. Duplicate keys,
 nonfinite numbers, invalid UTF-8 and invalid plans are rejected before output
 creation. `--max-changes` defaults to 200 and accepts 1–1000; it limits recorded
 differences, while `change_count` still counts every difference. `truncated`
-indicates an incomplete list. Neither input is modified and existing output is
-never overwritten.
+indicates an incomplete list. Accumulated change records also have a 32 MiB
+compact-JSON budget, so repeated long ancestor keys cannot multiply report size
+without bound. This budget can truncate the list before `--max-changes` is
+reached; the first difference is always retained. Neither input is modified and
+existing output is never overwritten.
 
 The comparison contract is `contracts/operator-plan-comparison-v1.schema.json`.
 Consumers should also verify that `reported_changes` equals the list length,
