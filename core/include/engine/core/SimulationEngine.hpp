@@ -184,7 +184,10 @@ namespace kns {
 
         /// Inspect current hop-by-hop forwarding without creating traffic.
         /// Invalid/inactive endpoints and forwarding loops have distinct statuses.
-        RouteTrace traceRoute(int source, int destination) const;
+        /// With excluded_link, preview converged forwarding after one cable outage.
+        /// This does not mutate links, queues, time, RNG or scheduled events.
+        RouteTrace traceRoute(int source, int destination,
+                              std::optional<std::uint64_t> excluded_link = std::nullopt) const;
 
         /// Returns the live topology. Routing-relevant mutations made through
         /// this reference or its Link objects are detected automatically before

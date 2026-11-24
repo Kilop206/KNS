@@ -42,7 +42,8 @@ namespace kns {
     }
 
     Routing::DijkstraResult Routing::buildDijkstra(const Topology& topology, int src,
-                                                   RoutingMetric metric) {
+                                                   RoutingMetric metric,
+                                                   std::optional<std::uint64_t> excluded_link) {
         int n = topology.size();
         if (src < 0 || src >= n) {
             throw std::out_of_range("Routing source node is out of bounds");
@@ -116,7 +117,7 @@ namespace kns {
                 continue;
 
             for (const auto& link : adjacency) {
-                if (!link || !link->isUp()) {
+                if (!link || !link->isUp() || excluded_link == link->getId()) {
                     continue;
                 }
 

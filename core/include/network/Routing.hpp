@@ -44,7 +44,8 @@ namespace kns {
 
         /// Throws out_of_range for an invalid source, invalid_argument for an unknown metric.
         DijkstraResult buildDijkstra(const Topology& topology, int src,
-                                     RoutingMetric metric = RoutingMetric::Delay);
+                                     RoutingMetric metric = RoutingMetric::Delay,
+                                     std::optional<std::uint64_t> excluded_link = std::nullopt);
 
         std::vector<RoutingEntry> buildRoutingTable(const Topology& topology, int src,
                                                     RoutingMetric metric = RoutingMetric::Delay);

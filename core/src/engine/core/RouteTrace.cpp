@@ -4,7 +4,8 @@
 
 namespace kns {
 
-    RouteTrace SimulationEngine::traceRoute(int source, int destination) const {
+    RouteTrace SimulationEngine::traceRoute(int source, int destination,
+                                           std::optional<std::uint64_t> excluded_link) const {
         RouteTrace result;
         const auto active = [&](int id) {
             const auto* node = topology_.getNode(id);
@@ -22,10 +23,26 @@ namespace kns {
             if (current != source &&
                 !deviceCapabilities(topology_.getNode(current)->getDeviceInfo().type).forward)
                 return result;
-            const auto table = getRoutingTable(current);
-            if (static_cast<std::size_t>(destination) >= table.size())
-                return result;
-            const auto& entry = table[destination];
+            Routing::RoutingEntry entry;
+            if (excluded_link) {
+                // Recover only the requested destination's next hop. Building a
+                // full table here would traverse every destination's parent chain.
+                const auto tree = Routing{}.buildDijkstra(topology_, current, routing_metric_,
+                                                          excluded_link);
+                int next = destination;
+                while (tree.parent[next] != current) {
+                    next = tree.parent[next];
+                    if (next < 0)
+                        return result;
+                }
+                entry.next_hop = next;
+                entry.link_id = tree.parent_link[next];
+            } else {
+                const auto table = getRoutingTable(current);
+                if (static_cast<std::size_t>(destination) >= table.size())
+                    return result;
+                entry = table[destination];
+            }
             if (!entry.link_id || !active(entry.next_hop))
                 return result;
             const auto& links = topology_.getLinksFromNode(current);
