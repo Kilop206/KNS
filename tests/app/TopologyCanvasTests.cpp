@@ -417,6 +417,58 @@ TEST_CASE("Canvas route inspection refreshes without creating traffic",
         toolbar("Select / Move");
         REQUIRE(routeVertices().empty());
     }
+    SECTION("resilience previews an outage and refreshes after live changes") {
+        ui.activate("Resilience");
+        auto* panel = ImGui::FindWindowByName("Route resilience###route-resilience");
+        REQUIRE(panel != nullptr);
+        auto* table = ImGui::TableFindByID(panel->GetID("outage-cases"));
+        REQUIRE(table != nullptr);
+        REQUIRE(table->CurrentRow == 1); // Header plus the direct cable outage.
+        const auto row = ImVec2{table->Columns[0].MinX + 20,
+                               (table->RowPosY1 + table->RowPosY2) * 0.5f};
+        ui.click(row);
+        const auto colorVertices = [](ImU32 color) {
+            int count = 0;
+            for (const auto* list : ImGui::GetDrawData()->CmdLists)
+                for (const auto& vertex : list->VtxBuffer)
+                    if (vertex.col == color)
+                        ++count;
+            return count;
+        };
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) > 0);
+        REQUIRE(colorVertices(IM_COL32(255, 132, 65, 255)) > 0);
+        REQUIRE(ui.engine.getTopology().getRoutingRevision() == revision);
+        REQUIRE(direct->isUp());
+        REQUIRE_FALSE(ui.engine.hasEvents());
+        REQUIRE(ui.engine.now() == 0);
+        ui.capture("canvas-resilience-alternative");
+        ui.activate("Clear preview", panel);
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) == 0);
+        REQUIRE(colorVertices(IM_COL32(255, 132, 65, 255)) == 0);
+        ui.click(row);
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) > 0);
+
+        last->setUp(false);
+        ui.frame();
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) == 0);
+        REQUIRE(colorVertices(IM_COL32(255, 132, 65, 255)) == 0);
+        ui.frame();
+        ui.capture("canvas-resilience-critical");
+        ui.click(row);
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) == 0);
+        REQUIRE(colorVertices(IM_COL32(255, 132, 65, 255)) > 0);
+
+        last->setUp(true);
+        ui.engine.setRoutingMetric(kns::RoutingMetric::Bandwidth);
+        ui.frame();
+        ui.frame();
+        REQUIRE(colorVertices(IM_COL32(255, 132, 65, 255)) == 0);
+        REQUIRE(table->CurrentRow == 2); // Both cables in the new baseline path.
+        REQUIRE(ui.engine.deleteNode(2));
+        ui.frame();
+        REQUIRE(routeVertices().empty());
+        REQUIRE(colorVertices(IM_COL32(190, 140, 255, 255)) == 0);
+    }
     SECTION("Escape clears the route") {
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
         ui.frame();

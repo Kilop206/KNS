@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "name": "Route resilience lab",
+  "nodes": [
+    {"id": 0, "label": "Client", "type": "computer", "position": {"x": 80, "y": 220}},
+    {"id": 1, "label": "Edge router", "type": "router", "position": {"x": 280, "y": 220}},
+    {"id": 2, "label": "Backup router", "type": "router", "position": {"x": 480, "y": 400}},
+    {"id": 3, "label": "Application server", "type": "server", "position": {"x": 700, "y": 220}}
+  ],
+  "links": [
+    {"from": 0, "to": 1, "bandwidth": 100, "delay": 1, "loss": 0},
+    {"from": 1, "to": 3, "bandwidth": 100, "delay": 1, "loss": 0},
+    {"from": 1, "to": 2, "bandwidth": 50, "delay": 3, "loss": 0},
+    {"from": 2, "to": 3, "bandwidth": 20, "delay": 4, "loss": 0}
+  ]
+}

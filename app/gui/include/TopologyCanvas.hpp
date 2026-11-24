@@ -1,5 +1,6 @@
 #pragma once
 #include "CanvasView.hpp"
+#include "analysis/RouteResilience.hpp"
 #include "VisualPacket.hpp"
 #include "network/DeviceType.hpp"
 #include "network/RouteTrace.hpp"
@@ -39,6 +40,9 @@ namespace gui {
         kns::RouteTrace route_;
         std::optional<std::uint64_t> routeRevision_;
         kns::RoutingMetric routeMetric_ = kns::RoutingMetric::Delay;
+        bool showResilience_ = false;
+        std::optional<kns::analysis::RouteResilience> resilience_;
+        std::optional<std::uint64_t> previewFailure_;
         int dragging_ = -1;
         ImVec2 dragOffset_{};
         bool snap_ = true;
@@ -72,6 +76,7 @@ namespace gui {
         void palette(TranslationService& translations);
         void cableSettings(TranslationService& translations);
         void updateRoute(const kns::SimulationEngine& engine);
+        void resiliencePanel(const kns::SimulationEngine& engine, TranslationService& translations);
         void createDevice(kns::SimulationEngine& engine, kns::DeviceType type, ImVec2 position,
                           int& selectedNode);
     };

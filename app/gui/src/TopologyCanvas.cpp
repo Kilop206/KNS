@@ -155,6 +155,113 @@ namespace gui {
         routeMetric_ = engine.getRoutingMetric();
     }
 
+    void TopologyCanvas::resiliencePanel(const kns::SimulationEngine& engine,
+                                         TranslationService& tr) {
+        if (!showResilience_ || !routeEndpoints_) {
+            resilience_.reset();
+            previewFailure_.reset();
+            return;
+        }
+        const auto [source, destination] = *routeEndpoints_;
+        if (!resilience_ || !resilience_->matches(engine, source, destination)) {
+            resilience_.emplace(engine, source, destination);
+            previewFailure_.reset();
+        }
+        // One outage per visible frame. A topology/metric change restarts the
+        // analysis before any old results or canvas overlays can be displayed.
+        const auto* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowSize({std::clamp(viewport->WorkSize.x - 32, 1.0f, 620.0f),
+                                  std::clamp(viewport->WorkSize.y - 32, 1.0f, 360.0f)},
+                                 ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({viewport->WorkPos.x + viewport->WorkSize.x - 16,
+                                 viewport->WorkPos.y + viewport->WorkSize.y - 16},
+                                ImGuiCond_FirstUseEver, {1, 1});
+        const auto title = tr.label("Route resilience", "route-resilience");
+        if (ImGui::Begin(title.c_str(), &showResilience_)) {
+            resilience_->advance(engine);
+            const auto& baseline = resilience_->baseline();
+            ImGui::Text("#%d -> #%d | %s", source, destination,
+                        tr.translate(kns::routingMetricName(engine.getRoutingMetric()).data()).c_str());
+            ImGui::TextWrapped("%s", tr.translate(
+                "Preview one cable outage at a time. Select a row to highlight its alternative path.")
+                    .c_str());
+            if (baseline.status != kns::RouteStatus::Reachable) {
+                ImGui::TextWrapped("%s", tr.translate(
+                    "The baseline route is not reachable; resilience cannot be evaluated.").c_str());
+            } else if (baseline.hops.empty()) {
+                ImGui::TextUnformatted(tr.translate("Local route: no cables to test.").c_str());
+            } else {
+                ImGui::Text("%s: %zu/%zu | %s: %zu",
+                            tr.translate("Outages checked").c_str(), resilience_->failures().size(),
+                            baseline.hops.size(), tr.translate("Critical cables").c_str(),
+                            resilience_->criticalCount());
+                ImGui::Text("%s: %.2f ms | %.2f Mbps", tr.translate("Baseline").c_str(),
+                            baseline.propagation_delay_ms, baseline.bottleneck_mbps.value_or(0));
+                if (!resilience_->finished())
+                    ImGui::TextDisabled("%s", tr.translate("Analyzing...").c_str());
+                else if (!resilience_->complete())
+                    ImGui::TextWrapped("%s", tr.translate(
+                        "Partial analysis: limited to 64 baseline cables. Unchecked cables may be critical.")
+                            .c_str());
+                else
+                    ImGui::TextUnformatted(tr.translate(resilience_->criticalCount() == 0
+                        ? "Every tested single-cable outage has a reachable alternative."
+                        : "Some single-cable outages have no reachable alternative.").c_str());
+
+                if (ImGui::BeginTable("outage-cases", 4,
+                    ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH |
+                    ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp, {0, 150})) {
+                    for (const char* heading : {"Failed cable", "Alternative", "Delay delta", "Capacity"})
+                        ImGui::TableSetupColumn(tr.translate(heading).c_str());
+                    ImGui::TableSetupScrollFreeze(0, 1);
+                    ImGui::TableHeadersRow();
+                    for (const auto& failure : resilience_->failures()) {
+                        const auto& hop = failure.failed_hop;
+                        const auto& alternative = failure.alternative;
+                        const bool reachable = alternative.status == kns::RouteStatus::Reachable;
+                        ImGui::PushID(static_cast<int>(ImGui::TableGetRowIndex()));
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        const auto label = "#" + std::to_string(hop.from) + " -> #" +
+                            std::to_string(hop.to) + " (" + std::to_string(hop.link_id) + ")";
+                        if (ImGui::Selectable(label.c_str(), previewFailure_ == hop.link_id,
+                                              ImGuiSelectableFlags_SpanAllColumns))
+                            previewFailure_ = previewFailure_ == hop.link_id
+                                                  ? std::nullopt : std::optional{hop.link_id};
+                        ImGui::TableNextColumn();
+                        ImGui::TextColored(reachable ? ImVec4(0.37f, 0.88f, 0.68f, 1)
+                                                     : ImVec4(1, 0.5f, 0.35f, 1),
+                            "%s", tr.translate(reachable ? "Reachable"
+                                : alternative.status == kns::RouteStatus::ForwardingLoop
+                                    ? "Forwarding loop" : "Unreachable").c_str());
+                        ImGui::TableNextColumn();
+                        if (reachable)
+                            ImGui::Text("%+.2f ms", alternative.propagation_delay_ms -
+                                                      baseline.propagation_delay_ms);
+                        else
+                            ImGui::TextUnformatted("--");
+                        ImGui::TableNextColumn();
+                        if (reachable && alternative.bottleneck_mbps)
+                            ImGui::Text("%.2f Mbps", *alternative.bottleneck_mbps);
+                        else
+                            ImGui::TextUnformatted("--");
+                        ImGui::PopID();
+                    }
+                    ImGui::EndTable();
+                }
+                if (previewFailure_ && ImGui::SmallButton(tr.translate("Clear preview").c_str()))
+                    previewFailure_.reset();
+            }
+            ImGui::TextWrapped("%s", tr.translate(
+                "Green: baseline. Purple: alternative. Orange: previewed failed cable. "
+                "Configured paths only; excludes queueing, loss, convergence time and delivery guarantees.")
+                    .c_str());
+        }
+        ImGui::End();
+        if (!showResilience_)
+            previewFailure_.reset();
+    }
+
     void TopologyCanvas::ensurePositions(kns::Topology& topology) {
         int slot = 0;
         const int columns = std::max(3, static_cast<int>(std::ceil(std::sqrt(topology.size()))));
@@ -401,6 +508,9 @@ namespace gui {
                                 static_cast<unsigned long long>(hop.link_id));
                 ImGui::EndTooltip();
             }
+            ImGui::SameLine();
+            if (ImGui::SmallButton(tr.translate("Resilience").c_str()))
+                showResilience_ = !showResilience_;
         } else
             ImGui::TextDisabled(
                 "%s", tr.translate(placing_ ? "Click the canvas to place a device. Esc cancels."
@@ -410,6 +520,7 @@ namespace gui {
                                                  : "Choose the destination device. Esc cancels.")
                           .c_str());
 
+        resiliencePanel(engine, tr);
         ImGui::BeginChild("device-palette", {154, 0}, ImGuiChildFlags_Borders);
         palette(tr);
         ImGui::EndChild();
@@ -758,10 +869,24 @@ namespace gui {
                 visualTime <= packet.visual_start_time + packet.visual_duration)
                 busy.insert(std::minmax(packet.from, packet.to));
         updateRoute(engine);
+        // Input handlers above can select a different route or edit the topology
+        // after the panel rendered. Never draw an overlay for the previous input.
+        if (resilience_ && (!routeEndpoints_ ||
+            !resilience_->matches(engine, routeEndpoints_->first, routeEndpoints_->second))) {
+            resilience_.reset();
+            previewFailure_.reset();
+        }
         std::set<std::uint64_t> routeLinks;
         if (routeEndpoints_)
             for (const auto& hop : route_.hops)
                 routeLinks.insert(hop.link_id);
+        std::set<std::uint64_t> alternativeLinks;
+        if (showResilience_ && previewFailure_ && resilience_)
+            for (const auto& failure : resilience_->failures())
+                if (failure.failed_hop.link_id == previewFailure_ &&
+                    failure.alternative.status == kns::RouteStatus::Reachable)
+                    for (const auto& hop : failure.alternative.hops)
+                        alternativeLinks.insert(hop.link_id);
         for (const auto& link : topology.getLinks()) {
             const auto a = positions[link->getA()], b = positions[link->getB()];
             ImU32 color = link->isUp() ? IM_COL32(102, 146, 172, 255) : IM_COL32(196, 88, 98, 255);
@@ -772,8 +897,13 @@ namespace gui {
             const bool onRoute = routeLinks.contains(link->getId());
             if (onRoute)
                 color = IM_COL32(94, 224, 174, 255);
+            const bool onAlternative = alternativeLinks.contains(link->getId());
+            if (onAlternative)
+                color = IM_COL32(190, 140, 255, 255);
+            if (showResilience_ && previewFailure_ == link->getId())
+                color = IM_COL32(255, 132, 65, 255);
             draw->AddLine({a.first, a.second}, {b.first, b.second}, color,
-                          onRoute || selectedLink_ == link->getId() ? 4.0f : 2.0f);
+                          onRoute || onAlternative || selectedLink_ == link->getId() ? 4.0f : 2.0f);
             if (link->getMode() == kns::LinkMode::SIMPLEX) {
                 const float dx = b.first - a.first, dy = b.second - a.second,
                             len = std::hypot(dx, dy);

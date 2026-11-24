@@ -1083,3 +1083,39 @@ under build-core-mingw. No native model changed since the full CTest baseline.
 CI for ea77a19 and 9a9c64c is successful (43622714007/43623891306). This increment's
 new CI step still needs its remote run. Milestone 9 remains partial: scenario-
 embedded rules, relative-percent offsets, broader report kinds and Studio pending.
+
+## Studio route resilience increment — 2026-11-24
+
+Added directional N-1 cable analysis to the existing Route canvas tool. The
+Resilience window checks one baseline cable per visible frame (up to 64), lists
+critical cables, compares alternative propagation delay and bottleneck capacity,
+and highlights a selected outage and alternative path. Topology/metric changes
+invalidate results and overlays. Truncated, unreachable and local routes have
+explicit states. The demo and model boundaries are documented in
+`route-resilience.md` and `app/topologies/resilience-lab.json`.
+
+The reusable `analysis::RouteResilience` API supports 1..256 cases, incremental
+execution and stale-input detection. `SimulationEngine::traceRoute` accepts an
+optional excluded link ID using the existing Dijkstra metric/tie/role/direction
+rules. It preserves live links, reservations, scheduler counters and RNG state.
+Existing two-argument route tracing retains its cached routing tables. These
+are converged configuration previews, not traffic measurements or SLA verdicts.
+
+Verification: MinGW Debug application/core/test build succeeded using the existing
+`build-core-mingw/verification-build` configuration and dependencies. Full CTest
+passed **471/471** in 45.92 seconds (`resilience-ctest.log` in that build).
+Six new native cases cover actual-outage equivalence across all four metrics,
+parallel cables, directional/role constraints, critical paths, bounds, stale
+inputs and transmission/scheduler/RNG preservation. The existing canvas test
+also exercises selecting/clearing previews and live invalidation. After the
+final window placement adjustment, the focused route/resilience/canvas run
+passed **19 cases / 1,221 assertions** with OpenGL capture enabled. Inspected
+the alternative and critical-path PNG captures under `resilience-captures`.
+The new demo also completed headlessly with 74/74 packets delivered, zero
+pending packets and exit 0. `git diff --check` passed.
+
+The older `build-core-mingw` cache references a missing Catch2 source directory;
+the working verification build uses a local CMake wrapper pointing to the current
+core/app/tests sources. TLS remains disabled in this existing local configuration;
+Linux, sanitizers and HTTPS were not reverified. Studio and the core reliability
+milestone remain partial; this increment does not change their outstanding scope.
