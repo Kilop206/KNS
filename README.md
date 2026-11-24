@@ -38,6 +38,8 @@ and congestion-control state.
   previews, critical cables, alternative-path highlighting and delay/capacity comparisons;
 - configurable canvas cables with full-duplex, half-duplex and simplex modes,
   loss, delay, bandwidth, and queue capacity;
+- editable [parallel cables](docs/parallel-cables.md) with separate curved lanes,
+  per-cable packet animation and optional redundant-link creation;
 - optional asynchronous translation of the main GUI controls;
 - optional conversational topology analysis in the Intelligence panel;
 - headless CSV export and Catch2 unit/integration tests.

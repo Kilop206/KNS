@@ -3,6 +3,7 @@
 #include <utility>
 #include <vector>
 #include "imgui.h"
+#include "CableGeometry.hpp"
 
 #include "../include/VisualPacket.hpp"
 #include "enums/PacketType.hpp"
@@ -20,7 +21,7 @@ namespace gui {
     public:
         void render(ImDrawList* draw_list, const std::vector<std::pair<float, float>>& positions,
                     const std::vector<VisualPacket>& packets, double visual_time,
-                    TranslationService& translations) const;
+                    TranslationService& translations, const CablePaths* paths = nullptr) const;
 
         static const char* packetTypeToString(kns::PacketType type);
 

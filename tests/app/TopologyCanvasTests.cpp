@@ -2,6 +2,7 @@
 #include <catch2/catch_approx.hpp>
 #include "gui/include/TopologyCanvas.hpp"
 #include "gui/include/PacketRenderer.hpp"
+#include "gui/include/VisualPacketManager.hpp"
 #include "gui/include/TranslationService.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "network/TopologyLoader.hpp"
@@ -191,6 +192,92 @@ TEST_CASE("Canvas zoom keeps the pointed world location fixed", "[canvas-ui]") {
     }
 }
 
+TEST_CASE("Parallel cables can be selected and deleted independently", "[canvas-ui][parallel-cables]") {
+    CanvasHarness ui;
+    const auto origin = ui.child("canvas-region")->DC.CursorStartPos;
+    for (const auto point : {ImVec2{180, 180}, ImVec2{650, 180}}) {
+        ui.click(ui.paletteTile(0));
+        ui.click({origin.x + point.x, origin.y + point.y});
+    }
+    auto first = ui.engine.createLink(0, 1, 100, 1);
+    auto second = ui.engine.createLink(1, 0, 20, 4);
+    ui.frame();
+    const auto a = *ui.engine.getTopology().getNode(0)->getPosition();
+    const auto b = *ui.engine.getTopology().getNode(1)->getPosition();
+    const ImVec2 upperMidpoint{origin.x + 60 + static_cast<float>((a.x + b.x) / 2),
+                               origin.y + 60 + static_cast<float>((a.y + b.y) / 2) - 14};
+    ui.rightClick(upperMidpoint);
+    ui.activate("Delete cable", ui.popup());
+    const auto& remaining = ui.engine.getTopology().getLinks();
+    REQUIRE(remaining.size() == 1);
+    REQUIRE(remaining.front()->getId() == second->getId());
+    REQUIRE(remaining.front()->getId() != first->getId());
+    REQUIRE_FALSE(ui.engine.hasEvents());
+}
+
+TEST_CASE("Packets animate on their exact cable and only that cable becomes busy",
+          "[canvas-ui][parallel-cables]") {
+    CanvasHarness ui;
+    const auto origin = ui.child("canvas-region")->DC.CursorStartPos;
+    for (const auto point : {ImVec2{180, 180}, ImVec2{650, 180}}) {
+        ui.click(ui.paletteTile(0));
+        ui.click({origin.x + point.x, origin.y + point.y});
+    }
+    auto first = ui.engine.createLink(0, 1, 100, 1);
+    ui.engine.createLink(1, 0, 20, 4);
+    gui::VisualPacket packet;
+    packet.from = 1;
+    packet.to = 0;
+    packet.link_id = first->getId();
+    packet.sim_arrival_time = 1;
+    packet.visual_duration = 1;
+    ui.packets.push_back(packet);
+    ui.visualTime = 0.5;
+    ui.frame();
+    const auto a = *ui.engine.getTopology().getNode(0)->getPosition();
+    const auto b = *ui.engine.getTopology().getNode(1)->getPosition();
+    const float midY = origin.y + 60 + static_cast<float>((a.y + b.y) / 2);
+    const auto vertices = [](ImU32 color) {
+        std::vector<ImVec2> result;
+        for (const auto* list : ImGui::GetDrawData()->CmdLists)
+            for (const auto& vertex : list->VtxBuffer)
+                if (vertex.col == color)
+                    result.push_back(vertex.pos);
+        return result;
+    };
+    const auto busy = vertices(IM_COL32(246, 180, 65, 255));
+    REQUIRE_FALSE(busy.empty());
+    // The idle lane is 14 px below the centerline; only the upper lane is busy.
+    for (const auto p : busy)
+        REQUIRE(p.y < midY + 3);
+    const auto packetColor = gui::PacketRenderer::packetColorByType(kns::PacketType::DATA);
+    const auto before = vertices(packetColor);
+    REQUIRE_FALSE(before.empty());
+    float minY = before.front().y, maxY = minY;
+    for (const auto p : before) {
+        minY = std::min(minY, p.y);
+        maxY = std::max(maxY, p.y);
+    }
+    REQUIRE((minY + maxY) / 2 == Catch::Approx(midY - 14).margin(0.5));
+    ui.capture("canvas-parallel-packet");
+    SECTION("removed cable retains the in-flight animation lane") {
+        REQUIRE(ui.engine.deleteLinkById(first->getId()));
+        ui.frame();
+        const auto after = vertices(packetColor);
+        REQUIRE(after.size() == before.size());
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            REQUIRE(after[i].x == Catch::Approx(before[i].x));
+            REQUIRE(after[i].y == Catch::Approx(before[i].y));
+        }
+    }
+    SECTION("arrived packets leave no ghost glyph or busy cable") {
+        ui.visualTime = 1;
+        ui.frame();
+        REQUIRE(vertices(packetColor).empty());
+        REQUIRE(vertices(IM_COL32(246, 180, 65, 255)).empty());
+    }
+}
+
 TEST_CASE("Canvas palette drops create devices and dragging only changes positions",
           "[canvas-ui]") {
     CanvasHarness ui;
@@ -254,6 +341,19 @@ TEST_CASE("Canvas cable tool connects devices without starting TCP", "[canvas-ui
     ui.click(point(1));
     ui.click(point(0));
     REQUIRE(ui.connection == std::optional<std::pair<int, int>>{{1, 0}});
+    SECTION("optional redundant cables are created independently") {
+        ui.activate("Cable settings");
+        ui.activate("Allow parallel cables", ui.popup());
+        ui.activate("Done", ui.popup());
+        ui.activate("Cable");
+        ui.click(point(0));
+        ui.click(point(1));
+        REQUIRE(ui.engine.getTopology().getLinks().size() == 2);
+        const auto& links = ui.engine.getTopology().getLinks();
+        REQUIRE(links[0]->getId() != links[1]->getId());
+        REQUIRE_FALSE(ui.engine.hasEvents());
+        ui.capture("canvas-parallel-created");
+    }
     ui.capture("canvas-connected");
 }
 

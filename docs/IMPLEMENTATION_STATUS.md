@@ -1119,3 +1119,38 @@ the working verification build uses a local CMake wrapper pointing to the curren
 core/app/tests sources. TLS remains disabled in this existing local configuration;
 Linux, sanitizers and HTTPS were not reverified. Studio and the core reliability
 milestone remain partial; this increment does not change their outstanding scope.
+
+## Studio redundant cables and packet observation fixes — 2026-11-24
+
+Added opt-in parallel cable creation to Cable settings and independent curved
+lanes for imported/created parallel links. Drawing, hit testing, simplex arrows
+and packet animation share the same polyline. Endpoint declaration order is
+respected, runtime link identity determines lane order, and each cable can be
+edited/deleted independently. Packet busy highlighting now uses link identity
+rather than an unordered device pair. Removed cables retain their last known
+animation lane until in-flight packets arrive; obsolete lane records are pruned.
+Added `parallel-cables-lab.json` and `docs/parallel-cables.md` with a redundancy
+exercise that also uses the existing resilience panel.
+
+Reproduced two bugs with failing tests before fixing them: individual parallel
+cable selection/deletion and transmission observers carrying the previous hop's
+link ID. The observer fix preserves source-hop fields (notably hop_count, used
+by Traffic Lab consumers) and updates only the notified cable identity. The
+additional observer snapshot is created only when an observer is installed.
+VisualPacketManager retains that identity, including ID zero; packet tooltips
+expose it and respect the canvas hover/clip region. Arrived packet glyphs are
+explicitly suppressed by the renderer.
+
+Verification: MinGW Debug application/core/tests built successfully in the
+existing `build-core-mingw/verification-build`. Seven new cases plus additional
+canvas sections exercise independent deletion, optional redundancy creation,
+reversed declarations, geometry/zoom/degenerate positions, exact busy lanes,
+reverse packet animation, removed-cable retention, expiration and real multihop
+engine-to-visual observations. Focused OpenGL capture run passed **23 cases /
+1,354 assertions**. Inspected `canvas-parallel-packet.png` and
+`canvas-parallel-created.png` under `parallel-captures` in that build.
+Full CTest passed **478/478 in 39.60 seconds**, recorded in `parallel-ctest.log`.
+The new demo completed headlessly with **74/74 packets delivered**, no pending
+packets and exit 0 (`parallel-lab-smoke.csv`). `git diff --check` passed.
+The prior local TLS/Linux/sanitizer and uncompleted milestone limits still apply;
+no throughput/scale benchmark or real-device link aggregation is claimed.

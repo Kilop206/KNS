@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "../../../core/include/enums/PacketType.hpp"
 
@@ -16,5 +17,6 @@ namespace gui {
 
         double visual_start_time = 0.0;
         double visual_duration = 0.35;
+        std::optional<std::uint64_t> link_id;
     };
 }

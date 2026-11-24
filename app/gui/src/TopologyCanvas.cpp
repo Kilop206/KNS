@@ -29,15 +29,6 @@ namespace gui {
                     std::clamp(value.y, -1000000.0f, 1000000.0f)};
         }
 
-        float distanceToLink(ImVec2 point, ImVec2 a, ImVec2 b) {
-            const float dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
-            const float t =
-                length > 0
-                    ? std::clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / length, 0.0f, 1.0f)
-                    : 0;
-            return std::hypot(point.x - a.x - dx * t, point.y - a.y - dy * t);
-        }
-
         bool modePicker(kns::LinkMode& mode, TranslationService& tr) {
             bool changed = false;
             for (const auto& [value, label] : {std::pair{kns::LinkMode::FULL_DUPLEX, "Full duplex"},
@@ -110,6 +101,12 @@ namespace gui {
                 "%s",
                 tr.translate("Applies to the next cables you create with the Cable tool.").c_str());
             ImGui::Separator();
+            ImGui::Checkbox(tr.translate("Allow parallel cables").c_str(),
+                            &cableOptions_.allowParallel);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tr.translate(
+                    "Create independent redundant cables between already connected devices.")
+                        .c_str());
             ImGui::SetNextItemWidth(140);
             ImGui::InputDouble(tr.translate("Bandwidth (Mbps)").c_str(),
                                &cableOptions_.bandwidthMbps, 0, 0, "%.2f");
@@ -588,13 +585,29 @@ namespace gui {
                 mouse.y >= p.y - 36 * view_.zoom && mouse.y <= p.y + 53 * view_.zoom)
                 hit = id;
         }
+        auto refreshPaths = [&]() {
+            auto lanes = layoutCableLanes(topology);
+            // Keep the last known lane of removed cables until their animations
+            // finish. Retained node coordinates still respond to pan and zoom.
+            for (const auto& packet : packets)
+                if (packet.link_id && visualTime < packet.sim_arrival_time &&
+                    !lanes.contains(*packet.link_id)) {
+                    const auto previous = cableLanes_.find(*packet.link_id);
+                    if (previous != cableLanes_.end())
+                        lanes.emplace(*previous);
+                }
+            cableLanes_ = std::move(lanes);
+            return buildCablePaths(cableLanes_, positions, view_.zoom);
+        };
+        auto paths = refreshPaths();
         std::optional<std::uint64_t> hitLink;
         float nearest = 7;
         if (hovered && hit < 0)
             for (const auto& link : topology.getLinks()) {
-                const auto a = positions[link->getA()], b = positions[link->getB()];
-                const float distance =
-                    distanceToLink(mouse, {a.first, a.second}, {b.first, b.second});
+                const auto path = paths.find(link->getId());
+                if (path == paths.end())
+                    continue;
+                const float distance = path->second.distance(mouse);
                 if (distance < nearest) {
                     nearest = distance;
                     hitLink = link->getId();
@@ -636,11 +649,12 @@ namespace gui {
                     } else {
                         try {
                             const auto& links = topology.getLinksFromNode(source_);
-                            if (std::any_of(links.begin(), links.end(), [&](const auto& l) {
+                            if (!cableOptions_.allowParallel &&
+                                std::any_of(links.begin(), links.end(), [&](const auto& l) {
                                     return l->getOtherNode(source_) == hit;
                                 })) {
                                 throw std::invalid_argument(
-                                    "These devices are already connected. Edit the existing cable.");
+                                    "These devices are already connected. Enable parallel cables in Cable settings to add redundancy.");
                             }
                             const auto& queue = cableOptions_.queue;
                             if (queue.red) {
@@ -753,6 +767,8 @@ namespace gui {
             } else if (selectedLink_) {
                 for (const auto& link : topology.getLinks())
                     if (link->getId() == *selectedLink_) {
+                        ImGui::Text("%s %llu", tr.translate("Link").c_str(),
+                                    static_cast<unsigned long long>(link->getId()));
                         ImGui::Text("%d %s %d", link->getA(),
                                     link->getMode() == kns::LinkMode::SIMPLEX ? "->" : "<->",
                                     link->getB());
@@ -863,11 +879,12 @@ namespace gui {
         for (float x = origin.x + std::fmod(view_.pan.x, step); x < end.x; x += step)
             for (float y = origin.y + std::fmod(view_.pan.y, step); y < end.y; y += step)
                 draw->AddCircleFilled({x, y}, 1, dots, 4);
-        std::set<std::pair<int, int>> busy;
+        std::set<std::uint64_t> busy;
         for (const auto& packet : packets)
             if (visualTime >= packet.visual_start_time &&
-                visualTime <= packet.visual_start_time + packet.visual_duration)
-                busy.insert(std::minmax(packet.from, packet.to));
+                visualTime < packet.sim_arrival_time && packet.link_id)
+                busy.insert(*packet.link_id);
+        paths = refreshPaths();
         updateRoute(engine);
         // Input handlers above can select a different route or edit the topology
         // after the panel rendered. Never draw an overlay for the previous input.
@@ -888,9 +905,12 @@ namespace gui {
                     for (const auto& hop : failure.alternative.hops)
                         alternativeLinks.insert(hop.link_id);
         for (const auto& link : topology.getLinks()) {
-            const auto a = positions[link->getA()], b = positions[link->getB()];
+            const auto path = paths.find(link->getId());
+            if (path == paths.end())
+                continue;
+            const auto& cable = path->second;
             ImU32 color = link->isUp() ? IM_COL32(102, 146, 172, 255) : IM_COL32(196, 88, 98, 255);
-            if (busy.contains(std::minmax(link->getA(), link->getB())))
+            if (busy.contains(link->getId()))
                 color = IM_COL32(246, 180, 65, 255);
             if (selectedLink_ == link->getId())
                 color = IM_COL32(78, 190, 255, 255);
@@ -902,13 +922,15 @@ namespace gui {
                 color = IM_COL32(190, 140, 255, 255);
             if (showResilience_ && previewFailure_ == link->getId())
                 color = IM_COL32(255, 132, 65, 255);
-            draw->AddLine({a.first, a.second}, {b.first, b.second}, color,
-                          onRoute || onAlternative || selectedLink_ == link->getId() ? 4.0f : 2.0f);
+            draw->AddPolyline(cable.points.data(), static_cast<int>(cable.points.size()), color,
+                              ImDrawFlags_None,
+                              onRoute || onAlternative || selectedLink_ == link->getId() ? 4.0f : 2.0f);
             if (link->getMode() == kns::LinkMode::SIMPLEX) {
-                const float dx = b.first - a.first, dy = b.second - a.second,
+                const auto before = cable.point(0.48f), after = cable.point(0.52f);
+                const float dx = after.x - before.x, dy = after.y - before.y,
                             len = std::hypot(dx, dy);
                 if (len > 1) {
-                    const ImVec2 mid{(a.first + b.first) * 0.5f, (a.second + b.second) * 0.5f};
+                    const auto mid = cable.point(0.5f);
                     draw->AddTriangleFilled(
                         {mid.x + dx / len * 7, mid.y + dy / len * 7},
                         {mid.x - dx / len * 7 - dy / len * 5, mid.y - dy / len * 7 + dx / len * 5},
@@ -963,7 +985,7 @@ namespace gui {
             }
         }
         if (positions.size() == static_cast<std::size_t>(topology.size())) {
-            PacketRenderer{}.render(draw, positions, packets, visualTime, tr);
+            PacketRenderer{}.render(draw, positions, packets, visualTime, tr, &paths);
         }
         if (placing_ && hovered)
             drawDeviceIcon(draw, *placing_, mouse, 51 * view_.zoom);

@@ -11,7 +11,8 @@ namespace gui {
                                             double arrival_time) {
         pending_.push_back(VisualPacket{from, to, kns::inferPacketType(packet.tcp), session_id,
                                         departure_time, arrival_time, departure_time,
-                                        std::max(0.001, arrival_time - departure_time)});
+                                        std::max(0.001, arrival_time - departure_time),
+                                        packet.link_id});
     }
 
     void VisualPacketManager::update(double visual_time) {

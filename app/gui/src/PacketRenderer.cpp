@@ -66,13 +66,15 @@ namespace gui {
     void PacketRenderer::render(ImDrawList* draw_list,
                                 const std::vector<std::pair<float, float>>& positions,
                                 const std::vector<VisualPacket>& packets, double visual_time,
-                                TranslationService& translations) const {
+                                TranslationService& translations, const CablePaths* paths) const {
         const VisualPacket* hovered_packet = nullptr;
         float hovered_dist2 = 0.0f;
         double hovered_t = 0.0;
+        const bool canHover = ImGui::IsWindowHovered() &&
+            ImGui::IsMouseHoveringRect(draw_list->GetClipRectMin(), draw_list->GetClipRectMax());
 
         for (const auto& packet : packets) {
-            if (visual_time < packet.visual_start_time) {
+            if (visual_time < packet.visual_start_time || visual_time >= packet.sim_arrival_time) {
                 continue;
             }
 
@@ -97,13 +99,26 @@ namespace gui {
 
             const double t = std::clamp(elapsed / visual_duration, 0.0, 1.0);
 
-            const float x =
+            float x =
                 static_cast<float>(positions[packet.from].first +
                                    (positions[packet.to].first - positions[packet.from].first) * t);
 
-            const float y = static_cast<float>(
+            float y = static_cast<float>(
                 positions[packet.from].second +
                 (positions[packet.to].second - positions[packet.from].second) * t);
+            if (paths && packet.link_id) {
+                const auto path = paths->find(*packet.link_id);
+                if (path != paths->end()) {
+                    const auto& cable = path->second;
+                    const bool forward = cable.from == packet.from && cable.to == packet.to;
+                    const bool reverse = cable.to == packet.from && cable.from == packet.to;
+                    if (forward || reverse) {
+                        const auto point = cable.point(static_cast<float>(forward ? t : 1 - t));
+                        x = point.x;
+                        y = point.y;
+                    }
+                }
+            }
 
             const float pulse = static_cast<float>(
                 0.5 + 0.5 * std::sin(visual_time * 10.0 + packet.visual_start_time * 7.0));
@@ -123,7 +138,8 @@ namespace gui {
             const float dy = mouse.y - y;
             const float dist2 = dx * dx + dy * dy;
 
-            if (dist2 <= radius * radius && (hovered_packet == nullptr || dist2 < hovered_dist2)) {
+            if (canHover && dist2 <= radius * radius &&
+                (hovered_packet == nullptr || dist2 < hovered_dist2)) {
                 hovered_packet = &packet;
                 hovered_dist2 = dist2;
                 hovered_t = t;
@@ -143,6 +159,9 @@ namespace gui {
 
             ImGui::Text("%s: %d", translations.translate("From").c_str(), hovered_packet->from);
             ImGui::Text("%s: %d", translations.translate("To").c_str(), hovered_packet->to);
+            if (hovered_packet->link_id)
+                ImGui::Text("%s: %llu", translations.translate("Link").c_str(),
+                            static_cast<unsigned long long>(*hovered_packet->link_id));
 
             ImGui::Text("%s: %.0f%%", translations.translate("Progress").c_str(), progress);
 

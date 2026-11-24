@@ -1,5 +1,6 @@
 #pragma once
 #include "CanvasView.hpp"
+#include "CableGeometry.hpp"
 #include "analysis/RouteResilience.hpp"
 #include "VisualPacket.hpp"
 #include "network/DeviceType.hpp"
@@ -35,6 +36,7 @@ namespace gui {
         Tool tool_ = Tool::Select;
         std::optional<kns::DeviceType> placing_;
         std::optional<std::uint64_t> selectedLink_;
+        CableLanes cableLanes_;
         int source_ = -1;
         std::optional<std::pair<int, int>> routeEndpoints_;
         kns::RouteTrace route_;
@@ -62,6 +64,7 @@ namespace gui {
         std::optional<std::uint64_t> queueEditingLink_;
 
         struct CableOptions {
+            bool allowParallel = false;
             double bandwidthMbps = 100.0;
             double delayMs = 1.0;
             double lossPercent = 0.0;
