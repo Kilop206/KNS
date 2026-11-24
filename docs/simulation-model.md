@@ -13,6 +13,13 @@ the current clock. Routing changes invalidate cached tables synchronously.
 Accepted packets finish their hop across link failure/removal. These assumptions
 are simulation models, not real network measurements or convergence predictions.
 
+`setPacketObserver()` reports each accepted transmission with explicit from/to
+nodes and departure/arrival times. Its `Packet` argument preserves the source-hop
+fields, including `current_node` and `hop_count`; `link_id` identifies the cable
+accepted for this notified hop. It does not carry the previous hop's link ID.
+Queue rejection and sampled link loss do not produce accepted-transmission
+notifications. The callback remains synchronous on the engine's owner thread.
+
 ## Bounded execution example
 
 ```cpp

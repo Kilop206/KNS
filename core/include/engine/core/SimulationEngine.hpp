@@ -264,6 +264,8 @@ namespace kns {
         /// Returns false without mutation unless both endpoints are CLOSED.
         bool releaseTCPListenerSession(std::uint64_t session_id) noexcept;
 
+        /// Accepted-transmission callback: Packet keeps source-hop fields, with
+        /// link_id set to the cable selected for the notified from/to hop.
         void
         setPacketObserver(std::function<void(const Packet&, uint64_t session_id, int from, int to,
                                              double departure_time, double arrival_time)>

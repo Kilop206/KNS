@@ -390,7 +390,15 @@ namespace kns {
             stats_.packets_sent++;
         }
 
-        emitPacketEvent(pkt, pkt.current_node, next_node, actual_departure_time, arrival_time);
+        if (packetObserver) {
+            // Preserve the observer's source-hop fields (including hop_count),
+            // but report this accepted transmission's cable rather than the
+            // preceding hop's identity. Avoid a payload copy when unobserved.
+            Packet observed = pkt;
+            observed.link_id = link.getId();
+            emitPacketEvent(observed, pkt.current_node, next_node, actual_departure_time,
+                            arrival_time);
+        }
 
         return true;
     }
