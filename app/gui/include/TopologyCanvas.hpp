@@ -1,6 +1,7 @@
 #pragma once
 #include "CanvasView.hpp"
 #include "CableGeometry.hpp"
+#include "DeviceFinder.hpp"
 #include "analysis/RouteResilience.hpp"
 #include "VisualPacket.hpp"
 #include "network/DeviceType.hpp"
@@ -37,10 +38,13 @@ namespace gui {
         std::optional<kns::DeviceType> placing_;
         std::optional<std::uint64_t> selectedLink_;
         CableLanes cableLanes_;
+        DeviceFinder deviceFinder_;
+        std::optional<int> focusNode_;
         int source_ = -1;
         std::optional<std::pair<int, int>> routeEndpoints_;
         kns::RouteTrace route_;
         std::optional<std::uint64_t> routeRevision_;
+        const kns::SimulationEngine* routeEngine_ = nullptr;
         kns::RoutingMetric routeMetric_ = kns::RoutingMetric::Delay;
         bool showResilience_ = false;
         std::optional<kns::analysis::RouteResilience> resilience_;

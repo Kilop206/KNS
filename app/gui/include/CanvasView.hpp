@@ -20,5 +20,10 @@ namespace gui {
             zoom = std::clamp(requested, 0.1f, 2.5f);
             pan = {anchor.x - origin.x - world.x * zoom, anchor.y - origin.y - world.y * zoom};
         }
+
+        void focus(ImVec2 world, ImVec2 size) {
+            zoom = std::clamp(zoom, 1.0f, 2.5f);
+            pan = {size.x * 0.5f - world.x * zoom, size.y * 0.5f - world.y * zoom};
+        }
     };
 }

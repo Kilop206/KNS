@@ -144,10 +144,11 @@ namespace gui {
                 return;
             }
         }
-        if (routeRevision_ == topology.getRoutingRevision() &&
+        if (routeEngine_ == &engine && routeRevision_ == topology.getRoutingRevision() &&
             routeMetric_ == engine.getRoutingMetric())
             return;
         route_ = engine.traceRoute(routeEndpoints_->first, routeEndpoints_->second);
+        routeEngine_ = &engine;
         routeRevision_ = topology.getRoutingRevision();
         routeMetric_ = engine.getRoutingMetric();
     }
@@ -463,6 +464,27 @@ namespace gui {
             arrange(topology);
             dragging_ = -1;
         }
+        ImGui::SameLine();
+        if (ImGui::Button(tr.translate("Find devices").c_str()) ||
+            (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+             ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F, false) &&
+             !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)))
+            ImGui::OpenPopup("device-finder");
+        ImGui::SameLine();
+        ImGui::BeginDisabled(selectedNode < 0);
+        if (ImGui::Button(tr.translate("Focus selected").c_str()))
+            focusNode_ = selectedNode;
+        ImGui::EndDisabled();
+        if (const auto chosen = deviceFinder_.render(topology, tr)) {
+            selectedNode = *chosen;
+            focusNode_ = *chosen;
+            tool_ = Tool::Select;
+            placing_.reset();
+            source_ = dragging_ = -1;
+            selectedLink_.reset();
+            routeEndpoints_.reset();
+            error_.clear();
+        }
         ImGui::Checkbox(tr.translate("Snap to grid").c_str(), &snap_);
         ImGui::SameLine();
         ImGui::TextDisabled("%.0f%%", view_.zoom * 100);
@@ -542,6 +564,11 @@ namespace gui {
         if (fitPending_ && size.x > 80 && size.y > 80) {
             fit(topology, size);
             fitPending_ = false;
+        }
+        if (focusNode_) {
+            if (active(*focusNode_))
+                view_.focus(nodePoint(*topology.getNode(*focusNode_)), size);
+            focusNode_.reset();
         }
         if (hovered && io.MouseWheel != 0)
             view_.zoomAt(view_.zoom * std::pow(1.15f, io.MouseWheel), mouse, origin);
@@ -693,6 +720,8 @@ namespace gui {
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
             dragging_ = -1;
         if (focused && !io.WantTextInput && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) {
+            if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F, false) && active(selectedNode))
+                focusNode_ = selectedNode;
             if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 placing_.reset();
                 source_ = -1;
@@ -717,6 +746,8 @@ namespace gui {
         if (ImGui::BeginPopup("canvas-context")) {
             if (active(selectedNode)) {
                 ImGui::Text("%s #%d", tr.translate("Device").c_str(), selectedNode);
+                if (ImGui::MenuItem(tr.translate("Focus device").c_str()))
+                    focusNode_ = selectedNode;
                 if (ImGui::InputText(tr.translate("Label").c_str(), label_.data(), label_.size()))
                     topology.setNodeLabel(selectedNode, label_.data());
                 int type = static_cast<int>(topology.getNode(selectedNode)->getDeviceInfo().type);

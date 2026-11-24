@@ -27,6 +27,8 @@ and congestion-control state.
 - runtime link availability, delay, bandwidth, and topology changes;
 - live network discovery snapshots, typed devices and desktop topology editing
   ([setup and behavior](docs/discovery.md));
+- [device finder](docs/device-finder.md) with combined name/address/type/ID filters,
+  keyboard navigation and direct canvas focus for offscreen devices;
 - TCP handshake, listeners by node/port, backlog, RST rejection, and close;
 - send/receive buffers, cumulative and delayed ACKs, RTT/RTO, Karn's rule,
   timeout retransmission, and fast retransmit;

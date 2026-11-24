@@ -58,13 +58,14 @@ namespace {
             ImGui::DestroyContext();
         }
 
-        void frame() {
+        void frame(kns::SimulationEngine* replacement = nullptr) {
             if (window)
                 ImGui_ImplOpenGL3_NewFrame();
             ImGui::NewFrame();
             ImGui::SetNextWindowPos({0, 0});
             ImGui::SetNextWindowSize({1280, 800});
-            if (auto request = canvas.render(engine, selected, packets, visualTime, translations))
+            if (auto request = canvas.render(replacement ? *replacement : engine, selected, packets,
+                                              visualTime, translations))
                 connection = request;
             ImGui::Render();
             if (window) {
@@ -190,6 +191,127 @@ TEST_CASE("Canvas zoom keeps the pointed world location fixed", "[canvas-ui]") {
         REQUIRE(view.zoom >= 0.1f);
         REQUIRE(view.zoom <= 2.5f);
     }
+}
+
+TEST_CASE("Device finder locates offscreen addresses and focuses without changing the network",
+          "[canvas-ui][device-finder]") {
+    CanvasHarness ui;
+    for (int i = 0; i < 2; ++i)
+        ui.engine.createNode();
+    auto& topology = ui.engine.getTopology();
+    topology.setNodeLabel(0, "Far away server");
+    topology.setNodeLabel(1, "Local client");
+    topology.setNodePosition(0, {-8000, 7000});
+    topology.setNodePosition(1, {320, 200});
+    kns::DeviceInfo info;
+    info.type = kns::DeviceType::Server;
+    info.addresses = {"192.0.2.99"};
+    topology.setNodeDeviceInfo(0, info);
+    const auto revision = topology.getRoutingRevision();
+    ui.frame();
+    ui.activate("Find devices");
+    auto* popup = ui.popup();
+    ui.activate("##device-query", popup);
+    ImGui::GetIO().AddInputCharactersUTF8("192.0.2.99");
+    ui.frame();
+    ui.frame();
+    auto* table = ImGui::TableFindByID(popup->GetID("device-results"));
+    REQUIRE(table != nullptr);
+    REQUIRE(table->CurrentRow == 1);
+    REQUIRE(popup->Size.x <= 620);
+    REQUIRE(popup->Size.y <= 380);
+    REQUIRE(popup->Pos.x >= 0);
+    REQUIRE(popup->Pos.y >= 0);
+    REQUIRE(popup->Pos.x + popup->Size.x <= ImGui::GetIO().DisplaySize.x);
+    REQUIRE(popup->Pos.y + popup->Size.y <= ImGui::GetIO().DisplaySize.y);
+    ui.capture("canvas-device-search");
+    SECTION("keyboard selects the result") {
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
+        ui.frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, false);
+        ui.frame();
+    }
+    SECTION("mouse selects the result") {
+        ui.click({table->Columns[0].MinX + 20, (table->RowPosY1 + table->RowPosY2) * 0.5f});
+    }
+    REQUIRE(ui.selected == 0);
+    const auto selectedCenter = []() {
+        ImVec2 lo{1000000, 1000000}, hi{-1000000, -1000000};
+        for (const auto* list : ImGui::GetDrawData()->CmdLists)
+            for (const auto& vertex : list->VtxBuffer)
+                if (vertex.col == IM_COL32(71, 188, 255, 255)) {
+                    lo.x = std::min(lo.x, vertex.pos.x);
+                    lo.y = std::min(lo.y, vertex.pos.y);
+                    hi.x = std::max(hi.x, vertex.pos.x);
+                    hi.y = std::max(hi.y, vertex.pos.y);
+                }
+        REQUIRE(lo.x <= hi.x);
+        return ImVec2{(lo.x + hi.x) / 2, (lo.y + hi.y) / 2};
+    };
+    const auto canvasCenter = ui.child("canvas-region")->InnerRect.GetCenter();
+    REQUIRE(selectedCenter().x == Catch::Approx(canvasCenter.x).margin(1));
+    REQUIRE(selectedCenter().y == Catch::Approx(canvasCenter.y).margin(1));
+    REQUIRE(topology.getNode(0)->getPosition() == std::optional{kns::NodePosition{-8000, 7000}});
+    REQUIRE(topology.getRoutingRevision() == revision);
+    REQUIRE_FALSE(ui.connection);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.now() == 0);
+    ui.capture("canvas-device-focused");
+
+    topology.setNodePosition(0, {12345, 4567});
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_F, true);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_F, false);
+    ui.frame();
+    REQUIRE(selectedCenter().x == Catch::Approx(canvasCenter.x).margin(1));
+    REQUIRE(selectedCenter().y == Catch::Approx(canvasCenter.y).margin(1));
+}
+
+TEST_CASE("Device finder keyboard navigation and empty results do not create traffic",
+          "[canvas-ui][device-finder]") {
+    CanvasHarness ui;
+    ui.engine.createNode();
+    ui.engine.createNode();
+    ui.frame();
+    ui.activate("Cable");
+    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_F, true);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_F, false);
+    ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+    ui.frame();
+    auto* popup = ui.popup();
+    ui.activate("##device-query", popup);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, true);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, false);
+    ui.frame();
+    REQUIRE(ui.selected == 1);
+    REQUIRE_FALSE(ui.connection);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+
+    ui.activate("Find devices");
+    ui.activate("##device-query", ui.popup());
+    SECTION("query with no matches") {
+        ImGui::GetIO().AddInputCharactersUTF8("no-such-device");
+    }
+    SECTION("a removed result cannot be focused") {
+        ImGui::GetIO().AddInputCharactersUTF8("#0");
+        ui.frame();
+        REQUIRE(ui.engine.deleteNode(0));
+    }
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
+    ui.frame();
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, false);
+    ui.frame();
+    REQUIRE(ui.selected == 1);
+    REQUIRE_FALSE(ImGui::GetCurrentContext()->OpenPopupStack.empty());
 }
 
 TEST_CASE("Parallel cables can be selected and deleted independently", "[canvas-ui][parallel-cables]") {
@@ -516,6 +638,22 @@ TEST_CASE("Canvas route inspection refreshes without creating traffic",
     SECTION("switching tools clears the route") {
         toolbar("Select / Move");
         REQUIRE(routeVertices().empty());
+    }
+    SECTION("route cache belongs to its engine even when revision counters match") {
+        kns::Topology replacement(3);
+        for (int id = 0; id < 3; ++id)
+            replacement.setNodePosition(id, *ui.engine.getTopology().getNode(id)->getPosition());
+        replacement.addLink(0, 2, 10, 100);
+        replacement.addLink(0, 1, 100, 2);
+        replacement.addLink(1, 2, 100, 2);
+        kns::SimulationEngine other(replacement);
+        auto adjustment = other.getTopology().getLinks()[2];
+        while (other.getTopology().getRoutingRevision() < revision)
+            adjustment->setBandwidthMbps(adjustment->getBandwidthMbps() == 100 ? 101 : 100);
+        REQUIRE(other.getTopology().getRoutingRevision() == revision);
+        REQUIRE(other.traceRoute(0, 2).hops.size() == 2);
+        ui.frame(&other);
+        REQUIRE(verticalExtent() > 100);
     }
     SECTION("resilience previews an outage and refreshes after live changes") {
         ui.activate("Resilience");

@@ -1154,3 +1154,32 @@ The new demo completed headlessly with **74/74 packets delivered**, no pending
 packets and exit 0 (`parallel-lab-smoke.csv`). `git diff --check` passed.
 The prior local TLS/Linux/sanitizer and uncompleted milestone limits still apply;
 no throughput/scale benchmark or real-device link aggregation is claimed.
+
+## Studio device navigation and route cache fix — 2026-11-24
+
+Added a viewport-bounded Device Finder popup with Ctrl+F, combined live metadata
+search, exact #ID/type filters, total/truncated result counts, mouse selection
+and Up/Down/Enter navigation. Only active devices qualify. Results are bounded
+to 100 in the GUI (the reusable helper accepts 1..256). Focus centers offscreen
+devices at readable zoom while preserving their saved coordinates and simulation
+state. Focus selected, F outside text editing, and a context action also recenter
+the selected device. Search selection cancels pending placement/connection tools.
+The guide `device-finder.md` documents syntax and matching limits.
+
+Reproduced a stale route overlay across distinct engines with equal routing
+revision/metric values. The cache now also checks engine instance identity.
+The regression fixture deliberately advances the replacement engine's live
+revision after construction, since cloneForRun starts with a fresh counter.
+Visual QA also caught popup auto-size feedback from a fill-height results table;
+the final implementation fixes its bounds every frame and tests viewport limits.
+
+Verification: MinGW Debug application/tests build succeeded. Full CTest passed
+**482/482 in 45.18 seconds** (`finder-ctest.log` in
+`build-core-mingw/verification-build`). After the final popup layout adjustment,
+the focused OpenGL run passed **22 cases / 1,452 assertions**. Inspected
+`finder-captures/canvas-device-search.png` and `canvas-device-focused.png`.
+Four new cases plus expanded route sections cover combined metadata queries,
+malformed/overflowing IDs, bounded counts, live edits/removal, offscreen focus,
+mouse/keyboard selection, Ctrl+F, empty results, cancellation of cable mode and
+unchanged positions/revision/time/traffic. `git diff --check` passed. Prior local
+platform/TLS/sanitizer and uncompleted milestone limitations remain unchanged.
