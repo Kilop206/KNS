@@ -11,6 +11,8 @@ namespace kns::traffic {
     // Bounded, one-event-per-active-flow generators using the existing network model.
     class TrafficRun : public std::enable_shared_from_this<TrafficRun> {
     public:
+        /// Validate configuration and active endpoints without claiming or scheduling work.
+        static void validatePlan(const SimulationEngine&, const nlohmann::json&);
         static std::shared_ptr<TrafficRun> schedule(SimulationEngine&, const nlohmann::json&);
         ~TrafficRun();
         nlohmann::json toJson(double simulation_time_s) const;

@@ -222,6 +222,20 @@ TEST_CASE("Traffic validates whole plans before scheduling any events", "[traffi
     REQUIRE(cancelled.pendingEventCount() == 0);
 }
 
+TEST_CASE("Traffic rejects removed endpoints before claiming a workload or scheduling events",
+          "[traffic][validation]") {
+    for (const int removed : {0, 1}) {
+        kns::SimulationEngine engine(topology());
+        REQUIRE(engine.getTopology().removeNode(removed));
+        REQUIRE_THROWS(kns::traffic::TrafficRun::schedule(engine, plan()));
+        REQUIRE(engine.pendingEventCount() == 0);
+        auto valid = plan();
+        valid["flows"][0]["source"] = removed == 0 ? 1 : 0;
+        valid["flows"][0]["destination"] = 2;
+        REQUIRE_NOTHROW(kns::traffic::TrafficRun::schedule(engine, valid));
+    }
+}
+
 TEST_CASE(
     "Traffic responses wait for request delivery and modeled processing before traversing the reverse route",
     "[traffic][application][timing]") {

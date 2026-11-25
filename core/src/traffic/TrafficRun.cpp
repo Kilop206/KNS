@@ -218,6 +218,8 @@ namespace kns::traffic {
                         integer(flow.at(key), 0, std::numeric_limits<int>::max(), key);
                     if (node >= static_cast<std::uint64_t>(engine.getTopology().size()))
                         throw std::invalid_argument("Traffic endpoint does not exist");
+                    if (!engine.getTopology().getNode(static_cast<int>(node))->isActive())
+                        throw std::invalid_argument("Traffic endpoint was removed");
                 }
                 if (flow.at("source") == flow.at("destination"))
                     throw std::invalid_argument("Traffic endpoints must differ");
@@ -364,8 +366,12 @@ namespace kns::traffic {
 
     TrafficRun::~TrafficRun() = default;
 
-    std::shared_ptr<TrafficRun> TrafficRun::schedule(SimulationEngine& engine, const Json& plan) {
+    void TrafficRun::validatePlan(const SimulationEngine& engine, const Json& plan) {
         validate(plan, engine);
+    }
+
+    std::shared_ptr<TrafficRun> TrafficRun::schedule(SimulationEngine& engine, const Json& plan) {
+        validatePlan(engine, plan);
         auto run = std::shared_ptr<TrafficRun>(new TrafficRun(plan));
         engine.claimTrafficPlan();
         if (!run->data_->replay_events.empty()) {
