@@ -1225,3 +1225,40 @@ that unchanged case passed both in isolation and in the final full run.
 `git diff --check` passed. Prior local TLS/platform/sanitizer and incomplete
 milestone limitations remain in force; advanced Studio workload/application
 models and file import/export UI remain pending.
+
+## Traffic plan clipboard reuse and strict input — 2026-11-25
+
+Added Paste plan JSON and a read-only imported-plan mode to Traffic Lab. Native
+configuration remains unchanged: noncontiguous IDs, full uint64 seed, priority/
+TTL metadata, custom/uniform/replay schedules, ordered replay events and causal
+application response/deadline settings. Imported plans use the native 256-flow
+limit; editor drafts retain their separate 16-flow limit and are restored by an
+explicit action. Failed imports preserve both the last valid import and drafts,
+without scheduling or claiming a workload. Read-only imported summaries and
+scrollable previews fit the dock; packet-result table height now uses the actual
+reported flow count rather than the editor draft count.
+
+Added per-flow operation started/completed/failed/pending/deadline counts and P95
+in milliseconds for response models. Values come from native reports. Missing
+deadlines/latency stay unavailable, and the percentile tooltip exposes the native
+retained-sample scope. Clipboard mode does not add protocol implementations or
+advanced graphical editing; file dialogs remain pending.
+
+Reproduced a CLI bug accepting repeated seed keys with a failing actual-process
+regression. New traffic/TrafficPlanIO is shared by CLI and clipboard import. It
+rejects duplicate decoded object keys, trailing JSON values, excessive nesting
+and inputs over 4 MiB, then performs native preflight. The bounded stream reader
+consumes at most limit+1 bytes instead of trusting a potentially stale file-size
+check. Existing JSON plan/schema versions and native workload semantics remain.
+
+Verification: MinGW Debug application/core/tests build passed. Eight new native
+cases (three parser/stream, five GUI import cases) cover exact numeric identity,
+escaped/nested duplicate keys, malformed/trailing input, byte/depth boundaries,
+stream errors, transactional import, prior-draft restoration, real response/P95
+outcomes, native flow counts, tied replay order and narrow-dock actions. The
+focused OpenGL run passed **14 cases / 244 assertions**. Inspected operation and
+narrow-dock PNGs under `build-core-mingw/verification-build/traffic-import-captures`.
+The new Python CLI regression passed with the current executable. Full CTest
+passed **497/497 in 39.51 seconds** (`traffic-import-ctest.log` in that build),
+including all Traffic Lab/profile/replay integration tests. `git diff --check`
+passed. Existing local TLS/platform/sanitizer and partial milestone limits remain.

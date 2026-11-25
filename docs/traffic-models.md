@@ -52,12 +52,16 @@ to link queues. Reaching the generation budget truncates offered load
 explicitly with `generation_limit_reached`; it is not a completed capacity test.
 CLI input is capped at 4 MiB. The ledger retains scalar counters rather than a
 history of all packets. Analytics retention is configured independently.
+The native CLI and Studio clipboard plan reader reject duplicate object keys,
+trailing JSON values and nesting beyond depth 32. The stream reader checks the
+actual bytes consumed instead of trusting an earlier file-size observation.
 
 Tests cover analytical serialization/propagation, shared queue congestion,
 source/intermediate/TTL drops, pending work/cancellation, budget truncation,
 deadlines, isolated replayable random streams and atomic configuration rejection.
-Arbitrary application dependency graphs, arbitrary distributions, trace replay
-remain outside the initial Studio editor's scope.
+Arbitrary application dependency graphs and arbitrary distributions remain outside
+the Studio editor's scope. Its clipboard mode can load native replay/custom/
+uniform schedules and causal application models without converting them to drafts.
 
 ## Run the shared-backbone example
 

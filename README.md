@@ -68,6 +68,8 @@ burst, Poisson, uniform and custom abstract workloads with per-flow outcome and
 deadline accounting through `--traffic-plan`.
 The [desktop Traffic Lab editor](docs/traffic-lab-studio.md) configures up to 16
 concurrent periodic, CBR, burst or Poisson flows and inspects their live outcomes.
+It also imports native plan JSON from the clipboard without changing IDs/seeds,
+including replay and response models, with per-operation deadline/latency results.
 The [result validator](docs/validation.md) checks explicit workload assertions and
 exports JSON/JUnit diagnostics with process codes suitable for CI.
 The initial [Industrial scenarios](docs/iiot.md) exercise sensor telemetry,

@@ -2,6 +2,7 @@
 #include "TranslationService.hpp"
 #include "engine/core/SimulationEngine.hpp"
 #include "traffic/TrafficRun.hpp"
+#include "traffic/TrafficPlanIO.hpp"
 #include "imgui.h"
 #include <algorithm>
 #include <array>
@@ -38,6 +39,8 @@ namespace gui {
     }
 
     nlohmann::json TrafficLabPanel::plan() const {
+        if (importedPlan_)
+            return *importedPlan_;
         auto flows = nlohmann::json::array();
         for (std::size_t i = 0; i < flows_.size(); ++i)
             flows.push_back(flows_[i].toJson(static_cast<std::uint32_t>(i + 1)));
@@ -71,7 +74,59 @@ namespace gui {
         ImGui::TextWrapped("%s", tr.translate(
             "Configure concurrent abstract wire traffic. Schedule on a fresh simulation, then use Start or Resume in Stats.")
                 .c_str());
-        if (!run_ || ImGui::CollapsingHeader(
+        ImGui::BeginDisabled(run_ != nullptr);
+        if (ImGui::Button(label("Paste plan JSON", "traffic-paste-plan").c_str())) {
+            try {
+                const char* text = ImGui::GetClipboardText();
+                if (!text)
+                    throw std::invalid_argument("Clipboard contains no plan text");
+                std::size_t size = 0;
+                while (size <= kns::traffic::MAX_PLAN_BYTES && text[size])
+                    ++size;
+                auto imported = kns::traffic::parseTrafficPlan(std::string_view(text, size), engine);
+                importedPlan_ = std::move(imported);
+                error_.clear();
+            } catch (const std::exception& error) {
+                error_ = error.what();
+            }
+        }
+        if (importedPlan_) {
+            if (ImGui::Button(label("Use editor drafts", "traffic-use-drafts").c_str())) {
+                importedPlan_.reset();
+                error_.clear();
+            }
+        }
+        ImGui::EndDisabled();
+        if (importedPlan_) {
+            ImGui::TextWrapped("%s", tr.translate(
+                "Imported plan (read-only). IDs, seeds, schedules and application settings are preserved.")
+                    .c_str());
+            ImGui::Text("%s: %zu", tr.translate("Flows").c_str(), importedPlan_->at("flows").size());
+            ImGui::TextWrapped("%s: %llu", tr.translate("Traffic seed").c_str(),
+                              importedPlan_->at("seed").get<unsigned long long>());
+            ImGui::Text("%s: %llu", tr.translate("Packet budget").c_str(),
+                        importedPlan_->at("max_packets").get<unsigned long long>());
+            ImGui::TextWrapped("%s: %llu", tr.translate("Network seed").c_str(),
+                        static_cast<unsigned long long>(networkSeed));
+            if (ImGui::CollapsingHeader(label("Imported flows", "traffic-imported-flows").c_str()) &&
+                ImGui::BeginTable("traffic-imported-preview", 4,
+                    ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX |
+                    ImGuiTableFlags_SizingFixedFit, {0, 140})) {
+                for (const char* heading : {"Flow", "Source", "Destination", "Pattern"})
+                    ImGui::TableSetupColumn(tr.translate(heading).c_str());
+                ImGui::TableHeadersRow();
+                for (const auto& flow : importedPlan_->at("flows")) {
+                    ImGui::TableNextRow();
+                    for (const char* key : {"id", "source", "destination"}) {
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%llu", flow.at(key).get<unsigned long long>());
+                    }
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(flow.at("schedule").at("kind").get_ref<const std::string&>().c_str());
+                }
+                ImGui::EndTable();
+            }
+        } else if (!run_ || ImGui::CollapsingHeader(
                 label("Workload configuration", "traffic-configuration").c_str())) {
             ImGui::PushItemWidth(std::clamp(ImGui::GetContentRegionAvail().x * 0.48f, 80.0f, 220.0f));
             ImGui::BeginDisabled(run_ != nullptr);
@@ -193,7 +248,8 @@ namespace gui {
                 ImGui::Text("%s: %llu", tr.translate(title).c_str(),
                             current->at(key).get<unsigned long long>());
             const float tableHeight = std::min(200.0f,
-                (static_cast<float>(flows_.size()) + 1) * ImGui::GetTextLineHeightWithSpacing() + 12);
+                (static_cast<float>(current->at("flows").size()) + 1) *
+                ImGui::GetTextLineHeightWithSpacing() + 12);
             if (ImGui::BeginTable("traffic-outcomes", 7,
                 ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                 ImGuiTableFlags_SizingFixedFit, {0, tableHeight})) {
@@ -214,6 +270,48 @@ namespace gui {
                     }
                 }
                 ImGui::EndTable();
+            }
+            bool hasOperations = false;
+            for (const auto& flow : current->at("flows"))
+                hasOperations |= flow.at("config").contains("application") &&
+                    flow.at("config").at("application").contains("response_wire_bytes");
+            if (hasOperations) {
+                ImGui::TextUnformatted(tr.translate("Request/response operations").c_str());
+                if (ImGui::BeginTable("traffic-operations", 8,
+                    ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
+                    ImGuiTableFlags_SizingFixedFit, {0, tableHeight})) {
+                    for (const char* heading : {"Flow", "Started", "Completed", "Failed", "Pending",
+                                                 "On time", "Late", "P95 (ms)"})
+                        ImGui::TableSetupColumn(tr.translate(heading).c_str());
+                    ImGui::TableHeadersRow();
+                    for (const auto& flow : current->at("flows")) {
+                        const auto& config = flow.at("config");
+                        if (!config.contains("application") ||
+                            !config.at("application").contains("response_wire_bytes"))
+                            continue;
+                        ImGui::TableNextRow();
+                        for (const char* key : {"id", "operations_started", "operations_completed",
+                            "operations_failed", "operations_pending", "operations_on_time", "operations_late"}) {
+                            ImGui::TableNextColumn();
+                            const bool deadline = std::string_view(key) == "operations_on_time" ||
+                                                  std::string_view(key) == "operations_late";
+                            if (deadline && !config.at("application").contains("deadline_s"))
+                                ImGui::TextUnformatted("--");
+                            else
+                                ImGui::Text("%llu", flow.at(key).get<unsigned long long>());
+                        }
+                        ImGui::TableNextColumn();
+                        const auto& latency = flow.at("operation_latency");
+                        if (latency.at("p95_s").is_null())
+                            ImGui::TextUnformatted("--");
+                        else
+                            ImGui::Text("%.3f", latency.at("p95_s").get<double>() * 1000);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("%s: %s", tr.translate("Percentile scope").c_str(),
+                                latency.at("percentile_scope").get_ref<const std::string&>().c_str());
+                    }
+                    ImGui::EndTable();
+                }
             }
             if (ImGui::Button(label("Copy report JSON", "traffic-copy-report").c_str()))
                 ImGui::SetClipboardText(current->dump(2).c_str());

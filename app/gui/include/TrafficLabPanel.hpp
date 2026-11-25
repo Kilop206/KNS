@@ -43,6 +43,7 @@ namespace gui {
         std::uint64_t seed_ = 42, networkSeed_ = 42;
         const kns::SimulationEngine* engine_ = nullptr;
         std::shared_ptr<kns::traffic::TrafficRun> run_;
+        std::optional<nlohmann::json> importedPlan_;
         std::string error_;
 
         nlohmann::json plan() const;

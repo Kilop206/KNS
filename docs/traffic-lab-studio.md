@@ -50,7 +50,35 @@ The editor currently creates one-way abstract messages. These are not TCP,
 HTTP or real sockets, and do not require matching application services. Active
 endpoints are required; intermediate forwarding still follows device roles.
 Native uniform/custom/replay schedules and application response abstractions
-remain available through the existing headless plan interface.
+can also be loaded through the clipboard import described below.
+
+## Reuse an existing plan
+
+Copy the contents of a native plan JSON file and click **Paste plan JSON**. For
+an application example, load `KNS Experiments/traffic-lab/topology.json` and copy
+`KNS Experiments/traffic-lab/applications.json`. Import performs native preflight
+without claiming a workload or scheduling events. Use **Schedule workload** and
+the Stats controls to execute it when the simulation is fresh.
+
+Imported plans are read-only and preserve the native configuration: original
+flow IDs, the full unsigned 64-bit seed, traffic classes, hop budgets, deadlines,
+all supported schedules, replay-event order and application response settings.
+They support the native 1..256-flow limit, independently of the editor's 16-flow
+limit. Expand **Imported flows** to inspect IDs/endpoints/patterns, and use
+**Copy plan JSON** for the complete configuration. No conversion to editor drafts
+or renumbering takes place. Priority remains metadata, not a queue priority rule.
+
+**Use editor drafts** returns to the drafts that existed before import. A rejected
+import preserves both those drafts and the last valid imported plan. Invalid
+JSON, duplicate object keys (including escaped key spellings), trailing JSON,
+inputs over 4 MiB and nesting beyond depth 32 are rejected. Clipboard and CLI plan
+input share this strict reader and the native semantic validator. This is text
+import from the clipboard; native plan-file dialogs are not part of this increment.
+
+Imported plans persist across restart; results attach only to their current
+engine. Reproduction also requires an equivalent topology, routing metric,
+network seed, runtime changes and build/environment. A traffic plan does not
+silently change the network seed or routing metric.
 
 ## Results and reuse
 
@@ -63,6 +91,15 @@ interrupted. Use assertions in the existing validation tooling for acceptance
 criteria. Restarting or replacing the engine clears the panel's result attachment.
 Sparse Poisson workloads can sample their first message beyond the source window,
 producing no events. The GUI marks this zero-message workload finished immediately.
+
+Plans with causal responses also show **Request/response operations**: started,
+completed, failed and pending operations, separate from the packet ledger. An
+operation completes when its response arrives. Its optional deadline spans the
+request, processing delay and response; this differs from a per-packet deadline.
+`--` marks unavailable deadline or latency values. P95 is shown in milliseconds
+from the native per-flow latency statistics, retaining up to 256 recent completed
+operations; hover over it for the native percentile scope. These are modeled
+exchanges with fixed parallel processing delay, not protocol or service execution.
 
 **Copy plan JSON** validates an unscheduled draft without changing the engine.
 After scheduling, it copies the original configuration, including if the live

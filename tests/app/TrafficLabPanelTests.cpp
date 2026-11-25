@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 
 namespace {
     kns::Topology topology() {
@@ -18,12 +19,25 @@ namespace {
         return result;
     }
 
+    nlohmann::json importedPlan() {
+        return {{"schema_version", "1.0"}, {"seed", std::numeric_limits<std::uint64_t>::max()},
+            {"max_packets", 100}, {"flows", nlohmann::json::array({
+                {{"id", 70007}, {"source", 0}, {"destination", 1}, {"wire_bytes", 1000},
+                 {"start_s", 0}, {"end_s", 0.02}, {"priority", 7}, {"ttl_hops", 12},
+                 {"deadline_s", 0.003},
+                 {"schedule", {{"kind", "custom"}, {"offsets_s", {0, 0.01}}}},
+                 {"application", {{"kind", "api"}, {"response_wire_bytes", 200},
+                     {"processing_delay_s", 0.002}, {"deadline_s", 0.005}}}}
+            })}};
+    }
+
     struct TrafficUI {
         gui::TrafficLabPanel panel;
         gui::TranslationService translations;
         kns::SimulationEngine engine{topology()};
         std::string clipboard;
         bool scheduled = false;
+        float panelWidth = 1000;
         GLFWwindow* window = nullptr;
 
         TrafficUI() {
@@ -74,7 +88,7 @@ namespace {
                 ImGui_ImplOpenGL3_NewFrame();
             ImGui::NewFrame();
             ImGui::SetNextWindowPos({0, 0});
-            ImGui::SetNextWindowSize({1000, 900});
+            ImGui::SetNextWindowSize({panelWidth, 900});
             scheduled |= panel.render(replacement ? *replacement : engine, translations, 99);
             ImGui::Render();
             if (window) {
@@ -291,4 +305,139 @@ TEST_CASE("Traffic Lab distinguishes truncation and interruption and clears repl
     ui.frame(&replacement);
     REQUIRE_FALSE(ui.panel.report(replacement));
     REQUIRE_FALSE(ui.panel.report(ui.engine));
+}
+
+TEST_CASE("Traffic Lab imports advanced plans losslessly and exposes real operation outcomes",
+          "[traffic-lab-ui][traffic-import]") {
+    TrafficUI ui;
+    const auto plan = importedPlan();
+    const auto revision = ui.engine.getTopology().getRoutingRevision();
+    ui.clipboard = plan.dump();
+    ui.activate("traffic-paste-plan");
+    REQUIRE_FALSE(ui.engine.hasEvents());
+    REQUIRE(ui.engine.getTopology().getRoutingRevision() == revision);
+    ui.activate("traffic-imported-flows");
+    ui.capture("traffic-imported-plan");
+    ui.activate("traffic-copy-plan");
+    REQUIRE(nlohmann::json::parse(ui.clipboard) == plan);
+    ui.activate("traffic-schedule");
+    REQUIRE(ui.scheduled);
+    ui.engine.run();
+    ui.frame();
+    const auto report = *ui.panel.report(ui.engine);
+    REQUIRE(report["config"] == plan);
+    REQUIRE(report["generated"] == 4);
+    REQUIRE(report["delivered"] == 4);
+    const auto& flow = report["flows"][0];
+    REQUIRE(flow["id"] == 70007);
+    REQUIRE(flow["operations_started"] == 2);
+    REQUIRE(flow["operations_completed"] == 2);
+    REQUIRE(flow["operations_on_time"] == 2);
+    REQUIRE(flow["operations_pending"] == 0);
+    REQUIRE(flow["operation_latency"]["p95_s"].get<double>() == Catch::Approx(0.004096));
+    REQUIRE(ImGui::TableFindByID(ui.panelWindow()->GetID("traffic-operations")) != nullptr);
+    ui.capture("traffic-imported-operations");
+    ui.activate("traffic-copy-report");
+    REQUIRE(nlohmann::json::parse(ui.clipboard) == report);
+}
+
+TEST_CASE("Rejected clipboard imports preserve the previous plan and the editor drafts",
+          "[traffic-lab-ui][traffic-import]") {
+    TrafficUI ui;
+    ui.input("traffic-budget", "123");
+    ui.activate("traffic-copy-plan");
+    const auto draft = nlohmann::json::parse(ui.clipboard);
+    const auto plan = importedPlan();
+    ui.clipboard = plan.dump();
+    ui.activate("traffic-paste-plan");
+    auto invalid = plan;
+    invalid["flows"][0]["source"] = 99;
+    for (const auto& text : {std::string("{"), "{\"seed\":1," + plan.dump().substr(1),
+                             invalid.dump(), std::string(4 * 1024 * 1024 + 1, ' ')}) {
+        ui.clipboard = text;
+        ui.activate("traffic-paste-plan");
+        REQUIRE_FALSE(ui.engine.hasEvents());
+        ui.activate("traffic-copy-plan");
+        REQUIRE(nlohmann::json::parse(ui.clipboard) == plan);
+    }
+    ui.activate("traffic-use-drafts");
+    ui.activate("traffic-copy-plan");
+    REQUIRE(nlohmann::json::parse(ui.clipboard) == draft);
+    REQUIRE_FALSE(ui.engine.hasEvents());
+}
+
+TEST_CASE("Imported plans retain native flow limits beyond the simplified editor",
+          "[traffic-lab-ui][traffic-import]") {
+    TrafficUI ui;
+    auto plan = importedPlan();
+    for (int i = 1; i < 17; ++i) {
+        auto flow = plan["flows"][0];
+        flow["id"] = 70007 + i;
+        plan["flows"].push_back(flow);
+    }
+    ui.clipboard = plan.dump();
+    ui.activate("traffic-paste-plan");
+    ui.activate("traffic-schedule");
+    REQUIRE(ui.scheduled);
+    REQUIRE(ui.engine.pendingEventCount() == 17);
+    ui.engine.run();
+    ui.frame();
+    const auto report = *ui.panel.report(ui.engine);
+    REQUIRE(report["flows"].size() == 17);
+    REQUIRE(report["config"] == plan);
+    REQUIRE(report["generated"] == 68);
+    REQUIRE(report["delivered"] == 68);
+    auto* table = ImGui::TableFindByID(ui.panelWindow()->GetID("traffic-outcomes"));
+    REQUIRE(table != nullptr);
+    REQUIRE(table->InnerRect.GetHeight() <= 200);
+    REQUIRE(table->InnerRect.GetHeight() > 100);
+}
+
+TEST_CASE("Clipboard replay plans preserve noncontiguous IDs and tied source order",
+          "[traffic-lab-ui][traffic-import]") {
+    TrafficUI ui;
+    auto plan = importedPlan();
+    auto& first = plan["flows"][0];
+    first["id"] = 12;
+    first.erase("application");
+    first["schedule"] = {{"kind", "replay"}};
+    auto second = first;
+    second["id"] = 900009;
+    plan["flows"].push_back(second);
+    plan["replay_events"] = {{{"at_s", 0}, {"flow_id", 900009}},
+                              {{"at_s", 0}, {"flow_id", 12}}};
+    std::vector<std::uint32_t> sourceOrder;
+    ui.engine.setPacketObserver([&](const kns::Packet& packet, auto, auto, auto, auto, auto) {
+        if (packet.workload && packet.hop_count == 0)
+            sourceOrder.push_back(packet.workload->flow_id);
+    });
+    ui.clipboard = plan.dump();
+    ui.activate("traffic-paste-plan");
+    ui.activate("traffic-schedule");
+    REQUIRE(ui.scheduled);
+    REQUIRE(ui.engine.pendingEventCount() == 1);
+    ui.engine.run();
+    REQUIRE(sourceOrder == std::vector<std::uint32_t>{900009, 12});
+    const auto report = *ui.panel.report(ui.engine);
+    REQUIRE(report["config"] == plan);
+    REQUIRE(report["generated"] == 2);
+    REQUIRE(report["delivered"] == 2);
+}
+
+TEST_CASE("Imported plan controls remain usable in a narrow dock", "[traffic-lab-ui][traffic-import]") {
+    TrafficUI ui;
+    ui.panelWidth = 300;
+    ui.frame();
+    const auto plan = importedPlan();
+    ui.clipboard = plan.dump();
+    ui.activate("traffic-paste-plan");
+    ui.activate("traffic-copy-plan");
+    REQUIRE(nlohmann::json::parse(ui.clipboard) == plan);
+    ui.capture("traffic-imported-narrow");
+    ui.activate("traffic-use-drafts");
+    ui.activate("traffic-copy-plan");
+    const auto draft = nlohmann::json::parse(ui.clipboard);
+    REQUIRE(draft["seed"] == 42);
+    REQUIRE(draft["flows"][0]["id"] == 1);
+    REQUIRE_FALSE(ui.engine.hasEvents());
 }
