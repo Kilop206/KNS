@@ -1183,3 +1183,45 @@ malformed/overflowing IDs, bounded counts, live edits/removal, offscreen focus,
 mouse/keyboard selection, Ctrl+F, empty results, cancellation of cable mode and
 unchanged positions/revision/time/traffic. `git diff --check` passed. Prior local
 platform/TLS/sanitizer and uncompleted milestone limitations remain unchanged.
+
+## Initial desktop Traffic Lab and endpoint validation — 2026-11-25
+
+Added the docked Traffic Lab editor using the existing native TrafficRun model:
+1..16 concurrent periodic/CBR/burst/Poisson flows, wire sizes, start/duration,
+independent traffic seed, global packet budget and optional packet deadlines.
+Scheduling requires a fresh GUI simulation and leaves work paused for the existing
+Start/Resume/Step controls. A zero-event sparse Poisson plan is immediately marked
+finished. Active workload parameters are read-only; flow selection remains enabled
+for inspection. Restart/replacement clears results while retaining the next draft.
+
+Live results expose generated/delivered/dropped/pending counters, per-flow deadline
+outcomes and explicit interrupted/truncated states. No deadline is displayed as
+unavailable rather than zero successful deadlines. Configuration collapses after
+scheduling so results fit the dock; the outcome table has bounded height and
+horizontal scrolling. Explicit copy actions export the native plan/report JSON,
+with network seed and interruption evidence in reports. Existing topology edits do
+not prevent copying the original scheduled configuration. The guide
+`traffic-lab-studio.md` documents GUI model scope and headless reuse.
+
+Reproduced acceptance of removed source/destination IDs with a failing native test.
+TrafficRun now rejects inactive endpoints before claiming a plan or adding events.
+The new public validatePlan API supports configuration-only preflight without
+scheduling, including the GUI copy-plan action. Existing timing, queue, deadline,
+RNG and traffic ledger meanings are preserved; no protocol implementation was added.
+
+Verification: MinGW Debug application/core/tests build passed. Seven new cases
+(six GUI/model cases and one native validation case) cover all four patterns with
+analytical emission/unit checks, concurrent delivery and deadlines, invalid-input
+retry, prevention of mixing with TCP, clipboard JSON via an isolated in-memory
+clipboard, readonly flow inspection, generation limits, cancellation, engine
+replacement and zero-message Poisson. Focused OpenGL run passed **9 cases / 186
+assertions**; inspected `traffic-editor.png` and `traffic-results.png` under
+`build-core-mingw/verification-build/traffic-ui-captures`.
+
+Final full CTest passed **489/489 in 40.68 seconds**, recorded in
+`traffic-ui-verified-ctest.log` in that build. An intervening run recorded an
+isolated services-editor timeout with an anomalous 78,256-second elapsed time;
+that unchanged case passed both in isolation and in the final full run.
+`git diff --check` passed. Prior local TLS/platform/sanitizer and incomplete
+milestone limitations remain in force; advanced Studio workload/application
+models and file import/export UI remain pending.

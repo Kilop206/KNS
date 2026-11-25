@@ -28,6 +28,7 @@ if(KNS_BUILD_APP)
         ${PROJECT_SOURCE_DIR}/app/gui/src/TopologyCanvas.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/CableGeometry.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/DeviceFinder.cpp
+        ${PROJECT_SOURCE_DIR}/app/gui/src/TrafficLabPanel.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/VisualPacketManager.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/DeviceIcons.cpp
         ${PROJECT_SOURCE_DIR}/app/gui/src/PacketRenderer.cpp

@@ -1,8 +1,11 @@
 # Traffic Lab: abstract workloads
 
 `traffic::TrafficRun::schedule(engine, plan)` schedules bounded concurrent flows
-through the existing routing/link/queue models. Attach before execution. It is
-independent of the GUI, services and TCP. The headless `--traffic-plan plan.json`
+through the existing routing/link/queue models. Attach before execution. The core
+model is independent of the GUI, services and TCP. The
+[Studio editor](traffic-lab-studio.md) provides
+concurrent flow configuration and live outcome inspection.
+The headless `--traffic-plan plan.json`
 option replaces automatic TCP generation and writes `<output>.traffic.json`.
 It can be combined with `--analytics`, `--fault-plan`, `--until` and `--max-events`.
 
@@ -54,7 +57,7 @@ Tests cover analytical serialization/propagation, shared queue congestion,
 source/intermediate/TTL drops, pending work/cancellation, budget truncation,
 deadlines, isolated replayable random streams and atomic configuration rejection.
 Arbitrary application dependency graphs, arbitrary distributions, trace replay
-and Studio controls remain separate work.
+remain outside the initial Studio editor's scope.
 
 ## Run the shared-backbone example
 

@@ -35,6 +35,7 @@ target_sources(KNS PRIVATE
     gui/src/TopologyCanvas.cpp
     gui/src/CableGeometry.cpp
     gui/src/DeviceFinder.cpp
+    gui/src/TrafficLabPanel.cpp
     gui/src/DeviceIcons.cpp
     gui/src/VisualPacketManager.cpp
     gui/src/Window.cpp

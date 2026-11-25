@@ -56,6 +56,7 @@
 #include "gui/include/TcpCongestionPanel.hpp"
 #include "gui/include/TcpConnectionPanel.hpp"
 #include "gui/include/NetworkServicesPanel.hpp"
+#include "gui/include/TrafficLabPanel.hpp"
 #include "network/services/DeviceCLI.hpp"
 #include "cli/DeviceConsole.hpp"
 #include "gui/include/TopologyPannel.hpp"
@@ -785,6 +786,7 @@ static void SetupDockingLayout() {
     ImGui::DockBuilderDockWindow("Topology###topology-window", dock_right);
     ImGui::DockBuilderDockWindow("TCP Connections###tcp-connections-window", dock_right);
     ImGui::DockBuilderDockWindow("Device Services###device-services-window", dock_right);
+    ImGui::DockBuilderDockWindow("Traffic Lab###traffic-lab-window", dock_right);
     ImGui::DockBuilderDockWindow("TCP Sessions###tcp-sessions-window", dock_left);
     ImGui::DockBuilderDockWindow("Event Log###event-log-window", dock_left);
     ImGui::DockBuilderDockWindow("TCP Congestion Control###tcp-congestion-window", dock_left);
@@ -1042,6 +1044,7 @@ static void visualizeWindow(std::unique_ptr<SimulationEngine>& engine, Topology&
 
     TcpConnectionPanel tcpConnectionPanel;
     NetworkServicesPanel networkServicesPanel;
+    TrafficLabPanel trafficLabPanel;
     TopologyPanel topologyPanel;
     TopologyCanvas topologyCanvas;
 
@@ -1211,6 +1214,11 @@ static void visualizeWindow(std::unique_ptr<SimulationEngine>& engine, Topology&
         if (networkServicesPanel.render(*engine, selected_node, translations) &&
             state != SimulationState::Running)
             state = SimulationState::Paused;
+        if (trafficLabPanel.render(*engine, translations, runConfig.seed)) {
+            state = engine->hasEvents() ? SimulationState::Paused : SimulationState::Finished;
+            visualTime = engine->now();
+            lastRealTime = glfwGetTime();
+        }
 
         // --------------------------------------------------
         // Topology loading
