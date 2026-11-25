@@ -38,6 +38,7 @@
 #include "analysis/NetworkAnalyzer.hpp"
 #include "analysis/MetricsCollector.hpp"
 #include "traffic/TrafficRun.hpp"
+#include "traffic/TrafficPlanIO.hpp"
 #include "intelligence/IntelligenceClient.hpp"
 #include "intelligence/IntelligenceConfigLoader.hpp"
 #include "intelligence/IntelligenceRequestBuilder.hpp"
@@ -1763,13 +1764,10 @@ int main(int argc, char* argv[]) {
         std::shared_ptr<kns::traffic::TrafficRun> traffic;
         if (trafficPlanPath) {
             try {
-                if (fs::file_size(*trafficPlanPath) > 4 * 1024 * 1024)
-                    throw std::invalid_argument("Traffic plan exceeds 4 MiB");
-                std::ifstream input(*trafficPlanPath);
+                std::ifstream input(*trafficPlanPath, std::ios::binary);
                 if (!input)
                     throw std::runtime_error("Cannot open traffic plan");
-                nlohmann::json plan;
-                input >> plan;
+                auto plan = kns::traffic::readTrafficPlan(input, *engine);
                 traffic = kns::traffic::TrafficRun::schedule(*engine, plan);
             } catch (const std::exception& error) {
                 std::cerr << "Invalid traffic plan: " << error.what() << '\n';

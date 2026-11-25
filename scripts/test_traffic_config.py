@@ -22,6 +22,23 @@ class TrafficConfigTests(unittest.TestCase):
         traffic_config.validate(self.plan, self.topology)
         self.assertEqual(len({f["schedule"]["kind"] for f in self.plan["flows"]}), 6)
 
+    @unittest.skipUnless(os.environ.get("KNS_TEST_EXE"), "Set KNS_TEST_EXE for CLI integration")
+    def test_actual_cli_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory(prefix="KNS ambiguous plan ") as folder:
+            root = Path(folder)
+            source = root / "plan.json"
+            source.write_text('{"seed":0,' + json.dumps(self.plan)[1:], encoding="utf-8")
+            output = root / "run.csv"
+            result = subprocess.run(
+                [os.environ["KNS_TEST_EXE"], "--headless", "--topology",
+                 str(LAB / "topology.json"), "--traffic-plan", str(source),
+                 "--output", str(output)],
+                capture_output=True, timeout=30,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(b"Duplicate", result.stderr)
+            self.assertFalse(output.exists())
+
     def test_replay_preflight_matches_the_ordered_bounded_contract(self):
         plan = json.loads(
             (ROOT / "contracts/fixtures/traffic-plan-v1.valid.replay.json").read_text()
